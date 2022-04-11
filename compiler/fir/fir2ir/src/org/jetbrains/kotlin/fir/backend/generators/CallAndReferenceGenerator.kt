@@ -81,8 +81,10 @@ class CallAndReferenceGenerator(
         }
 
         val symbol = callableReferenceAccess.calleeReference.toSymbolForCall(
-            callableReferenceAccess.dispatchReceiver, session, classifierStorage, declarationStorage, conversionScope,
-            explicitReceiver = callableReferenceAccess.explicitReceiver, isDelegate = isDelegate
+            callableReferenceAccess.dispatchReceiver,
+            conversionScope,
+            explicitReceiver = callableReferenceAccess.explicitReceiver,
+            isDelegate = isDelegate
         )
         // val x by y ->
         //   val `x$delegate` = y
@@ -282,9 +284,6 @@ class CallAndReferenceGenerator(
             val calleeReference = qualifiedAccess.calleeReference
             val symbol = calleeReference.toSymbolForCall(
                 dispatchReceiver,
-                session,
-                classifierStorage,
-                declarationStorage,
                 conversionScope
             )
             return qualifiedAccess.convertWithOffsets { startOffset, endOffset ->
@@ -362,7 +361,7 @@ class CallAndReferenceGenerator(
             val type = irBuiltIns.unitType
             val calleeReference = variableAssignment.calleeReference
             val symbol = calleeReference.toSymbolForCall(
-                variableAssignment.dispatchReceiver, session, classifierStorage, declarationStorage, conversionScope, preferGetter = false
+                variableAssignment.dispatchReceiver, conversionScope, preferGetter = false
             )
             val origin = variableAssignment.getIrAssignmentOrigin()
             return variableAssignment.convertWithOffsets { startOffset, endOffset ->
@@ -529,7 +528,7 @@ class CallAndReferenceGenerator(
             if (classSymbol != null) {
                 IrGetObjectValueImpl(
                     startOffset, endOffset, irType,
-                    classSymbol.toSymbol(this.session, this.classifierStorage) as IrClassSymbol
+                    classSymbol.toSymbol() as IrClassSymbol
                 )
             } else {
                 IrErrorCallExpressionImpl(
