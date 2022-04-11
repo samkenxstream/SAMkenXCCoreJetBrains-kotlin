@@ -436,7 +436,7 @@ class Fir2IrConverter(
             mangler: FirMangler,
             irFactory: IrFactory,
             visibilityConverter: Fir2IrVisibilityConverter,
-            specialSymbolProvider: Fir2IrSpecialSymbolProvider?,
+            specialSymbolProvider: Fir2IrSpecialSymbolProvider,
             irGenerationExtensions: Collection<IrGenerationExtension>
         ): Fir2IrResult {
             val moduleDescriptor = FirModuleDescriptor(session)
