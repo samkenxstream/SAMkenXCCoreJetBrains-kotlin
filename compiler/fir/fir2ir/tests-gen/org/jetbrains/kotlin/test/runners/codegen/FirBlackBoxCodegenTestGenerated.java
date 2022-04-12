@@ -47614,6 +47614,12 @@ public class FirBlackBoxCodegenTestGenerated extends AbstractFirBlackBoxCodegenT
         }
 
         @Test
+        @TestMetadata("conflictingOverloadsWithDifferentNullability.kt")
+        public void testConflictingOverloadsWithDifferentNullability() throws Exception {
+            runTest("compiler/testData/codegen/box/typeMapping/conflictingOverloadsWithDifferentNullability.kt");
+        }
+
+        @Test
         @TestMetadata("enhancedPrimitiveInReturnType.kt")
         public void testEnhancedPrimitiveInReturnType() throws Exception {
             runTest("compiler/testData/codegen/box/typeMapping/enhancedPrimitiveInReturnType.kt");

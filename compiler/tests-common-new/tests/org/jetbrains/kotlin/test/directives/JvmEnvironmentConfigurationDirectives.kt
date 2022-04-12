@@ -77,4 +77,8 @@ object JvmEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         description = "Enable serialization of JVM IR",
         additionalParser = JvmSerializeIrMode.Companion::fromString
     )
+
+    val LINK_VIA_SIGNATURES by directive(
+        description = "Link IR declarations via directives"
+    )
 }
