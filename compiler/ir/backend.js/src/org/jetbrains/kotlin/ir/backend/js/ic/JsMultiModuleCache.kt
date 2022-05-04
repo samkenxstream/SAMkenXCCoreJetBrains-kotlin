@@ -12,7 +12,7 @@ import java.io.File
 
 class JsMultiModuleCache(private val moduleArtifacts: List<ModuleArtifact>) {
     companion object {
-        private const val cacheModuleHeader = "cache.module.header.info"
+        private const val cacheModuleHeader = "cache.module.header.bin"
         private const val cacheJsModuleFile = "cache.module.js"
         private const val cacheJsMapModuleFile = "cache.module.js.map"
     }

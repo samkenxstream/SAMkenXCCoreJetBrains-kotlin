@@ -64,19 +64,19 @@ abstract class AbstractInvalidationTest : KotlinTestWithEnvironment() {
         val cacheDir = createTempDirectory().toFile()
         cacheDir.deleteOnExit()
 
-        val cacheUpdater = CacheUpdater(
-            stdlibKlibPath,
-            listOf(stdlibKlibPath),
-            createConfiguration(stdlibAlias),
-            listOf(cacheDir.canonicalPath),
-            { IrFactoryImplForJsIC(WholeWorldStageController()) },
-            null,
-            ::buildCacheForModuleFiles
-        )
-        cacheUpdater.actualizeCaches { updateStatus, updatedModule ->
-            JUnit4Assertions.assertEquals(stdlibKlibPath, updatedModule) { "incorrect std klib path" }
-            JUnit4Assertions.assertTrue(updateStatus is CacheUpdateStatus.Dirty) { "std klib should be rebuilt" }
-        }
+//        val cacheUpdater = CacheUpdater(
+//            stdlibKlibPath,
+//            listOf(stdlibKlibPath),
+//            createConfiguration(stdlibAlias),
+//            listOf(cacheDir.canonicalPath),
+//            { IrFactoryImplForJsIC(WholeWorldStageController()) },
+//            null,
+//            ::buildCacheForModuleFiles
+//        )
+//        cacheUpdater.actualizeCaches { updateStatus, updatedModule ->
+//            JUnit4Assertions.assertEquals(stdlibKlibPath, updatedModule) { "incorrect std klib path" }
+//            JUnit4Assertions.assertTrue(updateStatus is CacheUpdateStatus.Dirty) { "std klib should be rebuilt" }
+//        }
 
         stdlibCacheDir = cacheDir
     }
@@ -271,18 +271,18 @@ abstract class AbstractInvalidationTest : KotlinTestWithEnvironment() {
                 val testInfo = projStep.order.mapTo(mutableListOf(stdlibInfo)) { setupTestStep(projStep.id, it) }
 
                 val configuration = createConfiguration(projStep.order.last())
-                val cacheUpdater = CacheUpdater(
-                    rootModule = testInfo.last().modulePath,
-                    testInfo.map { it.modulePath },
-                    configuration,
-                    testInfo.map { it.icCacheDir },
-                    { IrFactoryImplForJsIC(WholeWorldStageController()) },
-                    null,
-                    ::executorWithBoxExport
-                )
+//                val cacheUpdater = CacheUpdater(
+//                    rootModule = testInfo.last().modulePath,
+//                    testInfo.map { it.modulePath },
+//                    configuration,
+//                    testInfo.map { it.icCacheDir },
+//                    { IrFactoryImplForJsIC(WholeWorldStageController()) },
+//                    null,
+//                    ::executorWithBoxExport
+//                )
 
                 val updateStatuses = mutableMapOf<String, CacheUpdateStatus>()
-                var icCaches = cacheUpdater.actualizeCaches { updateStatus, updatedModule -> updateStatuses[updatedModule] = updateStatus }
+                var icCaches = emptyList<ModuleArtifact>()//cacheUpdater.actualizeCaches { updateStatus, updatedModule -> updateStatuses[updatedModule] = updateStatus }
                 verifyCacheUpdateStatus(projStep.id, updateStatuses, testInfo)
 
                 val mainModuleCacheDir = icCaches.last().artifactsDir!!

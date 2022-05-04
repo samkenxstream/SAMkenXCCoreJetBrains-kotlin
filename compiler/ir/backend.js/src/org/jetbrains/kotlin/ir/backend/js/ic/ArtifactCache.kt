@@ -46,13 +46,6 @@ abstract class ArtifactCache {
     protected val binaryAsts = mutableMapOf<String, ByteArray>()
     protected val fragments = mutableMapOf<String, JsIrProgramFragment>()
 
-    fun saveBinaryAst(srcPath: String, binaryAst: ByteArray) {
-        binaryAsts[srcPath] = binaryAst
-    }
-
-    fun saveFragment(srcPath: String, fragment: JsIrProgramFragment) {
-        fragments[srcPath] = fragment
-    }
 
     abstract fun fetchArtifacts(): ModuleArtifact
 }

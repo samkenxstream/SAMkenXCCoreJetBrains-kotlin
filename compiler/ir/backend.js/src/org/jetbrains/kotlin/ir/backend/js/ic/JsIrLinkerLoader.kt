@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.ir.backend.js.ic
 
+import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategy
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureDescriptor
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.languageVersionSettings
@@ -19,6 +20,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFactory
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltInsOverDescriptors
 import org.jetbrains.kotlin.ir.util.ExternalDependenciesGenerator
+import org.jetbrains.kotlin.ir.util.IdSignature
 import org.jetbrains.kotlin.ir.util.IrMessageLogger
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.library.KotlinLibrary
@@ -95,5 +97,45 @@ internal class JsIrLinkerLoader(
 
         val currentIrModule = irModules.find { it.second == library }?.first!!
         return Triple(jsIrLinker, currentIrModule, irModules.map { it.first })
+    }
+
+    class LoadedJsIr(val linker: JsIrLinker, val loadedFragments: Map<KotlinLibraryFile, IrModuleFragment>)
+
+    fun loadIr(modifiedFiles: KotlinSourceFileMap<KotlinSourceFileExports>): LoadedJsIr {
+        val loadedModules = loadModules()
+        val jsIrLinker = createLinker(loadedModules)
+
+        val irModules = loadedModules.entries.associate { (descriptor, module) ->
+            val libraryFile = KotlinLibraryFile(module)
+            val modifiedStrategy = when (module) {
+                library -> DeserializationStrategy.ALL
+                else -> DeserializationStrategy.EXPLICITLY_EXPORTED
+            }
+            val modified = modifiedFiles[libraryFile] ?: emptyMap()
+            libraryFile to jsIrLinker.deserializeIrModuleHeader(descriptor, module, {
+                when (KotlinSourceFile(it)) {
+                    in modified -> modifiedStrategy
+                    else -> DeserializationStrategy.WITH_INLINE_BODIES
+                }
+            })
+        }
+
+        jsIrLinker.init(null, emptyList())
+
+        for ((loadingLibFile, loadingSrcFiles) in modifiedFiles) {
+            val loadingIrModule = irModules[loadingLibFile] ?: error("TODO make an error")
+            val moduleDeserializer = jsIrLinker.moduleDeserializer(loadingIrModule.descriptor)
+            for (loadingSrcFileSignatures in loadingSrcFiles.values) {
+                for (loadingSignature in loadingSrcFileSignatures.getExportedSignatures()) {
+                    if (loadingSignature in moduleDeserializer) {
+                        moduleDeserializer.addModuleReachableTopLevel(loadingSignature)
+                    }
+                }
+            }
+        }
+
+        ExternalDependenciesGenerator(jsIrLinker.symbolTable, listOf(jsIrLinker)).generateUnboundSymbolsAsDependencies()
+        jsIrLinker.postProcess()
+        return LoadedJsIr(jsIrLinker, irModules)
     }
 }
