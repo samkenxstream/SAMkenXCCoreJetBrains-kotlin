@@ -1141,7 +1141,18 @@ public class JsToStringGenerationVisitor extends JsVisitor {
     @Override
     public void visitMultiLineComment(@NotNull JsMultiLineComment comment) {
         p.print("/*");
-        p.print(comment.getText());
+
+        String[] lines = comment.getText().split(System.lineSeparator());
+
+        if (lines.length > 1) {
+            for (String line : lines) {
+                p.print(line);
+                newline();
+            }
+        } else {
+            p.print(comment.getText());
+        }
+
         p.print("*/");
         needSemi = false;
         newline();
