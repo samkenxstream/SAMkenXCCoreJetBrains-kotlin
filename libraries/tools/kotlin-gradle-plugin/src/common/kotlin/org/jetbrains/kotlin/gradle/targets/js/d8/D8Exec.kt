@@ -21,9 +21,7 @@ constructor() : AbstractExecTask<D8Exec>(D8Exec::class.java) {
 
     init {
         onlyIf {
-            !inputFileProperty.isPresent || inputFileProperty.asFile.map {
-                it.exists()
-            }.get()
+            !inputFileProperty.isPresent || inputFileProperty.asFile.map { it.exists() }.get()
         }
     }
 
@@ -37,12 +35,17 @@ constructor() : AbstractExecTask<D8Exec>(D8Exec::class.java) {
 
     override fun exec() {
         val newArgs = mutableListOf<String>()
-        args?.let(newArgs::addAll)
         newArgs.addAll(d8Args)
         if (inputFileProperty.isPresent) {
-            newArgs.add(inputFileProperty.asFile.get().canonicalPath)
+            val inputFile = inputFileProperty.asFile.get()
+            workingDir = workingDir ?: inputFile.parentFile
+            newArgs.add(inputFile.canonicalPath)
         }
-        this.setArgs(newArgs)
+        args?.let {
+            newArgs.add("--")
+            newArgs.addAll(it)
+        }
+        this.args = newArgs
         super.exec()
     }
 
@@ -55,10 +58,7 @@ constructor() : AbstractExecTask<D8Exec>(D8Exec::class.java) {
             val target = compilation.target
             val project = target.project
             val d8 = D8RootPlugin.apply(project.rootProject)
-            return project.registerTask(
-                name,
-                listOf(compilation)
-            ) {
+            return project.registerTask(name) {
                 it.d8 = d8
                 it.executable = d8.requireConfigured().executablePath.absolutePath
                 it.dependsOn(compilation.compileKotlinTaskProvider)
