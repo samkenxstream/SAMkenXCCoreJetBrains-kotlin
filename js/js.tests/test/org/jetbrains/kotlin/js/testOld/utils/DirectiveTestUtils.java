@@ -308,14 +308,14 @@ public class DirectiveTestUtils {
             return isMultiLine ? new RecursiveJsVisitor() {
                 @Override
                 public void visitMultiLineComment(@NotNull JsMultiLineComment comment) {
-                    if (comment.getText().trim().equals(text)) {
+                    if (isTheSameText(comment.getText(), text)) {
                         setElementExists(true);
                     }
                 }
             } : new RecursiveJsVisitor() {
                 @Override
                 public void visitSingleLineComment(@NotNull JsSingleLineComment comment) {
-                    if (comment.getText().trim().equals(text)) {
+                    if (isTheSameText(comment.getText(), text)) {
                         setElementExists(true);
                     }
                 }
@@ -324,8 +324,25 @@ public class DirectiveTestUtils {
 
         @Override
         protected void loadArguments(@NotNull ArgumentsHelper arguments) {
-            this.text = arguments.findNamedArgument("text");
+            this.text = arguments.findNamedArgument("text").replace("\\n", System.lineSeparator());
             this.isMultiLine = Boolean.parseBoolean(arguments.findNamedArgument("multiline"));
+        }
+
+        private boolean isTheSameText(String str1, String str2) {
+            String[] lines1 = linesOf(str1);
+            String[] lines2 = linesOf(str2);
+
+            if (lines1.length != lines2.length) return false;
+
+            for (int i = 0; i < lines1.length; i++) {
+                if (!lines1[i].trim().equals(lines2[i].trim())) return false;
+            }
+            
+            return true;
+        }
+
+        private String[] linesOf(String str) {
+            return StringUtil.splitByLines(str, false);
         }
     };
 
@@ -529,10 +546,6 @@ public class DirectiveTestUtils {
             return AstSearchUtil.getFunction(node, scopeFunctionName);
         }
         return node;
-    }
-
-    public static void checkCommentExists(JsNode node, String content, boolean isMultiline) {
-
     }
 
     public static void checkPropertyNotUsed(JsNode node, String propertyName, String scope, boolean isGetAllowed, boolean isSetAllowed)
