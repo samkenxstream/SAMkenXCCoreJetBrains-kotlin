@@ -5,6 +5,7 @@
 package org.jetbrains.kotlin.js.backend;
 
 import com.intellij.openapi.util.text.StringUtil;
+import kotlin.text.StringsKt;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.js.backend.ast.*;
 import org.jetbrains.kotlin.js.backend.ast.JsDoubleLiteral;
@@ -1143,16 +1144,15 @@ public class JsToStringGenerationVisitor extends JsVisitor {
     public void visitMultiLineComment(@NotNull JsMultiLineComment comment) {
         p.print("/*");
 
-        String[] lines = StringUtil.splitByLines(comment.getText(), false);
+        List<String> lines = StringsKt.lines(comment.getText());
 
-        if (lines.length > 1) {
-            p.print(lines[0]);
-            for (int i = 1; i < lines.length; i++) {
-                newline();
-                p.print(lines[i]);
-            }
-        } else {
-            p.print(comment.getText());
+        if (!lines.isEmpty()) {
+            p.print(lines.get(0));
+        }
+
+        for (int i = 1; i < lines.size(); i++) {
+            newline();
+            p.print(lines.get(i));
         }
 
         p.print("*/");
