@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.incremental.util.BufferingMessageCollector
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.progress.CompilationCanceledStatus
 import java.io.File
+import java.io.IOException
 
 abstract class IncrementalCompilerRunner<
         Args : CommonCompilerArguments,
@@ -81,7 +82,6 @@ abstract class IncrementalCompilerRunner<
         providedChangedFiles: ChangedFiles?,
         projectDir: File? = null
     ): ExitCode {
-        var caches = createCacheManager(args, projectDir)
 
         if (withAbiSnapshot) {
             reporter.report { "Incremental compilation with ABI snapshot enabled" }
@@ -96,35 +96,46 @@ abstract class IncrementalCompilerRunner<
                 emptyMap()
             }
 
+        var currentCache: CacheManager? = null
+
         fun rebuild(reason: BuildAttribute): ExitCode {
             reporter.report { "Non-incremental compilation will be performed: $reason" }
-            caches.close(false)
+            currentCache?.close(false)
             // todo: we can recompile all files incrementally (not cleaning caches), so rebuild won't propagate
             reporter.measure(BuildTime.CLEAR_OUTPUT_ON_REBUILD) {
                 cleanOutputsAndLocalStateOnRebuild(args)
             }
-            caches = createCacheManager(args, projectDir)
+
+            //newCaches variable is used instead to avoid null checks
+            val newCaches = createCacheManager(args, projectDir).also { currentCache = it }
             if (providedChangedFiles == null) {
-                caches.inputsCache.sourceSnapshotMap.compareAndUpdate(allSourceFiles)
+                newCaches.inputsCache.sourceSnapshotMap.compareAndUpdate(allSourceFiles)
             }
             val allKotlinFiles = allSourceFiles.filter { it.isKotlinFile(kotlinSourceFilesExtensions) }
             return compileIncrementally(
-                args, caches, allKotlinFiles, CompilationMode.Rebuild(reason), messageCollector, withAbiSnapshot,
+                args, newCaches, allKotlinFiles, CompilationMode.Rebuild(reason), messageCollector, withAbiSnapshot,
                 classpathAbiSnapshot = classpathAbiSnapshot
             )
         }
 
         // If compilation has crashed or we failed to close caches we have to clear them
         var cachesMayBeCorrupted = true
-        val compilationMode = try {
-            determineCompilationMode(providedChangedFiles, caches, allSourceFiles, args, messageCollector, classpathAbiSnapshot)
-        } catch (e: Exception) {
-            reporter.report { "Possible caches corruption: $e" }
-            return rebuild(BuildAttribute.UNKNOWN_CHANGED_SOURCES)
-        }
 
-        return try {
+        fun compile(providedChangedFiles: ChangedFiles?, caches: CacheManager): ExitCode {
+            val changedFiles = when (providedChangedFiles) {
+                is ChangedFiles.Dependencies -> {
+                    val changedSources = caches.inputsCache.sourceSnapshotMap.compareAndUpdate(allSourceFiles)
+                    ChangedFiles.Known(
+                        providedChangedFiles.modified + changedSources.modified,
+                        providedChangedFiles.removed + changedSources.removed
+                    )
+                }
+                null -> caches.inputsCache.sourceSnapshotMap.compareAndUpdate(allSourceFiles)
+                else -> providedChangedFiles
+            }
+
             @Suppress("MoveVariableDeclarationIntoWhen")
+            val compilationMode = sourcesToCompile(caches, changedFiles, args, messageCollector, classpathAbiSnapshot)
 
             val exitCode = when (compilationMode) {
                 is CompilationMode.Incremental -> {
@@ -159,12 +170,25 @@ abstract class IncrementalCompilerRunner<
                     rebuild(compilationMode.reason)
                 }
             }
+            return exitCode
+        }
+
+        return try {
+
+            val caches = try {
+                createCacheManager(args, projectDir)
+            } catch (e: IOException) {
+                reporter.report { "Unable to init caches. Possible caches corruption: $e" }
+                return rebuild(BuildAttribute.CACHE_CORRUPTION)
+            }.also { currentCache = it }
+
+            val exitCode = compile(providedChangedFiles, caches)
 
             if (exitCode == ExitCode.OK) {
-                performWorkAfterSuccessfulCompilation(caches)
+                currentCache?.also { performWorkAfterSuccessfulCompilation(it) }
             }
 
-            if (!caches.close(flush = true)) throw RuntimeException("Could not flush caches")
+            currentCache?.close(flush = true)?.takeIf { !it } ?: throw RuntimeException("Could not flush caches")
             // Here we should analyze exit code of compiler. E.g. compiler failure should lead to caches rebuild,
             // but now JsKlib compiler reports invalid exit code.
             cachesMayBeCorrupted = false
@@ -184,12 +208,8 @@ abstract class IncrementalCompilerRunner<
         } catch (e: Exception) { // todo: catch only cache corruption
             // todo: warn?
             reporter.report { "Possible caches corruption: $e" }
-            if (compilationMode is CompilationMode.Incremental ) {
-                rebuild(BuildAttribute.CACHE_CORRUPTION).also {
-                    cachesMayBeCorrupted = false
-                }
-            } else {
-                return ExitCode.INTERNAL_ERROR
+            rebuild(BuildAttribute.CACHE_CORRUPTION).also {
+                cachesMayBeCorrupted = false
             }
         } finally {
             if (cachesMayBeCorrupted) {

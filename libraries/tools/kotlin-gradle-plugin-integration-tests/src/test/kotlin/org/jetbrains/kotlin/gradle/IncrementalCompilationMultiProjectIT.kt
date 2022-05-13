@@ -1,9 +1,11 @@
 package org.jetbrains.kotlin.gradle
 
+import org.gradle.api.logging.LogLevel
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.checkedReplace
+import org.jetbrains.kotlin.test.KtAssert.assertTrue
 import org.junit.jupiter.api.DisplayName
 import java.io.File
 import java.io.RandomAccessFile
@@ -37,6 +39,9 @@ class IncrementalCompilationJsMultiProjectIT : BaseIncrementalCompilationMultiPr
 
     override val compileKotlinTaskName: String
         get() = "compileKotlin2Js"
+
+    override val compileCacheFolderName: String
+        get() = "caches-js"
 }
 
 @JvmGradlePluginTests
@@ -46,6 +51,9 @@ open class IncrementalCompilationJvmMultiProjectIT : BaseIncrementalCompilationM
 
     override val compileKotlinTaskName: String
         get() = "compileKotlin"
+
+    override val compileCacheFolderName: String
+        get() = "caches-jvm"
 
     override val defaultProjectName: String = "incrementalMultiproject"
 
@@ -266,6 +274,8 @@ class IncrementalCompilationClasspathSnapshotJvmMultiProjectIT : IncrementalComp
 abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilationBaseIT() {
 
     protected abstract val compileKotlinTaskName: String
+
+    protected abstract val compileCacheFolderName: String
 
     protected abstract val additionalLibDependencies: String
 
@@ -658,72 +668,94 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
     @GradleTest
     fun testValidOutputsWithCacheCorrupted(gradleVersion: GradleVersion) {
         defaultProject(gradleVersion, buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)) {
-            subProject("lib").buildGradle.appendText(
-                """
-                compileKotlin {
-                    doLast {
-                        def file = new File(projectDir.path, "/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/file-to-id.tab")
-                        println("Update lookup file " + file.path)
-                        file.write("la-la")
-                    }
-                }
-            """.trimIndent()
-            )
+            breakCachesAfterCompileKotlinExecution(this)
 
             build("assemble")
 
-            subProject("lib").kotlinSourcesDir().resolve("bar/A.kt").modify {
-                it.replace("fun a() {}", "fun a() {}\nfun newA() {}")
+            subProject("lib").kotlinSourcesDir().resolve("bar/B.kt").modify {
+                it.replace("fun b() {}", "fun b() = 123")
             }
 
             build("assemble") {
                 assertOutputContains("Non-incremental compilation will be performed: CACHE_CORRUPTION")
             }
 
-            val lookupFile = projectPath.resolve("lib/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups/file-to-id.tab")
+            val lookupFile = projectPath.resolve("lib/build/kotlin/${compileKotlinTaskName}/cacheable/${compileCacheFolderName}/lookups/file-to-id.tab")
             assertTrue("Output is empty", lookupFile.exists())
 
         }
     }
 
-    @DisplayName("KT-49780: Avoid second rebuild after full compilation")
+    @DisplayName("KT-49780: No need to rebuild invalid code due to cache corruption")
     @GradleTest
-    fun avoidRebuildAfterFullCompilation(gradleVersion: GradleVersion) {
+    fun testIncrementalBuildWithCompilationError(gradleVersion: GradleVersion) {
         defaultProject(gradleVersion, buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)) {
+            breakCachesAfterCompileKotlinExecution(this)
 
-            subProject("lib").buildGradle.appendText(
-                """
-                compileKotlin {
-                    doFirst {
-                        def lookupsFolder = Files.createDirectories(projectPath.resolve(projectDir.path,  "/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups"))
-                        def file = lookupsFolder.resolve("file-to-id.tab").toFile()
-                        file.createNewFile()
-                        println("Update lookup file " + file.path)
-                        file.write("la-la")
-                    }
-                }
-            """.trimIndent()
-            )
+            build("assemble")
 
-            val lookupsFolder = Files.createDirectories(projectPath.resolve("lib/build/kotlin/compileKotlin/cacheable/caches-jvm/lookups"))
-            val lookupFile = lookupsFolder.resolve("file-to-id.tab").toFile().also { it.createNewFile() }
-            lookupFile.setReadOnly()
-//            val channel = RandomAccessFile(lookupFile, "r").channel
-//            channel.use {
-//                println("Try to acquire lock")
-//                val filelock = it.lock()
-//                println("Lock acquired")
+            subProject("lib").kotlinSourcesDir().resolve("bar/B.kt").modify {
+                it.replace("fun b() {}", "fun bb() = 123")
+            }
 
-                build(":lib:assemble") {
-                    assertOutputContains("Non-incremental compilation will be performed: CACHE_CORRUPTION")
-                    printBuildOutput()
-                }
-//                filelock.release()
-//                println("Lock released")
-
-//            }
+            buildAndFail("assemble") {
+                printBuildOutput()
+                assertOutputDoesNotContain("Possible caches corruption:")
+                assertOutputDoesNotContain("Non-incremental compilation will be performed:")
+            }
         }
     }
 
+    @DisplayName("KT-49780: No need to rebuild invalid code due to cache corruption")
+    @GradleTest
+    fun testIncrementalBuildWithFailCacheInitialisation(gradleVersion: GradleVersion) {
+        defaultProject(gradleVersion, buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)) {
+            breakCachesInitialisationAfterCompileKotlinExecution(this)
 
+            build("assemble")
+
+            subProject("lib").kotlinSourcesDir().resolve("bar/B.kt").modify {
+                it.replace("fun b() {}", "fun bb() = 123")
+            }
+
+            buildAndFail("assemble") {
+                printBuildOutput()
+                assertOutputDoesNotContain("Unable to init caches. Possible caches corruption")
+                assertOutputDoesNotContain("Non-incremental compilation will be performed:")
+            }
+        }
+    }
+
+    fun breakCachesAfterCompileKotlinExecution(testProject: TestProject) {
+        listOf("app", "lib").forEach {
+            testProject.subProject(it).buildGradle.appendText(
+                """
+                    $compileKotlinTaskName {
+                        doLast {
+                            def file = new File(projectDir.path, "/build/kotlin/${compileKotlinTaskName}/cacheable/${compileCacheFolderName}/lookups/file-to-id.tab")
+                            println("Update lookup file " + file.path)
+                            file.write("la-la")
+                        }
+                    }
+                """.trimIndent()
+            )
+        }
+    }
+
+    fun breakCachesInitialisationAfterCompileKotlinExecution(testProject: TestProject) {
+        listOf("app", "lib").forEach {
+            testProject.subProject(it).buildGradle.appendText(
+                """
+                    $compileKotlinTaskName {
+                        doLast {
+                            def file = new File(projectDir.path, "/build/kotlin/${compileKotlinTaskName}/cacheable/${compileCacheFolderName}/lookups/counters.tab")
+                            println("Update lookup file " + file.path)
+                            file.write("la-la")
+                        }
+                    }
+                """.trimIndent()
+            )
+        }
+    }
 }
+
