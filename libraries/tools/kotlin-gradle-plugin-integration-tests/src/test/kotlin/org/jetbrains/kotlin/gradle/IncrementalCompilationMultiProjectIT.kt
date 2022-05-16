@@ -706,7 +706,7 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
         }
     }
 
-    @DisplayName("KT-49780: No need to rebuild invalid code due to cache corruption")
+    @DisplayName("KT-49780: No need to use out-of-process execution if cache is invalid ")
     @GradleTest
     fun testIncrementalBuildWithFailCacheInitialisation(gradleVersion: GradleVersion) {
         defaultProject(gradleVersion, buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)) {
@@ -720,8 +720,10 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
 
             buildAndFail("assemble") {
                 printBuildOutput()
-                assertOutputDoesNotContain("Unable to init caches. Possible caches corruption")
-                assertOutputDoesNotContain("Non-incremental compilation will be performed:")
+                assertOutputContains("Unable to init caches. Possible caches corruption")
+                assertOutputContains("Non-incremental compilation will be performed:")
+                assertOutputDoesNotContain("Using fallback strategy")
+                assertOutputDoesNotContain("out-of-process execution strategy")
             }
         }
     }
