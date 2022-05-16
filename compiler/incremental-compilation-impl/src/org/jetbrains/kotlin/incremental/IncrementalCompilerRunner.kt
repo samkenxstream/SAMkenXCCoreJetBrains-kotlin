@@ -188,7 +188,7 @@ abstract class IncrementalCompilerRunner<
                 currentCache?.also { performWorkAfterSuccessfulCompilation(it) }
             }
 
-            currentCache?.close(flush = true)?.takeIf { !it } ?: throw RuntimeException("Could not flush caches")
+            currentCache?.close(flush = true)?.takeIf { !it }?.also { throw RuntimeException("Could not flush caches") }
             // Here we should analyze exit code of compiler. E.g. compiler failure should lead to caches rebuild,
             // but now JsKlib compiler reports invalid exit code.
             cachesMayBeCorrupted = false
