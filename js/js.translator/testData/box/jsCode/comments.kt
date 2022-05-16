@@ -13,7 +13,7 @@
 // CHECK_COMMENT_DOESNT_EXIST: text="random position comment 2" multiline=true
 // CHECK_COMMENT_DOESNT_EXIST: text="random position comment 3" multiline=true
 // CHECK_COMMENT_EXISTS: text="1Multi line comment\n" multiline=true
-// CHECK_COMMENT_EXISTS: text="2Multi line comment\n\n" multiline=true
+// CHECK_COMMENT_EXISTS: text="2Multi line comment\n\n\n" multiline=true
 // CHECK_COMMENT_EXISTS: text="3Multi line\n\n\n\n\ncomment\n" multiline=true
 // CHECK_COMMENT_EXISTS: text="" multiline=true
 

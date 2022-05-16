@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.js.testOld.utils;
 
 import com.intellij.openapi.util.text.StringUtil;
+import kotlin.text.StringsKt;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.jetbrains.kotlin.js.backend.ast.*;
@@ -329,20 +330,20 @@ public class DirectiveTestUtils {
         }
 
         private boolean isTheSameText(String str1, String str2) {
-            String[] lines1 = linesOf(str1);
-            String[] lines2 = linesOf(str2);
+            List<String> lines1 = linesOf(str1);
+            List<String> lines2 = linesOf(str2);
 
-            if (lines1.length != lines2.length) return false;
+            if (lines1.size() != lines2.size()) return false;
 
-            for (int i = 0; i < lines1.length; i++) {
-                if (!lines1[i].trim().equals(lines2[i].trim())) return false;
+            for (int i = 0; i < lines1.size(); i++) {
+                if (!lines1.get(i).trim().equals(lines2.get(i).trim())) return false;
             }
             
             return true;
         }
 
-        private String[] linesOf(String str) {
-            return StringUtil.splitByLines(str, false);
+        private List<String> linesOf(String str) {
+            return StringsKt.lines(str);
         }
     };
 
