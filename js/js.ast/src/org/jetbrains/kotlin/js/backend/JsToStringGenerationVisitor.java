@@ -1142,17 +1142,14 @@ public class JsToStringGenerationVisitor extends JsVisitor {
 
     @Override
     public void visitMultiLineComment(@NotNull JsMultiLineComment comment) {
-        p.print("/*");
-
         List<String> lines = StringsKt.lines(comment.getText());
 
-        if (!lines.isEmpty()) {
-            p.print(lines.get(0));
-        }
+        p.print("/*");
+        p.print(lines.get(0).trim());
 
         for (int i = 1; i < lines.size(); i++) {
             newline();
-            p.print(lines.get(i));
+            p.print(lines.get(i).trim());
         }
 
         p.print("*/");
