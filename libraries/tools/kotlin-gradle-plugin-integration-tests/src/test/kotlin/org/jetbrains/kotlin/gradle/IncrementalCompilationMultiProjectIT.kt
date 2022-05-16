@@ -667,7 +667,7 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
     @DisplayName("KT-49780: Valid outputs after cache corruption exception")
     @GradleTest
     fun testValidOutputsWithCacheCorrupted(gradleVersion: GradleVersion) {
-        defaultProject(gradleVersion, buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)) {
+        defaultProject(gradleVersion) {
             breakCachesAfterCompileKotlinExecution(this)
 
             build("assemble")
@@ -689,7 +689,7 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
     @DisplayName("KT-49780: No need to rebuild invalid code due to cache corruption")
     @GradleTest
     fun testIncrementalBuildWithCompilationError(gradleVersion: GradleVersion) {
-        defaultProject(gradleVersion, buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)) {
+        defaultProject(gradleVersion) {
             breakCachesAfterCompileKotlinExecution(this)
 
             build("assemble")
@@ -709,7 +709,7 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
     @DisplayName("KT-49780: No need to use out-of-process execution if cache is invalid ")
     @GradleTest
     fun testIncrementalBuildWithFailCacheInitialisation(gradleVersion: GradleVersion) {
-        defaultProject(gradleVersion, buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)) {
+        defaultProject(gradleVersion) {
             breakCachesInitialisationAfterCompileKotlinExecution(this)
 
             build("assemble")
