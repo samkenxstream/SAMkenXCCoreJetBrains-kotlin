@@ -728,7 +728,7 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
         }
     }
 
-    fun breakCachesAfterCompileKotlinExecution(testProject: TestProject) {
+    private fun breakCachesAfterCompileKotlinExecution(testProject: TestProject) {
         listOf("app", "lib").forEach {
             testProject.subProject(it).buildGradle.appendText(
                 """
@@ -744,7 +744,7 @@ abstract class BaseIncrementalCompilationMultiProjectIT : IncrementalCompilation
         }
     }
 
-    fun breakCachesInitialisationAfterCompileKotlinExecution(testProject: TestProject) {
+    private fun breakCachesInitialisationAfterCompileKotlinExecution(testProject: TestProject) {
         listOf("app", "lib").forEach {
             testProject.subProject(it).buildGradle.appendText(
                 """
