@@ -5,8 +5,6 @@
 
 package org.jetbrains.kotlin.fir.analysis.checkers.extended
 
-import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.persistentMapOf
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
@@ -123,39 +121,39 @@ object UnusedChecker : FirControlFlowChecker() {
     }
 
     class VariableStatusInfo(
-        map: PersistentMap<FirPropertySymbol, VariableStatus> = persistentMapOf()
+        map: Map<FirPropertySymbol, VariableStatus> = mapOf()
     ) : ControlFlowInfo<VariableStatusInfo, FirPropertySymbol, VariableStatus>(map) {
         companion object {
             val EMPTY = VariableStatusInfo()
         }
 
-        override val constructor: (PersistentMap<FirPropertySymbol, VariableStatus>) -> VariableStatusInfo =
+        override val constructor: (Map<FirPropertySymbol, VariableStatus>) -> VariableStatusInfo =
             ::VariableStatusInfo
 
         override val empty: () -> VariableStatusInfo =
             ::EMPTY
 
         override fun merge(other: VariableStatusInfo): VariableStatusInfo {
-            var result = this
+            val result = LinkedHashMap(this.map)
             for (symbol in keys.union(other.keys)) {
                 val kind1 = this[symbol] ?: VariableStatus.UNUSED
                 val kind2 = other[symbol] ?: VariableStatus.UNUSED
                 val new = kind1.merge(kind2)
-                result = result.put(symbol, new)
+                result[symbol] = new
             }
-            return result
+            return VariableStatusInfo(result)
         }
 
     }
 
     class PathAwareVariableStatusInfo(
-        map: PersistentMap<EdgeLabel, VariableStatusInfo> = persistentMapOf()
+        map: Map<EdgeLabel, VariableStatusInfo> = mapOf()
     ) : PathAwareControlFlowInfo<PathAwareVariableStatusInfo, VariableStatusInfo>(map) {
         companion object {
-            val EMPTY = PathAwareVariableStatusInfo(persistentMapOf(NormalPath to VariableStatusInfo.EMPTY))
+            val EMPTY = PathAwareVariableStatusInfo(mapOf(NormalPath to VariableStatusInfo.EMPTY))
         }
 
-        override val constructor: (PersistentMap<EdgeLabel, VariableStatusInfo>) -> PathAwareVariableStatusInfo =
+        override val constructor: (Map<EdgeLabel, VariableStatusInfo>) -> PathAwareVariableStatusInfo =
             ::PathAwareVariableStatusInfo
 
         override val empty: () -> PathAwareVariableStatusInfo =
@@ -301,16 +299,16 @@ object UnusedChecker : FirControlFlowChecker() {
             vararg symbols: FirPropertySymbol,
             updater: (VariableStatus?) -> VariableStatus?,
         ): PathAwareVariableStatusInfo {
-            var resultMap = persistentMapOf<EdgeLabel, VariableStatusInfo>()
+            val resultMap = mutableMapOf<EdgeLabel, VariableStatusInfo>()
             var changed = false
             for ((label, dataPerLabel) in pathAwareInfo) {
                 for (symbol in symbols) {
                     val v = updater.invoke(dataPerLabel[symbol])
                     if (v != null) {
-                        resultMap = resultMap.put(label, dataPerLabel.put(symbol, v))
+                        resultMap[label] = dataPerLabel.put(symbol, v)
                         changed = true
                     } else {
-                        resultMap = resultMap.put(label, dataPerLabel)
+                        resultMap[label] = dataPerLabel
                     }
                 }
             }

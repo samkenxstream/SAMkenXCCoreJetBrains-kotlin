@@ -5,12 +5,10 @@
 
 package org.jetbrains.kotlin.fir.analysis.cfa.util
 
-import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.persistentMapOf
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.*
 
 abstract class PathAwareControlFlowInfo<P : PathAwareControlFlowInfo<P, S>, S : ControlFlowInfo<S, *, *>>(
-    map: PersistentMap<EdgeLabel, S>,
+    map: Map<EdgeLabel, S>,
 ) : ControlFlowInfo<P, EdgeLabel, S>(map) {
 
     internal val infoAtNormalPath: S
@@ -25,7 +23,7 @@ abstract class PathAwareControlFlowInfo<P : PathAwareControlFlowInfo<P, S>, S : 
             if (node is TryExpressionExitNode) {
                 val infoAtNormalPath = map[NormalPath]
                 return if (infoAtNormalPath != null) {
-                    constructor(persistentMapOf(NormalPath to infoAtNormalPath))
+                    constructor(mapOf(NormalPath to infoAtNormalPath))
                 } else {
                     /* This means no info for normal path. */
                     empty()
@@ -45,7 +43,7 @@ abstract class PathAwareControlFlowInfo<P : PathAwareControlFlowInfo<P, S>, S : 
                 if (label == UncaughtExceptionPath) {
                     // Special case: uncaught exception path, which still represents an uncaught exception path
                     // Target node is most likely fun/init exit, and we should keep info separated.
-                    constructor(persistentMapOf(label to map[label]!!))
+                    constructor(mapOf(label to map[label]!!))
                 } else {
                     // { |-> I }
                     //   | l1       // e.g., enter to proxy1 with l1
@@ -54,7 +52,7 @@ abstract class PathAwareControlFlowInfo<P : PathAwareControlFlowInfo<P, S>, S : 
                     // { |-> ..., l1 -> I', ... }
                     //   | l1       // e.g., exit proxy1 with l1
                     // { l1 -> I' }
-                    constructor(persistentMapOf(NormalPath to map[label]!!))
+                    constructor(mapOf(NormalPath to map[label]!!))
                 }
             } else {
                 /* This means no info for the specific label. */
@@ -64,25 +62,25 @@ abstract class PathAwareControlFlowInfo<P : PathAwareControlFlowInfo<P, S>, S : 
             // { |-> ... }    // empty path info
             //   | l1         // path entry
             // { l1 -> ... }  // now, every info bound to the label
-            constructor(persistentMapOf(label to infoAtNormalPath))
+            constructor(mapOf(label to infoAtNormalPath))
         }
     }
 
     override fun merge(other: P): P {
-        var resultMap = persistentMapOf<EdgeLabel, S>()
+        val resultMap = mutableMapOf<EdgeLabel, S>()
         for (label in keys.union(other.keys)) {
             // disjoint merging to preserve paths. i.e., merge the property initialization info if and only if both have the key.
             // merge({ |-> I1 }, { |-> I2, l1 |-> I3 })
             //   == { |-> merge(I1, I2), l1 |-> I3 }
             val i1 = this[label]
             val i2 = other[label]
-            resultMap = when {
+            when {
                 i1 != null && i2 != null ->
-                    resultMap.put(label, i1.merge(i2))
+                    resultMap[label] = i1.merge(i2)
                 i1 != null ->
-                    resultMap.put(label, i1)
+                    resultMap[label] = i1
                 i2 != null ->
-                    resultMap.put(label, i2)
+                    resultMap[label] = i2
                 else ->
                     throw IllegalStateException()
             }

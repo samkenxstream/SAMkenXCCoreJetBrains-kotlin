@@ -5,8 +5,6 @@
 
 package org.jetbrains.kotlin.fir.analysis.cfa.util
 
-import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.persistentMapOf
 import org.jetbrains.kotlin.contracts.description.EventOccurrencesRange
 import org.jetbrains.kotlin.fir.declarations.utils.referredPropertySymbol
 import org.jetbrains.kotlin.fir.expressions.FirStatement
@@ -151,7 +149,7 @@ internal fun <P : PathAwareControlFlowInfo<P, S>, S : ControlFlowInfo<S, K, Even
     pathAwareInfo: P,
     key: K,
     range: EventOccurrencesRange,
-    constructor: (PersistentMap<EdgeLabel, S>) -> P
+    constructor: (Map<EdgeLabel, S>) -> P
 ): P {
     // before: { |-> { p1 |-> PI1 }, l1 |-> { p2 |-> PI2 } }
     // after (if key is p1):
@@ -163,7 +161,7 @@ private fun <P : PathAwareControlFlowInfo<P, S>, S : ControlFlowInfo<S, K, Event
     pathAwareInfo: P,
     key: K,
     range: EventOccurrencesRange,
-    constructor: (PersistentMap<EdgeLabel, S>) -> P
+    constructor: (Map<EdgeLabel, S>) -> P
 ): P {
     // before: { |-> { p1 |-> PI1 }, l1 |-> { p2 |-> PI2 } }
     // after (if key is p1):
@@ -175,14 +173,14 @@ private inline fun <P : PathAwareControlFlowInfo<P, S>, S : ControlFlowInfo<S, K
     pathAwareInfo: P,
     key: K,
     computeNewRange: (EventOccurrencesRange) -> EventOccurrencesRange,
-    constructor: (PersistentMap<EdgeLabel, S>) -> P
+    constructor: (Map<EdgeLabel, S>) -> P
 ): P {
-    var resultMap = persistentMapOf<EdgeLabel, S>()
+    val resultMap = mutableMapOf<EdgeLabel, S>()
     // before: { |-> { p1 |-> PI1 }, l1 |-> { p2 |-> PI2 } }
     for ((label, dataPerLabel) in pathAwareInfo) {
         val existingKind = dataPerLabel[key] ?: EventOccurrencesRange.ZERO
         val kind = computeNewRange.invoke(existingKind)
-        resultMap = resultMap.put(label, dataPerLabel.put(key, kind))
+        resultMap[label] = dataPerLabel.put(key, kind)
     }
     // after (if key is p1):
     //   { |-> { p1 |-> computeNewRange(PI1) }, l1 |-> { p1 |-> r, p2 |-> PI2 } }
@@ -192,12 +190,12 @@ private inline fun <P : PathAwareControlFlowInfo<P, S>, S : ControlFlowInfo<S, K
 private fun <P : PathAwareControlFlowInfo<P, S>, S : ControlFlowInfo<S, K, EventOccurrencesRange>, K : Any> removeRange(
     pathAwareInfo: P,
     key: K,
-    constructor: (PersistentMap<EdgeLabel, S>) -> P
+    constructor: (Map<EdgeLabel, S>) -> P
 ): P {
-    var resultMap = persistentMapOf<EdgeLabel, S>()
+    val resultMap = mutableMapOf<EdgeLabel, S>()
     // before: { |-> { p1 |-> PI1 }, l1 |-> { p2 |-> PI2 } }
     for ((label, dataPerLabel) in pathAwareInfo) {
-        resultMap = resultMap.put(label, dataPerLabel.remove(key))
+        resultMap[label] = dataPerLabel.remove(key)
     }
     // after (if key is p1):
     //   { |-> { }, l1 |-> { p2 |-> PI2 } }

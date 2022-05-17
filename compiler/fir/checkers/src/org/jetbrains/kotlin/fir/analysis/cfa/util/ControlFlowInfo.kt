@@ -5,13 +5,11 @@
 
 package org.jetbrains.kotlin.fir.analysis.cfa.util
 
-import kotlinx.collections.immutable.PersistentMap
-
 abstract class ControlFlowInfo<S : ControlFlowInfo<S, K, V>, K : Any, V : Any> protected constructor(
-    protected val map: PersistentMap<K, V>,
-) : PersistentMap<K, V> by map {
+    protected val map: Map<K, V>,
+) : Map<K, V> by map {
 
-    protected abstract val constructor: (PersistentMap<K, V>) -> S
+    protected abstract val constructor: (Map<K, V>) -> S
 
     protected abstract val empty: () -> S
 
@@ -27,12 +25,12 @@ abstract class ControlFlowInfo<S : ControlFlowInfo<S, K, V>, K : Any, V : Any> p
         return map.toString()
     }
 
-    override fun put(key: K, value: V): S {
-        return constructor(map.put(key, value))
+    fun put(key: K, value: V): S {
+        return constructor(LinkedHashMap(map).also { it[key] = value })
     }
 
-    override fun remove(key: K): S {
-        return constructor(map.remove(key))
+    fun remove(key: K): S {
+        return constructor(LinkedHashMap(map).also { it.remove(key) })
     }
 
     abstract fun merge(other: S): S

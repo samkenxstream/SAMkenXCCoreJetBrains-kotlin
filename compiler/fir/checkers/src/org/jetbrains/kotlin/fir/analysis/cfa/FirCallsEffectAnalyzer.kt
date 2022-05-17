@@ -5,8 +5,6 @@
 
 package org.jetbrains.kotlin.fir.analysis.cfa
 
-import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.persistentMapOf
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.contracts.description.EventOccurrencesRange
 import org.jetbrains.kotlin.fir.FirSession
@@ -209,13 +207,13 @@ object FirCallsEffectAnalyzer : FirControlFlowChecker() {
     }
 
     class LambdaInvocationInfo(
-        map: PersistentMap<FirBasedSymbol<*>, EventOccurrencesRange> = persistentMapOf(),
+        map: Map<FirBasedSymbol<*>, EventOccurrencesRange> = mapOf(),
     ) : EventOccurrencesRangeInfo<LambdaInvocationInfo, FirBasedSymbol<*>>(map) {
         companion object {
             val EMPTY = LambdaInvocationInfo()
         }
 
-        override val constructor: (PersistentMap<FirBasedSymbol<*>, EventOccurrencesRange>) -> LambdaInvocationInfo =
+        override val constructor: (Map<FirBasedSymbol<*>, EventOccurrencesRange>) -> LambdaInvocationInfo =
             ::LambdaInvocationInfo
 
         override val empty: () -> LambdaInvocationInfo =
@@ -223,13 +221,13 @@ object FirCallsEffectAnalyzer : FirControlFlowChecker() {
     }
 
     class PathAwareLambdaInvocationInfo(
-        map: PersistentMap<EdgeLabel, LambdaInvocationInfo> = persistentMapOf()
+        map: Map<EdgeLabel, LambdaInvocationInfo> = mapOf()
     ) : PathAwareControlFlowInfo<PathAwareLambdaInvocationInfo, LambdaInvocationInfo>(map) {
         companion object {
-            val EMPTY = PathAwareLambdaInvocationInfo(persistentMapOf(NormalPath to LambdaInvocationInfo.EMPTY))
+            val EMPTY = PathAwareLambdaInvocationInfo(mapOf(NormalPath to LambdaInvocationInfo.EMPTY))
         }
 
-        override val constructor: (PersistentMap<EdgeLabel, LambdaInvocationInfo>) -> PathAwareLambdaInvocationInfo =
+        override val constructor: (Map<EdgeLabel, LambdaInvocationInfo>) -> PathAwareLambdaInvocationInfo =
             ::PathAwareLambdaInvocationInfo
 
         override val empty: () -> PathAwareLambdaInvocationInfo =

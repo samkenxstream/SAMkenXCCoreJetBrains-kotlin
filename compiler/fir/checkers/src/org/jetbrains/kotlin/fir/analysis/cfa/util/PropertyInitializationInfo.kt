@@ -5,15 +5,15 @@
 
 package org.jetbrains.kotlin.fir.analysis.cfa.util
 
-import kotlinx.collections.immutable.PersistentMap
-import kotlinx.collections.immutable.persistentMapOf
 import org.jetbrains.kotlin.contracts.description.EventOccurrencesRange
+import org.jetbrains.kotlin.fir.analysis.cfa.FirCallsEffectAnalyzer
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.EdgeLabel
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.NormalPath
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 
 abstract class EventOccurrencesRangeInfo<E : EventOccurrencesRangeInfo<E, K>, K : Any>(
-    map: PersistentMap<K, EventOccurrencesRange> = persistentMapOf()
+    map: Map<K, EventOccurrencesRange> = mapOf()
 ) : ControlFlowInfo<E, K, EventOccurrencesRange>(map) {
 
     override fun merge(other: E): E =
@@ -30,24 +30,28 @@ abstract class EventOccurrencesRangeInfo<E : EventOccurrencesRangeInfo<E, K>, K 
 
     private inline fun operation(other: E, op: (EventOccurrencesRange, EventOccurrencesRange) -> EventOccurrencesRange): E {
         @Suppress("UNCHECKED_CAST")
-        var result = this as E
+        val result = LinkedHashMap((this as E).map)
         for (symbol in keys.union(other.keys)) {
             val kind1 = this[symbol] ?: EventOccurrencesRange.ZERO
             val kind2 = other[symbol] ?: EventOccurrencesRange.ZERO
-            result = result.put(symbol, op.invoke(kind1, kind2))
+            result[symbol] = op.invoke(kind1, kind2)
         }
-        return result
+        @Suppress("UNCHECKED_CAST")
+        return if (this is FirCallsEffectAnalyzer.LambdaInvocationInfo)
+            FirCallsEffectAnalyzer.LambdaInvocationInfo(result as Map<FirBasedSymbol<*>, EventOccurrencesRange>) as E
+        else
+            PropertyInitializationInfo(result as Map<FirPropertySymbol, EventOccurrencesRange>) as E
     }
 }
 
 class PropertyInitializationInfo(
-    map: PersistentMap<FirPropertySymbol, EventOccurrencesRange> = persistentMapOf()
+    map: Map<FirPropertySymbol, EventOccurrencesRange> = mapOf()
 ) : EventOccurrencesRangeInfo<PropertyInitializationInfo, FirPropertySymbol>(map) {
     companion object {
         val EMPTY = PropertyInitializationInfo()
     }
 
-    override val constructor: (PersistentMap<FirPropertySymbol, EventOccurrencesRange>) -> PropertyInitializationInfo =
+    override val constructor: (Map<FirPropertySymbol, EventOccurrencesRange>) -> PropertyInitializationInfo =
         ::PropertyInitializationInfo
 
     override val empty: () -> PropertyInitializationInfo =
@@ -55,13 +59,13 @@ class PropertyInitializationInfo(
 }
 
 class PathAwarePropertyInitializationInfo(
-    map: PersistentMap<EdgeLabel, PropertyInitializationInfo> = persistentMapOf()
+    map: Map<EdgeLabel, PropertyInitializationInfo> = mapOf()
 ) : PathAwareControlFlowInfo<PathAwarePropertyInitializationInfo, PropertyInitializationInfo>(map) {
     companion object {
-        val EMPTY = PathAwarePropertyInitializationInfo(persistentMapOf(NormalPath to PropertyInitializationInfo.EMPTY))
+        val EMPTY = PathAwarePropertyInitializationInfo(mapOf(NormalPath to PropertyInitializationInfo.EMPTY))
     }
 
-    override val constructor: (PersistentMap<EdgeLabel, PropertyInitializationInfo>) -> PathAwarePropertyInitializationInfo =
+    override val constructor: (Map<EdgeLabel, PropertyInitializationInfo>) -> PathAwarePropertyInitializationInfo =
         ::PathAwarePropertyInitializationInfo
 
     override val empty: () -> PathAwarePropertyInitializationInfo =
