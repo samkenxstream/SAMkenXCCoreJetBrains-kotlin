@@ -5,12 +5,12 @@ external abstract class A {
 }
 
 class B : A() {
-    override var foo: String = ""
+    override var foo: String = "Error: setter was not called."
         set(k) { result = "O$k"}
 
     lateinit var result: String
 }
 
 fun box(): String {
-    return B().foo
+    return B().result
 }
