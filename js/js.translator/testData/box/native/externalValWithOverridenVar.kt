@@ -1,4 +1,5 @@
 // KT-46643
+// IGNORE_BACKEND: WASM
 
 external abstract class A {
     open val foo: String
