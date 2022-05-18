@@ -19,10 +19,10 @@ configure<KotlinPm20ProjectExtension> {
     }
 }
 
-class KpmPluginWithTransientPluginOptions(
+class KotlinPluginWithTransientPluginOptions(
     private val regularOptionValue: String,
     private val transientOptionValue: String
-) : KpmCompilerPlugin {
+) : KotlinCompilerPlugin {
     private fun pluginData() = PluginData(
         pluginId = "test-plugin",
         // allopen artifact is used to avoid boilerplate with cooking custom compiler plugin
@@ -45,8 +45,8 @@ class GradleKpmPluginWithTransientPluginOptions : GradleKpmCompilerPlugin {
         project = target
     }
 
-    override val kpmCompilerPlugin by lazy {
-        KpmPluginWithTransientPluginOptions(
+    override val kotlinCompilerPlugin by lazy {
+        KotlinPluginWithTransientPluginOptions(
             regularOptionValue = project.property("test-plugin.regular") as String,
             transientOptionValue = project.property("test-plugin.transient") as String
         )

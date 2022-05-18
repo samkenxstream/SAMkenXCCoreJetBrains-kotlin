@@ -15,7 +15,7 @@ interface KotlinModule {
     val variants: Iterable<KotlinVariant>
         get() = fragments.filterIsInstance<KotlinVariant>()
 
-    val plugins: Iterable<KpmCompilerPlugin>
+    val plugins: Iterable<KotlinCompilerPlugin>
 
     // TODO: isSynthetic?
 }
@@ -25,7 +25,7 @@ open class BasicKotlinModule(
 ) : KotlinModule {
     override val fragments = mutableListOf<BasicKotlinFragment>()
 
-    override val plugins = mutableListOf<KpmCompilerPlugin>()
+    override val plugins = mutableListOf<KotlinCompilerPlugin>()
 
     override fun toString(): String = "module $moduleIdentifier"
 }

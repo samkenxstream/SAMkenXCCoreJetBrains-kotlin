@@ -10,8 +10,8 @@ import org.gradle.api.Project
 import org.jetbrains.kotlin.project.model.*
 
 /**
- * Gradle plugin that provides [KpmCompilerPlugin] from applied [Project]
+ * Gradle plugin that provides [KotlinCompilerPlugin] from applied [Project]
  */
 interface GradleKpmCompilerPlugin : Plugin<Project> {
-    val kpmCompilerPlugin: KpmCompilerPlugin
+    val kotlinCompilerPlugin: KotlinCompilerPlugin
 }

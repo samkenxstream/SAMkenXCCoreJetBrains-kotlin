@@ -20,7 +20,7 @@ import kotlin.test.*
 class KpmCompilerPluginTest {
     @Test
     fun `basic plugin with kpm`() {
-        class TestPlugin : FakeKpmPlugin(
+        class TestPlugin : FakeKotlinCompilerPlugin(
             id = "test",
             options = mapOf("a" to "b"),
             metadataArtifact = "metadata",
@@ -32,7 +32,7 @@ class KpmCompilerPluginTest {
          * Applies plugin only for Native Variant compilation
          * nothing for fragment metadata compilation
          */
-        class NativeOnly : FakeKpmPlugin(
+        class NativeOnly : FakeKotlinCompilerPlugin(
             id = "native-only",
             options = mapOf("a" to "c"),
             platformArtifact = "native-only"
@@ -157,15 +157,15 @@ class KpmCompilerPluginTest {
         .map { it.name }
         .toSet()
 
-    private open class FakeKpmPlugin(
+    private open class FakeKotlinCompilerPlugin(
         val id: String,
         val options: Map<String, String> = emptyMap(),
         val metadataArtifact: String? = null,
         val metadataNativeArtifact: String? = null,
         val platformArtifact: String? = null
-    ) : KpmCompilerPlugin, GradleKpmCompilerPlugin {
+    ) : KotlinCompilerPlugin, GradleKpmCompilerPlugin {
         override fun apply(target: Project) = Unit
-        override val kpmCompilerPlugin get() = this
+        override val kotlinCompilerPlugin get() = this
 
         private fun pluginData(artifact: String) = PluginData(
             pluginId = id,
@@ -184,8 +184,8 @@ class KpmCompilerPluginTest {
 
     }
 
-    open class TestPluginWithListeners : KpmCompilerPlugin, GradleKpmCompilerPlugin {
-        override val kpmCompilerPlugin: KpmCompilerPlugin get() = this.also { onGetKpmCompilerPlugin() }
+    open class TestPluginWithListeners : KotlinCompilerPlugin, GradleKpmCompilerPlugin {
+        val kotlinCompilerPlugin: KotlinCompilerPlugin get() = this.also { onGetKpmCompilerPlugin() }
         override fun apply(target: Project) = onApply()
         override fun forMetadataCompilation(fragment: KotlinFragment): PluginData? = null.also { onPluginDataGet() }
         override fun forNativeMetadataCompilation(fragment: KotlinFragment): PluginData? = null.also { onPluginDataGet() }

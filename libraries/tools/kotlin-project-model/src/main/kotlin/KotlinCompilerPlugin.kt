@@ -12,7 +12,7 @@ import java.io.File
  * Build System uses this interface to identify applicable plugin artifacts and its options
  * before executing actual Kotlin Compilation
  */
-interface KpmCompilerPlugin {
+interface KotlinCompilerPlugin {
 
     /**
      * Returns [PluginData] when applicable for [fragment] compilation
@@ -98,7 +98,7 @@ fun KotlinVariant.platformCompilationPluginData(): List<PluginData> =
  * Represents trivial Compiler Plugin adapter for Kotlin Project Model
  * Where Compiler Plugin can have common and native artifacts
  */
-abstract class BasicKpmCompilerPlugin : KpmCompilerPlugin {
+abstract class BasicKotlinCompilerPlugin : KotlinCompilerPlugin {
 
     abstract val pluginId: String
 

@@ -37,12 +37,12 @@ open class KotlinGradleModuleInternal(
         fragments.withType(KotlinGradleVariant::class.java)
     }
 
-    override val plugins: Set<KpmCompilerPlugin> by lazy {
-        mutableSetOf<KpmCompilerPlugin>().also { set ->
+    override val plugins: Set<KotlinCompilerPlugin> by lazy {
+        mutableSetOf<KotlinCompilerPlugin>().also { set ->
             project
                 .plugins
                 .withType(GradleKpmCompilerPlugin::class.java)
-                .mapTo(set, GradleKpmCompilerPlugin::kpmCompilerPlugin)
+                .mapTo(set, GradleKpmCompilerPlugin::kotlinCompilerPlugin)
         }
     }
 

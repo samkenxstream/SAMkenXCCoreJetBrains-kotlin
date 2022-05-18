@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.gradle.plugin.HasKotlinDependencies
 import org.jetbrains.kotlin.gradle.plugin.KotlinDependencyHandler
 import org.jetbrains.kotlin.project.model.KotlinModule
 import org.jetbrains.kotlin.project.model.KotlinModuleIdentifier
-import org.jetbrains.kotlin.project.model.KpmCompilerPlugin
+import org.jetbrains.kotlin.project.model.KotlinCompilerPlugin
 
 interface KotlinGradleModule : KotlinModule, Named, HasKotlinDependencies {
     val project: Project
@@ -25,7 +25,7 @@ interface KotlinGradleModule : KotlinModule, Named, HasKotlinDependencies {
     // TODO DSL & build script model: find a way to create a flexible typed view on fragments?
     override val variants: NamedDomainObjectSet<KotlinGradleVariant>
 
-    override val plugins: Set<KpmCompilerPlugin>
+    override val plugins: Set<KotlinCompilerPlugin>
 
     val isPublic: Boolean
 
