@@ -101,8 +101,8 @@ internal open class LegacyMappedVariant(
     override val fragmentName: String
         get() = fragmentForDefaultSourceSet.fragmentName + "Variant"
 
-    override val directRefinesDependencies: Iterable<KotlinGradleFragment>
-        get() = fragmentForDefaultSourceSet.directRefinesDependencies
+    override val declaredRefinesDependencies: Iterable<KotlinGradleFragment>
+        get() = fragmentForDefaultSourceSet.declaredRefinesDependencies
 
     override val declaredModuleDependencies: Iterable<KotlinModuleDependency>
         get() = fragmentForDefaultSourceSet.declaredModuleDependencies

@@ -39,7 +39,7 @@ fun BasicKotlinFragment.refinedBy(fragment: BasicKotlinFragment) {
 
 fun BasicKotlinFragment.refines(fragment: BasicKotlinFragment) {
     require(fragment.containingModule == containingModule)
-    directRefinesDependencies.add(fragment)
+    declaredRefinesDependencies.add(fragment)
 }
 
 // ---

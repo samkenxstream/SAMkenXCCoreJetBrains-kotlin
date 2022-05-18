@@ -15,6 +15,6 @@ fun KotlinModule.variantsContainingFragment(fragment: KotlinFragment): Iterable<
 
 fun KotlinModule.findRefiningFragments(fragment: KotlinFragment): Iterable<KotlinFragment> {
     return fragment.closure { seedFragment ->
-        fragments.filter { otherFragment -> seedFragment in otherFragment.directRefinesDependencies }
+        fragments.filter { otherFragment -> seedFragment in otherFragment.declaredRefinesDependencies }
     }
 }

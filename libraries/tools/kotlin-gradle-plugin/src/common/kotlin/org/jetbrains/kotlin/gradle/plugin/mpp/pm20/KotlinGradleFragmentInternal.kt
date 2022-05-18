@@ -84,7 +84,7 @@ open class KotlinGradleFragmentInternal @Inject constructor(
 
     private val _directRefinesDependencies = mutableSetOf<Provider<KotlinGradleFragment>>()
 
-    override val directRefinesDependencies: Iterable<KotlinGradleFragment>
+    override val declaredRefinesDependencies: Iterable<KotlinGradleFragment>
         get() = _directRefinesDependencies.map { it.get() }.toSet()
 
     // TODO: separate the declared module dependencies and exported module dependencies? we need this to keep implementation dependencies

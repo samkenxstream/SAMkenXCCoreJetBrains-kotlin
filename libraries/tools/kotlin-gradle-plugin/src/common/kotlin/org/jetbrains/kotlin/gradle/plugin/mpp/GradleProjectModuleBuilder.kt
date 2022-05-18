@@ -44,7 +44,7 @@ class ProjectStructureMetadataModuleBuilder {
             metadata.sourceSetNamesByVariantName.forEach { (variantName, sourceSets) ->
                 val variant = fragmentByName(variantName)
                 sourceSets.forEach { sourceSetName ->
-                    variant.directRefinesDependencies.add(fragment(sourceSetName))
+                    variant.declaredRefinesDependencies.add(fragment(sourceSetName))
                 }
             }
             metadata.sourceSetModuleDependencies.forEach { (sourceSetName, dependencies) ->
@@ -65,7 +65,7 @@ class ProjectStructureMetadataModuleBuilder {
             metadata.sourceSetsDependsOnRelation.forEach { (depending, dependencies) ->
                 val dependingFragment = fragment(depending)
                 dependencies.forEach { dependency ->
-                    dependingFragment.directRefinesDependencies.add(fragment(dependency))
+                    dependingFragment.declaredRefinesDependencies.add(fragment(dependency))
                 }
             }
         }
@@ -197,7 +197,7 @@ class GradleProjectModuleBuilder(private val addInferredSourceSetVisibilityAsExp
                         ?: variantToCompilation.getValue(fragment).defaultSourceSet
                     sourceSet.dependsOn.forEach { dependency ->
                         val dependencyFragment = fragmentByName(dependency.name)
-                        fragment.directRefinesDependencies.add(dependencyFragment)
+                        fragment.declaredRefinesDependencies.add(dependencyFragment)
                     }
                 }
             }

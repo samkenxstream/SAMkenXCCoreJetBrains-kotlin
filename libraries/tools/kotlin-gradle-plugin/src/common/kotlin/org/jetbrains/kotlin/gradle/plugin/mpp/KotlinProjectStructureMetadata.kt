@@ -201,7 +201,7 @@ internal fun buildProjectStructureMetadata(module: KotlinGradleModule): KotlinPr
     val kotlinFragmentsPerKotlinVariant =
         module.variants.associate { variant -> variant.name to variant.withRefinesClosure.map { it.name }.toSet() }
     val fragmentRefinesRelation =
-        module.fragments.associate { it.name to it.directRefinesDependencies.map { it.fragmentName }.toSet() }
+        module.fragments.associate { it.name to it.declaredRefinesDependencies.map { it.fragmentName }.toSet() }
 
     // FIXME: support native implementation-as-api-dependencies
     // FIXME: support dependencies on auxiliary modules

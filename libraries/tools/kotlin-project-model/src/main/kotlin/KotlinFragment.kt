@@ -14,21 +14,22 @@ interface KotlinFragment {
     val containingModule: KotlinModule
 
     val fragmentName: String
-    val directRefinesDependencies: Iterable<KotlinFragment>
 
     val languageSettings: LanguageSettings?
-
-    // TODO: scopes
-    val declaredModuleDependencies: Iterable<KotlinModuleDependency>
 
     // TODO: should this be source roots or source files?
     val kotlinSourceRoots: Iterable<File>
 
+    // TODO: scopes
+    val declaredModuleDependencies: Iterable<KotlinModuleDependency>
+
+    val declaredRefinesDependencies: Iterable<KotlinFragment>
+
     val refinesClosure: Set<KotlinFragment>
-        get() = this.closure { it.directRefinesDependencies }
+        get() = this.closure { it.declaredRefinesDependencies }
 
     val withRefinesClosure: Set<KotlinFragment>
-        get() = this.withClosure { it.directRefinesDependencies }
+        get() = this.withClosure { it.declaredRefinesDependencies }
 
     companion object
 }
@@ -55,7 +56,7 @@ open class BasicKotlinFragment(
     override val languageSettings: LanguageSettings? = null
 ) : KotlinFragment {
 
-    override val directRefinesDependencies: MutableSet<BasicKotlinFragment> = mutableSetOf()
+    override val declaredRefinesDependencies: MutableSet<BasicKotlinFragment> = mutableSetOf()
 
     override val declaredModuleDependencies: MutableSet<KotlinModuleDependency> = mutableSetOf()
 
