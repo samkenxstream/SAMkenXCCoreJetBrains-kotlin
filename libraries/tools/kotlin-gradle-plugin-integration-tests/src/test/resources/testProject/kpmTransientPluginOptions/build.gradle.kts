@@ -23,10 +23,10 @@ class KotlinPluginWithTransientPluginOptions(
     private val regularOptionValue: String,
     private val transientOptionValue: String
 ) : KotlinCompilerPlugin {
-    private fun pluginData() = PluginData(
+    private fun pluginData() = KotlinCompilerPluginData(
         pluginId = "test-plugin",
         // allopen artifact is used to avoid boilerplate with cooking custom compiler plugin
-        artifact = PluginData.ArtifactCoordinates("org.jetbrains.kotlin", "kotlin-allopen"),
+        artifact = KotlinCompilerPluginData.ArtifactCoordinates("org.jetbrains.kotlin", "kotlin-allopen"),
         options = listOf(
             StringOption("regular", regularOptionValue, isTransient = false),
             StringOption("transient", transientOptionValue, isTransient = true)

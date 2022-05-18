@@ -36,7 +36,7 @@ internal fun KotlinCompilationData<*>.pluginClasspathConfigurationName() = "${co
 
 private fun Project.compilerPluginDataProvider(
     compilationData: KotlinCompilationData<*>,
-    pluginDataList: () -> List<PluginData>
+    pluginDataList: () -> List<org.jetbrains.kotlin.project.model.KotlinCompilerPluginData>
 ): Provider<KotlinCompilerPluginData> {
     return newProperty {
         val configurationName = compilationData.pluginClasspathConfigurationName()
@@ -56,7 +56,7 @@ internal class CompilerPluginOptionsBuilder(
     private val gradleInputFiles = mutableSetOf<File>()
     private val gradleOutputFiles = mutableSetOf<File>()
 
-    operator fun plusAssign(pluginData: PluginData) {
+    operator fun plusAssign(pluginData: org.jetbrains.kotlin.project.model.KotlinCompilerPluginData) {
         artifacts += pluginData.artifact.toGradleCoordinates()
 
         for (option in pluginData.options) {
@@ -68,7 +68,7 @@ internal class CompilerPluginOptionsBuilder(
         }
     }
 
-    operator fun plusAssign(pluginDataCollection: Collection<PluginData>) {
+    operator fun plusAssign(pluginDataCollection: Collection<org.jetbrains.kotlin.project.model.KotlinCompilerPluginData>) {
         for (pluginData in pluginDataCollection) {
             this += pluginData
         }
@@ -127,6 +127,6 @@ internal class CompilerPluginOptionsBuilder(
         is StringOption -> SubpluginOption(key, value)
     }
 
-    private fun PluginData.ArtifactCoordinates.toGradleCoordinates(): String =
+    private fun org.jetbrains.kotlin.project.model.PluginData.KotlinCompilerPluginData.ArtifactCoordinates.toGradleCoordinates(): String =
         listOfNotNull(group, artifact, version).joinToString(":")
 }

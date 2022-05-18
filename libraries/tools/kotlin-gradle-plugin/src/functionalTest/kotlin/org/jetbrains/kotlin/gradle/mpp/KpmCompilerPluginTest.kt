@@ -37,7 +37,7 @@ class KpmCompilerPluginTest {
             options = mapOf("a" to "c"),
             platformArtifact = "native-only"
         ) {
-            override fun forPlatformCompilation(variant: KotlinVariant): PluginData? =
+            override fun forPlatformCompilation(variant: KotlinVariant): org.jetbrains.kotlin.project.model.KotlinCompilerPluginData? =
                 if (variant.platform == KotlinPlatformTypeAttribute.NATIVE) {
                     super.forPlatformCompilation(variant)
                 } else {
@@ -167,7 +167,7 @@ class KpmCompilerPluginTest {
         override fun apply(target: Project) = Unit
         override val kotlinCompilerPlugin get() = this
 
-        private fun pluginData(artifact: String) = PluginData(
+        private fun pluginData(artifact: String) = KotlinCompilerPluginData(
             pluginId = id,
             artifact = PluginData.ArtifactCoordinates(
                 group = "test",
@@ -187,9 +187,9 @@ class KpmCompilerPluginTest {
     open class TestPluginWithListeners : KotlinCompilerPlugin, GradleKpmCompilerPlugin {
         val kotlinCompilerPlugin: KotlinCompilerPlugin get() = this.also { onGetKpmCompilerPlugin() }
         override fun apply(target: Project) = onApply()
-        override fun forMetadataCompilation(fragment: KotlinFragment): PluginData? = null.also { onPluginDataGet() }
-        override fun forNativeMetadataCompilation(fragment: KotlinFragment): PluginData? = null.also { onPluginDataGet() }
-        override fun forPlatformCompilation(variant: KotlinVariant): PluginData? = null.also { onPluginDataGet() }
+        override fun forMetadataCompilation(fragment: KotlinFragment): org.jetbrains.kotlin.project.model.KotlinCompilerPluginData? = null.also { onPluginDataGet() }
+        override fun forNativeMetadataCompilation(fragment: KotlinFragment): org.jetbrains.kotlin.project.model.KotlinCompilerPluginData? = null.also { onPluginDataGet() }
+        override fun forPlatformCompilation(variant: KotlinVariant): org.jetbrains.kotlin.project.model.KotlinCompilerPluginData? = null.also { onPluginDataGet() }
 
         companion object {
             var onApply: () -> Unit = {}

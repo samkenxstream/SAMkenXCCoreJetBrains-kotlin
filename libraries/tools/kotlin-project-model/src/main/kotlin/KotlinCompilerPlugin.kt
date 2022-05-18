@@ -15,28 +15,28 @@ import java.io.File
 interface KotlinCompilerPlugin {
 
     /**
-     * Returns [PluginData] when applicable for [fragment] compilation
+     * Returns [KotlinCompilerPluginData] when applicable for [fragment] compilation
      * Returns [null] if not applicable
      */
-    fun forMetadataCompilation(fragment: KotlinFragment): PluginData?
+    fun forMetadataCompilation(fragment: KotlinFragment): KotlinCompilerPluginData?
 
     /**
-     * Returns [PluginData] when applicable for [fragment] compilation
+     * Returns [KotlinCompilerPluginData] when applicable for [fragment] compilation
      * Returns [null] if not applicable
      */
-    fun forNativeMetadataCompilation(fragment: KotlinFragment): PluginData?
+    fun forNativeMetadataCompilation(fragment: KotlinFragment): KotlinCompilerPluginData?
 
     /**
-     * Returns [PluginData] when applicable for [variant] compilation
+     * Returns [KotlinCompilerPluginData] when applicable for [variant] compilation
      * Returns [null] if not applicable
      */
-    fun forPlatformCompilation(variant: KotlinVariant): PluginData?
+    fun forPlatformCompilation(variant: KotlinVariant): KotlinCompilerPluginData?
 }
 
 /**
  * Plugin data can be used for changing some compilation request
  */
-data class PluginData(
+data class KotlinCompilerPluginData(
     val pluginId: String,
     val artifact: ArtifactCoordinates,
     val options: List<PluginOption>
@@ -79,17 +79,17 @@ data class FilesOption(
 
 // TODO: It should be part of "Compilation Process": KotlinModule.compilationRequestFor(METADATA | PLATFORM) -> CompilationRequest
 //  But there is no such thing at the moment :)
-fun KotlinFragment.metadataCompilationPluginData(): List<PluginData> =
+fun KotlinFragment.metadataCompilationPluginData(): List<KotlinCompilerPluginData> =
     containingModule
         .plugins
         .mapNotNull { plugin -> plugin.forMetadataCompilation(this) }
 
-fun KotlinFragment.nativeMetadataCompilationPluginData(): List<PluginData> =
+fun KotlinFragment.nativeMetadataCompilationPluginData(): List<KotlinCompilerPluginData> =
     containingModule
         .plugins
         .mapNotNull { plugin -> plugin.forNativeMetadataCompilation(this) }
 
-fun KotlinVariant.platformCompilationPluginData(): List<PluginData> =
+fun KotlinVariant.platformCompilationPluginData(): List<KotlinCompilerPluginData> =
     containingModule
         .plugins
         .mapNotNull { plugin -> plugin.forPlatformCompilation(this) }
@@ -102,9 +102,9 @@ abstract class BasicKotlinCompilerPlugin : KotlinCompilerPlugin {
 
     abstract val pluginId: String
 
-    protected abstract fun commonPluginArtifact(): PluginData.ArtifactCoordinates?
+    protected abstract fun commonPluginArtifact(): KotlinCompilerPluginData.ArtifactCoordinates?
 
-    protected abstract fun nativePluginArtifact(): PluginData.ArtifactCoordinates?
+    protected abstract fun nativePluginArtifact(): KotlinCompilerPluginData.ArtifactCoordinates?
 
     protected abstract val pluginOptions: List<PluginOption>
 
@@ -118,8 +118,8 @@ abstract class BasicKotlinCompilerPlugin : KotlinCompilerPlugin {
             else -> commonPluginArtifact()
         }.let(::pluginDataOrNull)
 
-    private fun pluginDataOrNull(artifact: PluginData.ArtifactCoordinates?) =
-        if (artifact != null) PluginData(pluginId, artifact, pluginOptions)
+    private fun pluginDataOrNull(artifact: KotlinCompilerPluginData.ArtifactCoordinates?) =
+        if (artifact != null) KotlinCompilerPluginData(pluginId, artifact, pluginOptions)
         else null
 }
 
