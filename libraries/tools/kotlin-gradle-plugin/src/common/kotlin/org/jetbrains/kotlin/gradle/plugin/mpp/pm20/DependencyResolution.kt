@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
 import org.jetbrains.kotlin.gradle.utils.getOrPutRootProjectProperty
 import org.jetbrains.kotlin.project.model.*
+import org.jetbrains.kotlin.project.model.KotlinVariant
 import java.util.*
 
 class CachingModuleDependencyResolver(private val actualResolver: ModuleDependencyResolver) : ModuleDependencyResolver {
@@ -119,7 +120,7 @@ internal fun buildSyntheticPlainModule(
 ): ExternalPlainKotlinModule {
     val moduleDependency = resolvedComponentResult.toModuleDependency()
     return ExternalPlainKotlinModule(BasicKotlinModule(moduleDependency.moduleIdentifier).apply {
-        BasicKotlinModuleVariant(this@apply, singleVariantName, DefaultLanguageSettingsBuilder()).apply {
+        BasicKotlinVariant(this@apply, singleVariantName, DefaultLanguageSettingsBuilder()).apply {
             fragments.add(this)
             this.declaredModuleDependencies.addAll(
                 resolvedComponentResult.dependencies
@@ -133,7 +134,7 @@ internal fun buildSyntheticPlainModule(
 internal class ExternalPlainKotlinModule(private val moduleData: BasicKotlinModule) : KotlinModule by moduleData {
     override fun toString(): String = "external plain $moduleData"
 
-    val singleVariant: KotlinModuleVariant
+    val singleVariant: KotlinVariant
         get() = moduleData.variants.singleOrNull()
             ?: error("synthetic $moduleData was expected to have a single variant, got: ${moduleData.variants}")
 }
@@ -141,7 +142,7 @@ internal class ExternalPlainKotlinModule(private val moduleData: BasicKotlinModu
 internal class ExternalImportedKotlinModule(
     private val moduleData: BasicKotlinModule,
     val projectStructureMetadata: KotlinProjectStructureMetadata,
-    val hostSpecificFragments: Set<KotlinModuleFragment>
+    val hostSpecificFragments: Set<KotlinFragment>
 ) : KotlinModule by moduleData {
     val hasLegacyMetadataModule = !projectStructureMetadata.isPublishedAsRoot
 

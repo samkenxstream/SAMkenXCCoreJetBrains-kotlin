@@ -38,10 +38,10 @@ data class MavenModuleIdentifier(
 interface KotlinModule {
     val moduleIdentifier: KotlinModuleIdentifier
 
-    val fragments: Iterable<KotlinModuleFragment>
+    val fragments: Iterable<KotlinFragment>
 
-    val variants: Iterable<KotlinModuleVariant>
-        get() = fragments.filterIsInstance<KotlinModuleVariant>()
+    val variants: Iterable<KotlinVariant>
+        get() = fragments.filterIsInstance<KotlinVariant>()
 
     val plugins: Iterable<KpmCompilerPlugin>
 
@@ -51,7 +51,7 @@ interface KotlinModule {
 open class BasicKotlinModule(
     override val moduleIdentifier: KotlinModuleIdentifier
 ) : KotlinModule {
-    override val fragments = mutableListOf<BasicKotlinModuleFragment>()
+    override val fragments = mutableListOf<BasicKotlinFragment>()
 
     override val plugins = mutableListOf<KpmCompilerPlugin>()
 

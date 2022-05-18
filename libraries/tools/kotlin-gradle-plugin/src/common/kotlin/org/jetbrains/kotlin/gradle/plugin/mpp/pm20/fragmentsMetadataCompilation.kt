@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.gradle.utils.dashSeparatedName
 import org.jetbrains.kotlin.gradle.utils.filesProvider
 import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
 import org.jetbrains.kotlin.library.KLIB_FILE_EXTENSION
-import org.jetbrains.kotlin.project.model.KotlinModuleFragment
+import org.jetbrains.kotlin.project.model.KotlinFragment
 import java.util.concurrent.Callable
 
 internal fun setupFragmentsMetadataForKpmModules(project: Project) {
@@ -293,5 +293,5 @@ private fun disableMetadataCompilationIfNotYetSupported(
     }
 }
 
-private fun transformFragmentMetadataTaskName(fragment: KotlinModuleFragment) =
+private fun transformFragmentMetadataTaskName(fragment: KotlinFragment) =
     lowerCamelCaseName("resolve", fragment.disambiguateName("Metadata"))

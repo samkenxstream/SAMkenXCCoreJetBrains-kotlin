@@ -7,19 +7,19 @@ package org.jetbrains.kotlin.project.model
 
 fun module(name: String, classifier: String? = null) = BasicKotlinModule(LocalModuleIdentifier("current", name, classifier))
 
-fun BasicKotlinModule.fragment(vararg nameParts: String): BasicKotlinModuleFragment =
+fun BasicKotlinModule.fragment(vararg nameParts: String): BasicKotlinFragment =
     fragment(nameParts.drop(1).joinToString("", nameParts.first()) { it.capitalize() })
 
-fun BasicKotlinModule.fragment(name: String): BasicKotlinModuleFragment =
-    fragments.firstOrNull { it.fragmentName == name } ?: BasicKotlinModuleFragment(this, name).also { fragments.add(it) }
+fun BasicKotlinModule.fragment(name: String): BasicKotlinFragment =
+    fragments.firstOrNull { it.fragmentName == name } ?: BasicKotlinFragment(this, name).also { fragments.add(it) }
 
-fun BasicKotlinModule.variant(vararg nameParts: String): BasicKotlinModuleVariant =
+fun BasicKotlinModule.variant(vararg nameParts: String): BasicKotlinVariant =
     variant(nameParts.drop(1).joinToString("", nameParts.first()) { it.capitalize() })
 
-fun BasicKotlinModule.variant(name: String): BasicKotlinModuleVariant =
+fun BasicKotlinModule.variant(name: String): BasicKotlinVariant =
     fragments.firstOrNull { it.fragmentName == name }
-        ?.let { it as? BasicKotlinModuleVariant ?: error("$name is not a variant") }
-        ?: BasicKotlinModuleVariant(this, name).also { fragments.add(it) }
+        ?.let { it as? BasicKotlinVariant ?: error("$name is not a variant") }
+        ?: BasicKotlinVariant(this, name).also { fragments.add(it) }
 
 fun KotlinModuleIdentifier.equalsWithoutClassifier(other: KotlinModuleIdentifier) = when (this) {
     is LocalModuleIdentifier -> other is LocalModuleIdentifier &&
@@ -29,15 +29,15 @@ fun KotlinModuleIdentifier.equalsWithoutClassifier(other: KotlinModuleIdentifier
     else -> error("can't check equality yet")
 }
 
-fun BasicKotlinModuleFragment.depends(module: BasicKotlinModule) {
+fun BasicKotlinFragment.depends(module: BasicKotlinModule) {
     this.declaredModuleDependencies += KotlinModuleDependency(module.moduleIdentifier)
 }
 
-fun BasicKotlinModuleFragment.refinedBy(fragment: BasicKotlinModuleFragment) {
+fun BasicKotlinFragment.refinedBy(fragment: BasicKotlinFragment) {
     fragment.refines(this)
 }
 
-fun BasicKotlinModuleFragment.refines(fragment: BasicKotlinModuleFragment) {
+fun BasicKotlinFragment.refines(fragment: BasicKotlinFragment) {
     require(fragment.containingModule == containingModule)
     directRefinesDependencies.add(fragment)
 }

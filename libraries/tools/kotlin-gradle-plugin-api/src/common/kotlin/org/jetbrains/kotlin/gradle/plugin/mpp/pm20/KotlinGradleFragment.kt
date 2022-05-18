@@ -12,12 +12,12 @@ import org.gradle.api.Project
 import org.gradle.api.file.SourceDirectorySet
 import org.jetbrains.kotlin.gradle.plugin.HasKotlinDependencies
 import org.jetbrains.kotlin.gradle.plugin.LanguageSettingsBuilder
-import org.jetbrains.kotlin.project.model.KotlinModuleFragment
+import org.jetbrains.kotlin.project.model.KotlinFragment
 import org.jetbrains.kotlin.project.model.utils.variantsContainingFragment
 import org.jetbrains.kotlin.tooling.core.closure
 import org.jetbrains.kotlin.tooling.core.withClosure
 
-interface KotlinGradleFragment : KotlinModuleFragment, HasKotlinDependencies, KotlinFragmentDependencyConfigurations, Named {
+interface KotlinGradleFragment : KotlinFragment, HasKotlinDependencies, KotlinFragmentDependencyConfigurations, Named {
     override val kotlinSourceRoots: SourceDirectorySet
 
     override val containingModule: KotlinGradleModule

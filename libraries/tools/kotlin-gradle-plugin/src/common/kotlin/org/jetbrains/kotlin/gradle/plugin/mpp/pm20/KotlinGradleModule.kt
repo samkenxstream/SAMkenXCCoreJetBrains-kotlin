@@ -79,5 +79,5 @@ internal val KotlinGradleModule.isMain
 internal fun KotlinGradleModule.disambiguateName(simpleName: String) =
     lowerCamelCaseName(moduleClassifier, simpleName)
 
-internal fun KotlinGradleModule.variantsContainingFragment(fragment: KotlinModuleFragment): Iterable<KotlinGradleVariant> =
+internal fun KotlinGradleModule.variantsContainingFragment(fragment: KotlinFragment): Iterable<KotlinGradleVariant> =
     (this as KotlinModule).variantsContainingFragment(fragment).onEach { it as KotlinGradleVariant } as Iterable<KotlinGradleVariant>

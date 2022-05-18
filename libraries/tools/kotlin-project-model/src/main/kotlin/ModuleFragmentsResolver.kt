@@ -9,24 +9,24 @@ import org.jetbrains.kotlin.project.model.utils.variantsContainingFragment
 
 interface ModuleFragmentsResolver {
     fun getChosenFragments(
-        requestingFragment: KotlinModuleFragment,
+        requestingFragment: KotlinFragment,
         dependencyModule: KotlinModule
     ): FragmentResolution
 }
 
-sealed class FragmentResolution(val requestingFragment: KotlinModuleFragment, val dependencyModule: KotlinModule) {
+sealed class FragmentResolution(val requestingFragment: KotlinFragment, val dependencyModule: KotlinModule) {
     class ChosenFragments(
-        requestingFragment: KotlinModuleFragment,
+        requestingFragment: KotlinFragment,
         dependencyModule: KotlinModule,
-        val visibleFragments: Iterable<KotlinModuleFragment>,
+        val visibleFragments: Iterable<KotlinFragment>,
         val variantResolutions: Iterable<VariantResolution>
     ) : FragmentResolution(requestingFragment, dependencyModule)
 
-    class NotRequested(requestingFragment: KotlinModuleFragment, dependencyModule: KotlinModule) :
+    class NotRequested(requestingFragment: KotlinFragment, dependencyModule: KotlinModule) :
         FragmentResolution(requestingFragment, dependencyModule)
 
     // TODO: think about restricting calls with the type system to avoid partial functions in resolvers?
-    class Unknown(requestingFragment: KotlinModuleFragment, dependencyModule: KotlinModule) :
+    class Unknown(requestingFragment: KotlinFragment, dependencyModule: KotlinModule) :
         FragmentResolution(requestingFragment, dependencyModule)
 }
 
@@ -34,7 +34,7 @@ class DefaultModuleFragmentsResolver(
     private val variantResolver: ModuleVariantResolver
 ) : ModuleFragmentsResolver {
     override fun getChosenFragments(
-        requestingFragment: KotlinModuleFragment,
+        requestingFragment: KotlinFragment,
         dependencyModule: KotlinModule
     ): FragmentResolution {
         val dependingModule = requestingFragment.containingModule
@@ -55,7 +55,7 @@ class DefaultModuleFragmentsResolver(
         }
 
         val result = if (chosenFragments.isEmpty())
-            emptyList<KotlinModuleFragment>()
+            emptyList<KotlinFragment>()
         else chosenFragments
             // Note this emulates the existing behavior that is lenient wrt to unresolved modules, but gives imprecise results. TODO revisit
             .filter { it.isNotEmpty() }

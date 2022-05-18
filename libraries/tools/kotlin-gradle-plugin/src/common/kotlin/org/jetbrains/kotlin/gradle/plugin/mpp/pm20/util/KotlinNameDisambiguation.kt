@@ -10,7 +10,7 @@ package org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.KotlinGradleModule
 import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
 import org.jetbrains.kotlin.project.model.KotlinModule
-import org.jetbrains.kotlin.project.model.KotlinModuleFragment
+import org.jetbrains.kotlin.project.model.KotlinFragment
 
 /**
  * Mechanism for disambiguating/scoping names for certain entities (e.g. fragments)
@@ -49,7 +49,7 @@ private class DefaultKotlinFragmentNameDisambiguation(
     private val fragmentName: String
 ) : KotlinNameDisambiguation {
     override fun disambiguateName(simpleName: String): String {
-        return KotlinModuleFragment.disambiguateName(module, fragmentName, simpleName)
+        return KotlinFragment.disambiguateName(module, fragmentName, simpleName)
     }
 }
 
@@ -58,19 +58,19 @@ private class DefaultKotlinFragmentNameDisambiguationOmittingMain(
     private val fragmentName: String
 ) : KotlinNameDisambiguation {
     override fun disambiguateName(simpleName: String): String {
-        return KotlinModuleFragment.disambiguateNameOmittingMain(module, fragmentName, simpleName)
+        return KotlinFragment.disambiguateNameOmittingMain(module, fragmentName, simpleName)
     }
 }
 
-internal fun KotlinModuleFragment.disambiguateName(simpleName: String) =
-    KotlinModuleFragment.disambiguateName(containingModule, fragmentName, simpleName)
+internal fun KotlinFragment.disambiguateName(simpleName: String) =
+    KotlinFragment.disambiguateName(containingModule, fragmentName, simpleName)
 
-internal val KotlinModuleFragment.unambiguousNameInProject
+internal val KotlinFragment.unambiguousNameInProject
     get() = disambiguateName("")
 
-internal fun KotlinModuleFragment.Companion.disambiguateName(module: KotlinModule, fragmentName: String, simpleName: String) =
+internal fun KotlinFragment.Companion.disambiguateName(module: KotlinModule, fragmentName: String, simpleName: String) =
     lowerCamelCaseName(fragmentName, module.moduleIdentifier.moduleClassifier ?: KotlinGradleModule.MAIN_MODULE_NAME, simpleName)
 
-internal fun KotlinModuleFragment.Companion.disambiguateNameOmittingMain(module: KotlinModule, fragmentName: String, simpleName: String) =
+internal fun KotlinFragment.Companion.disambiguateNameOmittingMain(module: KotlinModule, fragmentName: String, simpleName: String) =
     lowerCamelCaseName(fragmentName, module.moduleIdentifier.moduleClassifier, simpleName)
 

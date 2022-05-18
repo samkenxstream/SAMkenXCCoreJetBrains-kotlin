@@ -37,7 +37,7 @@ class KpmCompilerPluginTest {
             options = mapOf("a" to "c"),
             platformArtifact = "native-only"
         ) {
-            override fun forPlatformCompilation(variant: KotlinModuleVariant): PluginData? =
+            override fun forPlatformCompilation(variant: KotlinVariant): PluginData? =
                 if (variant.platform == KotlinPlatformTypeAttribute.NATIVE) {
                     super.forPlatformCompilation(variant)
                 } else {
@@ -176,20 +176,20 @@ class KpmCompilerPluginTest {
             options = options.map { StringOption(it.key, it.value) }
         )
 
-        override fun forMetadataCompilation(fragment: KotlinModuleFragment) = metadataArtifact?.let(::pluginData)
+        override fun forMetadataCompilation(fragment: KotlinFragment) = metadataArtifact?.let(::pluginData)
 
-        override fun forNativeMetadataCompilation(fragment: KotlinModuleFragment) = metadataNativeArtifact?.let(::pluginData)
+        override fun forNativeMetadataCompilation(fragment: KotlinFragment) = metadataNativeArtifact?.let(::pluginData)
 
-        override fun forPlatformCompilation(variant: KotlinModuleVariant) = platformArtifact?.let(::pluginData)
+        override fun forPlatformCompilation(variant: KotlinVariant) = platformArtifact?.let(::pluginData)
 
     }
 
     open class TestPluginWithListeners : KpmCompilerPlugin, GradleKpmCompilerPlugin {
         override val kpmCompilerPlugin: KpmCompilerPlugin get() = this.also { onGetKpmCompilerPlugin() }
         override fun apply(target: Project) = onApply()
-        override fun forMetadataCompilation(fragment: KotlinModuleFragment): PluginData? = null.also { onPluginDataGet() }
-        override fun forNativeMetadataCompilation(fragment: KotlinModuleFragment): PluginData? = null.also { onPluginDataGet() }
-        override fun forPlatformCompilation(variant: KotlinModuleVariant): PluginData? = null.also { onPluginDataGet() }
+        override fun forMetadataCompilation(fragment: KotlinFragment): PluginData? = null.also { onPluginDataGet() }
+        override fun forNativeMetadataCompilation(fragment: KotlinFragment): PluginData? = null.also { onPluginDataGet() }
+        override fun forPlatformCompilation(variant: KotlinVariant): PluginData? = null.also { onPluginDataGet() }
 
         companion object {
             var onApply: () -> Unit = {}

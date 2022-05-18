@@ -6,15 +6,15 @@
 package org.jetbrains.kotlin.project.model.utils
 
 import org.jetbrains.kotlin.project.model.KotlinModule
-import org.jetbrains.kotlin.project.model.KotlinModuleFragment
-import org.jetbrains.kotlin.project.model.KotlinModuleVariant
+import org.jetbrains.kotlin.project.model.KotlinFragment
+import org.jetbrains.kotlin.project.model.KotlinVariant
 import org.jetbrains.kotlin.project.model.withRefinesClosure
 import org.jetbrains.kotlin.tooling.core.closure
 
-fun KotlinModule.variantsContainingFragment(fragment: KotlinModuleFragment): Iterable<KotlinModuleVariant> =
+fun KotlinModule.variantsContainingFragment(fragment: KotlinFragment): Iterable<KotlinVariant> =
     variants.filter { variant -> fragment in variant.withRefinesClosure }
 
-fun KotlinModule.findRefiningFragments(fragment: KotlinModuleFragment): Iterable<KotlinModuleFragment> {
+fun KotlinModule.findRefiningFragments(fragment: KotlinFragment): Iterable<KotlinFragment> {
     return fragment.closure { seedFragment ->
         fragments.filter { otherFragment -> seedFragment in otherFragment.directRefinesDependencies }
     }

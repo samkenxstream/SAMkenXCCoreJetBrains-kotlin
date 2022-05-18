@@ -26,7 +26,6 @@ import org.jetbrains.kotlin.gradle.plugin.sources.kpm.FragmentMappedKotlinSource
 import org.jetbrains.kotlin.gradle.utils.filesProvider
 import org.jetbrains.kotlin.project.model.KotlinAttributeKey
 import org.jetbrains.kotlin.project.model.KotlinModuleDependency
-import org.jetbrains.kotlin.project.model.KotlinModuleFragment
 
 internal open class LegacyMappedVariant(
     internal val compilation: KotlinCompilation<*>,

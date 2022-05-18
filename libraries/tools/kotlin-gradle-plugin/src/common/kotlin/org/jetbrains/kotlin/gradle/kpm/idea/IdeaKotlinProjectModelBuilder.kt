@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.KotlinGradleFragment
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.KotlinPm20ProjectExtension
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.containingVariants
-import org.jetbrains.kotlin.project.model.KotlinModuleVariant
+import org.jetbrains.kotlin.project.model.KotlinVariant
 import java.io.File
 
 internal interface IdeaKotlinProjectModelBuildingContext {
@@ -98,7 +98,7 @@ interface IdeaKotlinProjectModelBuilder {
 
         companion object {
             val unconstrained = FragmentConstraint { true }
-            val isVariant = FragmentConstraint { fragment -> fragment is KotlinModuleVariant }
+            val isVariant = FragmentConstraint { fragment -> fragment is KotlinVariant }
             val isNative = FragmentConstraint { fragment -> fragment.containingVariants.run { any() && all { it.platformType == native } } }
         }
     }

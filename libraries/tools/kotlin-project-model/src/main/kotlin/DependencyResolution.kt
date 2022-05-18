@@ -24,7 +24,7 @@ sealed class DependencyGraphResolution(open val requestingModule: KotlinModule) 
 // TODO: should this be a single graph for all dependency scopes as well, not just for all fragments?
 open class DependencyGraphNode(
     open val module: KotlinModule,
-    open val dependenciesByFragment: Map<KotlinModuleFragment, Iterable<DependencyGraphNode>>
+    open val dependenciesByFragment: Map<KotlinFragment, Iterable<DependencyGraphNode>>
 ) {
     override fun toString(): String = "node ${module}"
 }

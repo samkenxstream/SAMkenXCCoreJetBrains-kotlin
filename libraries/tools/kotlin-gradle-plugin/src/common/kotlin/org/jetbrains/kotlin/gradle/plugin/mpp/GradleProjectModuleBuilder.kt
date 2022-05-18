@@ -34,11 +34,11 @@ class ProjectStructureMetadataModuleBuilder {
     ): KotlinModule {
         val moduleData = BasicKotlinModule(component.toSingleModuleIdentifier()).apply {
             metadata.sourceSetNamesByVariantName.keys.forEach { variantName ->
-                fragments.add(BasicKotlinModuleVariant(this@apply, variantName))
+                fragments.add(BasicKotlinVariant(this@apply, variantName))
             }
-            fun fragment(sourceSetName: String): BasicKotlinModuleFragment {
+            fun fragment(sourceSetName: String): BasicKotlinFragment {
                 if (fragments.none { it.fragmentName == sourceSetName })
-                    fragments.add(BasicKotlinModuleFragment(this@apply, sourceSetName))
+                    fragments.add(BasicKotlinFragment(this@apply, sourceSetName))
                 return fragmentByName(sourceSetName)
             }
             metadata.sourceSetNamesByVariantName.forEach { (variantName, sourceSets) ->
@@ -144,7 +144,7 @@ class GradleProjectModuleBuilder(private val addInferredSourceSetVisibilityAsExp
                 .flatMap { component -> (component as? KotlinVariant)?.usages.orEmpty() }
         }.groupBy { it.compilation }
 
-        val moduleByFragment = mutableMapOf<KotlinModuleFragment, KotlinModule>()
+        val moduleByFragment = mutableMapOf<KotlinFragment, KotlinModule>()
 
         val result = moduleCompilationCluster.entries.map { (classifier, compilationsToInclude) ->
             val sourceSetsToInclude = compilationsToInclude.flatMapTo(mutableSetOf()) { it.allKotlinSourceSets }
@@ -156,7 +156,7 @@ class GradleProjectModuleBuilder(private val addInferredSourceSetVisibilityAsExp
             )
 
             BasicKotlinModule(moduleIdentifier).apply {
-                val variantToCompilation = mutableMapOf<BasicKotlinModuleFragment, KotlinCompilation<*>>()
+                val variantToCompilation = mutableMapOf<BasicKotlinFragment, KotlinCompilation<*>>()
 
                 compilationsToInclude.forEach { compilation ->
                     // A compilation may be exposed as more than one variant, so we collect all of its names
@@ -165,7 +165,7 @@ class GradleProjectModuleBuilder(private val addInferredSourceSetVisibilityAsExp
                             ?: listOf(compilation.defaultSourceSetName)
 
                     variantNames.forEach { variantName ->
-                        val variant = BasicKotlinModuleVariant(this@apply, variantName, DefaultLanguageSettingsBuilder())
+                        val variant = BasicKotlinVariant(this@apply, variantName, DefaultLanguageSettingsBuilder())
                         moduleByFragment[variant] = this@apply
                         variantToCompilation[variant] = compilation
                         fragments.add(variant)
@@ -181,8 +181,8 @@ class GradleProjectModuleBuilder(private val addInferredSourceSetVisibilityAsExp
                 }
                 // Once all fragments are created, add dependencies between them
                 sourceSetsToInclude.forEach { sourceSet ->
-                    val existingVariant = fragments.filterIsInstance<BasicKotlinModuleVariant>().find { it.fragmentName == sourceSet.name }
-                    val fragment = existingVariant ?: BasicKotlinModuleFragment(this@apply, sourceSet.name, sourceSet.languageSettings).also { fragments.add(it) }
+                    val existingVariant = fragments.filterIsInstance<BasicKotlinVariant>().find { it.fragmentName == sourceSet.name }
+                    val fragment = existingVariant ?: BasicKotlinFragment(this@apply, sourceSet.name, sourceSet.languageSettings).also { fragments.add(it) }
                     moduleByFragment[fragment] = this@apply
                     fragment.kotlinSourceRoots = sourceSet.kotlin.sourceDirectories.toList()
 
@@ -262,16 +262,16 @@ private fun BasicKotlinModule.fragmentByName(name: String) =
     fragments.single { it.fragmentName == name }
 
 class CachingModuleVariantResolver(private val actualResolver: ModuleVariantResolver) : ModuleVariantResolver {
-    private val resultCacheByRequestingVariant: MutableMap<KotlinModuleVariant, MutableMap<KotlinModule, VariantResolution>> = mutableMapOf()
+    private val resultCacheByRequestingVariant: MutableMap<org.jetbrains.kotlin.project.model.KotlinVariant, MutableMap<KotlinModule, VariantResolution>> = mutableMapOf()
 
-    override fun getChosenVariant(requestingVariant: KotlinModuleVariant, dependencyModule: KotlinModule): VariantResolution {
+    override fun getChosenVariant(requestingVariant: org.jetbrains.kotlin.project.model.KotlinVariant, dependencyModule: KotlinModule): VariantResolution {
         val resultCache = resultCacheByRequestingVariant.getOrPut(requestingVariant) { mutableMapOf() }
         return resultCache.getOrPut(dependencyModule) { actualResolver.getChosenVariant(requestingVariant, dependencyModule) }
     }
 }
 
 class GradleModuleVariantResolver : ModuleVariantResolver {
-    override fun getChosenVariant(requestingVariant: KotlinModuleVariant, dependencyModule: KotlinModule): VariantResolution {
+    override fun getChosenVariant(requestingVariant: org.jetbrains.kotlin.project.model.KotlinVariant, dependencyModule: KotlinModule): VariantResolution {
         // TODO maybe improve this behavior? Currently it contradicts dependency resolution in that it may return a chosen variant for an
         //  unrequested dependency. This workaround is needed for synthetic modules which were not produced from module metadata, so maybe
         //  those modules should be marked somehow
@@ -315,7 +315,7 @@ class GradleModuleVariantResolver : ModuleVariantResolver {
             VariantResolution.VariantMatch(requestingVariant, dependencyModule, resultVariant)
     }
 
-    private fun getCompileDependenciesConfigurationForVariant(project: Project, requestingVariant: KotlinModuleVariant): Configuration =
+    private fun getCompileDependenciesConfigurationForVariant(project: Project, requestingVariant: org.jetbrains.kotlin.project.model.KotlinVariant): Configuration =
         when {
             project.hasKpmModel -> {
                 (requestingVariant as KotlinGradleVariant).compileDependenciesConfiguration

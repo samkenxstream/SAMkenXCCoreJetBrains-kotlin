@@ -11,9 +11,9 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.publish.maven.MavenPublication
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilationOutput
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.project.model.KotlinModuleVariant
+import org.jetbrains.kotlin.project.model.KotlinVariant
 
-interface KotlinGradleVariant : KotlinGradleFragment, KotlinModuleVariant {
+interface KotlinGradleVariant : KotlinGradleFragment, KotlinVariant {
     val platformType: KotlinPlatformType
 
     // TODO generalize with KotlinCompilation?

@@ -103,7 +103,7 @@ class GradleDependencyGraphNode(
     /** If the Kotlin module description was provided by a different component, such as with legacy publishing layout using *-metadata
      * modules, then this property points to the other component. */
     val metadataSourceComponent: ResolvedComponentResult?,
-    override val dependenciesByFragment: Map<KotlinModuleFragment, Iterable<GradleDependencyGraphNode>>
+    override val dependenciesByFragment: Map<KotlinFragment, Iterable<GradleDependencyGraphNode>>
 ) : DependencyGraphNode(module, dependenciesByFragment)
 
 class GradleDependencyGraph(

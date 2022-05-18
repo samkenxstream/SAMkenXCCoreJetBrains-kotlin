@@ -10,11 +10,11 @@ import org.jetbrains.kotlin.tooling.core.closure
 import org.jetbrains.kotlin.tooling.core.withClosure
 import java.io.File
 
-interface KotlinModuleFragment {
+interface KotlinFragment {
     val containingModule: KotlinModule
 
     val fragmentName: String
-    val directRefinesDependencies: Iterable<KotlinModuleFragment>
+    val directRefinesDependencies: Iterable<KotlinFragment>
 
     val languageSettings: LanguageSettings?
 
@@ -27,11 +27,11 @@ interface KotlinModuleFragment {
     companion object
 }
 
-interface KotlinModuleVariant : KotlinModuleFragment {
+interface KotlinVariant : KotlinFragment {
     val variantAttributes: Map<KotlinAttributeKey, String>
 }
 
-val KotlinModuleFragment.fragmentAttributeSets: Map<KotlinAttributeKey, Set<String>>
+val KotlinFragment.fragmentAttributeSets: Map<KotlinAttributeKey, Set<String>>
     get() = mutableMapOf<KotlinAttributeKey, MutableSet<String>>().apply {
         containingModule.variantsContainingFragment(this@fragmentAttributeSets).forEach { variant ->
             variant.variantAttributes.forEach { (attribute, value) ->
@@ -40,21 +40,21 @@ val KotlinModuleFragment.fragmentAttributeSets: Map<KotlinAttributeKey, Set<Stri
         }
     }
 
-val KotlinModuleFragment.refinesClosure: Set<KotlinModuleFragment>
+val KotlinFragment.refinesClosure: Set<KotlinFragment>
     get() = this.closure { it.directRefinesDependencies }
 
-val KotlinModuleFragment.withRefinesClosure: Set<KotlinModuleFragment>
+val KotlinFragment.withRefinesClosure: Set<KotlinFragment>
     get() = this.withClosure { it.directRefinesDependencies }
 
-val KotlinModuleVariant.platform get() = variantAttributes[KotlinPlatformTypeAttribute]
+val KotlinVariant.platform get() = variantAttributes[KotlinPlatformTypeAttribute]
 
-open class BasicKotlinModuleFragment(
+open class BasicKotlinFragment(
     override val containingModule: KotlinModule,
     override val fragmentName: String,
     override val languageSettings: LanguageSettings? = null
-) : KotlinModuleFragment {
+) : KotlinFragment {
 
-    override val directRefinesDependencies: MutableSet<BasicKotlinModuleFragment> = mutableSetOf()
+    override val directRefinesDependencies: MutableSet<BasicKotlinFragment> = mutableSetOf()
 
     override val declaredModuleDependencies: MutableSet<KotlinModuleDependency> = mutableSetOf()
 
@@ -62,15 +62,15 @@ open class BasicKotlinModuleFragment(
     override fun toString(): String = "fragment $fragmentName"
 }
 
-class BasicKotlinModuleVariant(
+class BasicKotlinVariant(
     containingModule: KotlinModule,
     fragmentName: String,
     languageSettings: LanguageSettings? = null
-) : BasicKotlinModuleFragment(
+) : BasicKotlinFragment(
     containingModule,
     fragmentName,
     languageSettings
-), KotlinModuleVariant {
+), KotlinVariant {
     override val variantAttributes: MutableMap<KotlinAttributeKey, String> = mutableMapOf()
     override fun toString(): String = "variant $fragmentName"
 }
