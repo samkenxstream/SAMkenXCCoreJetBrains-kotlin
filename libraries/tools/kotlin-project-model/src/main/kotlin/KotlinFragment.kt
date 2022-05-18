@@ -24,6 +24,12 @@ interface KotlinFragment {
     // TODO: should this be source roots or source files?
     val kotlinSourceRoots: Iterable<File>
 
+    val refinesClosure: Set<KotlinFragment>
+        get() = this.closure { it.directRefinesDependencies }
+
+    val withRefinesClosure: Set<KotlinFragment>
+        get() = this.withClosure { it.directRefinesDependencies }
+
     companion object
 }
 
@@ -40,11 +46,6 @@ val KotlinFragment.fragmentAttributeSets: Map<KotlinAttributeKey, Set<String>>
         }
     }
 
-val KotlinFragment.refinesClosure: Set<KotlinFragment>
-    get() = this.closure { it.directRefinesDependencies }
-
-val KotlinFragment.withRefinesClosure: Set<KotlinFragment>
-    get() = this.withClosure { it.directRefinesDependencies }
 
 val KotlinVariant.platform get() = variantAttributes[KotlinPlatformTypeAttribute]
 

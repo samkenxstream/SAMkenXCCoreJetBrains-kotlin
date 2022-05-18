@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.project.model.utils
 import org.jetbrains.kotlin.project.model.KotlinModule
 import org.jetbrains.kotlin.project.model.KotlinFragment
 import org.jetbrains.kotlin.project.model.KotlinVariant
-import org.jetbrains.kotlin.project.model.withRefinesClosure
 import org.jetbrains.kotlin.tooling.core.closure
 
 fun KotlinModule.variantsContainingFragment(fragment: KotlinFragment): Iterable<KotlinVariant> =

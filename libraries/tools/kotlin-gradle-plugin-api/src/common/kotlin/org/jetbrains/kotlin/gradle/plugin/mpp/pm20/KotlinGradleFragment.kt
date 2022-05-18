@@ -35,6 +35,12 @@ interface KotlinGradleFragment : KotlinFragment, HasKotlinDependencies, KotlinFr
 
     override val directRefinesDependencies: Iterable<KotlinGradleFragment>
 
+    override val refinesClosure: Set<KotlinGradleFragment>
+        get() = this.closure { it.directRefinesDependencies }
+
+    override val withRefinesClosure: Set<KotlinGradleFragment>
+        get() = this.withClosure { it.directRefinesDependencies }
+
     override fun dependencies(configureClosure: Closure<Any?>) =
         dependencies f@{ project.configure(this@f, configureClosure) }
 
@@ -59,12 +65,6 @@ interface KotlinGradleFragment : KotlinFragment, HasKotlinDependencies, KotlinFr
                 // TODO: resolvable metadata configurations?
                 listOf(transitiveApiConfiguration.name, transitiveImplementationConfiguration.name)
 }
-
-val KotlinGradleFragment.withRefinesClosure: Set<KotlinGradleFragment>
-    get() = this.withClosure { it.directRefinesDependencies }
-
-val KotlinGradleFragment.refinesClosure: Set<KotlinGradleFragment>
-    get() = this.closure { it.directRefinesDependencies }
 
 val KotlinGradleFragment.path: String
     get() = "${project.path}/${containingModule.name}/$fragmentName"
