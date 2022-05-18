@@ -34,10 +34,6 @@ interface KotlinFragment {
     companion object
 }
 
-interface KotlinVariant : KotlinFragment {
-    val variantAttributes: Map<KotlinAttributeKey, String>
-}
-
 val KotlinFragment.fragmentAttributeSets: Map<KotlinAttributeKey, Set<String>>
     get() = mutableMapOf<KotlinAttributeKey, MutableSet<String>>().apply {
         containingModule.variantsContainingFragment(this@fragmentAttributeSets).forEach { variant ->
@@ -46,7 +42,6 @@ val KotlinFragment.fragmentAttributeSets: Map<KotlinAttributeKey, Set<String>>
             }
         }
     }
-
 
 val KotlinVariant.platform get() = variantAttributes[KotlinPlatformTypeAttribute]
 
@@ -61,18 +56,7 @@ open class BasicKotlinFragment(
     override val declaredModuleDependencies: MutableSet<KotlinModuleDependency> = mutableSetOf()
 
     override var kotlinSourceRoots: Iterable<File> = emptyList()
+
     override fun toString(): String = "fragment $fragmentName"
 }
 
-class BasicKotlinVariant(
-    containingModule: KotlinModule,
-    fragmentName: String,
-    languageSettings: LanguageSettings? = null
-) : BasicKotlinFragment(
-    containingModule,
-    fragmentName,
-    languageSettings
-), KotlinVariant {
-    override val variantAttributes: MutableMap<KotlinAttributeKey, String> = mutableMapOf()
-    override fun toString(): String = "variant $fragmentName"
-}
