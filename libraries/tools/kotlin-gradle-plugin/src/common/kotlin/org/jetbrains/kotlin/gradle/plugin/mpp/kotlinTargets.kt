@@ -144,7 +144,7 @@ abstract class AbstractKotlinTarget(
                     (kotlinVariant as? ComponentWithCoordinates)?.coordinates ?: error("kotlinVariant is not ComponentWithCoordinates")
 
                 override fun getVariants(): Set<SoftwareComponent> =
-                    (kotlinVariant as? KotlinVariantWithMetadataVariant)?.variants.orEmpty()
+                    (kotlinVariant as? KotlinVariantWithMetadataVariantComponent)?.variants.orEmpty()
 
                 override fun getName(): String = adhocVariant.name
                 override fun getUsages(): MutableSet<out UsageContext> = (adhocVariant as SoftwareComponentInternal).usages
@@ -156,17 +156,17 @@ abstract class AbstractKotlinTarget(
         componentName: String,
         compilation: KotlinCompilation<*>,
         usageContexts: Set<DefaultKotlinUsageContext>
-    ): KotlinVariant {
+    ): KotlinVariantComponent {
         val kotlinExtension = project.kotlinExtension
 
         val result =
             if (kotlinExtension !is KotlinMultiplatformExtension || targetName == KotlinMultiplatformPlugin.METADATA_TARGET_NAME)
-                KotlinVariantWithCoordinates(compilation, usageContexts)
+                KotlinVariantComponentWithCoordinates(compilation, usageContexts)
             else {
                 val metadataTarget =
                     kotlinExtension.targets.getByName(KotlinMultiplatformPlugin.METADATA_TARGET_NAME) as AbstractKotlinTarget
 
-                KotlinVariantWithMetadataVariant(compilation, usageContexts, metadataTarget)
+                KotlinVariantWithMetadataVariantComponent(compilation, usageContexts, metadataTarget)
             }
 
         result.componentName = componentName

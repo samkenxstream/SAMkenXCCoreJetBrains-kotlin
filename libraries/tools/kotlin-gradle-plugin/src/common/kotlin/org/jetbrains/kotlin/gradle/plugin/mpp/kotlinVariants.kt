@@ -55,7 +55,7 @@ private interface KotlinTargetComponentWithCoordinatesAndPublication :
     override fun getCoordinates() = getCoordinatesFromPublicationDelegateAndProject(publicationDelegate, target.project, target)
 }
 
-open class KotlinVariant(
+open class KotlinVariantComponent(
     val producingCompilation: KotlinCompilation<*>,
     private val usages: Set<DefaultKotlinUsageContext>
 ) : KotlinTargetComponentWithPublication, SoftwareComponentInternal {
@@ -85,23 +85,23 @@ open class KotlinVariant(
     override var publicationDelegate: MavenPublication? = null
 }
 
-open class KotlinVariantWithCoordinates(
+open class KotlinVariantComponentWithCoordinates(
     producingCompilation: KotlinCompilation<*>,
     usages: Set<DefaultKotlinUsageContext>
-) : KotlinVariant(producingCompilation, usages),
+) : KotlinVariantComponent(producingCompilation, usages),
     KotlinTargetComponentWithCoordinatesAndPublication /* Gradle 4.7+ API, don't use with older versions */
 
-class KotlinVariantWithMetadataVariant(
+class KotlinVariantWithMetadataVariantComponent(
     producingCompilation: KotlinCompilation<*>,
     usages: Set<DefaultKotlinUsageContext>,
     internal val metadataTarget: AbstractKotlinTarget
-) : KotlinVariantWithCoordinates(producingCompilation, usages), ComponentWithVariants {
+) : KotlinVariantComponentWithCoordinates(producingCompilation, usages), ComponentWithVariants {
     override fun getVariants() = metadataTarget.components
 }
 
 class JointAndroidKotlinTargetComponent(
     override val target: KotlinAndroidTarget,
-    private val nestedVariants: Set<KotlinVariant>,
+    private val nestedVariants: Set<KotlinVariantComponent>,
     val flavorNames: List<String>,
     override val sourcesArtifacts: Set<PublishArtifact>
 ) : KotlinTargetComponentWithCoordinatesAndPublication, SoftwareComponentInternal {

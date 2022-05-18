@@ -141,7 +141,7 @@ class GradleProjectModuleBuilder(private val addInferredSourceSetVisibilityAsExp
 
         val publishedVariantsByCompilation = targets.flatMap { target ->
             (target as? AbstractKotlinTarget)?.kotlinComponents.orEmpty()
-                .flatMap { component -> (component as? KotlinVariant)?.usages.orEmpty() }
+                .flatMap { component -> (component as? KotlinVariantComponent)?.usages.orEmpty() }
         }.groupBy { it.compilation }
 
         val moduleByFragment = mutableMapOf<KotlinFragment, KotlinModule>()
@@ -326,7 +326,7 @@ class GradleModuleVariantResolver : ModuleVariantResolver {
 
                 val compilation =
                     targets.filterIsInstance<AbstractKotlinTarget>()
-                        .flatMap { it.kotlinComponents.filterIsInstance<KotlinVariant>() }
+                        .flatMap { it.kotlinComponents.filterIsInstance<KotlinVariantComponent>() }
                         .flatMap { it.usages }
                         .firstOrNull { it.name == requestingVariant.fragmentName }
                         ?.compilation

@@ -68,7 +68,7 @@ internal open class LegacyMappedVariant(
             val allTargetComponents = (compilation.target as AbstractKotlinTarget).kotlinComponents
             val allTargetUsages = allTargetComponents.flatMap {
                 when (it) {
-                    is KotlinVariant -> it.usages
+                    is KotlinVariantComponent -> it.usages
                     is JointAndroidKotlinTargetComponent -> it.usages
                     else -> emptyList()
                 }
@@ -197,7 +197,7 @@ internal fun mapTargetCompilationsToKpmVariants(target: AbstractKotlinTarget, pu
                 kotlinComponent.defaultArtifactId.removePrefix(target.project.name.toLowerCase() + "-")
             )
             val usages = when (kotlinComponent) { // unfortunately, there's no common supertype with `usages`
-                is KotlinVariant -> kotlinComponent.usages
+                is KotlinVariantComponent -> kotlinComponent.usages
                 is JointAndroidKotlinTargetComponent -> kotlinComponent.usages
                 else -> error("unexpected type of kotlinComponent in legacy variant mapping: ${kotlinComponent.javaClass}")
             }

@@ -321,7 +321,7 @@ private fun applyUserDefinedAttributesWithLegacyModel(
         // To copy the attributes to the output configurations, find those output configurations and their producing compilations
         // based on the target's components:
         val outputConfigurationsWithCompilations =
-            target.kotlinComponents.filterIsInstance<KotlinVariant>().flatMap { kotlinVariant ->
+            target.kotlinComponents.filterIsInstance<KotlinVariantComponent>().flatMap { kotlinVariant ->
                 kotlinVariant.usages.mapNotNull { usageContext ->
                     project.configurations.findByName(usageContext.dependencyConfigurationName)?.let { configuration ->
                         configuration to usageContext.compilation

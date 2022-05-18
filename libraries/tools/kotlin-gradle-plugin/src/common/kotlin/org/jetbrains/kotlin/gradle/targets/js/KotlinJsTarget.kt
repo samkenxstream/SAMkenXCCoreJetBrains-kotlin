@@ -111,7 +111,7 @@ constructor(
         componentName: String,
         compilation: KotlinCompilation<*>,
         usageContexts: Set<DefaultKotlinUsageContext>
-    ): KotlinVariant {
+    ): KotlinVariantComponent {
         return super.createKotlinVariant(componentName, compilation, usageContexts).apply {
             irTarget?.let {
                 artifactTargetName = targetName.removeJsCompilerSuffix(LEGACY)
