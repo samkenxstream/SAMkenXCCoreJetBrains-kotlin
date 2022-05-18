@@ -27,7 +27,7 @@ open class KotlinGradleModuleInternal(
     )
 
     override val moduleIdentifier: KotlinModuleIdentifier =
-        LocalModuleIdentifier(project.currentBuildId().name, project.path, moduleClassifier)
+        LocalKotlinModuleIdentifier(project.currentBuildId().name, project.path, moduleClassifier)
 
     override val fragments: ExtensiblePolymorphicDomainObjectContainer<KotlinGradleFragment> =
         project.objects.polymorphicDomainObjectContainer(KotlinGradleFragment::class.java)

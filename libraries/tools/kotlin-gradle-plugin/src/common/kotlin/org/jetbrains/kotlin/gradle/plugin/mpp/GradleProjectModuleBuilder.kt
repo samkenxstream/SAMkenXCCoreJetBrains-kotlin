@@ -52,7 +52,7 @@ class ProjectStructureMetadataModuleBuilder {
                 dependencies.forEach { dependency ->
                     fragment.declaredModuleDependencies.add(
                         KotlinModuleDependency(
-                            MavenModuleIdentifier(
+                            MavenKotlinModuleIdentifier(
                                 dependency.groupId.orEmpty(),
                                 dependency.moduleId,
                                 null /* TODO */
@@ -149,7 +149,7 @@ class GradleProjectModuleBuilder(private val addInferredSourceSetVisibilityAsExp
         val result = moduleCompilationCluster.entries.map { (classifier, compilationsToInclude) ->
             val sourceSetsToInclude = compilationsToInclude.flatMapTo(mutableSetOf()) { it.allKotlinSourceSets }
 
-            val moduleIdentifier = LocalModuleIdentifier(
+            val moduleIdentifier = LocalKotlinModuleIdentifier(
                 project.currentBuildId().name,
                 project.path,
                 classifier.takeIf { it != KotlinCompilation.MAIN_COMPILATION_NAME }
@@ -242,18 +242,18 @@ internal fun Dependency.toModuleDependency(
     return KotlinModuleDependency(
         when (this) {
             is ProjectDependency ->
-                LocalModuleIdentifier(
+                LocalKotlinModuleIdentifier(
                     project.currentBuildId().name,
                     dependencyProject.path,
                     moduleClassifiersFromCapabilities(requestedCapabilities).single() // FIXME multiple capabilities
                 )
             is ModuleDependency ->
-                MavenModuleIdentifier(
+                MavenKotlinModuleIdentifier(
                     group.orEmpty(),
                     name,
                     moduleClassifiersFromCapabilities(requestedCapabilities).single() // FIXME multiple capabilities
                 )
-            else -> MavenModuleIdentifier(group.orEmpty(), name, null)
+            else -> MavenKotlinModuleIdentifier(group.orEmpty(), name, null)
         }
     )
 }

@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.project.model
 
-fun module(name: String, classifier: String? = null) = BasicKotlinModule(LocalModuleIdentifier("current", name, classifier))
+fun module(name: String, classifier: String? = null) = BasicKotlinModule(LocalKotlinModuleIdentifier("current", name, classifier))
 
 fun BasicKotlinModule.fragment(vararg nameParts: String): BasicKotlinFragment =
     fragment(nameParts.drop(1).joinToString("", nameParts.first()) { it.capitalize() })
@@ -22,10 +22,10 @@ fun BasicKotlinModule.variant(name: String): BasicKotlinVariant =
         ?: BasicKotlinVariant(this, name).also { fragments.add(it) }
 
 fun KotlinModuleIdentifier.equalsWithoutClassifier(other: KotlinModuleIdentifier) = when (this) {
-    is LocalModuleIdentifier -> other is LocalModuleIdentifier &&
-            LocalModuleIdentifier(buildId, projectId, null) == LocalModuleIdentifier(other.buildId, other.projectId, null)
-    is MavenModuleIdentifier -> other is MavenModuleIdentifier &&
-            MavenModuleIdentifier(group, name, null) == MavenModuleIdentifier(other.group, other.name, null)
+    is LocalKotlinModuleIdentifier -> other is LocalKotlinModuleIdentifier &&
+            LocalKotlinModuleIdentifier(buildId, projectId, null) == LocalKotlinModuleIdentifier(other.buildId, other.projectId, null)
+    is MavenKotlinModuleIdentifier -> other is MavenKotlinModuleIdentifier &&
+            MavenKotlinModuleIdentifier(group, name, null) == MavenKotlinModuleIdentifier(other.group, other.name, null)
     else -> error("can't check equality yet")
 }
 

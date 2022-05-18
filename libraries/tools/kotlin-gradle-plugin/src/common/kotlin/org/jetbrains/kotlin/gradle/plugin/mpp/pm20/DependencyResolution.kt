@@ -149,8 +149,8 @@ internal class ExternalImportedKotlinModule(
     override fun toString(): String = "imported $moduleData"
 }
 
-private fun ModuleComponentIdentifier.toSingleModuleIdentifier(classifier: String? = null): MavenModuleIdentifier =
-    MavenModuleIdentifier(moduleIdentifier.group, moduleIdentifier.name, classifier)
+private fun ModuleComponentIdentifier.toSingleModuleIdentifier(classifier: String? = null): MavenKotlinModuleIdentifier =
+    MavenKotlinModuleIdentifier(moduleIdentifier.group, moduleIdentifier.name, classifier)
 
 internal fun ComponentIdentifier.matchesModule(module: KotlinModule): Boolean =
     matchesModuleIdentifier(module.moduleIdentifier)
@@ -169,9 +169,9 @@ internal fun ResolvedComponentResult.toSingleModuleIdentifier(): KotlinModuleIde
 
 private fun ResolvedComponentResult.toModuleIdentifier(moduleClassifier: String?): KotlinModuleIdentifier {
     return when (val id = id) {
-        is ProjectComponentIdentifier -> LocalModuleIdentifier(id.build.name, id.projectPath, moduleClassifier)
+        is ProjectComponentIdentifier -> LocalKotlinModuleIdentifier(id.build.name, id.projectPath, moduleClassifier)
         is ModuleComponentIdentifier -> id.toSingleModuleIdentifier()
-        else -> MavenModuleIdentifier(moduleVersion?.group.orEmpty(), moduleVersion?.name.orEmpty(), moduleClassifier)
+        else -> MavenKotlinModuleIdentifier(moduleVersion?.group.orEmpty(), moduleVersion?.name.orEmpty(), moduleClassifier)
     }
 }
 
@@ -183,8 +183,8 @@ internal fun moduleClassifiersFromCapabilities(capabilities: Iterable<Capability
 internal fun ComponentSelector.toModuleIdentifiers(): Iterable<KotlinModuleIdentifier> {
     val moduleClassifiers = moduleClassifiersFromCapabilities(requestedCapabilities)
     return when (this) {
-        is ProjectComponentSelector -> moduleClassifiers.map { LocalModuleIdentifier(buildName, projectPath, it) }
-        is ModuleComponentSelector -> moduleClassifiers.map { MavenModuleIdentifier(moduleIdentifier.group, moduleIdentifier.name, it) }
+        is ProjectComponentSelector -> moduleClassifiers.map { LocalKotlinModuleIdentifier(buildName, projectPath, it) }
+        is ModuleComponentSelector -> moduleClassifiers.map { MavenKotlinModuleIdentifier(moduleIdentifier.group, moduleIdentifier.name, it) }
         else -> error("unexpected component selector")
     }
 }
@@ -200,11 +200,11 @@ internal fun ComponentIdentifier.matchesModuleDependency(moduleDependency: Kotli
 
 internal fun ComponentIdentifier.matchesModuleIdentifier(id: KotlinModuleIdentifier): Boolean =
     when (id) {
-        is LocalModuleIdentifier -> {
+        is LocalKotlinModuleIdentifier -> {
             val projectId = this as? ProjectComponentIdentifier
             projectId?.build?.name == id.buildId && projectId.projectPath == id.projectId
         }
-        is MavenModuleIdentifier -> {
+        is MavenKotlinModuleIdentifier -> {
             val componentId = this as? ModuleComponentIdentifier
             componentId?.toSingleModuleIdentifier() == id
         }

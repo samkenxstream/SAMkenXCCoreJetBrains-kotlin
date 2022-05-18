@@ -9,7 +9,7 @@ import java.io.Serializable
 
 sealed class KotlinModuleIdentifier(open val moduleClassifier: String?): Serializable
 
-data class LocalModuleIdentifier(
+data class LocalKotlinModuleIdentifier(
     val buildId: String,
     val projectId: String,
     override val moduleClassifier: String?
@@ -24,7 +24,7 @@ data class LocalModuleIdentifier(
                 buildId.takeIf { it != SINGLE_BUILD_ID }?.let { "(build '$it')" }.orEmpty()
 }
 
-data class MavenModuleIdentifier(
+data class MavenKotlinModuleIdentifier(
     val group: String,
     val name: String,
     override val moduleClassifier: String?

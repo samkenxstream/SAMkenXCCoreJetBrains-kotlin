@@ -19,8 +19,8 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.ComputedCapability
 import org.jetbrains.kotlin.gradle.utils.getValue
 import org.jetbrains.kotlin.project.model.KotlinModuleIdentifier
-import org.jetbrains.kotlin.project.model.LocalModuleIdentifier
-import org.jetbrains.kotlin.project.model.MavenModuleIdentifier
+import org.jetbrains.kotlin.project.model.LocalKotlinModuleIdentifier
+import org.jetbrains.kotlin.project.model.MavenKotlinModuleIdentifier
 
 internal object ModuleIds {
     fun fromDependency(dependency: Dependency): ModuleDependencyIdentifier = when (dependency) {
@@ -73,7 +73,7 @@ internal object ModuleIds {
     // FIXME use capabilities to point to auxiliary modules
     fun lossyFromModuleIdentifier(thisProject: Project, moduleIdentifier: KotlinModuleIdentifier): ModuleDependencyIdentifier {
         when (moduleIdentifier) {
-            is LocalModuleIdentifier -> {
+            is LocalKotlinModuleIdentifier -> {
                 check(moduleIdentifier.buildId == thisProject.currentBuildId().name)
                 val dependencyProject = thisProject.project(moduleIdentifier.projectId)
                 val topLevelExtension = dependencyProject.topLevelExtension
@@ -101,7 +101,7 @@ internal object ModuleIds {
                 )
                 return ChangingModuleDependencyIdentifier({ coordinatesProvider.group }, { coordinatesProvider.name })
             }
-            is MavenModuleIdentifier -> {
+            is MavenKotlinModuleIdentifier -> {
                 return ModuleDependencyIdentifier(moduleIdentifier.group, moduleIdentifier.name)
             }
             else -> error("unexpected module identifier $moduleIdentifier")
