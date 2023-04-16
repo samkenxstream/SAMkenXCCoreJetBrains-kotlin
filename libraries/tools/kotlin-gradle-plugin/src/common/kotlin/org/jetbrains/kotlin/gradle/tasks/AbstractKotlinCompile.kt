@@ -30,28 +30,22 @@ import org.jetbrains.kotlin.compilerRunner.GradleCompilerRunner
 import org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers
 import org.jetbrains.kotlin.compilerRunner.UsesCompilerSystemPropertiesService
 import org.jetbrains.kotlin.daemon.common.MultiModuleICSettings
+import org.jetbrains.kotlin.gradle.dsl.KotlinCommonCompilerOptions
 import org.jetbrains.kotlin.gradle.incremental.UsesIncrementalModuleInfoBuildService
-import org.jetbrains.kotlin.gradle.internal.AbstractKotlinCompileArgumentsContributor
-import org.jetbrains.kotlin.gradle.internal.compilerArgumentsConfigurationFlags
-import org.jetbrains.kotlin.gradle.internal.prepareCompilerArguments
 import org.jetbrains.kotlin.gradle.internal.tasks.allOutputFiles
 import org.jetbrains.kotlin.gradle.logging.GradleKotlinLogger
 import org.jetbrains.kotlin.gradle.logging.kotlinDebug
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.default
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_SUPPRESS_EXPERIMENTAL_IC_OPTIMIZATIONS_WARNING
 import org.jetbrains.kotlin.gradle.plugin.UsesBuildFinishedListenerService
 import org.jetbrains.kotlin.gradle.plugin.UsesVariantImplementationFactories
 import org.jetbrains.kotlin.gradle.plugin.statistics.KotlinBuildStatsService
 import org.jetbrains.kotlin.gradle.report.*
-import org.jetbrains.kotlin.gradle.report.UsesBuildMetricsService
-import org.jetbrains.kotlin.gradle.report.UsesBuildReportsService
 import org.jetbrains.kotlin.gradle.utils.*
-import org.jetbrains.kotlin.gradle.utils.newInstance
-import org.jetbrains.kotlin.gradle.utils.property
-import org.jetbrains.kotlin.gradle.utils.propertyWithConvention
-import org.jetbrains.kotlin.gradle.utils.propertyWithNewInstance
 import org.jetbrains.kotlin.incremental.ChangedFiles
 import org.jetbrains.kotlin.incremental.IncrementalCompilerRunner
 import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
+import org.jetbrains.kotlin.statistics.metrics.StringMetrics
 import java.io.File
 import javax.inject.Inject
 import org.jetbrains.kotlin.gradle.tasks.cleanOutputsAndLocalState as cleanOutputsAndLocalStateUtil
@@ -85,6 +79,9 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
     // avoid creating directory in getter: this can lead to failure in parallel build
     @get:LocalState
     internal abstract val taskBuildLocalStateDirectory: DirectoryProperty
+
+    @get:Nested
+    abstract val compilerOptions: KotlinCommonCompilerOptions
 
     @get:Internal
     internal val buildHistoryFile
@@ -239,6 +236,7 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
                     it.report(BooleanMetrics.COMPILATION_STARTED, true)
             }
             validateCompilerClasspath()
+            collectCommonCompilerStats()
             systemPropertiesService.get().startIntercept()
             CompilerSystemProperties.KOTLIN_COMPILER_ENVIRONMENT_KEEPALIVE_PROPERTY.value = "true"
 
@@ -272,6 +270,18 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
         buildMetricsService.orNull?.also { it.addTask(path, this.javaClass, buildMetrics) }
     }
 
+    private fun collectCommonCompilerStats() {
+        KotlinBuildStatsService.getInstance()?.apply {
+            report(BooleanMetrics.KOTLIN_PROGRESSIVE_MODE, compilerOptions.progressiveMode.get())
+            compilerOptions.apiVersion.orNull?.also { v ->
+                report(StringMetrics.KOTLIN_API_VERSION, v.version)
+            }
+            compilerOptions.languageVersion.orNull?.also { v ->
+                report(StringMetrics.KOTLIN_LANGUAGE_VERSION, v.version)
+            }
+        }
+    }
+
     protected open fun cleanOutputsAndLocalState(reason: String?) {
         cleanOutputsAndLocalStateUtil(reason)
     }
@@ -300,12 +310,12 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
             return
         }
 
-        val args = prepareCompilerArguments()
+        val args = createCompilerArguments()
+
         taskBuildCacheableOutputDirectory.get().asFile.mkdirs()
         taskBuildLocalStateDirectory.get().asFile.mkdirs()
         callCompilerAsync(
             args,
-            allKotlinSources,
             inputChanges,
             taskOutputsBackup
         )
@@ -339,25 +349,7 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
      */
     internal abstract fun callCompilerAsync(
         args: T,
-        kotlinSources: Set<File>,
         inputChanges: InputChanges,
         taskOutputsBackup: TaskOutputsBackup?
     )
-
-    @get:Internal
-    internal val abstractKotlinCompileArgumentsContributor by lazy {
-        AbstractKotlinCompileArgumentsContributor(
-            KotlinCompileArgumentsProvider(this)
-        )
-    }
-
-    override fun setupCompilerArgs(args: T, defaultsOnly: Boolean, ignoreClasspathResolutionErrors: Boolean) {
-        abstractKotlinCompileArgumentsContributor.contributeArguments(
-            args,
-            compilerArgumentsConfigurationFlags(defaultsOnly, ignoreClasspathResolutionErrors)
-        )
-        if (reportingSettings().buildReportMode == BuildReportMode.VERBOSE) {
-            args.reportPerf = true
-        }
-    }
 }

@@ -5,12 +5,13 @@
 
 package org.jetbrains.kotlin.test.runners.codegen
 
-import org.jetbrains.kotlin.backend.jvm.lower.constEvaluationPhase
+import org.jetbrains.kotlin.backend.jvm.constEvaluationPhase
 import org.jetbrains.kotlin.config.JvmTarget
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.TestJdkKind
 import org.jetbrains.kotlin.test.backend.BlackBoxCodegenSuppressor
+import org.jetbrains.kotlin.test.backend.BlackBoxInlinerCodegenSuppressor
 import org.jetbrains.kotlin.test.backend.handlers.BytecodeListingHandler
 import org.jetbrains.kotlin.test.backend.handlers.BytecodeTextHandler
 import org.jetbrains.kotlin.test.backend.handlers.IrInterpreterDumpHandler
@@ -69,6 +70,9 @@ abstract class AbstractJvmBlackBoxCodegenTestBase<R : ResultingArtifact.Frontend
         }
 
         useAfterAnalysisCheckers(::BlackBoxCodegenSuppressor)
+        if (targetBackend.isIR) {
+            useAfterAnalysisCheckers(::BlackBoxInlinerCodegenSuppressor)
+        }
 
         defaultDirectives {
             +REPORT_ONLY_EXPLICITLY_DEFINED_DEBUG_INFO

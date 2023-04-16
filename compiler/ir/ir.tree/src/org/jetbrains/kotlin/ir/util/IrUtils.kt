@@ -14,9 +14,9 @@ import org.jetbrains.kotlin.ir.builders.declarations.buildTypeParameter
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
+import org.jetbrains.kotlin.ir.linkage.partial.IrUnimplementedOverridesStrategy.ProcessAsFakeOverrides
 import org.jetbrains.kotlin.ir.overrides.FakeOverrideBuilderStrategy
 import org.jetbrains.kotlin.ir.overrides.IrOverridingUtil
-import org.jetbrains.kotlin.ir.overrides.IrUnimplementedOverridesStrategy.ProcessAsFakeOverrides
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrPropertySymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
@@ -82,7 +82,7 @@ fun IrFunctionAccessExpression.getArgumentsWithSymbols(): List<Pair<IrValueParam
     }
 
     irFunction.valueParameters.forEach {
-        val arg = getValueArgument(it.descriptor as ValueParameterDescriptor)
+        val arg = getValueArgument((it.descriptor as ValueParameterDescriptor).index)
         if (arg != null) {
             res += (it.symbol to arg)
         }
@@ -92,11 +92,10 @@ fun IrFunctionAccessExpression.getArgumentsWithSymbols(): List<Pair<IrValueParam
 }
 
 /**
- * Binds the arguments explicitly represented in the IR to the parameters of the accessed function.
+ * Binds all arguments represented in the IR to the parameters of the accessed function.
  * The arguments are to be evaluated in the same order as they appear in the resulting list.
  */
-fun IrMemberAccessExpression<*>.getArgumentsWithIr(): List<Pair<IrValueParameter, IrExpression>> {
-    val res = mutableListOf<Pair<IrValueParameter, IrExpression>>()
+fun IrMemberAccessExpression<*>.getAllArgumentsWithIr(): List<Pair<IrValueParameter, IrExpression?>> {
     val irFunction = when (this) {
         is IrFunctionAccessExpression -> this.symbol.owner
         is IrFunctionReference -> this.symbol.owner
@@ -107,6 +106,16 @@ fun IrMemberAccessExpression<*>.getArgumentsWithIr(): List<Pair<IrValueParameter
         else -> error(this)
     }
 
+    return getAllArgumentsWithIr(irFunction)
+}
+
+/**
+ * Binds all arguments represented in the IR to the parameters of the explicitly given function.
+ * The arguments are to be evaluated in the same order as they appear in the resulting list.
+ */
+fun IrMemberAccessExpression<*>.getAllArgumentsWithIr(irFunction: IrFunction): List<Pair<IrValueParameter, IrExpression?>> {
+    val res = mutableListOf<Pair<IrValueParameter, IrExpression?>>()
+
     dispatchReceiver?.let { arg ->
         irFunction.dispatchReceiverParameter?.let { parameter -> res += (parameter to arg) }
     }
@@ -116,13 +125,19 @@ fun IrMemberAccessExpression<*>.getArgumentsWithIr(): List<Pair<IrValueParameter
     }
 
     irFunction.valueParameters.forEachIndexed { index, it ->
-        val arg = getValueArgument(index)
-        if (arg != null) {
-            res += (it to arg)
-        }
+        res += it to getValueArgument(index)
     }
 
     return res
+}
+
+/**
+ * Binds the arguments explicitly represented in the IR to the parameters of the accessed function.
+ * The arguments are to be evaluated in the same order as they appear in the resulting list.
+ */
+@Suppress("UNCHECKED_CAST")
+fun IrMemberAccessExpression<*>.getArgumentsWithIr(): List<Pair<IrValueParameter, IrExpression>> {
+    return getAllArgumentsWithIr().filter { it.second != null } as List<Pair<IrValueParameter, IrExpression>>
 }
 
 /**
@@ -190,7 +205,7 @@ fun IrExpression.implicitCastIfNeededTo(type: IrType) =
         IrTypeOperatorCallImpl(startOffset, endOffset, type, IrTypeOperator.IMPLICIT_CAST, type, this)
 
 fun IrFunctionAccessExpression.usesDefaultArguments(): Boolean =
-    symbol.owner.valueParameters.any { this.getValueArgument(it.index) == null }
+    symbol.owner.valueParameters.any { this.getValueArgument(it.index) == null && (!it.isVararg || it.defaultValue != null) }
 
 fun IrValueParameter.createStubDefaultValue(): IrExpressionBody =
     factory.createExpressionBody(
@@ -1124,24 +1139,24 @@ private class FakeOverrideBuilderForLowerings : FakeOverrideBuilderStrategy(
     friendModules = emptyMap(),
     unimplementedOverridesStrategy = ProcessAsFakeOverrides
 ) {
-    override fun linkFunctionFakeOverride(declaration: IrFunctionWithLateBinding, compatibilityMode: Boolean) {
-        declaration.acquireSymbol(IrSimpleFunctionSymbolImpl())
+    override fun linkFunctionFakeOverride(function: IrFunctionWithLateBinding, manglerCompatibleMode: Boolean) {
+        function.acquireSymbol(IrSimpleFunctionSymbolImpl())
     }
 
-    override fun linkPropertyFakeOverride(declaration: IrPropertyWithLateBinding, compatibilityMode: Boolean) {
+    override fun linkPropertyFakeOverride(property: IrPropertyWithLateBinding, manglerCompatibleMode: Boolean) {
         val propertySymbol = IrPropertySymbolImpl()
-        declaration.getter?.let { it.correspondingPropertySymbol = propertySymbol }
-        declaration.setter?.let { it.correspondingPropertySymbol = propertySymbol }
+        property.getter?.let { it.correspondingPropertySymbol = propertySymbol }
+        property.setter?.let { it.correspondingPropertySymbol = propertySymbol }
 
-        declaration.acquireSymbol(propertySymbol)
+        property.acquireSymbol(propertySymbol)
 
-        declaration.getter?.let {
-            it.correspondingPropertySymbol = declaration.symbol
-            linkFunctionFakeOverride(it as? IrFunctionWithLateBinding ?: error("Unexpected fake override getter: $it"), compatibilityMode)
+        property.getter?.let {
+            it.correspondingPropertySymbol = property.symbol
+            linkFunctionFakeOverride(it as? IrFunctionWithLateBinding ?: error("Unexpected fake override getter: $it"), manglerCompatibleMode)
         }
-        declaration.setter?.let {
-            it.correspondingPropertySymbol = declaration.symbol
-            linkFunctionFakeOverride(it as? IrFunctionWithLateBinding ?: error("Unexpected fake override setter: $it"), compatibilityMode)
+        property.setter?.let {
+            it.correspondingPropertySymbol = property.symbol
+            linkFunctionFakeOverride(it as? IrFunctionWithLateBinding ?: error("Unexpected fake override setter: $it"), manglerCompatibleMode)
         }
     }
 }
@@ -1314,8 +1329,8 @@ private fun IrSimpleFunction.copyAndRenameConflictingTypeParametersFrom(
 val IrSymbol.isSuspend: Boolean
     get() = this is IrSimpleFunctionSymbol && owner.isSuspend
 
-fun IrSimpleFunction.allOverridden(includeSelf: Boolean = false): List<IrSimpleFunction> {
-    val result = mutableListOf<IrSimpleFunction>()
+fun <T : IrOverridableDeclaration<*>> T.allOverridden(includeSelf: Boolean = false): List<T> {
+    val result = mutableListOf<T>()
     if (includeSelf) {
         result.add(this)
     }
@@ -1326,7 +1341,8 @@ fun IrSimpleFunction.allOverridden(includeSelf: Boolean = false): List<IrSimpleF
         when (overridden.size) {
             0 -> return result
             1 -> {
-                current = overridden[0].owner
+                @Suppress("UNCHECKED_CAST")
+                current = overridden[0].owner as T
                 result.add(current)
             }
             else -> {
@@ -1338,9 +1354,9 @@ fun IrSimpleFunction.allOverridden(includeSelf: Boolean = false): List<IrSimpleF
     }
 }
 
-private fun computeAllOverridden(function: IrSimpleFunction, result: MutableSet<IrSimpleFunction>) {
-    for (overriddenSymbol in function.overriddenSymbols) {
-        val override = overriddenSymbol.owner
+private fun <T : IrOverridableDeclaration<*>> computeAllOverridden(overridable: T, result: MutableSet<T>) {
+    for (overriddenSymbol in overridable.overriddenSymbols) {
+        @Suppress("UNCHECKED_CAST") val override = overriddenSymbol.owner as T
         if (result.add(override)) {
             computeAllOverridden(override, result)
         }
@@ -1376,35 +1392,24 @@ val IrFunction.isValueClassTypedEquals: Boolean
                 && (parentClass.isValue)
     }
 
-// This code is partially duplicated in jvm FunctionReferenceLowering::adapteeCall
-// The difference is jvm version doesn't support ReturnableBlock, but returns call node instead of called function.
-fun IrFunction.getAdapteeFromAdaptedForReferenceFunction() : IrFunction? {
-    if (origin != IrDeclarationOrigin.ADAPTER_FOR_CALLABLE_REFERENCE) return null
-    // The body of a callable reference adapter contains either only a call, or an IMPLICIT_COERCION_TO_UNIT type operator
-    // applied to a either a call or ReturnableBlock produced from that call inlining.
-    // That call's target is the original function which we need to get.
-    fun unknownStructure(): Nothing = throw UnsupportedOperationException("Unknown structure of ADAPTER_FOR_CALLABLE_REFERENCE: ${dump()}")
-    val call = when (val statement = body?.statements?.singleOrNull() ?: unknownStructure()) {
-        is IrTypeOperatorCall -> {
-            if (statement.operator != IrTypeOperator.IMPLICIT_COERCION_TO_UNIT) unknownStructure()
-            statement.argument
-        }
-        is IrReturn -> statement.value
-        else -> statement
-    }
-    if (call is IrReturnableBlock) return (call.inlineFunctionSymbol ?: unknownStructure()).owner
-    if (call !is IrFunctionAccessExpression) { unknownStructure() }
-    return call.symbol.owner
-}
-
 /**
  * The method is used to calculate the previous offset from the current one to prevent situations when it can calculate
- * [UNDEFINED_OFFSET] from 0 offset and -2 offset from the [UNDEFINED OFFSET]
+ * [UNDEFINED_OFFSET] from 0 offset and [SYNTHETIC_OFFSET] offset from the [UNDEFINED OFFSET]
  */
 val Int.previousOffset
     get(): Int =
-        when (compareTo(0)) {
+        when (this) {
             0 -> 0
-            -1 -> UNDEFINED_OFFSET
-            else -> minus(1)
+            UNDEFINED_OFFSET -> UNDEFINED_OFFSET
+            SYNTHETIC_OFFSET -> SYNTHETIC_OFFSET
+            else -> if (this > 0) minus(1) else error("Invalid offset appear")
         }
+
+fun IrAttributeContainer.extractRelatedDeclaration(): IrDeclaration? {
+    return when (this) {
+        is IrClass -> this
+        is IrFunctionExpression -> function
+        is IrFunctionReference -> symbol.owner
+        else -> null
+    }
+}

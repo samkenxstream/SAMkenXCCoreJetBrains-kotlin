@@ -1,11 +1,14 @@
 // TARGET_BACKEND: JVM_IR
-// IGNORE_BACKEND_K1: JVM_IR
+// TARGET_BACKEND: NATIVE
+// TARGET_BACKEND: JS_IR
+// IGNORE_BACKEND_K1: NATIVE
 
 const val minusOneVal = -1.0
 const val oneVal = 1.0
 const val twoVal = 2.0
 const val threeVal = 3.0
 const val fourVal = 4.0
+const val oneAndAHalf = 1.5
 
 const val byteVal = 2.toByte()
 const val shortVal = 2.toShort()
@@ -79,14 +82,14 @@ const val convert3 = oneVal.toLong()
 const val convert4 = oneVal.toFloat()
 const val convert5 = oneVal.toDouble()
 
-const val equals1 = oneVal.equals(twoVal)
-const val equals2 = twoVal.equals(twoVal)
-const val equals3 = threeVal.equals(twoVal)
-const val equals4 = fourVal.equals(twoVal)
-const val equals5 = oneVal.equals("1")
+const val equals1 = oneVal == twoVal
+const val equals2 = twoVal == twoVal
+const val equals3 = threeVal == twoVal
+const val equals4 = fourVal == twoVal
 
 const val toString1 = oneVal.toString()
 const val toString2 = twoVal.toString()
+const val toString3 = oneAndAHalf.toString()
 
 fun box(): String {
     if (compareTo1 != -1)   return "Fail 1.1"
@@ -98,59 +101,59 @@ fun box(): String {
     if (compareTo7 != 0)    return "Fail 1.7"
     if (compareTo8 != 0)    return "Fail 1.8"
 
-    if (plus1 != 3)     return "Fail 2.1"
-    if (plus2 != 4)     return "Fail 2.2"
-    if (plus3 != 5)     return "Fail 2.3"
-    if (plus4 != 4)     return "Fail 2.4"
-    if (plus5 != 4)     return "Fail 2.5"
-    if (plus6 != 4)     return "Fail 2.6"
-    if (plus7 != 4.0f)  return "Fail 2.7"
+    if (plus1 != 3.0)     return "Fail 2.1"
+    if (plus2 != 4.0)     return "Fail 2.2"
+    if (plus3 != 5.0)     return "Fail 2.3"
+    if (plus4 != 4.0)     return "Fail 2.4"
+    if (plus5 != 4.0)     return "Fail 2.5"
+    if (plus6 != 4.0)     return "Fail 2.6"
+    if (plus7 != 4.0)  return "Fail 2.7"
     if (plus8 != 4.0)   return "Fail 2.8"
 
-    if (minus1 != -1)       return "Fail 3.1"
-    if (minus2 != 0)        return "Fail 3.2"
-    if (minus3 != 1)        return "Fail 3.3"
-    if (minus4 != 0)        return "Fail 3.4"
-    if (minus5 != 0)        return "Fail 3.5"
-    if (minus6 != 0)        return "Fail 3.6"
-    if (minus7 != 0.0f)     return "Fail 3.7"
+    if (minus1 != -1.0)       return "Fail 3.1"
+    if (minus2 != 0.0)        return "Fail 3.2"
+    if (minus3 != 1.0)        return "Fail 3.3"
+    if (minus4 != 0.0)        return "Fail 3.4"
+    if (minus5 != 0.0)        return "Fail 3.5"
+    if (minus6 != 0.0)        return "Fail 3.6"
+    if (minus7 != 0.0)     return "Fail 3.7"
     if (minus8 != 0.0)      return "Fail 3.8"
 
-    if (times1 != 2)        return "Fail 4.1"
-    if (times2 != 4)        return "Fail 4.2"
-    if (times3 != 6)        return "Fail 4.3"
-    if (times4 != 4)        return "Fail 4.4"
-    if (times5 != 4)        return "Fail 4.5"
-    if (times6 != 4)        return "Fail 4.6"
-    if (times7 != 4.0f)     return "Fail 4.7"
+    if (times1 != 2.0)        return "Fail 4.1"
+    if (times2 != 4.0)        return "Fail 4.2"
+    if (times3 != 6.0)        return "Fail 4.3"
+    if (times4 != 4.0)        return "Fail 4.4"
+    if (times5 != 4.0)        return "Fail 4.5"
+    if (times6 != 4.0)        return "Fail 4.6"
+    if (times7 != 4.0)     return "Fail 4.7"
     if (times8 != 4.0)      return "Fail 4.8"
 
     if (div1 != 0.5)        return "Fail 5.1"
     if (div2 != 1.0)        return "Fail 5.2"
     if (div3 != 1.5)        return "Fail 5.3"
-    if (div4 != 1)          return "Fail 5.4"
-    if (div5 != 1)          return "Fail 5.5"
-    if (div6 != 1)          return "Fail 5.6"
-    if (div7 != 1.0f)       return "Fail 5.7"
+    if (div4 != 1.0)          return "Fail 5.4"
+    if (div5 != 1.0)          return "Fail 5.5"
+    if (div6 != 1.0)          return "Fail 5.6"
+    if (div7 != 1.0)       return "Fail 5.7"
     if (div8 != 1.0)        return "Fail 5.8"
 
-    if (rem1 != 1)      return "Fail 6.1"
-    if (rem2 != 0)      return "Fail 6.2"
-    if (rem3 != 1)      return "Fail 6.3"
-    if (rem4 != 0)      return "Fail 6.4"
-    if (rem5 != 0)      return "Fail 6.5"
-    if (rem6 != 0)      return "Fail 6.6"
-    if (rem7 != 0.0f)   return "Fail 6.7"
+    if (rem1 != 1.0)      return "Fail 6.1"
+    if (rem2 != 0.0)      return "Fail 6.2"
+    if (rem3 != 1.0)      return "Fail 6.3"
+    if (rem4 != 0.0)      return "Fail 6.4"
+    if (rem5 != 0.0)      return "Fail 6.5"
+    if (rem6 != 0.0)      return "Fail 6.6"
+    if (rem7 != 0.0)   return "Fail 6.7"
     if (rem8 != 0.0)    return "Fail 6.8"
 
-    if (unaryPlus1 != 1)    return "Fail 7.1"
-    if (unaryPlus2 != -1)   return "Fail 7.2"
-    if (unaryMinus1 != -1)  return "Fail 7.3"
-    if (unaryMinus2 != 1)   return "Fail 7.4"
+    if (unaryPlus1 != 1.0)    return "Fail 7.1"
+    if (unaryPlus2 != -1.0)   return "Fail 7.2"
+    if (unaryMinus1 != -1.0)  return "Fail 7.3"
+    if (unaryMinus2 != 1.0)   return "Fail 7.4"
 
     if (convert1 != '')  return "Fail 8.1"
     if (convert2 != 1)      return "Fail 8.2"
-    if (convert3 != 1)      return "Fail 8.3"
+    if (convert3 != 1L)      return "Fail 8.3"
     if (convert4 != 1.0f)   return "Fail 8.4"
     if (convert5 != 1.0)    return "Fail 8.5"
 
@@ -158,10 +161,10 @@ fun box(): String {
     if (equals2 != true)    return "Fail 9.2"
     if (equals3 != false)   return "Fail 9.3"
     if (equals4 != false)   return "Fail 9.4"
-    if (equals5 != false)   return "Fail 9.5"
 
-    if (toString1 != "1.0")   return "Fail 10.1"
-    if (toString2 != "2.0")   return "Fail 10.2"
+    if (toString1 != "1.0" && toString1 != "1" /* JS */)    return "Fail 10.1"
+    if (toString2 != "2.0" && toString2 != "2" /* JS */)    return "Fail 10.2"
+    if (toString3 != "1.5")                                 return "Fail 10.3"
 
     return "OK"
 }

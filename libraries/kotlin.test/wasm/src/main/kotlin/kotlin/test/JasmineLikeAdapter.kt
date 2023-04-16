@@ -15,21 +15,21 @@ private fun describe(name: String, fn: () -> Unit): Unit =
 private fun xdescribe(name: String, fn: () -> Unit): Unit =
     js("xdescribe(name, fn)")
 
-private fun it(name: String, fn: () -> Any?): Unit =
+private fun it(name: String, fn: () -> JsAny?): Unit =
     js("it(name, fn)")
 
-private fun xit(name: String, fn: () -> Any?): Unit =
+private fun xit(name: String, fn: () -> JsAny?): Unit =
     js("xit(name, fn)")
 
-private fun jsThrow(jsException: Dynamic) {
+private fun jsThrow(jsException: JsAny) {
     js("throw e")
 }
 
-private fun throwableToJsError(message: String, stack: String): Dynamic {
+private fun throwableToJsError(message: String, stack: String): JsAny {
     js("var e = new Error(); e.message = message; e.stack = stack; return e;")
 }
 
-private fun Throwable.toJsError(): Dynamic =
+private fun Throwable.toJsError(): JsAny =
     throwableToJsError(message ?: "", stackTraceToString())
 
 /**
@@ -45,14 +45,14 @@ internal class JasmineLikeAdapter : FrameworkAdapter {
         }
     }
 
-    private fun callTest(testFn: () -> Any?): Any? =
+    private fun callTest(testFn: () -> Any?): JsAny? =
         try {
             (testFn() as? Promise<*>)?.catch { exception ->
                 val jsException = exception
                     .toThrowableOrNull()
                     ?.let { it.toJsError() }
                     ?: exception
-                Promise.reject(jsException) as Dynamic
+                Promise.reject(jsException)
             }
         } catch (exception: Throwable) {
             jsThrow(exception.toJsError())

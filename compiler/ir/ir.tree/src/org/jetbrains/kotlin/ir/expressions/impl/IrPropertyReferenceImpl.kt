@@ -33,13 +33,14 @@ class IrPropertyReferenceImpl(
     override var field: IrFieldSymbol?,
     override var getter: IrSimpleFunctionSymbol?,
     override var setter: IrSimpleFunctionSymbol?,
-    override val origin: IrStatementOrigin? = null,
+    override var origin: IrStatementOrigin? = null,
 ) : IrPropertyReference() {
-    override val typeArgumentsByIndex: Array<IrType?> = arrayOfNulls(typeArgumentsCount)
+    override val typeArguments: Array<IrType?> = arrayOfNulls(typeArgumentsCount)
 
-    override val argumentsByParameterIndex: Array<IrExpression?>
-        get() = throw UnsupportedOperationException("Property reference $symbol has no value arguments")
+    override val valueArguments: Array<IrExpression?>
+        get() = EMPTY_VALUE_ARGUMENTS
 
-    override val valueArgumentsCount: Int
-        get() = 0
+    companion object {
+        private val EMPTY_VALUE_ARGUMENTS = emptyArray<IrExpression?>()
+    }
 }

@@ -359,12 +359,16 @@ public interface Errors {
     DiagnosticFactory0<KtExpression> NON_CONST_VAL_USED_IN_CONSTANT_EXPRESSION = DiagnosticFactory0.create(ERROR);
 
     DiagnosticFactory1<PsiElement, String> INAPPLICABLE_TARGET_ON_PROPERTY = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory1<PsiElement, String> INAPPLICABLE_TARGET_ON_PROPERTY_WARNING = DiagnosticFactory1.create(WARNING);
     DiagnosticFactory1<PsiElement, String> INAPPLICABLE_TARGET_PROPERTY_IMMUTABLE = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory0<PsiElement> INAPPLICABLE_TARGET_PROPERTY_HAS_NO_DELEGATE = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<PsiElement> INAPPLICABLE_TARGET_PROPERTY_HAS_NO_BACKING_FIELD = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<PsiElement> INAPPLICABLE_PARAM_TARGET = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory1<PsiElement, String> REDUNDANT_ANNOTATION_TARGET = DiagnosticFactory1.create(WARNING);
     DiagnosticFactory0<KtAnnotationUseSiteTarget> INAPPLICABLE_FILE_TARGET = DiagnosticFactory0.create(ERROR);
+
+    DiagnosticFactory0<KtAnnotationEntry> VOLATILE_ON_VALUE = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<KtAnnotationEntry> VOLATILE_ON_DELEGATE = DiagnosticFactory0.create(ERROR);
 
     // Classes and interfaces
 
@@ -883,6 +887,7 @@ public interface Errors {
     DiagnosticFactory4<PsiElement, KotlinType, String, String, BuilderLambdaLabelingInfo> STUB_TYPE_IN_RECEIVER_CAUSES_AMBIGUITY = DiagnosticFactory4.create(ERROR);
     DiagnosticFactory2<PsiElement, Name, Name> BUILDER_INFERENCE_MULTI_LAMBDA_RESTRICTION = DiagnosticFactory2.create(ERROR);
     DiagnosticFactory2<PsiElement, Name, Name> BUILDER_INFERENCE_STUB_RECEIVER = DiagnosticFactory2.create(ERROR);
+    DiagnosticFactory4<KtElement, Name, Name, KotlinType, KotlinType> UPPER_BOUND_VIOLATION_IN_CONSTRAINT = DiagnosticFactory4.create(ERROR);
 
     DiagnosticFactory1<PsiElement, Collection<? extends ResolvedCall<?>>> NONE_APPLICABLE = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<PsiElement, Collection<? extends ResolvedCall<?>>> CANNOT_COMPLETE_RESOLVE = DiagnosticFactory1.create(ERROR);
@@ -913,6 +918,7 @@ public interface Errors {
 
     DiagnosticFactory2<PsiElement, KotlinType, KotlinType> TYPE_MISMATCH_WARNING_FOR_INCORRECT_CAPTURE_APPROXIMATION = DiagnosticFactory2.create(WARNING);
     DiagnosticFactory2<PsiElement, KotlinType, KotlinType> RECEIVER_TYPE_MISMATCH_WARNING_FOR_INCORRECT_CAPTURE_APPROXIMATION = DiagnosticFactory2.create(WARNING);
+    DiagnosticFactory2<PsiElement, KotlinType, KotlinType> RECEIVER_TYPE_MISMATCH = DiagnosticFactory2.create(ERROR);
 
     // Type inference
 

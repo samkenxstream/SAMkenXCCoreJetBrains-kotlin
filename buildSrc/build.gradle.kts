@@ -94,7 +94,7 @@ dependencies {
     implementation(kotlin("stdlib", embeddedKotlinVersion))
     implementation("org.jetbrains.kotlin:kotlin-build-gradle-plugin:${kotlinBuildProperties.buildGradlePluginVersion}")
     implementation("com.gradle.publish:plugin-publish-plugin:1.0.0")
-    implementation("org.jetbrains.dokka:dokka-gradle-plugin:1.8.0-dev-189")
+    implementation("org.jetbrains.dokka:dokka-gradle-plugin:1.8.10")
 
     implementation("com.jakewharton.dex:dex-member-list:4.1.1")
 
@@ -106,7 +106,7 @@ dependencies {
 
     implementation("gradle.plugin.org.jetbrains.gradle.plugin.idea-ext:gradle-idea-ext:1.0.1")
 
-    compileOnly("com.gradle:gradle-enterprise-gradle-plugin:3.12.3")
+    compileOnly("com.gradle:gradle-enterprise-gradle-plugin:3.12.4")
 
     compileOnly(gradleApi())
 

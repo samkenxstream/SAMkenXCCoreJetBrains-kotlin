@@ -15,6 +15,7 @@ import kotlin.native.internal.ReportUnhandledException
  * Initializes Kotlin runtime for the current thread, if not inited already.
  */
 @GCUnsafeCall("Kotlin_initRuntimeIfNeededFromKotlin")
+@Deprecated("Initializing runtime is not possible in the new memory model.", level = DeprecationLevel.WARNING)
 external public fun initRuntimeIfNeeded(): Unit
 
 /**
@@ -35,19 +36,11 @@ public class IncorrectDereferenceException : RuntimeException {
     constructor(message: String) : super(message)
 }
 
-/**
- * Exception thrown when there was an error during file initalization.
- */
-@ExperimentalStdlibApi
-public class FileFailedToInitializeException : RuntimeException {
-    constructor() : super()
-
-    constructor(message: String) : super(message)
-}
 
 /**
  * Typealias describing custom exception reporting hook.
  */
+@ExperimentalStdlibApi
 public typealias ReportUnhandledExceptionHook = Function1<Throwable, Unit>
 
 /**
@@ -63,6 +56,7 @@ public typealias ReportUnhandledExceptionHook = Function1<Throwable, Unit>
  * Set or default hook is also invoked by [processUnhandledException].
  * With the legacy MM the hook must be a frozen lambda so that it could be called from any thread/worker.
  */
+@ExperimentalStdlibApi
 @OptIn(FreezingIsDeprecated::class)
 public fun setUnhandledExceptionHook(hook: ReportUnhandledExceptionHook?): ReportUnhandledExceptionHook? {
     try {
@@ -74,7 +68,7 @@ public fun setUnhandledExceptionHook(hook: ReportUnhandledExceptionHook?): Repor
 
 @Suppress("CONFLICTING_OVERLOADS")
 @Deprecated("Provided for binary compatibility", level = DeprecationLevel.HIDDEN)
-@OptIn(FreezingIsDeprecated::class)
+@OptIn(FreezingIsDeprecated::class, ExperimentalStdlibApi::class)
 public fun setUnhandledExceptionHook(hook: ReportUnhandledExceptionHook): ReportUnhandledExceptionHook? {
     try {
         return UnhandledExceptionHookHolder.hook.swap(hook)
@@ -120,5 +114,6 @@ public external fun terminateWithUnhandledException(throwable: Throwable): Nothi
  * Compute stable wrt potential object relocations by the memory manager identity hash code.
  * @return 0 for `null` object, identity hash code otherwise.
  */
+@ExperimentalStdlibApi
 @GCUnsafeCall("Kotlin_Any_hashCode")
 public external fun Any?.identityHashCode(): Int

@@ -14,16 +14,15 @@ import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
-import org.jetbrains.kotlin.diagnostics.KtDiagnostic
-import org.jetbrains.kotlin.diagnostics.Severity
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.fir.AbstractFirAnalyzerFacade
 import org.jetbrains.kotlin.fir.FirAnalyzerFacade
 import org.jetbrains.kotlin.fir.backend.*
+import org.jetbrains.kotlin.fir.backend.js.FirJsKotlinMangler
 import org.jetbrains.kotlin.fir.backend.jvm.Fir2IrJvmSpecialAnnotationSymbolProvider
-import org.jetbrains.kotlin.fir.backend.jvm.FirJvmKotlinMangler
+import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.descriptors.FirModuleDescriptor
-import org.jetbrains.kotlin.fir.serialization.FirElementAwareSerializableStringTable
 import org.jetbrains.kotlin.fir.serialization.FirKLibSerializerExtension
 import org.jetbrains.kotlin.fir.serialization.serializeSingleFirFile
 import org.jetbrains.kotlin.incremental.components.LookupTracker
@@ -69,7 +68,7 @@ class Fir2IrJsResultsConverter(
         val commonMemberStorage = Fir2IrCommonMemberStorage(
             generateSignatures = false,
             signatureComposerCreator = null,
-            manglerCreator = { FirJvmKotlinMangler() } // TODO: replace with potentially simpler JS version
+            manglerCreator = ::FirJsKotlinMangler
         )
 
         for ((index, part) in inputArtifact.partsForDependsOnModules.withIndex()) {
@@ -101,11 +100,7 @@ class Fir2IrJsResultsConverter(
 
         val metadataVersion = configuration.metadataVersion(module.languageVersionSettings.languageVersion)
 
-        // At this point, checkers will already have been run by a previous test step. `runCheckers` returns the cached diagnostics map.
-        val diagnosticsMap = inputArtifact.partsForDependsOnModules.fold(mutableMapOf<FirFile, List<KtDiagnostic>>()) { result, part ->
-            result.also { it.putAll(part.firAnalyzerFacade.runCheckers()) }
-        }
-        val hasErrors = diagnosticsMap.any { entry -> entry.value.any { it.severity == Severity.ERROR } }
+        var actualizedExpectDeclarations: Set<FirDeclaration>? = null
 
         return IrBackendInput.JsIrBackendInput(
             mainIrPart,
@@ -114,15 +109,24 @@ class Fir2IrJsResultsConverter(
             sourceFiles,
             configuration.incrementalDataProvider?.getSerializedData(sourceFiles) ?: emptyList(),
             expectDescriptorToSymbol = mutableMapOf(),
-            hasErrors = hasErrors
-        ) { file ->
+            diagnosticsCollector = DiagnosticReporterFactory.createReporter(),
+            hasErrors = inputArtifact.hasErrors
+        ) { file, irActualizationResult ->
             val (firFile, components) = firFilesAndComponentsBySourceFile[file]
                 ?: error("cannot find FIR file by source file ${file.name} (${file.path})")
+            if (actualizedExpectDeclarations == null && irActualizationResult != null) {
+                actualizedExpectDeclarations = irActualizationResult.extractFirDeclarations()
+            }
             serializeSingleFirFile(
                 firFile,
                 components.session,
                 components.scopeSession,
-                FirKLibSerializerExtension(components.session, metadataVersion, FirElementAwareSerializableStringTable()),
+                actualizedExpectDeclarations,
+                FirKLibSerializerExtension(
+                    components.session, metadataVersion,
+                    ConstValueProviderImpl(components),
+                    allowErrorTypes = false, exportKDoc = false
+                ),
                 configuration.languageVersionSettings,
             )
         }

@@ -4757,6 +4757,12 @@ public class BoxJsTestGenerated extends AbstractBoxJsTest {
         }
 
         @Test
+        @TestMetadata("externalInlineWithSuppress.kt")
+        public void testExternalInlineWithSuppress() throws Exception {
+            runTest("js/js.translator/testData/box/inline/externalInlineWithSuppress.kt");
+        }
+
+        @Test
         @TestMetadata("fakeOverrideInlining.kt")
         public void testFakeOverrideInlining() throws Exception {
             runTest("js/js.translator/testData/box/inline/fakeOverrideInlining.kt");
@@ -7139,6 +7145,12 @@ public class BoxJsTestGenerated extends AbstractBoxJsTest {
         }
 
         @Test
+        @TestMetadata("transitiveDependency.kt")
+        public void testTransitiveDependency() throws Exception {
+            runTest("js/js.translator/testData/box/multiModule/transitiveDependency.kt");
+        }
+
+        @Test
         @TestMetadata("useElementsFromDefaultPackageInAnotherModule.kt")
         public void testUseElementsFromDefaultPackageInAnotherModule() throws Exception {
             runTest("js/js.translator/testData/box/multiModule/useElementsFromDefaultPackageInAnotherModule.kt");
@@ -8926,6 +8938,12 @@ public class BoxJsTestGenerated extends AbstractBoxJsTest {
         @TestMetadata("findAssociatedObject.kt")
         public void testFindAssociatedObject() throws Exception {
             runTest("js/js.translator/testData/box/reflection/findAssociatedObject.kt");
+        }
+
+        @Test
+        @TestMetadata("findAssociatedObjectInSeparatedFile.kt")
+        public void testFindAssociatedObjectInSeparatedFile() throws Exception {
+            runTest("js/js.translator/testData/box/reflection/findAssociatedObjectInSeparatedFile.kt");
         }
 
         @Test

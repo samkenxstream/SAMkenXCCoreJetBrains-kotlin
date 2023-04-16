@@ -34,13 +34,13 @@ class IrCallImpl(
     override val symbol: IrSimpleFunctionSymbol,
     typeArgumentsCount: Int,
     valueArgumentsCount: Int,
-    override val origin: IrStatementOrigin? = null,
+    override var origin: IrStatementOrigin? = null,
     override var superQualifierSymbol: IrClassSymbol? = null
 ) : IrCall() {
 
-    override val typeArgumentsByIndex: Array<IrType?> = arrayOfNulls(typeArgumentsCount)
+    override val typeArguments: Array<IrType?> = arrayOfNulls(typeArgumentsCount)
 
-    override val argumentsByParameterIndex: Array<IrExpression?> = arrayOfNulls(valueArgumentsCount)
+    override val valueArguments: Array<IrExpression?> = arrayOfNulls(valueArgumentsCount)
 
     override var contextReceiversCount = 0
 

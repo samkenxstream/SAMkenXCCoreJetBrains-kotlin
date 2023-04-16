@@ -835,22 +835,24 @@ class ExpressionsConverter(
         }
 
         val calculatedFirExpression = firExpression ?: buildErrorExpression(
-            null,
+            source = null,
             ConeSimpleDiagnostic("No expression in condition with expression", DiagnosticKind.Syntax)
         )
 
-        return if (whenRefWithSubject != null) {
-            buildEqualityOperatorCall {
-                source = whenCondition.toFirSourceElement(KtFakeSourceElementKind.WhenCondition)
-                operation = FirOperation.EQ
-                argumentList = buildBinaryArgumentList(
-                    buildWhenSubjectExpression {
-                        whenRef = whenRefWithSubject
-                    }, calculatedFirExpression
-                )
-            }
-        } else {
-            calculatedFirExpression
+        if (whenRefWithSubject == null) {
+            return calculatedFirExpression
+        }
+
+        return buildEqualityOperatorCall {
+            source = whenCondition.toFirSourceElement(KtFakeSourceElementKind.WhenCondition)
+            operation = FirOperation.EQ
+            argumentList = buildBinaryArgumentList(
+                left = buildWhenSubjectExpression {
+                    source = whenCondition.toFirSourceElement()
+                    whenRef = whenRefWithSubject
+                },
+                right = calculatedFirExpression
+            )
         }
     }
 
@@ -918,6 +920,7 @@ class ExpressionsConverter(
 
         val subjectExpression = if (whenRefWithSubject != null) {
             buildWhenSubjectExpression {
+                source = whenCondition.toFirSourceElement()
                 whenRef = whenRefWithSubject
             }
         } else {
@@ -1129,10 +1132,8 @@ class ExpressionsConverter(
                 // So, prepare the loop target after building the condition.
                 target = prepareTarget(forLoop)
             }.configure(target) {
-                // NB: just body.toFirBlock() isn't acceptable here because we need to add some statements
                 buildBlock block@{
                     source = blockNode?.toFirSourceElement()
-                    statements += convertLoopBody(blockNode).statements
                     val valueParameter = parameter ?: return@block
                     val multiDeclaration = valueParameter.destructuringDeclaration
                     val firLoopParameter = generateTemporaryVariable(
@@ -1156,10 +1157,11 @@ class ExpressionsConverter(
                             firLoopParameter,
                             tmpVariable = true
                         )
-                        statements.addAll(0, destructuringBlock.statements)
+                        statements.addAll(destructuringBlock.statements)
                     } else {
-                        statements.add(0, firLoopParameter)
+                        statements.add(firLoopParameter)
                     }
+                    statements += convertLoopBody(blockNode)
                 }
             }
         }

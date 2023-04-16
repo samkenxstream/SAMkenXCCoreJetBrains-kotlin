@@ -9,18 +9,20 @@ import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.checkers.registerJsCheckers
-import org.jetbrains.kotlin.fir.checkers.registerJvmCheckers
-import org.jetbrains.kotlin.fir.checkers.registerNativeCheckers
+import org.jetbrains.kotlin.fir.FirVisibilityChecker
+import org.jetbrains.kotlin.fir.SessionConfiguration
+import org.jetbrains.kotlin.fir.analysis.FirDefaultOverridesBackwardCompatibilityHelper
+import org.jetbrains.kotlin.fir.analysis.FirOverridesBackwardCompatibilityHelper
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.deserialization.ModuleDataProvider
 import org.jetbrains.kotlin.fir.deserialization.SingleModuleDataProvider
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.java.FirProjectSessionProvider
+import org.jetbrains.kotlin.fir.resolve.calls.ConeCallConflictResolverFactory
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirBuiltinSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCloneableSymbolProvider
 import org.jetbrains.kotlin.fir.scopes.FirKotlinScopeProvider
-import org.jetbrains.kotlin.fir.session.FirSessionFactoryHelper.registerDefaultExtraComponentsForModuleBased
+import org.jetbrains.kotlin.fir.scopes.FirPlatformClassMapper
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectEnvironment
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectFileSearchScope
 import org.jetbrains.kotlin.incremental.components.EnumWhenTracker
@@ -37,6 +39,7 @@ object FirCommonSessionFactory : FirAbstractSessionFactory() {
         sessionProvider: FirProjectSessionProvider,
         moduleDataProvider: ModuleDataProvider,
         projectEnvironment: AbstractProjectEnvironment,
+        extensionRegistrars: List<FirExtensionRegistrar>,
         librariesScope: AbstractProjectFileSearchScope,
         resolvedKLibs: List<KotlinResolvedLibrary>,
         packageAndMetadataPartProvider: PackageAndMetadataPartProvider,
@@ -48,10 +51,11 @@ object FirCommonSessionFactory : FirAbstractSessionFactory() {
             sessionProvider,
             moduleDataProvider,
             languageVersionSettings,
+            extensionRegistrars,
             registerExtraComponents = {
                 registerExtraComponents(it)
             },
-            createKotlinScopeProvider = { FirKotlinScopeProvider { _, declaredMemberScope, _, _ -> declaredMemberScope } },
+            createKotlinScopeProvider = { FirKotlinScopeProvider { _, declaredMemberScope, _, _, _ -> declaredMemberScope } },
             createProviders = { session, builtinsModuleData, kotlinScopeProvider ->
                 listOfNotNull(
                     MetadataSymbolProvider(
@@ -66,7 +70,7 @@ object FirCommonSessionFactory : FirAbstractSessionFactory() {
                             session,
                             moduleDataProvider,
                             kotlinScopeProvider,
-                            resolvedKLibs
+                            resolvedKLibs.map { it.library }
                         )
                     },
                     FirBuiltinSymbolProvider(session, builtinsModuleData, kotlinScopeProvider),
@@ -76,6 +80,7 @@ object FirCommonSessionFactory : FirAbstractSessionFactory() {
         )
     }
 
+    @OptIn(SessionConfiguration::class)
     fun createModuleBasedSession(
         moduleData: FirModuleData,
         sessionProvider: FirProjectSessionProvider,
@@ -97,15 +102,14 @@ object FirCommonSessionFactory : FirAbstractSessionFactory() {
             enumWhenTracker,
             init,
             registerExtraComponents = {
-                it.registerDefaultExtraComponentsForModuleBased()
+                it.register(FirVisibilityChecker::class, FirVisibilityChecker.Default)
+                it.register(ConeCallConflictResolverFactory::class, DefaultCallConflictResolverFactory)
+                it.register(FirPlatformClassMapper::class, FirPlatformClassMapper.Default)
+                it.register(FirOverridesBackwardCompatibilityHelper::class, FirDefaultOverridesBackwardCompatibilityHelper)
                 registerExtraComponents(it)
             },
-            registerExtraCheckers = {
-                it.registerJvmCheckers()
-                it.registerJsCheckers()
-                it.registerNativeCheckers()
-            },
-            createKotlinScopeProvider = { FirKotlinScopeProvider { _, declaredMemberScope, _, _ -> declaredMemberScope } },
+            registerExtraCheckers = {},
+            createKotlinScopeProvider = { FirKotlinScopeProvider { _, declaredMemberScope, _, _, _ -> declaredMemberScope } },
             createProviders = { session, kotlinScopeProvider, symbolProvider, syntheticFunctionalInterfaceProvider, generatedSymbolsProvider, dependencies ->
                 var symbolProviderForBinariesFromIncrementalCompilation: MetadataSymbolProvider? = null
                 incrementalCompilationContext?.let {

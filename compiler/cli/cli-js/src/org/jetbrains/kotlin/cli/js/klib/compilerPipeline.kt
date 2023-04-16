@@ -20,21 +20,20 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
+import org.jetbrains.kotlin.diagnostics.impl.PendingDiagnosticsCollectorWithSuppress
 import org.jetbrains.kotlin.fir.BinaryModuleData
 import org.jetbrains.kotlin.fir.DependencyListForCliModule
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.backend.ConstValueProviderImpl
 import org.jetbrains.kotlin.fir.backend.Fir2IrExtensions
-import org.jetbrains.kotlin.fir.backend.Fir2IrResult
 import org.jetbrains.kotlin.fir.backend.Fir2IrVisibilityConverter
+import org.jetbrains.kotlin.fir.backend.extractFirDeclarations
+import org.jetbrains.kotlin.fir.backend.js.FirJsKotlinMangler
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.descriptors.FirModuleDescriptor
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
-import org.jetbrains.kotlin.fir.pipeline.FirResult
-import org.jetbrains.kotlin.fir.pipeline.ModuleCompilerAnalyzedOutput
-import org.jetbrains.kotlin.fir.pipeline.buildResolveAndCheckFir
-import org.jetbrains.kotlin.fir.pipeline.convertToIrAndActualize
+import org.jetbrains.kotlin.fir.pipeline.*
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.serialization.FirElementAwareSerializableStringTable
 import org.jetbrains.kotlin.fir.serialization.FirKLibSerializerExtension
 import org.jetbrains.kotlin.fir.serialization.serializeSingleFirFile
 import org.jetbrains.kotlin.incremental.components.LookupTracker
@@ -78,7 +77,7 @@ fun compileModuleToAnalyzedFir(
         // TODO: !!! dependencies module data?
     }
 
-    val resolvedLibraries = moduleStructure.fullResolvedLibraries
+    val resolvedLibraries = moduleStructure.allDependencies
 
     val sessionsWithSources = prepareJsSessions(
         ktFiles, moduleStructure.compilerConfiguration, escapedMainModuleName,
@@ -99,18 +98,19 @@ fun compileModuleToAnalyzedFir(
 
 fun transformFirToIr(
     moduleStructure: ModulesStructure,
-    firOutputs: List<ModuleCompilerAnalyzedOutput>
-): Fir2IrResult {
+    firOutputs: List<ModuleCompilerAnalyzedOutput>,
+    diagnosticsReporter: PendingDiagnosticsCollectorWithSuppress,
+): Fir2IrActualizedResult {
     val fir2IrExtensions = Fir2IrExtensions.Default
 
     var builtInsModule: KotlinBuiltIns? = null
     val dependencies = mutableListOf<ModuleDescriptorImpl>()
 
-    val librariesDescriptors = moduleStructure.fullResolvedLibraries.map { resolvedLibrary ->
+    val librariesDescriptors = moduleStructure.allDependencies.map { resolvedLibrary ->
         val storageManager = LockBasedStorageManager("ModulesStructure")
 
         val moduleDescriptor = JsFactories.DefaultDeserializedDescriptorFactory.createDescriptorOptionalBuiltIns(
-            resolvedLibrary.library,
+            resolvedLibrary,
             moduleStructure.compilerConfiguration.languageVersionSettings,
             storageManager,
             builtInsModule,
@@ -120,7 +120,7 @@ fun transformFirToIr(
         dependencies += moduleDescriptor
         moduleDescriptor.setDependencies(ArrayList(dependencies))
 
-        val isBuiltIns = resolvedLibrary.library.unresolvedDependencies.isEmpty()
+        val isBuiltIns = resolvedLibrary.unresolvedDependencies.isEmpty()
         if (isBuiltIns) builtInsModule = moduleDescriptor.builtIns
 
         moduleDescriptor
@@ -133,8 +133,11 @@ fun transformFirToIr(
         linkViaSignatures = false,
         signatureComposerCreator = null,
         irMangler = JsManglerIr,
+        firManglerCreator = ::FirJsKotlinMangler,
         visibilityConverter = Fir2IrVisibilityConverter.Default,
         kotlinBuiltIns = builtInsModule ?: DefaultBuiltIns.Instance,
+        diagnosticReporter = diagnosticsReporter,
+        languageVersionSettings = moduleStructure.compilerConfiguration.languageVersionSettings,
         fir2IrResultPostCompute = {
             (this.irModuleFragment.descriptor as? FirModuleDescriptor)?.let { it.allDependencyModules = librariesDescriptors }
         }
@@ -144,7 +147,7 @@ fun transformFirToIr(
 fun serializeFirKlib(
     moduleStructure: ModulesStructure,
     firOutputs: List<ModuleCompilerAnalyzedOutput>,
-    irResult: Fir2IrResult,
+    fir2IrActualizedResult: Fir2IrActualizedResult,
     outputKlibPath: String,
     messageCollector: MessageCollector,
     diagnosticsReporter: BaseDiagnosticsCollector,
@@ -164,14 +167,16 @@ fun serializeFirKlib(
 
     val metadataVersion = moduleStructure.compilerConfiguration.metadataVersion()
 
+    val actualizedExpectDeclarations = fir2IrActualizedResult.irActualizationResult.extractFirDeclarations()
+
     serializeModuleIntoKlib(
         moduleStructure.compilerConfiguration[CommonConfigurationKeys.MODULE_NAME]!!,
         moduleStructure.compilerConfiguration,
         moduleStructure.compilerConfiguration.get(IrMessageLogger.IR_MESSAGE_LOGGER) ?: IrMessageLogger.None,
         sourceFiles,
         klibPath = outputKlibPath,
-        moduleStructure.fullResolvedLibraries.map { it.library },
-        irResult.irModuleFragment,
+        moduleStructure.allDependencies,
+        fir2IrActualizedResult.irModuleFragment,
         expectDescriptorToSymbol = mutableMapOf(),
         cleanFiles = icData,
         nopack = true,
@@ -186,7 +191,12 @@ fun serializeFirKlib(
             firFile,
             session,
             scopeSession,
-            FirKLibSerializerExtension(session, metadataVersion, FirElementAwareSerializableStringTable()),
+            actualizedExpectDeclarations,
+            FirKLibSerializerExtension(
+                session, metadataVersion,
+                ConstValueProviderImpl(fir2IrActualizedResult.components),
+                allowErrorTypes = false, exportKDoc = false
+            ),
             moduleStructure.compilerConfiguration.languageVersionSettings,
         )
     }

@@ -42,6 +42,8 @@ import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
 import org.jetbrains.kotlin.statistics.metrics.StringMetrics
 import java.io.File
 import java.lang.ref.WeakReference
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 
 const val CREATED_CLIENT_FILE_PREFIX = "Created client-is-alive flag file: "
 const val EXISTING_CLIENT_FILE_PREFIX = "Existing client-is-alive flag file: "
@@ -77,15 +79,11 @@ internal open class GradleCompilerRunner(
      * @see [GradleKotlinCompilerWork]
      */
     fun runJvmCompilerAsync(
-        sourcesToCompile: List<File>,
-        javaPackagePrefix: String?,
         args: K2JVMCompilerArguments,
         environment: GradleCompilerEnvironment,
         jdkHome: File,
         taskOutputsBackup: TaskOutputsBackup?
     ): WorkQueue? {
-        args.freeArgs += sourcesToCompile.map { it.absolutePath }
-        args.javaPackagePrefix = javaPackagePrefix
         if (args.jdkHome == null && !args.noJdk) args.jdkHome = jdkHome.absolutePath
         loggerProvider.kotlinInfo("Kotlin compilation 'jdkHome' argument: ${args.jdkHome}")
         return runCompilerAsync(KotlinCompilerClass.JVM, args, environment, taskOutputsBackup)
@@ -96,12 +94,10 @@ internal open class GradleCompilerRunner(
      * @see [GradleKotlinCompilerWork]
      */
     fun runJsCompilerAsync(
-        kotlinSources: List<File>,
         args: K2JSCompilerArguments,
         environment: GradleCompilerEnvironment,
         taskOutputsBackup: TaskOutputsBackup?
     ): WorkQueue? {
-        args.freeArgs += kotlinSources.map { it.absolutePath }
         return runCompilerAsync(KotlinCompilerClass.JS, args, environment, taskOutputsBackup)
     }
 
@@ -110,13 +106,9 @@ internal open class GradleCompilerRunner(
      * @see [GradleKotlinCompilerWork]
      */
     fun runMetadataCompilerAsync(
-        kotlinSources: List<File>,
-        kotlinCommonSources: List<File>,
         args: K2MetadataCompilerArguments,
         environment: GradleCompilerEnvironment
     ): WorkQueue? {
-        args.freeArgs += kotlinSources.map { it.absolutePath }
-        args.commonSources = kotlinCommonSources.map { it.absolutePath }.toTypedArray()
         return runCompilerAsync(KotlinCompilerClass.METADATA, args, environment)
     }
 
@@ -204,13 +196,21 @@ internal open class GradleCompilerRunner(
             allWarningsAsErrors = compilerArgs.allWarningsAsErrors,
             compilerExecutionSettings = compilerExecutionSettings,
             errorsFile = errorsFile,
-            kotlinPluginVersion = getKotlinPluginVersion(loggerProvider)
+            kotlinPluginVersion = getKotlinPluginVersion(loggerProvider),
+            //no need to log warnings in MessageCollector hear it will be logged by compiler
+            kotlinLanguageVersion = parseLanguageVersion(compilerArgs.languageVersion, compilerArgs.useK2)
         )
         TaskLoggers.put(pathProvider, loggerProvider)
         return runCompilerAsync(
             workArgs,
             taskOutputsBackup
         )
+    }
+
+    //Copy of CommonCompilerArguments.parseOrConfigureLanguageVersion to avoid direct dependency
+    private fun parseLanguageVersion(languageVersion: String?, useK2: Boolean): KotlinVersion {
+        val explicitVersion = languageVersion?.let { KotlinVersion.fromVersion(languageVersion) } ?: KotlinVersion.DEFAULT
+        return if (useK2 && (explicitVersion < KotlinVersion.KOTLIN_2_0)) KotlinVersion.KOTLIN_2_0 else explicitVersion
     }
 
     protected open fun runCompilerAsync(

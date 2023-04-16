@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.arguments.CompilerArgumentsSerializerV5
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.platform.*
-import org.jetbrains.kotlin.platform.impl.FakeK2NativeCompilerArguments
 import org.jetbrains.kotlin.platform.impl.JvmIdePlatformKind
 import org.jetbrains.kotlin.platform.jvm.JdkPlatform
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
@@ -43,7 +42,7 @@ fun TargetPlatform.createArguments(init: (CommonCompilerArguments).() -> Unit = 
             jvmTarget = (single() as? JdkPlatform)?.targetVersion?.description ?: JvmTarget.DEFAULT.description
         }
         isJs() -> K2JSCompilerArguments().apply { init() }
-        isNative() -> FakeK2NativeCompilerArguments().apply { init() }
+        isNative() -> K2NativeCompilerArguments().apply { init() }
         else -> error("Unknown platform $this")
     }
 }
@@ -231,7 +230,7 @@ fun CommonCompilerArguments.convertPathsToSystemIndependent() {
     when (this) {
         is K2JVMCompilerArguments -> {
             destination = destination?.let(FileUtilRt::toSystemIndependentName)
-            classpath = classpath?.let(FileUtilRt::toSystemIndependentName)
+            classpath?.forEachIndexed { index, s -> classpath!![index] = FileUtilRt.toSystemIndependentName(s) }
             jdkHome = jdkHome?.let(FileUtilRt::toSystemIndependentName)
             kotlinHome = kotlinHome?.let(FileUtilRt::toSystemIndependentName)
             friendPaths?.forEachIndexed { index, s -> friendPaths!![index] = FileUtilRt.toSystemIndependentName(s) }
@@ -335,7 +334,7 @@ private fun KotlinFacetSettings.writeConfig(element: Element) {
         element.addContent(
             Element("externalSystemTestTasks").apply {
                 externalSystemRunTasks.forEach { task ->
-                    when(task) {
+                    when (task) {
                         is ExternalSystemTestRunTask -> {
                             addContent(
                                 Element("externalSystemTestTask").apply { addContent(task.toStringRepresentation()) }
@@ -364,14 +363,14 @@ private fun KotlinFacetSettings.writeConfig(element: Element) {
             element.addContent(Element("testOutputPath").apply { addContent(FileUtilRt.toSystemIndependentName(it)) })
         }
     }
-    compilerSettings?.let { copyBean(it) }?.let {
+    compilerSettings?.copyOf()?.let {
         it.convertPathsToSystemIndependent()
         buildChildElement(element, "compilerSettings", it, filter)
     }
 }
 
 private fun KotlinFacetSettings.writeV2toV4Config(element: Element) = writeConfig(element).apply {
-    compilerArguments?.let { copyBean(it) }?.let {
+    compilerArguments?.copyOf()?.let {
         it.convertPathsToSystemIndependent()
         val compilerArgumentsXml = buildChildElement(element, "compilerArguments", it, SkipDefaultsSerializationFilter())
         compilerArgumentsXml.dropVersionsIfNecessary(it)
@@ -379,7 +378,7 @@ private fun KotlinFacetSettings.writeV2toV4Config(element: Element) = writeConfi
 }
 
 private fun KotlinFacetSettings.writeLatestConfig(element: Element) = writeConfig(element).apply {
-    compilerArguments?.let { copyBean(it) }?.let {
+    compilerArguments?.copyOf()?.let {
         it.convertPathsToSystemIndependent()
         val compilerArgumentsXml = CompilerArgumentsSerializerV5(it).serializeTo(element)
         compilerArgumentsXml.dropVersionsIfNecessary(it)

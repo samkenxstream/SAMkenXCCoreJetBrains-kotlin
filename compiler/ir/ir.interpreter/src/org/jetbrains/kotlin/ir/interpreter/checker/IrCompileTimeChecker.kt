@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.interpreter.IrInterpreterConfiguration
 import org.jetbrains.kotlin.ir.interpreter.accessesTopLevelOrObjectField
 import org.jetbrains.kotlin.ir.interpreter.fqName
 import org.jetbrains.kotlin.ir.interpreter.isAccessToNotNullableObject
@@ -18,7 +19,9 @@ import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 class IrCompileTimeChecker(
-    containingDeclaration: IrElement? = null, private val mode: EvaluationMode = EvaluationMode.WITH_ANNOTATIONS
+    containingDeclaration: IrElement? = null,
+    private val mode: EvaluationMode = EvaluationMode.WITH_ANNOTATIONS,
+    private val interpreterConfiguration: IrInterpreterConfiguration,
 ) : IrElementVisitor<Boolean, Nothing?> {
     private var contextExpression: IrCall? = null
     private val visitedStack = mutableListOf<IrElement>().apply { if (containingDeclaration != null) add(containingDeclaration) }
@@ -67,6 +70,13 @@ class IrCompileTimeChecker(
         val owner = expression.symbol.owner
         if (!mode.canEvaluateFunction(owner, expression)) return false
 
+        // We disable `toFloat` folding on K/JS till `toFloat` is fixed (KT-35422)
+        // This check must be placed here instead of CallInterceptor because we still
+        // want to evaluate (1) `const val` expressions and (2) values in annotations.
+        if (owner.name.asString() == "toFloat" && interpreterConfiguration.treatFloatInSpecialWay) {
+            return super.visitCall(expression, data)
+        }
+
         return expression.saveContext {
             val dispatchReceiverComputable = expression.dispatchReceiver?.accept(this, null) ?: true
             val extensionReceiverComputable = expression.extensionReceiver?.accept(this, null) ?: true
@@ -99,6 +109,13 @@ class IrCompileTimeChecker(
         if (mode == EvaluationMode.ONLY_INTRINSIC_CONST && expression.origin == IrStatementOrigin.WHEN) {
             return expression.statements.all { it.accept(this, null) }
         }
+
+        // `IrReturnableBlock` will be created from IrCall after inline. We should do basically the same check as for IrCall.
+        if (expression is IrReturnableBlock) {
+            // TODO after JVM inline MR 8122 will be pushed check original IrCall.
+            TODO("Interpretation of `IrReturnableBlock` is not implemented")
+        }
+
         return visitStatements(expression.statements)
     }
 

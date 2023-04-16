@@ -187,6 +187,18 @@ public class SymbolLightClassesByFqNameForSourceTestGenerated extends AbstractSy
     }
 
     @Test
+    @TestMetadata("InvalidJavaIdentifierAsAnnotationArgument.kt")
+    public void testInvalidJavaIdentifierAsAnnotationArgument() throws Exception {
+        runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/InvalidJavaIdentifierAsAnnotationArgument.kt");
+    }
+
+    @Test
+    @TestMetadata("InvalidJavaIdentifierAsPropertyInitializer.kt")
+    public void testInvalidJavaIdentifierAsPropertyInitializer() throws Exception {
+        runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/InvalidJavaIdentifierAsPropertyInitializer.kt");
+    }
+
+    @Test
     @TestMetadata("JavaBetween.kt")
     public void testJavaBetween() throws Exception {
         runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/JavaBetween.kt");

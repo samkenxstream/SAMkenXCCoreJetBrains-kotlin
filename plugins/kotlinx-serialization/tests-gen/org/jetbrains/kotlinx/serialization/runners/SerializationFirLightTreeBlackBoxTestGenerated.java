@@ -160,6 +160,12 @@ public class SerializationFirLightTreeBlackBoxTestGenerated extends AbstractSeri
         }
 
         @Test
+        @TestMetadata("repeatableSerialInfo.kt")
+        public void testRepeatableSerialInfo() throws Exception {
+            runTest("plugins/kotlinx-serialization/testData/boxIr/repeatableSerialInfo.kt");
+        }
+
+        @Test
         @TestMetadata("sealedInterfaces.kt")
         public void testSealedInterfaces() throws Exception {
             runTest("plugins/kotlinx-serialization/testData/boxIr/sealedInterfaces.kt");
@@ -169,6 +175,12 @@ public class SerializationFirLightTreeBlackBoxTestGenerated extends AbstractSeri
         @TestMetadata("serialInfo.kt")
         public void testSerialInfo() throws Exception {
             runTest("plugins/kotlinx-serialization/testData/boxIr/serialInfo.kt");
+        }
+
+        @Test
+        @TestMetadata("serializableFromAnotherModule.kt")
+        public void testSerializableFromAnotherModule() throws Exception {
+            runTest("plugins/kotlinx-serialization/testData/boxIr/serializableFromAnotherModule.kt");
         }
 
         @Test

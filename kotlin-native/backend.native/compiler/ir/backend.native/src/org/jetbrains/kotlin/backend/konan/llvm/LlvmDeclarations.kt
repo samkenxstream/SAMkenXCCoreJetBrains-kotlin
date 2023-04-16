@@ -13,6 +13,8 @@ import org.jetbrains.kotlin.backend.konan.descriptors.ClassLayoutBuilder
 import org.jetbrains.kotlin.backend.konan.descriptors.isTypedIntrinsic
 import org.jetbrains.kotlin.backend.konan.descriptors.requiredAlignment
 import org.jetbrains.kotlin.backend.konan.ir.*
+import org.jetbrains.kotlin.backend.konan.lower.isStaticInitializer
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
@@ -314,6 +316,12 @@ private class DeclarationsGeneratorVisitor(override val generationState: NativeG
         return KotlinObjCClassLlvmDeclarations(classInfoGlobal, bodyOffsetGlobal)
     }
 
+    override fun visitValueParameter(declaration: IrValueParameter) {
+        // In some cases because of inconsistencies of previous lowerings, default values can be not removed.
+        // If they contain class or function, they would not be processed by code generator
+        // So we are skipping them here too.
+    }
+
     private tailrec fun gcd(a: Long, b: Long) : Long = if (b == 0L) a else gcd(b, a % b)
 
     override fun visitField(declaration: IrField) {
@@ -352,10 +360,6 @@ private class DeclarationsGeneratorVisitor(override val generationState: NativeG
 
         if (!declaration.isReal) return
 
-        if ((declaration is IrConstructor && declaration.isObjCConstructor)) {
-            return
-        }
-
         val llvmFunction = if (declaration.isExternal) {
             if (declaration.isTypedIntrinsic || declaration.isObjCBridgeBased()
                     // All call-sites to external accessors to interop properties
@@ -363,9 +367,12 @@ private class DeclarationsGeneratorVisitor(override val generationState: NativeG
                     || (declaration.isAccessor && declaration.isFromInteropLibrary())
                     || declaration.annotations.hasAnnotation(RuntimeNames.cCall)) return
 
-            val proto = LlvmFunctionProto(declaration, declaration.computeSymbolName(), this)
+            val proto = LlvmFunctionProto(declaration, declaration.computeSymbolName(), this, LLVMLinkage.LLVMExternalLinkage)
             llvm.externalFunction(proto)
         } else {
+            if (!declaration.shouldGenerateBody()) {
+                return
+            }
             val symbolName = if (declaration.isExported()) {
                 declaration.computeSymbolName().also {
                     if (declaration.name.asString() != "main") {
@@ -385,16 +392,16 @@ private class DeclarationsGeneratorVisitor(override val generationState: NativeG
                 }
             }
 
-            val proto = LlvmFunctionProto(declaration, symbolName, this)
-            val llvmFunction = addLlvmFunctionWithDefaultAttributes(
-                    context,
-                    llvm.module,
-                    symbolName,
-                    proto.llvmFunctionType
-            ).also {
-                proto.addFunctionAttributes(it)
+            val linkage = when {
+                declaration.isExported() -> LLVMLinkage.LLVMExternalLinkage
+                context.config.producePerFileCache && declaration in generationState.calledFromExportedInlineFunctions -> LLVMLinkage.LLVMExternalLinkage
+                else -> LLVMLinkage.LLVMInternalLinkage
             }
-            LlvmCallable(llvmFunction, proto)
+            val proto = LlvmFunctionProto(declaration, symbolName, this, linkage)
+            context.log {
+                "Creating llvm function ${symbolName} for ${declaration.render()}"
+            }
+            proto.createLlvmFunction(context, llvm.module)
         }
 
         declaration.metadata = KonanMetadata.Function(declaration, llvmFunction)

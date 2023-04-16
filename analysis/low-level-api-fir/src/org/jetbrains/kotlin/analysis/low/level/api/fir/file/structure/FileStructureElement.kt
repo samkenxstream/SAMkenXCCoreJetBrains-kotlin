@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -15,9 +15,9 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostics.FileStructure
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostics.SingleNonLocalDeclarationDiagnosticRetriever
 import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.RawFirNonLocalDeclarationBuilder
 import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.declarationCanBeLazilyResolved
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.withInvalidationOnException
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.expressions.FirVariableAssignment
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.scopes.kotlinScopeProvider
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -119,14 +119,17 @@ internal class ReanalyzableFunctionStructureElement(
         return moduleComponents.globalResolveComponents.lockProvider.withLock(firFile) {
             val upgradedPhase = minOf(originalFunction.resolvePhase, FirResolvePhase.DECLARATIONS)
 
-            moduleComponents.sessionInvalidator.withInvalidationOnException(moduleComponents.session) {
+            withInvalidationOnException(moduleComponents.session) {
                 with(originalFunction) {
                     replaceBody(temporaryFunction.body)
                     replaceContractDescription(temporaryFunction.contractDescription)
-                    replaceResolvePhase(upgradedPhase)
+                    @OptIn(ResolveStateAccess::class)
+                    resolveState = upgradedPhase.asResolveState()
                 }
+
                 designation.toSequence(includeTarget = true).forEach {
-                    it.replaceResolvePhase(minOf(it.resolvePhase, upgradedPhase))
+                    @OptIn(ResolveStateAccess::class)
+                    it.resolveState = minOf(it.resolvePhase, upgradedPhase).asResolveState()
                 }
 
                 originalFunction.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
@@ -168,14 +171,15 @@ internal class ReanalyzablePropertyStructureElement(
             val setterPhase = originalProperty.setter?.resolvePhase ?: originalProperty.resolvePhase
             val upgradedPhase = minOf(originalProperty.resolvePhase, getterPhase, setterPhase, FirResolvePhase.DECLARATIONS)
 
-            moduleComponents.sessionInvalidator.withInvalidationOnException(moduleComponents.session) {
+            withInvalidationOnException(moduleComponents.session) {
+                @OptIn(ResolveStateAccess::class)
                 with(originalProperty) {
                     getter?.replaceBody(temporaryProperty.getter?.body)
                     setter?.replaceBody(temporaryProperty.setter?.body)
                     replaceInitializer(temporaryProperty.initializer)
-                    getter?.replaceResolvePhase(upgradedPhase)
-                    setter?.replaceResolvePhase(upgradedPhase)
-                    replaceResolvePhase(upgradedPhase)
+                    getter?.resolveState = upgradedPhase.asResolveState()
+                    setter?.resolveState = upgradedPhase.asResolveState()
+                    resolveState = upgradedPhase.asResolveState()
                     replaceBodyResolveState(FirPropertyBodyResolveState.NOTHING_RESOLVED)
                 }
 

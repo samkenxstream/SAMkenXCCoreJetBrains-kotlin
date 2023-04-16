@@ -42,7 +42,10 @@ object JsStandardClassIds {
         val JsExport = "JsExport".jsId()
 
         @JvmField
-        val JsExportIgnore = ClassId(JsExport.asSingleFqName(), Name.identifier("Ignore"))
+        val JsExternalInheritorsOnly = "JsExternalInheritorsOnly".jsId()
+
+        @JvmField
+        val JsExportIgnore = JsExport.createNestedClassId(Name.identifier("Ignore"))
 
         @JvmField
         val annotationsRequiringExternal = setOf(JsModule, JsQualifier)

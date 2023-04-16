@@ -23,12 +23,12 @@ class IrConstructorCallImpl(
     typeArgumentsCount: Int,
     override var constructorTypeArgumentsCount: Int,
     valueArgumentsCount: Int,
-    override val origin: IrStatementOrigin? = null,
+    override var origin: IrStatementOrigin? = null,
     override var source: SourceElement = SourceElement.NO_SOURCE
 ) : IrConstructorCall() {
-    override val typeArgumentsByIndex: Array<IrType?> = arrayOfNulls(typeArgumentsCount)
+    override val typeArguments: Array<IrType?> = arrayOfNulls(typeArgumentsCount)
 
-    override val argumentsByParameterIndex: Array<IrExpression?> = arrayOfNulls(valueArgumentsCount)
+    override val valueArguments: Array<IrExpression?> = arrayOfNulls(valueArgumentsCount)
 
     override var contextReceiversCount = 0
 

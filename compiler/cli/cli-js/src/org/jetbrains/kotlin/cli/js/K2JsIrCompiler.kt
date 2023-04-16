@@ -27,16 +27,14 @@ import org.jetbrains.kotlin.cli.common.messages.CompilerMessageLocation
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageUtil
-import org.jetbrains.kotlin.cli.js.klib.TopDownAnalyzerFacadeForJSIR
-import org.jetbrains.kotlin.cli.js.klib.TopDownAnalyzerFacadeForWasm
-import org.jetbrains.kotlin.cli.js.klib.compileModuleToAnalyzedFir
-import org.jetbrains.kotlin.cli.js.klib.generateIrForKlibSerialization
-import org.jetbrains.kotlin.cli.js.klib.serializeFirKlib
-import org.jetbrains.kotlin.cli.js.klib.transformFirToIr
+import org.jetbrains.kotlin.cli.js.klib.*
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.plugins.PluginCliParser
-import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.Services
+import org.jetbrains.kotlin.config.getModuleNameForSource
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
@@ -53,11 +51,13 @@ import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsCodeGenerator
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.TranslationMode
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImplForJsIC
+import org.jetbrains.kotlin.ir.linkage.partial.setupPartialLinkageConfig
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.js.analyzer.JsAnalysisResult
 import org.jetbrains.kotlin.js.config.*
 import org.jetbrains.kotlin.konan.file.ZipFileSystemAccessor
 import org.jetbrains.kotlin.konan.file.ZipFileSystemCacheableAccessor
+import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
 import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.name.FqName
@@ -68,7 +68,6 @@ import org.jetbrains.kotlin.utils.PathUtil
 import org.jetbrains.kotlin.utils.join
 import java.io.File
 import java.io.IOException
-import java.nio.charset.Charset
 
 private val K2JSCompilerArguments.granularity: JsGenerationGranularity
     get() = when {
@@ -171,9 +170,6 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
 
         configuration.put(JSConfigurationKeys.LIBRARIES, libraries)
         configuration.put(JSConfigurationKeys.TRANSITIVE_LIBRARIES, libraries)
-
-        configuration.put(JSConfigurationKeys.PARTIAL_LINKAGE, arguments.partialLinkage)
-
         configuration.put(JSConfigurationKeys.WASM_ENABLE_ARRAY_RANGE_CHECKS, arguments.wasmEnableArrayRangeChecks)
         configuration.put(JSConfigurationKeys.WASM_ENABLE_ASSERTS, arguments.wasmEnableAsserts)
         configuration.put(JSConfigurationKeys.WASM_GENERATE_WAT, arguments.wasmGenerateWat)
@@ -261,6 +257,14 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
             friendLibraries = friendLibraries,
             configurationJs = configurationJs,
             mainCallArguments = mainCallArguments
+        )
+
+        configuration.setupPartialLinkageConfig(
+            mode = arguments.partialLinkageMode,
+            logLevel = arguments.partialLinkageLogLevel,
+            compilerModeAllowsUsingPartialLinkage = arguments.includes != null, // Don't run PL when producing KLIB.
+            onWarning = { messageCollector.report(WARNING, it) },
+            onError = { messageCollector.report(ERROR, it) }
         )
 
         // Run analysis if main module is sources
@@ -461,7 +465,8 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 jsOutputName = arguments.irPerModuleOutputName,
                 icData = icData,
                 expectDescriptorToSymbol = expectDescriptorToSymbol,
-                moduleFragment = moduleFragment
+                moduleFragment = moduleFragment,
+                builtInsPlatform = if (arguments.wasm) BuiltInsPlatform.WASM else BuiltInsPlatform.JS
             ) { file ->
                 metadataSerializer.serializeScope(file, sourceModule.jsFrontEndResult.bindingContext, moduleFragment.descriptor)
             }
@@ -493,14 +498,14 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
         ) ?: return null
 
         // FIR2IR
-        val irResult = transformFirToIr(moduleStructure, outputs)
+        val fir2IrActualizedResult = transformFirToIr(moduleStructure, outputs, diagnosticsReporter)
 
         // Serialize klib
         if (arguments.irProduceKlibDir || arguments.irProduceKlibFile) {
             serializeFirKlib(
                 moduleStructure = moduleStructure,
                 firOutputs = outputs,
-                irResult = irResult,
+                fir2IrActualizedResult = fir2IrActualizedResult,
                 outputKlibPath = outputKlibPath,
                 messageCollector = messageCollector,
                 diagnosticsReporter = diagnosticsReporter,

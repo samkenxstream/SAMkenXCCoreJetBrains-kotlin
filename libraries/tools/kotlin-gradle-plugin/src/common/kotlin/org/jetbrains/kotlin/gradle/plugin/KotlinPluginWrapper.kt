@@ -162,6 +162,11 @@ abstract class DefaultKotlinBasePlugin : KotlinBasePlugin {
             KotlinTestReportCompatibilityHelper.KotlinTestReportCompatibilityHelperVariantFactory::class,
             DefaultKotlinTestReportCompatibilityHelperVariantFactory()
         )
+
+        factories.putIfAbsent(
+            ArtifactTypeAttributeAccessor.ArtifactTypeAttributeAccessorVariantFactory::class,
+            DefaultArtifactTypeAttributeAccessorVariantFactory()
+        )
     }
 
     protected fun setupAttributeMatchingStrategy(
@@ -226,6 +231,8 @@ abstract class KotlinBasePluginWrapper : DefaultKotlinBasePlugin() {
         project.addNpmDependencyExtension()
 
         project.registerBuildKotlinToolingMetadataTask()
+
+        project.startKotlinPluginLifecycle()
     }
 
     internal open fun createTestRegistry(project: Project) = KotlinTestsRegistry(project)
@@ -283,7 +290,7 @@ abstract class AbstractKotlin2JsPluginWrapper(
 
 abstract class AbstractKotlinJsPluginWrapper : KotlinBasePluginWrapper() {
     override fun getPlugin(project: Project): Plugin<Project> =
-        KotlinJsPlugin(project.getKotlinPluginVersion())
+        KotlinJsPlugin()
 
     override val projectExtensionClass: KClass<out KotlinJsProjectExtension>
         get() = KotlinJsProjectExtension::class
@@ -351,7 +358,7 @@ fun Project.getKotlinPluginVersion() = getKotlinPluginVersion(project.logger)
 fun getKotlinPluginVersion(logger: Logger): String {
     if (!kotlinPluginVersionFromResources.isInitialized()) {
         logger.kotlinDebug("Loading version information")
-        logger.kotlinDebug("Found project version [${kotlinPluginVersionFromResources.value}")
+        logger.kotlinDebug("Found project version [${kotlinPluginVersionFromResources.value}]")
     }
     return kotlinPluginVersionFromResources.value
 }

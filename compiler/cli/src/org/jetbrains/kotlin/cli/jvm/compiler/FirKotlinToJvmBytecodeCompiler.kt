@@ -153,17 +153,19 @@ object FirKotlinToJvmBytecodeCompiler {
         performanceManager?.notifyIRTranslationStarted()
 
         val fir2IrExtensions = JvmFir2IrExtensions(moduleConfiguration, JvmIrDeserializerImpl(), JvmIrMangler)
-        val fir2IrResult = firResult.convertToIrAndActualizeForJvm(
+        val fir2IrAndIrActualizerResult = firResult.convertToIrAndActualizeForJvm(
             fir2IrExtensions,
             irGenerationExtensions,
-            linkViaSignatures = moduleConfiguration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES)
+            linkViaSignatures = moduleConfiguration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES),
+            diagnosticsReporter,
+            moduleConfiguration.languageVersionSettings
         )
 
         performanceManager?.notifyIRTranslationFinished()
 
         val generationState = runBackend(
             allSources,
-            fir2IrResult,
+            fir2IrAndIrActualizerResult,
             fir2IrExtensions,
             diagnosticsReporter
         )
@@ -217,11 +219,11 @@ object FirKotlinToJvmBytecodeCompiler {
 
     private fun CompilationContext.runBackend(
         ktFiles: List<KtFile>,
-        fir2IrResult: Fir2IrResult,
+        fir2IrActualizedResult: Fir2IrActualizedResult,
         extensions: JvmGeneratorExtensions,
         diagnosticsReporter: BaseDiagnosticsCollector
     ): GenerationState {
-        val (moduleFragment, components) = fir2IrResult
+        val (moduleFragment, components, pluginContext, irActualizationResult) = fir2IrActualizedResult
         val dummyBindingContext = NoScopeRecordCliBindingTrace().bindingContext
         val codegenFactory = JvmIrCodegenFactory(
             moduleConfiguration,
@@ -250,7 +252,7 @@ object FirKotlinToJvmBytecodeCompiler {
         generationState.oldBEInitTrace(ktFiles)
         codegenFactory.generateModuleInFrontendIRMode(
             generationState, moduleFragment, components.symbolTable, components.irProviders,
-            extensions, FirJvmBackendExtension(components), fir2IrResult.pluginContext
+            extensions, FirJvmBackendExtension(components, irActualizationResult), pluginContext
         ) {
             performanceManager?.notifyIRLoweringFinished()
             performanceManager?.notifyIRGenerationStarted()

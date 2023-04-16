@@ -1,5 +1,8 @@
+// !LANGUAGE: +IntrinsicConstEvaluation
 // TARGET_BACKEND: JVM_IR
-// IGNORE_BACKEND_K1: JVM_IR
+// TARGET_BACKEND: NATIVE
+// TARGET_BACKEND: JS_IR
+// IGNORE_BACKEND_K1: JVM_IR, NATIVE, JS_IR, JS_IR_ES6
 
 const val flag = true
 const val value = 10

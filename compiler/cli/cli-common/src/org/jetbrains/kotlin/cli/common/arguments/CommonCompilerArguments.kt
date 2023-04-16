@@ -188,7 +188,7 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
         value = "-Xcompiler-plugin",
         valueDescription = "<path1>,<path2>:<optionName>=<value>,<optionName>=<value>",
         description = "Register compiler plugin",
-        delimiter = ""
+        delimiter = Argument.Delimiters.none
     )
     var pluginConfigurations: Array<String>? = null
         set(value) {
@@ -753,6 +753,16 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
             field = value
         }
 
+    @Argument(
+        value = "-Xignore-const-optimization-errors",
+        description = "Ignore all compilation exceptions while optimizing some constant expressions."
+    )
+    var ignoreConstOptimizationErrors = false
+        set(value) {
+            checkFrozen()
+            field = value
+        }
+
     @OptIn(IDEAPluginsCompatibilityAPI::class)
     open fun configureAnalysisFlags(collector: MessageCollector, languageVersion: LanguageVersion): MutableMap<AnalysisFlag<*>, Any> {
         return HashMap<AnalysisFlag<*>, Any>().apply {
@@ -1059,5 +1069,7 @@ abstract class CommonCompilerArguments : CommonToolArguments() {
             }
 
     // Used only for serialize and deserialize settings. Don't use in other places!
-    class DummyImpl : CommonCompilerArguments()
+    class DummyImpl : CommonCompilerArguments() {
+        override fun copyOf(): Freezable = copyCommonCompilerArguments(this, DummyImpl())
+    }
 }

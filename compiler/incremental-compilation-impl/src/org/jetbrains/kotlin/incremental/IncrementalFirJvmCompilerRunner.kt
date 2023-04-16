@@ -275,7 +275,13 @@ class IncrementalFirJvmCompilerRunner(
             val extensions = JvmFir2IrExtensions(configuration, JvmIrDeserializerImpl(), JvmIrMangler)
             val irGenerationExtensions =
                 (projectEnvironment as? VfsBasedProjectEnvironment)?.project?.let { IrGenerationExtension.getInstances(it) }.orEmpty()
-            val platformIrOutput = cycleResult.convertToIrAndActualizeForJvm(extensions, irGenerationExtensions, linkViaSignatures = false)
+            val (irModuleFragment, components, pluginContext, irActualizationResult) = cycleResult.convertToIrAndActualizeForJvm(
+                extensions,
+                irGenerationExtensions,
+                linkViaSignatures = false,
+                compilerEnvironment.diagnosticsReporter,
+                configuration.languageVersionSettings
+            )
 
             performanceManager?.notifyIRTranslationFinished()
 
@@ -283,9 +289,10 @@ class IncrementalFirJvmCompilerRunner(
                 targetId,
                 configuration,
                 extensions,
-                platformIrOutput.irModuleFragment,
-                platformIrOutput.components,
-                platformIrOutput.pluginContext
+                irModuleFragment,
+                components,
+                pluginContext,
+                irActualizationResult
             )
 
             val codegenOutput = generateCodeFromIr(irInput, compilerEnvironment, performanceManager)
@@ -335,7 +342,7 @@ fun CompilerConfiguration.configureBaseRoots(args: K2JVMCompilerArguments) {
         }
     }
 
-    args.classpath?.split(File.pathSeparator)?.forEach { classpathRoot ->
+    args.classpath?.forEach { classpathRoot ->
         add(
             CLIConfigurationKeys.CONTENT_ROOTS,
             if (isJava9Module) JvmModulePathRoot(File(classpathRoot)) else JvmClasspathRoot(File(classpathRoot))

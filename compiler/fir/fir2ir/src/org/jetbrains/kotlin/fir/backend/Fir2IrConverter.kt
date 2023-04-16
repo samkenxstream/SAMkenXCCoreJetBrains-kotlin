@@ -5,13 +5,11 @@
 
 package org.jetbrains.kotlin.fir.backend
 
-import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtPsiSourceFileLinesMapping
 import org.jetbrains.kotlin.KtSourceFileLinesMappingFromLineStartOffsets
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -32,11 +30,14 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
 import org.jetbrains.kotlin.ir.interpreter.IrInterpreter
+import org.jetbrains.kotlin.ir.interpreter.IrInterpreterConfiguration
+import org.jetbrains.kotlin.ir.interpreter.IrInterpreterEnvironment
 import org.jetbrains.kotlin.ir.interpreter.checker.EvaluationMode
 import org.jetbrains.kotlin.ir.interpreter.checker.IrConstTransformer
 import org.jetbrains.kotlin.ir.util.KotlinMangler
 import org.jetbrains.kotlin.ir.util.NaiveSourceBasedFileEntryImpl
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.platform.isJs
 import org.jetbrains.kotlin.psi.KtFile
 
 class Fir2IrConverter(
@@ -118,21 +119,19 @@ class Fir2IrConverter(
         }
     }
 
-    fun processLocalClassAndNestedClassesOnTheFly(regularClass: FirRegularClass, parent: IrDeclarationParent): IrClass {
-        val irClass = registerClassAndNestedClasses(regularClass, parent)
-        processClassAndNestedClassHeaders(regularClass)
+    fun processLocalClassAndNestedClassesOnTheFly(klass: FirClass, parent: IrDeclarationParent): IrClass {
+        val irClass = registerClassAndNestedClasses(klass, parent)
+        processClassAndNestedClassHeaders(klass)
         return irClass
     }
 
-    fun processAnonymousObjectOnTheFly(anonymousObject: FirAnonymousObject, irClass: IrClass) {
-        registerNestedClasses(anonymousObject, irClass)
-        processNestedClassHeaders(anonymousObject)
-    }
-
-    fun processLocalClassAndNestedClasses(regularClass: FirRegularClass, parent: IrDeclarationParent): IrClass {
-        val irClass = registerClassAndNestedClasses(regularClass, parent)
-        processClassAndNestedClassHeaders(regularClass)
-        processClassMembers(regularClass, irClass)
+    fun processLocalClassAndNestedClasses(klass: FirClass, parent: IrDeclarationParent): IrClass {
+        val irClass = registerClassAndNestedClasses(klass, parent)
+        processClassAndNestedClassHeaders(klass)
+        when (klass) {
+            is FirRegularClass -> processRegularClassMembers(klass, irClass)
+            is FirAnonymousObject -> processAnonymousObjectMembers(klass, irClass, processHeaders = false)
+        }
         bindFakeOverridesInClass(irClass)
         return irClass
     }
@@ -187,6 +186,7 @@ class Fir2IrConverter(
         }
     }
 
+    // TODO: unite with/extract common part from processRegularClassMembers
     fun processAnonymousObjectMembers(
         anonymousObject: FirAnonymousObject,
         irClass: IrClass,
@@ -211,17 +211,16 @@ class Fir2IrConverter(
         with(fakeOverrideGenerator) {
             irClass.addFakeOverrides(anonymousObject, realDeclarations)
         }
-        bindFakeOverridesInClass(irClass)
 
         return irClass
     }
 
-    internal fun processClassMembers(
+    internal fun processRegularClassMembers(
         regularClass: FirRegularClass,
         irClass: IrClass = classifierStorage.getCachedIrClass(regularClass)!!
     ): IrClass {
         val allDeclarations = mutableListOf<FirDeclaration>().apply {
-            addAll(regularClass.declarations.toMutableList())
+            addAll(regularClass.declarations)
             if (generatorExtensions.isNotEmpty()) {
                 addAll(regularClass.generatedMembers(session))
                 addAll(regularClass.generatedNestedClassifiers(session))
@@ -298,14 +297,17 @@ class Fir2IrConverter(
         return declarations.sortedBy { it !is FirField && it.isSynthetic }
     }
 
-    private fun registerClassAndNestedClasses(regularClass: FirRegularClass, parent: IrDeclarationParent): IrClass {
+    private fun registerClassAndNestedClasses(klass: FirClass, parent: IrDeclarationParent): IrClass {
         // Local classes might be referenced before they declared (see usages of Fir2IrClassifierStorage.createLocalIrClassOnTheFly)
         // So, we only need to set its parent properly
         val irClass =
-            classifierStorage.getCachedIrClass(regularClass)?.apply {
+            classifierStorage.getCachedIrClass(klass)?.apply {
                 this.parent = parent
-            } ?: classifierStorage.registerIrClass(regularClass, parent)
-        registerNestedClasses(regularClass, irClass)
+            } ?: when (klass) {
+                is FirRegularClass -> classifierStorage.registerIrClass(klass, parent)
+                is FirAnonymousObject -> classifierStorage.registerIrAnonymousObject(klass, irParent = parent)
+            }
+        registerNestedClasses(klass, irClass)
         return irClass
     }
 
@@ -324,9 +326,9 @@ class Fir2IrConverter(
         }
     }
 
-    private fun processClassAndNestedClassHeaders(regularClass: FirRegularClass) {
-        classifierStorage.processClassHeader(regularClass)
-        processNestedClassHeaders(regularClass)
+    private fun processClassAndNestedClassHeaders(klass: FirClass) {
+        classifierStorage.processClassHeader(klass)
+        processNestedClassHeaders(klass)
     }
 
     private fun processNestedClassHeaders(klass: FirClass) {
@@ -353,7 +355,7 @@ class Fir2IrConverter(
                 (containingClass !is FirRegularClass || containingClass.isLocal)
         return when (declaration) {
             is FirRegularClass -> {
-                processClassMembers(declaration)
+                processRegularClassMembers(declaration)
             }
             is FirScript -> {
                 assert(parent is IrFile)
@@ -418,9 +420,19 @@ class Fir2IrConverter(
 
     companion object {
         private fun evaluateConstants(irModuleFragment: IrModuleFragment) {
-            val interpreter = IrInterpreter(irModuleFragment.irBuiltins)
+            val firModuleDescriptor = irModuleFragment.descriptor as? FirModuleDescriptor
+            val targetPlatform = firModuleDescriptor?.platform
+            val languageVersionSettings = firModuleDescriptor?.session?.languageVersionSettings
+            val intrinsicConstEvaluation = languageVersionSettings?.supportsFeature(LanguageFeature.IntrinsicConstEvaluation) == true
+
+            val configuration = IrInterpreterConfiguration(
+                printOnlyExceptionMessage = true,
+                treatFloatInSpecialWay = targetPlatform.isJs()
+            )
+            val interpreter = IrInterpreter(IrInterpreterEnvironment(irModuleFragment.irBuiltins, configuration))
+            val mode = if (intrinsicConstEvaluation) EvaluationMode.ONLY_INTRINSIC_CONST else EvaluationMode.ONLY_BUILTINS
             irModuleFragment.files.forEach {
-                it.transformChildren(IrConstTransformer(interpreter, it, mode = EvaluationMode.ONLY_BUILTINS), null)
+                it.transformChildren(IrConstTransformer(interpreter, it, mode = mode), null)
             }
         }
 

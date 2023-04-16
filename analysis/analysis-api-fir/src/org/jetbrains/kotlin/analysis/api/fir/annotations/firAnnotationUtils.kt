@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.fir.symbols.resolvedAnnotationsWithClassIds
 import org.jetbrains.kotlin.fir.symbols.resolvedCompilerRequiredAnnotations
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.fir.declarations.resolvePhase
 
 internal fun mapAnnotationParameters(annotation: FirAnnotation): Map<Name, FirExpression> {
     if (annotation is FirAnnotationCall && annotation.arguments.isEmpty()) return emptyMap()
@@ -49,27 +50,15 @@ internal fun annotationsByClassId(
     useSiteTargetFilter: AnnotationUseSiteTargetFilter,
     useSiteSession: FirSession,
     annotationContainer: FirAnnotationContainer = firSymbol.fir,
-): List<KtAnnotationApplicationWithArgumentsInfo> =
-    if (firSymbol.isFromCompilerRequiredAnnotationsPhase(classId)) {
-        buildList {
-            // this loop by index is required to avoid possible ConcurrentModificationException
-            val annotations = annotationContainer.resolvedCompilerRequiredAnnotations(firSymbol)
-            for (index in annotations.indices) {
-                val annotation = annotations[index]
-                if (useSiteTargetFilter.isAllowed(annotation.useSiteTarget) && annotation.toAnnotationClassIdSafe(useSiteSession) == classId) {
-                    add(annotation.toKtAnnotationApplication(useSiteSession, index))
-                }
-            }
+): List<KtAnnotationApplicationWithArgumentsInfo> {
+    return annotationContainer.resolvedAnnotationsWithArguments(firSymbol).mapIndexedNotNull { index, annotation ->
+        if (!useSiteTargetFilter.isAllowed(annotation.useSiteTarget) || annotation.toAnnotationClassId(useSiteSession) != classId) {
+            return@mapIndexedNotNull null
         }
-    } else {
-        annotationContainer.resolvedAnnotationsWithArguments(firSymbol).mapIndexedNotNull { index, annotation ->
-            if (!useSiteTargetFilter.isAllowed(annotation.useSiteTarget) || annotation.toAnnotationClassId(useSiteSession) != classId) {
-                return@mapIndexedNotNull null
-            }
 
-            annotation.toKtAnnotationApplication(useSiteSession, index)
-        }
+        annotation.toKtAnnotationApplication(useSiteSession, index)
     }
+}
 
 internal fun annotations(
     firSymbol: FirBasedSymbol<*>,

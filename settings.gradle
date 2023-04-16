@@ -56,7 +56,6 @@ include ":benchmarks",
         ":compiler:frontend:cfg",
         ":kotlin-compiler-runner-unshaded",
         ":kotlin-compiler-runner",
-        ":compiler:cli-common",
         ":compiler:ir.tree",
         ":compiler:ir.tree:tree-generator",
         ":compiler:ir.psi2ir",
@@ -77,6 +76,8 @@ include ":benchmarks",
         ":compiler:plugin-api",
         ":compiler:light-classes",
         ":compiler:javac-wrapper",
+        ":compiler:cli-common",
+        ":compiler:cli-base",
         ":compiler:cli",
         ":compiler:cli-js",
         ":compiler:incremental-compilation-impl",
@@ -101,6 +102,7 @@ include ":benchmarks",
         ":native:kotlin-klib-commonizer",
         ":native:kotlin-klib-commonizer-api",
         ":native:kotlin-klib-commonizer-embeddable",
+        ":native:executors",
         ":core:compiler.common",
         ":core:compiler.common.jvm",
         ":core:compiler.common.js",
@@ -201,6 +203,7 @@ include ":kotlin-imports-dumper-compiler-plugin",
         ":kotlin-gradle-plugins-bom",
         ":gradle:android-test-fixes",
         ":gradle:gradle-warnings-detector",
+        ":gradle:kotlin-compiler-args-properties",
         ":gradle:regression-benchmark-templates",
         ":gradle:regression-benchmarks",
         ":kotlin-tooling-metadata",
@@ -622,6 +625,7 @@ project(':kotlin-compiler-client-embeddable').projectDir = "$rootDir/prepare/com
 project(':kotlin-preloader').projectDir = "$rootDir/compiler/preloader" as File
 project(':kotlin-build-common').projectDir = "$rootDir/build-common" as File
 project(':compiler:cli-common').projectDir = "$rootDir/compiler/cli/cli-common" as File
+project(':compiler:cli-base').projectDir = "$rootDir/compiler/cli/cli-base" as File
 project(':compiler:cli-js').projectDir = "$rootDir/compiler/cli/cli-js" as File
 project(':kotlin-runner').projectDir = "$rootDir/compiler/cli/cli-runner" as File
 project(':kotlin-daemon').projectDir = "$rootDir/compiler/daemon" as File
@@ -713,6 +717,7 @@ project(':kotlin-gradle-plugin-integration-tests').projectDir = "$rootDir/librar
 project(':kotlin-gradle-plugins-bom').projectDir = "$rootDir/libraries/tools/kotlin-gradle-plugins-bom" as File
 project(':gradle:android-test-fixes').projectDir = "$rootDir/libraries/tools/gradle/android-test-fixes" as File
 project(':gradle:gradle-warnings-detector').projectDir = "$rootDir/libraries/tools/gradle/gradle-warnings-detector" as File
+project(':gradle:kotlin-compiler-args-properties').projectDir = "$rootDir/libraries/tools/gradle/kotlin-compiler-args-properties" as File
 project(":gradle:regression-benchmark-templates").projectDir = "$rootDir/libraries/tools/gradle/regression-benchmark-templates" as File
 project(":gradle:regression-benchmarks").projectDir = "$rootDir/libraries/tools/gradle/regression-benchmarks" as File
 project(':kotlin-tooling-metadata').projectDir = "$rootDir/libraries/tools/kotlin-tooling-metadata" as File

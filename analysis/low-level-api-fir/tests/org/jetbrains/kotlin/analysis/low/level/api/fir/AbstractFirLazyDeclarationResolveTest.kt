@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.realPsi
 import org.jetbrains.kotlin.fir.renderer.FirDeclarationRendererWithAttributes
 import org.jetbrains.kotlin.fir.renderer.FirErrorExpressionExtendedRenderer
+import org.jetbrains.kotlin.fir.renderer.FirFileAnnotationsContainerRenderer
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.renderer.FirResolvePhaseRenderer
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
@@ -63,7 +64,9 @@ abstract class AbstractFirLazyDeclarationResolveTest : AbstractLowLevelApiSingle
             declarationRenderer = FirDeclarationRendererWithAttributes(),
             resolvePhaseRenderer = FirResolvePhaseRenderer(),
             errorExpressionRenderer = FirErrorExpressionExtendedRenderer(),
+            fileAnnotationsContainerRenderer = FirFileAnnotationsContainerRenderer(),
         )
+
         resolveWithClearCaches(ktFile) { firResolveSession ->
             check(firResolveSession.isSourceSession)
             val declarationToResolve = firResolveSession
@@ -82,7 +85,11 @@ abstract class AbstractFirLazyDeclarationResolveTest : AbstractLowLevelApiSingle
             check(llSession.isSourceSession)
             val firFile = llSession.getOrBuildFirFile(ktFile)
             firFile.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
-            resultBuilder.append("\nFILE RAW TO BODY:\n")
+            if (resultBuilder.isNotEmpty()) {
+                resultBuilder.appendLine()
+            }
+
+            resultBuilder.append("FILE RAW TO BODY:\n")
             renderer.renderElementAsString(firFile)
         }
 

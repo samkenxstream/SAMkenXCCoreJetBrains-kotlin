@@ -104,6 +104,8 @@ fun Project.excludeGradleCommonDependencies(sourceSet: SourceSet) {
     configurations[sourceSet.runtimeOnlyConfigurationName].excludeGradleCommonDependencies()
 }
 
+private val testPlugins = setOf("kotlin-gradle-plugin-api", "android-test-fixes", "gradle-warnings-detector", "kotlin-compiler-args-properties")
+
 /**
  * Common sources for all variants.
  * Should contain classes that are independent of Gradle API version or using minimal supported Gradle api.
@@ -123,10 +125,7 @@ fun Project.createGradleCommonSourceSet(): SourceSet {
         dependencies {
             compileOnlyConfigurationName(kotlinStdlib())
             "commonGradleApiCompileOnly"("dev.gradleplugins:gradle-api:7.6")
-            if (this@createGradleCommonSourceSet.name != "kotlin-gradle-plugin-api" &&
-                this@createGradleCommonSourceSet.name != "android-test-fixes" &&
-                this@createGradleCommonSourceSet.name != "gradle-warnings-detector"
-            ) {
+            if (this@createGradleCommonSourceSet.name !in testPlugins) {
                 compileOnlyConfigurationName(project(":kotlin-gradle-plugin-api")) {
                     capabilities {
                         requireCapability("org.jetbrains.kotlin:kotlin-gradle-plugin-api-common")
@@ -276,10 +275,7 @@ fun Project.reconfigureMainSourcesSetForGradlePlugin(
             // Decoupling gradle-api artifact from current project Gradle version. Later would be useful for
             // gradle plugin variants
             "compileOnly"("dev.gradleplugins:gradle-api:${GradlePluginVariant.GRADLE_MIN.gradleApiVersion}")
-            if (this@reconfigureMainSourcesSetForGradlePlugin.name != "kotlin-gradle-plugin-api" &&
-                this@reconfigureMainSourcesSetForGradlePlugin.name != "android-test-fixes" &&
-                this@reconfigureMainSourcesSetForGradlePlugin.name != "gradle-warnings-detector"
-            ) {
+            if (this@reconfigureMainSourcesSetForGradlePlugin.name !in testPlugins) {
                 "api"(project(":kotlin-gradle-plugin-api"))
             }
         }
@@ -361,7 +357,8 @@ fun Project.reconfigureMainSourcesSetForGradlePlugin(
                     if (attributes.keySet() != expectedAttributes) {
                         error("Wrong set of attributes:\n" +
                                       "  Expected: ${expectedAttributes.joinToString(", ")}\n" +
-                                      "  Actual: ${attributes.keySet().joinToString(", ") { "${it.name}=${attributes.getAttribute(it)}" }}")
+                                      "  Actual: ${attributes.keySet().joinToString(", ") { "${it.name}=${attributes.getAttribute(it)}" }}"
+                        )
                     }
 
                     javaComponent.addVariantsFromConfiguration(this) {
@@ -462,10 +459,7 @@ fun Project.createGradlePluginVariant(
     dependencies {
         variantSourceSet.compileOnlyConfigurationName(kotlinStdlib())
         variantSourceSet.compileOnlyConfigurationName("dev.gradleplugins:gradle-api:${variant.gradleApiVersion}")
-        if (this@createGradlePluginVariant.name != "kotlin-gradle-plugin-api" &&
-            this@createGradlePluginVariant.name != "android-test-fixes" &&
-            this@createGradlePluginVariant.name != "gradle-warnings-detector"
-        ) {
+        if (this@createGradlePluginVariant.name !in testPlugins) {
             variantSourceSet.apiConfigurationName(project(":kotlin-gradle-plugin-api")) {
                 capabilities {
                     requireCapability("org.jetbrains.kotlin:kotlin-gradle-plugin-api-${variant.sourceSetName}")
@@ -523,8 +517,11 @@ fun Project.publishShadowedJar(
 
         // When Gradle traverses the inputs, reject the shaded compiler JAR,
         // which leads to the content of that JAR being excluded as well:
-        val compilerDummyJarConfiguration: FileCollection = project.configurations.getByName("compilerDummyJar")
-        exclude { it.file == compilerDummyJarConfiguration.singleFile }
+        exclude {
+            // Docstring says `file` never returns null, but it does
+            @Suppress("UNNECESSARY_SAFE_CALL", "SAFE_CALL_WILL_CHANGE_NULLABILITY")
+            it.file?.name?.startsWith("kotlin-compiler-embeddable") ?: false
+        }
     }
 
     // Removing artifact produced by Jar task
@@ -563,6 +560,7 @@ fun Project.addBomCheckTask() {
         val exceptions = listOf(
             project(":gradle:android-test-fixes").path,
             project(":gradle:gradle-warnings-detector").path,
+            project(":gradle:kotlin-compiler-args-properties").path,
             project(":kotlin-gradle-build-metrics").path,
             project(":kotlin-gradle-statistics").path,
         )
@@ -651,7 +649,7 @@ fun Project.configureDokkaPublication(
 
             project.dependencies {
                 // Version is required due to https://github.com/Kotlin/dokka/issues/2812
-                "dokkaPlugin"("org.jetbrains.dokka:versioning-plugin:1.8.0-dev-189")
+                "dokkaPlugin"("org.jetbrains.dokka:versioning-plugin:1.8.10")
             }
 
             tasks.register<DokkaTask>("dokkaKotlinlangDocumentation") {

@@ -7,9 +7,15 @@ package org.jetbrains.kotlin.gradle
 
 import org.gradle.api.logging.LogLevel
 import org.gradle.util.GradleVersion
+import org.jetbrains.kotlin.cli.common.arguments.K2NativeCompilerArguments
+import org.jetbrains.kotlin.cli.common.arguments.parseCommandLineArguments
 import org.jetbrains.kotlin.gradle.testbase.*
+import org.jetbrains.kotlin.gradle.util.parseCompilerArguments
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.fail
 import kotlin.io.path.appendText
+import kotlin.test.assertEquals
+import kotlin.test.fail
 
 internal class CompilerOptionsIT : KGPBaseTest() {
 
@@ -25,11 +31,11 @@ internal class CompilerOptionsIT : KGPBaseTest() {
         project("buildSrcWithKotlinDslAndKgp", gradleVersion) {
             gradleProperties
                 .appendText(
-                """
+                    """
                 |
                 |systemProp.org.gradle.kotlin.dsl.precompiled.accessors.strict=true
                 """.trimMargin()
-            )
+                )
 
             build("tasks") {
                 assertOutputContains("kotlinOptions.freeCompilerArgs were changed on task :compileKotlin execution phase:")
@@ -245,24 +251,20 @@ internal class CompilerOptionsIT : KGPBaseTest() {
 
             build("compileNativeMainKotlinMetadata") {
                 assertTasksExecuted(":compileNativeMainKotlinMetadata")
-                assert(
-                    output.contains("-opt-in=another.custom.UnderOptIn") &&
-                            output.contains("-opt-in=my.custom.OptInAnnotation")
-                ) {
-                    printBuildOutput()
-                    "Output does not contain '-opt-in=another.custom.UnderOptIn, -opt-in=my.custom.OptInAnnotation'!"
-                }
+                val arguments = parseCompilerArguments<K2NativeCompilerArguments>()
+                assertEquals(
+                    setOf("another.custom.UnderOptIn", "my.custom.OptInAnnotation"), arguments.optIn?.toSet(),
+                    "Arguments optIn does not match '-opt-in=another.custom.UnderOptIn, -opt-in=my.custom.OptInAnnotation'"
+                )
             }
 
             build("compileKotlinLinux64") {
                 assertTasksExecuted(":compileKotlinLinux64")
-                assert(
-                    output.contains("-opt-in=another.custom.UnderOptIn") &&
-                            output.contains("-opt-in=my.custom.OptInAnnotation")
-                ) {
-                    printBuildOutput()
-                    "Output does not contain '-opt-in=another.custom.UnderOptIn, -opt-in=my.custom.OptInAnnotation'!"
-                }
+                val arguments = parseCompilerArguments<K2NativeCompilerArguments>()
+                assertEquals(
+                    setOf("another.custom.UnderOptIn", "my.custom.OptInAnnotation"), arguments.optIn?.toSet(),
+                    "Arguments optIn does not match '-opt-in=another.custom.UnderOptIn, -opt-in=my.custom.OptInAnnotation'"
+                )
             }
         }
     }
@@ -285,16 +287,12 @@ internal class CompilerOptionsIT : KGPBaseTest() {
             )
 
             build("compileKotlinHost", forceOutput = true) {
-                val expectedOptIn = listOf("-opt-in=kotlin.RequiresOptIn", "-opt-in=my.CustomOptIn")
-                val optInArgs = output
-                    .substringAfter("Arguments = [")
-                    .substringBefore("]")
-                    .lines()
-                    .filter { it.trim() in expectedOptIn }
-
-                assert(optInArgs.size == 2) {
-                    printBuildOutput()
-                    "compiler arguments does not contain '${expectedOptIn.joinToString()}': ${optInArgs.joinToString()}"
+                val expectedOptIn = listOf("kotlin.RequiresOptIn", "my.CustomOptIn")
+                val arguments = parseCompilerArguments<K2NativeCompilerArguments>()
+                if (arguments.optIn?.toList() != listOf("kotlin.RequiresOptIn", "my.CustomOptIn")) {
+                    fail(
+                        "compiler arguments does not contain expected optIns'${expectedOptIn.joinToString()}': ${arguments.optIn}"
+                    )
                 }
             }
         }

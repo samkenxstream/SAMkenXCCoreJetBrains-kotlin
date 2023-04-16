@@ -470,6 +470,12 @@ public class IrBytecodeListingTestGenerated extends AbstractIrBytecodeListingTes
             }
 
             @Test
+            @TestMetadata("propertyGetterSeveralUseSiteTargets.kt")
+            public void testPropertyGetterSeveralUseSiteTargets() throws Exception {
+                runTest("compiler/testData/codegen/bytecodeListing/annotations/repeatable/propertyGetterSeveralUseSiteTargets.kt");
+            }
+
+            @Test
             @TestMetadata("propertyGetterUseSiteTarget.kt")
             public void testPropertyGetterUseSiteTarget() throws Exception {
                 runTest("compiler/testData/codegen/bytecodeListing/annotations/repeatable/propertyGetterUseSiteTarget.kt");
@@ -2146,6 +2152,38 @@ public class IrBytecodeListingTestGenerated extends AbstractIrBytecodeListingTes
         @TestMetadata("samAdapterForJavaInterfaceWithNullability.kt")
         public void testSamAdapterForJavaInterfaceWithNullability() throws Exception {
             runTest("compiler/testData/codegen/bytecodeListing/nullabilityAnnotations/samAdapterForJavaInterfaceWithNullability.kt");
+        }
+
+        @Test
+        @TestMetadata("suspendFunction.kt")
+        public void testSuspendFunction() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeListing/nullabilityAnnotations/suspendFunction.kt");
+        }
+    }
+
+    @Nested
+    @TestMetadata("compiler/testData/codegen/bytecodeListing/properties")
+    @TestDataPath("$PROJECT_ROOT")
+    public class Properties {
+        @Test
+        public void testAllFilesPresentInProperties() throws Exception {
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/bytecodeListing/properties"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+        }
+
+        @Nested
+        @TestMetadata("compiler/testData/codegen/bytecodeListing/properties/backingField")
+        @TestDataPath("$PROJECT_ROOT")
+        public class BackingField {
+            @Test
+            public void testAllFilesPresentInBackingField() throws Exception {
+                KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/bytecodeListing/properties/backingField"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM_IR, true);
+            }
+
+            @Test
+            @TestMetadata("explicitBackingFieldsInJava.kt")
+            public void testExplicitBackingFieldsInJava() throws Exception {
+                runTest("compiler/testData/codegen/bytecodeListing/properties/backingField/explicitBackingFieldsInJava.kt");
+            }
         }
     }
 

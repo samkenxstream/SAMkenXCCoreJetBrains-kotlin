@@ -91,13 +91,19 @@ internal class SymbolLightAccessorMethod private constructor(
 
     private val _name: String by lazyPub {
         analyzeForLightClasses(ktModule) {
-            propertyAccessorSymbol().getJvmNameFromAnnotation(accessorSite.toOptionalFilter()) ?: run {
-                val symbol = propertySymbol()
-                val defaultName = symbol.name.identifier.let {
+            val accessorSymbol = propertyAccessorSymbol()
+            accessorSymbol.getJvmNameFromAnnotation(accessorSite.toOptionalFilter()) ?: run {
+                val propertySymbol = propertySymbol()
+                val defaultName = propertySymbol.name.identifier.let {
                     if (this@SymbolLightAccessorMethod.containingClass.isAnnotationType) it else it.abiName()
                 }
 
-                symbol.computeJvmMethodName(defaultName, this@SymbolLightAccessorMethod.containingClass, accessorSite)
+                val visibility = if (!isGetter && propertySymbol.canHaveNonPrivateField)
+                    accessorSymbol.visibility
+                else
+                    propertySymbol.visibility
+
+                propertySymbol.computeJvmMethodName(defaultName, this@SymbolLightAccessorMethod.containingClass, accessorSite, visibility)
             }
         }
     }
@@ -207,7 +213,7 @@ internal class SymbolLightAccessorMethod private constructor(
 
                         if (nullabilityApplicable) {
                             containingPropertySymbolPointer.withSymbol(ktModule) { propertySymbol ->
-                                getTypeNullability(propertySymbol.returnType)
+                                if (propertySymbol.isLateInit) NullabilityType.NotNull else getTypeNullability(propertySymbol.returnType)
                             }
                         } else {
                             NullabilityType.Unknown
@@ -238,10 +244,19 @@ internal class SymbolLightAccessorMethod private constructor(
         if (!isGetter) return@lazyPub PsiType.VOID
 
         containingPropertySymbolPointer.withSymbol(ktModule) { propertySymbol ->
-            propertySymbol.returnType.asPsiType(
+            val ktType = propertySymbol.returnType
+
+            val forceBoxedReturnType = ktType.isPrimitive &&
+                    propertySymbol.getAllOverriddenSymbols().any { overriddenSymbol ->
+                        !overriddenSymbol.returnType.isPrimitive
+                    }
+
+            val typeMappingMode = if (forceBoxedReturnType) KtTypeMappingMode.RETURN_TYPE_BOXED else KtTypeMappingMode.RETURN_TYPE
+
+            ktType.asPsiType(
                 this@SymbolLightAccessorMethod,
                 allowErrorTypes = true,
-                KtTypeMappingMode.RETURN_TYPE,
+                typeMappingMode,
                 containingClass.isAnnotationType,
             )
         } ?: nonExistentType()
@@ -319,7 +334,7 @@ internal class SymbolLightAccessorMethod private constructor(
 
         containingPropertySymbolPointer.withSymbol(ktModule) { propertySymbol ->
             when (val initializer = propertySymbol.initializer) {
-                is KtConstantInitializerValue -> initializer.constant.createPsiLiteral(this@SymbolLightAccessorMethod)
+                is KtConstantInitializerValue -> initializer.constant.createPsiExpression(this@SymbolLightAccessorMethod)
                 is KtConstantValueForAnnotation -> initializer.annotationValue.toAnnotationMemberValue(this@SymbolLightAccessorMethod)
                 is KtNonConstantInitializerValue -> null
                 null -> null

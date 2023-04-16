@@ -9,9 +9,8 @@ import org.jetbrains.kotlin.cli.common.arguments.K2NativeCompilerArguments
 import org.jetbrains.kotlin.cli.common.config.addKotlinSourceRoot
 import org.jetbrains.kotlin.cli.common.config.kotlinSourceRoots
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
-import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.getModuleNameForSource
+import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.ir.linkage.partial.setupPartialLinkageConfig
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.util.visibleName
@@ -271,7 +270,15 @@ fun CompilerConfiguration.setupFromArguments(arguments: K2NativeCompilerArgument
     putIfNotNull(RUNTIME_LOGS, arguments.runtimeLogs)
     putIfNotNull(BUNDLE_ID, parseBundleId(arguments, outputKind, this@setupFromArguments))
     arguments.testDumpOutputPath?.let { put(TEST_DUMP_OUTPUT_PATH, it) }
-    put(PARTIAL_LINKAGE, arguments.partialLinkage)
+
+    setupPartialLinkageConfig(
+            mode = arguments.partialLinkageMode,
+            logLevel = arguments.partialLinkageLogLevel,
+            compilerModeAllowsUsingPartialLinkage = outputKind != CompilerOutputKind.LIBRARY, // Don't run PL when producing KLIB.
+            onWarning = { report(WARNING, it) },
+            onError = { report(ERROR, it) }
+    )
+
     put(OMIT_FRAMEWORK_BINARY, arguments.omitFrameworkBinary)
     putIfNotNull(COMPILE_FROM_BITCODE, parseCompileFromBitcode(arguments, this@setupFromArguments, outputKind))
     putIfNotNull(SERIALIZED_DEPENDENCIES, parseSerializedDependencies(arguments, this@setupFromArguments))
@@ -284,7 +291,7 @@ private fun String.absoluteNormalizedFile() = java.io.File(this).absoluteFile.no
 internal fun CompilerConfiguration.setupCommonOptionsForCaches(konanConfig: KonanConfig) = with(KonanConfigKeys) {
     put(TARGET, konanConfig.target.toString())
     put(DEBUG, konanConfig.debug)
-    put(PARTIAL_LINKAGE, konanConfig.partialLinkage)
+    setupPartialLinkageConfig(konanConfig.partialLinkageConfig)
     putIfNotNull(EXTERNAL_DEPENDENCIES, konanConfig.externalDependenciesFile?.absolutePath)
     put(BinaryOptions.memoryModel, konanConfig.memoryModel)
     put(PROPERTY_LAZY_INITIALIZATION, konanConfig.propertyLazyInitialization)
@@ -294,6 +301,7 @@ internal fun CompilerConfiguration.setupCommonOptionsForCaches(konanConfig: Kona
     put(BinaryOptions.gcSchedulerType, konanConfig.gcSchedulerType)
     put(BinaryOptions.freezing, konanConfig.freezing)
     put(BinaryOptions.runtimeAssertionsMode, konanConfig.runtimeAssertsMode)
+    put(LAZY_IR_FOR_CACHES, konanConfig.lazyIrForCaches)
 }
 
 private fun Array<String>?.toNonNullList() = this?.asList().orEmpty()

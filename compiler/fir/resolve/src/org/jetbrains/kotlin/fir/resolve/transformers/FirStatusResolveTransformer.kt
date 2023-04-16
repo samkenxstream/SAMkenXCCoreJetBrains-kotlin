@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.toSymbol
 import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.fir.whileAnalysing
+import org.jetbrains.kotlin.fir.withFileAnalysisExceptionWrapping
 
 class FirStatusResolveProcessor(
     session: FirSession,
@@ -199,7 +200,9 @@ abstract class AbstractFirStatusResolveTransformer(
     protected abstract fun FirDeclaration.needResolveNestedClassifiers(): Boolean
 
     override fun transformFile(file: FirFile, data: FirResolvedDeclarationStatus?): FirFile {
-        transformDeclarationContent(file, data)
+        withFileAnalysisExceptionWrapping(file) {
+            transformDeclarationContent(file, data)
+        }
         return file
     }
 
@@ -384,7 +387,6 @@ abstract class AbstractFirStatusResolveTransformer(
         data: FirResolvedDeclarationStatus?
     ): FirStatement = whileAnalysing(session, constructor) {
         constructor.transformStatus(this, statusResolver.resolveStatus(constructor, containingClass, isLocal = false))
-        calculateDeprecations(constructor)
         return transformDeclaration(constructor, data) as FirStatement
     }
 
@@ -394,7 +396,6 @@ abstract class AbstractFirStatusResolveTransformer(
     ): FirStatement = whileAnalysing(session, simpleFunction) {
         val resolvedStatus = statusResolver.resolveStatus(simpleFunction, containingClass, isLocal = false)
         simpleFunction.transformStatus(this, resolvedStatus)
-        calculateDeprecations(simpleFunction)
         return transformDeclaration(simpleFunction, data) as FirStatement
     }
 
@@ -426,7 +427,6 @@ abstract class AbstractFirStatusResolveTransformer(
             )
         }
 
-        calculateDeprecations(property)
         return property
     }
 
@@ -435,7 +435,6 @@ abstract class AbstractFirStatusResolveTransformer(
         data: FirResolvedDeclarationStatus?
     ): FirStatement = whileAnalysing(session, field) {
         field.transformStatus(this, statusResolver.resolveStatus(field, containingClass, isLocal = false))
-        calculateDeprecations(field)
         return transformDeclaration(field, data) as FirField
     }
 
@@ -448,7 +447,6 @@ abstract class AbstractFirStatusResolveTransformer(
         data: FirResolvedDeclarationStatus?
     ): FirStatement = whileAnalysing(session, enumEntry) {
         enumEntry.transformStatus(this, statusResolver.resolveStatus(enumEntry, containingClass, isLocal = false))
-        calculateDeprecations(enumEntry)
         return transformDeclaration(enumEntry, data) as FirEnumEntry
     }
 
@@ -456,7 +454,6 @@ abstract class AbstractFirStatusResolveTransformer(
         valueParameter: FirValueParameter,
         data: FirResolvedDeclarationStatus?
     ): FirStatement {
-        calculateDeprecations(valueParameter)
         return transformDeclaration(valueParameter, data) as FirStatement
     }
 
@@ -469,11 +466,5 @@ abstract class AbstractFirStatusResolveTransformer(
 
     override fun transformBlock(block: FirBlock, data: FirResolvedDeclarationStatus?): FirStatement {
         return block
-    }
-
-    private fun calculateDeprecations(simpleFunction: FirCallableDeclaration) {
-        if (simpleFunction.deprecationsProvider is UnresolvedDeprecationProvider) {
-            simpleFunction.replaceDeprecationsProvider(simpleFunction.getDeprecationsProvider(session))
-        }
     }
 }

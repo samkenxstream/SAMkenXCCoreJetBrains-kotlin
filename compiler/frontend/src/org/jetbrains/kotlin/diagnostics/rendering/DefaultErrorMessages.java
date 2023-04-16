@@ -180,6 +180,9 @@ public class DefaultErrorMessages {
         MAP.put(WRONG_EXTENSION_FUNCTION_TYPE_WARNING, "ExtensionFunctionType makes no sense on a non-function type. It will be an error in a future release. See https://youtrack.jetbrains.com/issue/KT-43527");
 
         MAP.put(INAPPLICABLE_TARGET_ON_PROPERTY, "''@{0}:'' annotations could be applied only to property declarations", TO_STRING);
+        MAP.put(INAPPLICABLE_TARGET_ON_PROPERTY_WARNING,
+                "''@{0}:'' annotations could be applied only to property declarations. It will be an error in a future release. See https://youtrack.jetbrains.com/issue/KT-15470",
+                TO_STRING);
         MAP.put(INAPPLICABLE_TARGET_PROPERTY_IMMUTABLE, "''@{0}:'' annotations could be applied only to mutable properties", TO_STRING);
         MAP.put(INAPPLICABLE_TARGET_PROPERTY_HAS_NO_DELEGATE, "'@delegate:' annotations could be applied only to delegated properties");
         MAP.put(INAPPLICABLE_TARGET_PROPERTY_HAS_NO_BACKING_FIELD, "'@field:' annotations could be applied only to properties with backing fields");
@@ -514,6 +517,11 @@ public class DefaultErrorMessages {
         MAP.put(
                 RECEIVER_TYPE_MISMATCH_WARNING_FOR_INCORRECT_CAPTURE_APPROXIMATION,
                 "Extension receiver type mismatch: inferred type is {1} but {0} was expected. This warning will be an error soon. See https://youtrack.jetbrains.com/issue/KT-49404 for details",
+                RENDER_TYPE, RENDER_TYPE
+        );
+        MAP.put(
+                RECEIVER_TYPE_MISMATCH,
+                "Constraint error in receiver type argument: inferred type is {1} but {0} was expected",
                 RENDER_TYPE, RENDER_TYPE
         );
         MAP.put(LOCAL_EXTENSION_PROPERTY, "Local extension properties are not allowed");
@@ -1003,6 +1011,7 @@ public class DefaultErrorMessages {
         MAP.put(STUB_TYPE_IN_RECEIVER_CAUSES_AMBIGUITY, "The type of a receiver hasn''t been inferred yet. To disambiguate this call, explicitly cast it to `{0}` if you want the builder''s type parameter(s) `{1}` to be inferred to `{2}`.", RENDER_TYPE, STRING, STRING, null);
         MAP.put(BUILDER_INFERENCE_MULTI_LAMBDA_RESTRICTION, "Unstable inference behaviour with multiple lambdas. Please either specify the type argument for generic parameter `{0}` of `{1}` explicitly", TO_STRING, TO_STRING);
         MAP.put(BUILDER_INFERENCE_STUB_RECEIVER, "The type of a receiver hasn''t been inferred yet. Please specify type argument for generic parameter `{0}` of `{1}` explicitly", TO_STRING, TO_STRING);
+        MAP.put(UPPER_BOUND_VIOLATION_IN_CONSTRAINT, "Upper bound violation for generic parameter `{0}` of `{1}`: {3} is not a subtype of {2}", TO_STRING, TO_STRING, RENDER_TYPE, RENDER_TYPE);
         MAP.put(NONE_APPLICABLE, "None of the following functions can be called with the arguments supplied: {0}", AMBIGUOUS_CALLS);
         MAP.put(CANNOT_COMPLETE_RESOLVE, "Cannot choose among the following candidates without completing type inference: {0}", AMBIGUOUS_CALLS);
         MAP.put(UNRESOLVED_REFERENCE_WRONG_RECEIVER, "Unresolved reference. None of the following candidates is applicable because of receiver type mismatch: {0}", AMBIGUOUS_CALLS);
@@ -1198,6 +1207,9 @@ public class DefaultErrorMessages {
         MAP.put(AMBIGUOUS_CALL_WITH_IMPLICIT_CONTEXT_RECEIVER, "With implicit context receiver, call is ambiguous. Specify the receiver explicitly");
         MAP.put(UNSUPPORTED_CONTEXTUAL_DECLARATION_CALL, "To use contextual declarations, specify the `-Xcontext-receivers` compiler option");
         MAP.put(SUBTYPING_BETWEEN_CONTEXT_RECEIVERS, "Subtyping relation between context receivers is prohibited");
+
+        MAP.put(VOLATILE_ON_VALUE, "'@Volatile' annotation cannot be used on immutable properties");
+        MAP.put(VOLATILE_ON_DELEGATE, "'@Volatile' annotation cannot be used on delegated properties");
 
         MAP.setImmutable();
 

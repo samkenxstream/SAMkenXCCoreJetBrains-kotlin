@@ -33,6 +33,7 @@ object TestFirJsSessionFactory {
         module: TestModule,
         testServices: TestServices,
         configuration: CompilerConfiguration,
+        extensionRegistrars: List<FirExtensionRegistrar>,
         languageVersionSettings: LanguageVersionSettings,
         registerExtraComponents: ((FirSession) -> Unit),
     ): FirSession {
@@ -42,9 +43,10 @@ object TestFirJsSessionFactory {
 
         return FirJsSessionFactory.createLibrarySession(
             mainModuleName,
-            resolvedLibraries,
+            resolvedLibraries.map { it.library },
             sessionProvider,
             moduleDataProvider,
+            extensionRegistrars,
             languageVersionSettings,
             registerExtraComponents,
         )

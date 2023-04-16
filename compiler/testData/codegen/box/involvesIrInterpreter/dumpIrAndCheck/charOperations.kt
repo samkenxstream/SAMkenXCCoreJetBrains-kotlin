@@ -1,4 +1,8 @@
 // TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: NATIVE
+// TARGET_BACKEND: JS_IR
+// `Char.equals(Char)` will not be evaluated in K1
+// IGNORE_BACKEND_K1: NATIVE
 // WITH_STDLIB
 
 const val oneVal = '1'
@@ -36,11 +40,10 @@ const val convert5 = oneVal.toLong()
 const val convert6 = oneVal.toFloat()
 const val convert7 = oneVal.toDouble()
 
-const val equals1 = oneVal.equals(twoVal)
-const val equals2 = twoVal.equals(twoVal)
-const val equals3 = threeVal.equals(twoVal)
-const val equals4 = fourVal.equals(twoVal)
-const val equals5 = oneVal.equals(1)
+const val equals1 = oneVal == twoVal
+const val equals2 = twoVal == twoVal
+const val equals3 = threeVal == twoVal
+const val equals4 = fourVal == twoVal
 
 const val toString1 = oneVal.toString()
 const val toString2 = twoVal.toString()
@@ -83,7 +86,6 @@ fun box(): String {
     if (equals2 != true)    return "Fail 6.2"
     if (equals3 != false)   return "Fail 6.3"
     if (equals4 != false)   return "Fail 6.4"
-    if (equals5 != false)   return "Fail 6.5"
 
     if (toString1 != "1")   return "Fail 7.1"
     if (toString2 != "2")   return "Fail 7.2"

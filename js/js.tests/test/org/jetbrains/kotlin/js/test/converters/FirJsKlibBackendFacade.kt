@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.backend.js.JsFactories
 import org.jetbrains.kotlin.ir.backend.js.resolverLogger
@@ -60,10 +61,21 @@ class FirJsKlibBackendFacade(
         // TODO: consider avoiding repeated libraries resolution
         val libraries = resolveJsLibraries(module, testServices, configuration)
 
+        // TODO: find out how to pass diagnostics to the test infra in this case
+        val diagnosticReporter = DiagnosticReporterFactory.createReporter()
+
         if (firstTimeCompilation) {
-            if (module.frontendKind == FrontendKinds.FIR && module.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects)) {
-                IrActualizer.actualize(inputArtifact.mainModuleFragment, inputArtifact.dependentModuleFragments)
-            }
+            val irActualizationResult =
+                if (module.frontendKind == FrontendKinds.FIR && module.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects)) {
+                    IrActualizer.actualize(
+                        inputArtifact.mainModuleFragment,
+                        inputArtifact.dependentModuleFragments,
+                        diagnosticReporter,
+                        configuration.languageVersionSettings
+                    )
+                } else {
+                    null
+                }
 
             serializeModuleIntoKlib(
                 configuration[CommonConfigurationKeys.MODULE_NAME]!!,
@@ -79,9 +91,10 @@ class FirJsKlibBackendFacade(
                 perFile = false,
                 containsErrorCode = inputArtifact.hasErrors,
                 abiVersion = KotlinAbiVersion.CURRENT, // TODO get from test file data
-                jsOutputName = null,
-                inputArtifact.serializeSingleFile
-            )
+                jsOutputName = null
+            ) {
+                inputArtifact.serializeSingleFile(it, irActualizationResult)
+            }
         }
 
         // TODO: consider avoiding repeated libraries resolution

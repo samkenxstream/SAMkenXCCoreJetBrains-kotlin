@@ -10,9 +10,11 @@ import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.declarations.utils.isSynthetic
 import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.ConeIntersectionType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
+import org.jetbrains.kotlin.fir.types.toLookupTag
 
 fun FirCallableSymbol<*>.dispatchReceiverClassTypeOrNull(): ConeClassLikeType? =
     fir.dispatchReceiverClassTypeOrNull()
@@ -40,6 +42,15 @@ fun FirRegularClass.containingClassForLocal(): ConeClassLikeLookupTag? =
 
 fun FirDanglingModifierList.containingClass(): ConeClassLikeLookupTag? =
     containingClassAttr
+
+fun FirClassLikeSymbol<*>.getContainingClassLookupTag(): ConeClassLikeLookupTag? {
+    return if (classId.isLocal) {
+        (fir as? FirRegularClass)?.containingClassForLocal()
+    } else {
+        val ownerId = classId.outerClassId
+        ownerId?.toLookupTag()
+    }
+}
 
 private object ContainingClassKey : FirDeclarationDataKey()
 var FirCallableDeclaration.containingClassForStaticMemberAttr: ConeClassLikeLookupTag? by FirDeclarationDataRegistry.data(ContainingClassKey)
@@ -78,6 +89,9 @@ inline val <reified S : FirCallableSymbol<*>> S.baseForIntersectionOverride: S?
 inline fun <reified D : FirCallableDeclaration> D.originalIfFakeOverride(): D? =
     originalForSubstitutionOverride ?: baseForIntersectionOverride
 
+inline fun <reified D : FirCallableDeclaration> D.originalIfFakeOverrideOrDelegated(): D? =
+    originalForSubstitutionOverride ?: baseForIntersectionOverride ?: delegatedWrapperData?.wrapped
+
 inline fun <reified S : FirCallableSymbol<*>> S.originalIfFakeOverride(): S? =
     fir.originalIfFakeOverride()?.symbol as S?
 
@@ -96,6 +110,15 @@ inline fun <reified D : FirCallableDeclaration> D.unwrapFakeOverrides(): D {
 
     do {
         val next = current.originalIfFakeOverride() ?: return current
+        current = next
+    } while (true)
+}
+
+inline fun <reified D : FirCallableDeclaration> D.unwrapFakeOverridesOrDelegated(): D {
+    var current = this
+
+    do {
+        val next = current.originalIfFakeOverrideOrDelegated() ?: return current
         current = next
     } while (true)
 }
@@ -168,3 +191,16 @@ private object IsCatchParameterProperty : FirDeclarationDataKey()
 
 var FirProperty.isCatchParameter: Boolean? by FirDeclarationDataRegistry.data(IsCatchParameterProperty)
 
+private object DelegatedWrapperDataKey : FirDeclarationDataKey()
+
+class DelegatedWrapperData<D : FirCallableDeclaration>(
+    val wrapped: D,
+    val containingClass: ConeClassLikeLookupTag,
+    val delegateField: FirField,
+)
+
+var <D : FirCallableDeclaration>
+        D.delegatedWrapperData: DelegatedWrapperData<D>? by FirDeclarationDataRegistry.data(DelegatedWrapperDataKey)
+
+val <D : FirCallableDeclaration> FirCallableSymbol<out D>.delegatedWrapperData: DelegatedWrapperData<D>?
+    get() = fir.delegatedWrapperData

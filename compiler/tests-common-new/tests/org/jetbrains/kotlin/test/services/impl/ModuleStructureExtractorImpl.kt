@@ -355,10 +355,9 @@ class ModuleStructureExtractorImpl(
                 directives = moduleDirectives,
                 languageVersionSettings = currentModuleLanguageVersionSettingsBuilder.build()
             )
-            modules += testModule
             if (testModule.frontendKind != FrontendKinds.FIR ||
                 !testModule.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects) ||
-                testModule.dependsOnDependencies.isEmpty()
+                modules.isEmpty()
             ) {
                 additionalSourceProviders.flatMapTo(filesOfCurrentModule) { additionalSourceProvider ->
                     additionalSourceProvider.produceAdditionalFiles(
@@ -371,6 +370,7 @@ class ModuleStructureExtractorImpl(
                     }
                 }
             }
+            modules += testModule
             firstFileInModule = true
             resetModuleCaches()
         }
@@ -444,7 +444,6 @@ class ModuleStructureExtractorImpl(
                 moduleDirectivesBuilder = directivesBuilder
             }
             currentFileName = null
-            allowFilesWithSameNames = false
             resetDirectivesBuilder()
             fileDirectivesBuilder = directivesBuilder
         }

@@ -34,7 +34,7 @@ plugins {
     idea
     id("jps-compatible")
     id("org.jetbrains.gradle.plugin.idea-ext")
-    id("org.gradle.crypto.checksum") version "1.2.0"
+    id("org.gradle.crypto.checksum") version "1.4.0"
     id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.13.0" apply false
     signing
     id("org.jetbrains.kotlin.jvm") apply false
@@ -101,7 +101,7 @@ IdeVersionConfigurator.setCurrentIde(project)
 
 if (!project.hasProperty("versions.kotlin-native")) {
     // BEWARE! Bumping this version doesn't take an immediate effect on TeamCity: KTI-1107
-    extra["versions.kotlin-native"] = "1.9.0-dev-2639"
+    extra["versions.kotlin-native"] = "1.9.0-dev-4844"
 }
 
 val irCompilerModules = arrayOf(
@@ -183,7 +183,6 @@ val fe10CompilerModules = arrayOf(
     ":compiler:serialization",
     ":compiler:frontend",
     ":compiler:container",
-    ":compiler:cli-common",
     ":core:deserialization",
     ":compiler:frontend:cfg",
     ":compiler:ir.psi2ir",
@@ -200,6 +199,8 @@ val fe10CompilerModules = arrayOf(
     ":compiler:backend",
     ":compiler:plugin-api",
     ":compiler:javac-wrapper",
+    ":compiler:cli-common",
+    ":compiler:cli-base",
     ":compiler:cli",
     ":compiler:cli-js",
     ":compiler:incremental-compilation-impl",
@@ -494,7 +495,6 @@ allprojects {
                 includeModule("org.jetbrains.kotlin", "protobuf-lite")
                 includeModule("org.jetbrains.kotlin", "protobuf-relocated")
                 includeModule("org.jetbrains.kotlinx", "kotlinx-metadata-klib")
-                includeGroup("org.jetbrains.dokka")
             }
         }
 

@@ -17,8 +17,9 @@ import org.jetbrains.kotlin.fir.declarations.FirResolvedDeclarationStatus
 import org.jetbrains.kotlin.fir.declarations.FirControlFlowGraphOwner
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.expressions.FirExpression
+import org.jetbrains.kotlin.fir.expressions.FirLazyExpression
 import org.jetbrains.kotlin.fir.declarations.FirContextReceiver
-import org.jetbrains.kotlin.fir.FirElementWithResolvePhase
+import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.FirFileAnnotationsContainer
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRefsOwner
@@ -61,6 +62,7 @@ import org.jetbrains.kotlin.fir.expressions.FirErrorLoop
 import org.jetbrains.kotlin.fir.expressions.FirDoWhileLoop
 import org.jetbrains.kotlin.fir.expressions.FirWhileLoop
 import org.jetbrains.kotlin.fir.expressions.FirBlock
+import org.jetbrains.kotlin.fir.expressions.FirLazyBlock
 import org.jetbrains.kotlin.fir.expressions.FirBinaryLogicExpression
 import org.jetbrains.kotlin.fir.expressions.FirJump
 import org.jetbrains.kotlin.fir.expressions.FirLoopJump
@@ -129,6 +131,7 @@ import org.jetbrains.kotlin.fir.expressions.FirWrappedDelegateExpression
 import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.FirNamedReferenceWithCandidateBase
 import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
+import org.jetbrains.kotlin.fir.references.FirFromMissingDependenciesNamedReference
 import org.jetbrains.kotlin.fir.references.FirSuperReference
 import org.jetbrains.kotlin.fir.references.FirThisReference
 import org.jetbrains.kotlin.fir.references.FirControlFlowGraphReference
@@ -165,6 +168,8 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
 
     override fun visitExpression(expression: FirExpression)  = visitStatement(expression)
 
+    override fun visitLazyExpression(lazyExpression: FirLazyExpression)  = visitExpression(lazyExpression)
+
     override fun visitTypeParametersOwner(typeParametersOwner: FirTypeParametersOwner)  = visitTypeParameterRefsOwner(typeParametersOwner)
 
     override fun visitCallableDeclaration(callableDeclaration: FirCallableDeclaration)  = visitMemberDeclaration(callableDeclaration)
@@ -173,11 +178,15 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
 
     override fun visitEnumEntry(enumEntry: FirEnumEntry)  = visitVariable(enumEntry)
 
+    override fun visitRegularClass(regularClass: FirRegularClass)  = visitClass(regularClass)
+
     override fun visitFile(file: FirFile)  = visitDeclaration(file)
 
     override fun visitScript(script: FirScript)  = visitDeclaration(script)
 
     override fun visitAnonymousFunctionExpression(anonymousFunctionExpression: FirAnonymousFunctionExpression)  = visitExpression(anonymousFunctionExpression)
+
+    override fun visitAnonymousObject(anonymousObject: FirAnonymousObject)  = visitClass(anonymousObject)
 
     override fun visitAnonymousObjectExpression(anonymousObjectExpression: FirAnonymousObjectExpression)  = visitExpression(anonymousObjectExpression)
 
@@ -188,6 +197,8 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
     override fun visitWhileLoop(whileLoop: FirWhileLoop)  = visitLoop(whileLoop)
 
     override fun visitBlock(block: FirBlock)  = visitExpression(block)
+
+    override fun visitLazyBlock(lazyBlock: FirLazyBlock)  = visitBlock(lazyBlock)
 
     override fun visitBinaryLogicExpression(binaryLogicExpression: FirBinaryLogicExpression)  = visitExpression(binaryLogicExpression)
 
@@ -270,6 +281,8 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
     override fun visitNamedReference(namedReference: FirNamedReference)  = visitReference(namedReference)
 
     override fun visitNamedReferenceWithCandidateBase(namedReferenceWithCandidateBase: FirNamedReferenceWithCandidateBase)  = visitNamedReference(namedReferenceWithCandidateBase)
+
+    override fun visitFromMissingDependenciesNamedReference(fromMissingDependenciesNamedReference: FirFromMissingDependenciesNamedReference)  = visitNamedReference(fromMissingDependenciesNamedReference)
 
     override fun visitSuperReference(superReference: FirSuperReference)  = visitReference(superReference)
 

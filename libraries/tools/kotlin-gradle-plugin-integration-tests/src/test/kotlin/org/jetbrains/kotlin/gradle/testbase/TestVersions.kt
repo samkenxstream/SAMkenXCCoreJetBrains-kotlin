@@ -22,7 +22,7 @@ interface TestVersions {
         const val G_7_6 = "7.6"
         // https://gradle.org/nightly/
         // Retention policy is 3 months
-        const val G_8_0 = "8.0-rc-1"
+        const val G_8_0 = "8.0.2"
         const val MIN_SUPPORTED = minSupportedGradleVersion
         const val MIN_SUPPORTED_KPM = G_7_0
         const val MAX_SUPPORTED = G_7_6
@@ -63,5 +63,9 @@ interface TestVersions {
         AGP_74(AGP.AGP_74, GradleVersion.version(Gradle.G_7_5), GradleVersion.version(Gradle.G_7_6), JavaVersion.VERSION_11),
         AGP_80(AGP.AGP_80, GradleVersion.version(Gradle.G_8_0), GradleVersion.version(Gradle.G_8_0), JavaVersion.VERSION_17),
         ;
+    }
+
+    object AppleGradlePlugin {
+        const val V222_0_21 = "222.4550-0.21"
     }
 }
