@@ -42,9 +42,24 @@ scopes:
         symbolKind: CLASS_MEMBER
         typeParameters: []
         visibility: Public
-    callables: 9
+    callables: 11
       KtKotlinPropertySymbol:
         annotationsList: []
+        backingFieldSymbol: KtBackingFieldSymbol:
+          annotationsList: []
+          callableIdIfNonLocal: null
+          contextReceivers: []
+          isExtension: false
+          name: field
+          origin: PROPERTY_BACKING_FIELD
+          owningProperty: KtKotlinPropertySymbol(<local>/x)
+          receiverParameter: null
+          returnType: KtUsualClassType:
+            annotationsList: []
+            ownTypeArguments: []
+            type: kotlin/String
+          symbolKind: LOCAL
+          typeParameters: []
         callableIdIfNonLocal: null
         contextReceivers: []
         getter: KtPropertyGetterSymbol:
@@ -301,31 +316,26 @@ scopes:
           kotlin/internal/IntrinsicConstEvaluation()
             psi: null
         ]
-        callableIdIfNonLocal: kotlin/Enum.name
-        contextReceivers: []
-        getter: KtPropertyGetterSymbol:
+        backingFieldSymbol: KtBackingFieldSymbol:
           annotationsList: []
           callableIdIfNonLocal: null
           contextReceivers: []
-          hasBody: false
-          hasStableParameterNames: true
-          isDefault: true
           isExtension: false
-          isInline: false
-          isOverride: false
-          modality: FINAL
-          origin: LIBRARY
+          name: field
+          origin: PROPERTY_BACKING_FIELD
+          owningProperty: KtKotlinPropertySymbol(kotlin/Enum.name)
           receiverParameter: null
           returnType: KtUsualClassType:
             annotationsList: []
             ownTypeArguments: []
             type: kotlin/String
-          symbolKind: ACCESSOR
+          symbolKind: LOCAL
           typeParameters: []
-          valueParameters: []
-          visibility: Public
+        callableIdIfNonLocal: kotlin/Enum.name
+        contextReceivers: []
+        getter: null
         hasBackingField: true
-        hasGetter: true
+        hasGetter: false
         hasSetter: false
         initializer: null
         isConst: false
@@ -350,31 +360,26 @@ scopes:
         visibility: Public
       KtKotlinPropertySymbol:
         annotationsList: []
-        callableIdIfNonLocal: kotlin/Enum.ordinal
-        contextReceivers: []
-        getter: KtPropertyGetterSymbol:
+        backingFieldSymbol: KtBackingFieldSymbol:
           annotationsList: []
           callableIdIfNonLocal: null
           contextReceivers: []
-          hasBody: false
-          hasStableParameterNames: true
-          isDefault: true
           isExtension: false
-          isInline: false
-          isOverride: false
-          modality: FINAL
-          origin: LIBRARY
+          name: field
+          origin: PROPERTY_BACKING_FIELD
+          owningProperty: KtKotlinPropertySymbol(kotlin/Enum.ordinal)
           receiverParameter: null
           returnType: KtUsualClassType:
             annotationsList: []
             ownTypeArguments: []
             type: kotlin/Int
-          symbolKind: ACCESSOR
+          symbolKind: LOCAL
           typeParameters: []
-          valueParameters: []
-          visibility: Public
+        callableIdIfNonLocal: kotlin/Enum.ordinal
+        contextReceivers: []
+        getter: null
         hasBackingField: true
-        hasGetter: true
+        hasGetter: false
         hasSetter: false
         initializer: null
         isConst: false
@@ -397,6 +402,59 @@ scopes:
         symbolKind: CLASS_MEMBER
         typeParameters: []
         visibility: Public
+      KtFunctionSymbol:
+        annotationsList: []
+        callableIdIfNonLocal: /E.getDeclaringClass
+        contextReceivers: []
+        contractEffects: []
+        hasStableParameterNames: false
+        isBuiltinFunctionInvoke: false
+        isExtension: false
+        isExternal: false
+        isInfix: false
+        isInline: false
+        isOperator: false
+        isOverride: false
+        isStatic: false
+        isSuspend: false
+        modality: FINAL
+        name: getDeclaringClass
+        origin: SUBSTITUTION_OVERRIDE
+        receiverParameter: null
+        returnType: KtFlexibleType:
+          annotationsList: []
+          type: ft<java/lang/Class<E!>, java/lang/Class<E!>?>
+        symbolKind: CLASS_MEMBER
+        typeParameters: []
+        valueParameters: []
+        visibility: Public
+      KtFunctionSymbol:
+        annotationsList: []
+        callableIdIfNonLocal: kotlin/Enum.finalize
+        contextReceivers: []
+        contractEffects: []
+        hasStableParameterNames: false
+        isBuiltinFunctionInvoke: false
+        isExtension: false
+        isExternal: false
+        isInfix: false
+        isInline: false
+        isOperator: false
+        isOverride: false
+        isStatic: false
+        isSuspend: false
+        modality: FINAL
+        name: finalize
+        origin: JAVA
+        receiverParameter: null
+        returnType: KtUsualClassType:
+          annotationsList: []
+          ownTypeArguments: []
+          type: kotlin/Unit
+        symbolKind: CLASS_MEMBER
+        typeParameters: []
+        valueParameters: []
+        visibility: ProtectedAndPackage
 
   StaticMemberScope, index = 3
     classifiers: 0
@@ -498,6 +556,7 @@ scopes:
         visibility: Public
       KtKotlinPropertySymbol:
         annotationsList: []
+        backingFieldSymbol: null
         callableIdIfNonLocal: /E.entries
         contextReceivers: []
         getter: KtPropertyGetterSymbol:

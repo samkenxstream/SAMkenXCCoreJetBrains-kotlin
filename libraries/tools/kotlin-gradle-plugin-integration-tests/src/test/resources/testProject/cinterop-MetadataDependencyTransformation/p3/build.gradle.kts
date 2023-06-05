@@ -24,6 +24,7 @@ kotlin {
     linuxX64()
     ios()
     mingwX64("windowsX64")
+    @Suppress("DEPRECATION_ERROR")
     mingwX86("windowsX86")
 
     val commonMain by sourceSets.getting
@@ -99,5 +100,9 @@ kotlin {
 
     sourceSets.commonMain.get().dependencies {
         implementation(project(":p2"))
+    }
+
+    sourceSets.all {
+        languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
     }
 }

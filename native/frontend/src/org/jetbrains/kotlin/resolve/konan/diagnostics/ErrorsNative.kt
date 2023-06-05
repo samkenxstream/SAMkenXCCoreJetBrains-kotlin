@@ -27,13 +27,9 @@ object ErrorsNative {
     @JvmField
     val INAPPLICABLE_SHARED_IMMUTABLE_TOP_LEVEL = DiagnosticFactory0.create<KtElement>(Severity.ERROR)
     @JvmField
-    val VARIABLE_IN_SINGLETON_WITHOUT_THREAD_LOCAL = DiagnosticFactory0.create<KtElement>(Severity.INFO)
-    @JvmField
     val INAPPLICABLE_THREAD_LOCAL = DiagnosticFactory0.create<KtElement>(Severity.ERROR)
     @JvmField
     val INAPPLICABLE_THREAD_LOCAL_TOP_LEVEL = DiagnosticFactory0.create<KtElement>(Severity.ERROR)
-    @JvmField
-    val VARIABLE_IN_ENUM = DiagnosticFactory0.create<KtElement>(Severity.INFO)
     @JvmField
     val INVALID_CHARACTERS_NATIVE = DiagnosticFactoryForDeprecation1.create<PsiElement, String>(LanguageFeature.ProhibitInvalidCharsInNativeIdentifiers)
     @JvmField
@@ -59,7 +55,11 @@ object ErrorsNative {
     @JvmField
     val INCOMPATIBLE_OBJC_REFINEMENT_OVERRIDE = DiagnosticFactory2.create<KtElement, DeclarationDescriptor, Collection<DeclarationDescriptor>>(Severity.ERROR)
     @JvmField
-    val INVALID_OBJC_REFINEMENT_TARGETS = DiagnosticFactory0.create<KtElement>(Severity.ERROR)
+    val INVALID_OBJC_HIDES_TARGETS = DiagnosticFactory0.create<KtElement>(Severity.ERROR)
+    @JvmField
+    val INVALID_REFINES_IN_SWIFT_TARGETS = DiagnosticFactory0.create<KtElement>(Severity.ERROR)
+    @JvmField
+    val SUBTYPE_OF_HIDDEN_FROM_OBJC = DiagnosticFactory0.create<KtElement>(Severity.ERROR)
 
     init {
         Errors.Initializer.initializeFactoryNames(ErrorsNative::class.java)

@@ -10,8 +10,11 @@ import org.jetbrains.kotlin.generators.util.TestGeneratorUtil
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.runners.*
 import org.jetbrains.kotlin.test.runners.codegen.*
-import org.jetbrains.kotlin.test.runners.ir.*
-import org.jetbrains.kotlin.test.runners.ir.interpreter.*
+import org.jetbrains.kotlin.test.runners.ir.AbstractClassicJvmIrTextTest
+import org.jetbrains.kotlin.test.runners.ir.AbstractFirLightTreeJvmIrTextTest
+import org.jetbrains.kotlin.test.runners.ir.AbstractFirPsiJvmIrTextTest
+import org.jetbrains.kotlin.test.runners.ir.interpreter.AbstractJvmIrInterpreterAfterFirPsi2IrTest
+import org.jetbrains.kotlin.test.runners.ir.interpreter.AbstractJvmIrInterpreterAfterPsi2IrTest
 import org.jetbrains.kotlin.test.utils.CUSTOM_TEST_DATA_EXTENSION_PATTERN
 import org.jetbrains.kotlin.visualizer.fir.AbstractFirVisualizerTest
 import org.jetbrains.kotlin.visualizer.psi.AbstractPsiVisualizerTest
@@ -24,6 +27,10 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
             testClass<AbstractDiagnosticTest> {
                 model("diagnostics/tests", pattern = "^(.*)\\.kts?$", excludedPattern = excludedCustomTestdataPattern)
                 model("diagnostics/testsWithStdLib", excludedPattern = excludedCustomTestdataPattern)
+            }
+
+            testClass<AbstractJdk21DiagnosticTest> {
+                model("diagnostics/testsWithJdk21", excludedPattern = excludedCustomTestdataPattern)
             }
 
             testClass<AbstractDiagnosticUsingJavacTest> {
@@ -49,10 +56,6 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
                     targetBackend = TargetBackend.JVM_IR,
                     excludedPattern = excludedCustomTestdataPattern
                 )
-            }
-
-            testClass<AbstractDiagnosticsNativeTest> {
-                model("diagnostics/nativeTests", excludedPattern = excludedCustomTestdataPattern)
             }
 
             testClass<AbstractDiagnosticsWithMultiplatformCompositeAnalysisTest> {
@@ -209,6 +212,14 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
                 model("diagnostics/testsWithStdLib", excludedPattern = excludedCustomTestdataPattern)
             }
 
+            testClass<AbstractFirPsiJdk21DiagnosticTest> {
+                model("diagnostics/testsWithJdk21", excludedPattern = excludedCustomTestdataPattern)
+            }
+
+            testClass<AbstractFirLightTreeJdk21DiagnosticTest> {
+                model("diagnostics/testsWithJdk21", excludedPattern = excludedCustomTestdataPattern)
+            }
+
             testClass<AbstractFirPsiWithActualizerDiagnosticsTest>(suiteTestClassName = "FirOldFrontendMPPDiagnosticsWithPsiTestGenerated") {
                 model("diagnostics/tests/multiplatform", pattern = "^(.*)\\.kts?$", excludedPattern = excludedCustomTestdataPattern)
             }
@@ -251,17 +262,17 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
                 model("diagnostics/foreignAnnotationsTests/java8Tests", excludedPattern = excludedCustomTestdataPattern)
                 model("diagnostics/foreignAnnotationsTests/java11Tests", excludedPattern = excludedCustomTestdataPattern)
             }
+        }
 
-            testClass<AbstractFirPsiNativeDiagnosticsTest>(
-                suiteTestClassName = "FirPsiOldFrontendNativeDiagnosticsTestGenerated"
-            ) {
-                model("diagnostics/nativeTests", excludedPattern = excludedCustomTestdataPattern)
+        testGroup("compiler/fir/analysis-tests/tests-gen", "compiler/testData") {
+            testClass<AbstractFirLoadK1CompiledKotlin> {
+                model("loadJava/compiledKotlin", extension = "kt")
+                model("loadJava/compiledKotlinWithStdlib", extension = "kt")
             }
 
-            testClass<AbstractFirLightTreeNativeDiagnosticsTest>(
-                suiteTestClassName = "FirLightTreeOldFrontendNativeDiagnosticsTestGenerated"
-            ) {
-                model("diagnostics/nativeTests", excludedPattern = excludedCustomTestdataPattern)
+            testClass<AbstractFirLoadK2CompiledKotlin> {
+                model("loadJava/compiledKotlin", extension = "kt")
+                model("loadJava/compiledKotlinWithStdlib", extension = "kt")
             }
         }
 

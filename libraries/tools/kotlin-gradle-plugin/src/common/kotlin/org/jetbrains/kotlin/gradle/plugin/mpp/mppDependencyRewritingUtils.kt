@@ -219,9 +219,9 @@ private fun KotlinTargetComponent.findUsageContext(configurationName: String): U
     return usageContexts.find { usageContext ->
         if (usageContext !is KotlinUsageContext) return@find false
         val compilation = usageContext.compilation
+        @Suppress("DEPRECATION")
         configurationName in compilation.relatedConfigurationNames ||
                 configurationName == compilation.target.apiElementsConfigurationName ||
-                configurationName == compilation.target.runtimeElementsConfigurationName ||
-                configurationName == compilation.target.defaultConfigurationName
+                configurationName == compilation.target.runtimeElementsConfigurationName
     }
 }

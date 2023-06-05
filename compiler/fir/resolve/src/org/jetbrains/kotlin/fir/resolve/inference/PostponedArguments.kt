@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.fir.resolve.inference
 import org.jetbrains.kotlin.builtins.functions.FunctionTypeKind
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.expressions.FirCallableReferenceAccess
 import org.jetbrains.kotlin.fir.resolve.calls.ArgumentTypeMismatch
@@ -27,13 +28,12 @@ fun Candidate.preprocessLambdaArgument(
     csBuilder: ConstraintSystemBuilder,
     argument: FirAnonymousFunctionExpression,
     expectedType: ConeKotlinType?,
-    expectedTypeRef: FirTypeRef?,
     context: ResolutionContext,
     sink: CheckerSink?,
     duringCompletion: Boolean = false,
     returnTypeVariable: ConeTypeVariableForLambdaReturnType? = null
 ): PostponedResolvedAtom {
-    if (expectedType != null && expectedTypeRef != null && !duringCompletion && csBuilder.isTypeVariable(expectedType)) {
+    if (expectedType != null && !duringCompletion && csBuilder.isTypeVariable(expectedType)) {
         val expectedTypeVariableWithConstraints = csBuilder.currentStorage().notFixedTypeVariables[expectedType.typeConstructor(context.typeContext)]
 
         if (expectedTypeVariableWithConstraints != null) {
@@ -42,7 +42,7 @@ fun Candidate.preprocessLambdaArgument(
             }?.type as ConeKotlinType?
 
             if (explicitTypeArgument == null || explicitTypeArgument.typeArguments.isNotEmpty()) {
-                return LambdaWithTypeVariableAsExpectedTypeAtom(argument, expectedType, expectedTypeRef, this)
+                return LambdaWithTypeVariableAsExpectedTypeAtom(argument, expectedType, this)
             }
         }
     }
@@ -52,7 +52,6 @@ fun Candidate.preprocessLambdaArgument(
     val resolvedArgument =
         extractLambdaInfoFromFunctionType(
             expectedType,
-            expectedTypeRef,
             anonymousFunction,
             returnTypeVariable,
             context.bodyResolveComponents,
@@ -119,13 +118,17 @@ private fun extractLambdaInfo(
         argument.returnType
             ?: typeVariable.defaultType
 
-    val nothingType = session.builtinTypes.nothingType.type
+    val defaultType = when (candidate?.symbol?.origin) {
+        FirDeclarationOrigin.DynamicScope -> ConeDynamicType.create(session)
+        else -> session.builtinTypes.nothingType.type
+    }
+
     val parameters = argument.valueParameters.map {
-        it.returnTypeRef.coneTypeSafe<ConeKotlinType>() ?: nothingType
+        it.returnTypeRef.coneTypeSafe<ConeKotlinType>() ?: defaultType
     }
 
     val contextReceivers = argument.contextReceivers.map {
-        it.typeRef.coneTypeSafe<ConeKotlinType>() ?: nothingType
+        it.typeRef.coneTypeSafe<ConeKotlinType>() ?: defaultType
     }
 
     val newTypeVariableUsed = returnType == typeVariable.defaultType

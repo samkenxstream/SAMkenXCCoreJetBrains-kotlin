@@ -126,6 +126,7 @@ class MethodSignatureMapper(private val context: JvmBackendContext, private val 
     private fun IrSimpleFunction.getInternalFunctionForManglingIfNeeded(): IrSimpleFunction? {
         if (visibility == DescriptorVisibilities.INTERNAL &&
             origin != JvmLoweredDeclarationOrigin.STATIC_INLINE_CLASS_CONSTRUCTOR &&
+            origin != JvmLoweredDeclarationOrigin.STATIC_MULTI_FIELD_VALUE_CLASS_CONSTRUCTOR &&
             origin != JvmLoweredDeclarationOrigin.SYNTHETIC_METHOD_FOR_PROPERTY_OR_TYPEALIAS_ANNOTATIONS &&
             origin != IrDeclarationOrigin.PROPERTY_DELEGATE &&
             !isPublishedApi()
@@ -446,7 +447,10 @@ class MethodSignatureMapper(private val context: JvmBackendContext, private val 
         findSuperDeclaration(function, isSuperCall, context.state.jvmDefaultMode)
 
     private fun getJvmMethodNameIfSpecial(irFunction: IrSimpleFunction): String? {
-        if (irFunction.origin == JvmLoweredDeclarationOrigin.STATIC_INLINE_CLASS_REPLACEMENT) {
+        if (
+            irFunction.origin == JvmLoweredDeclarationOrigin.STATIC_INLINE_CLASS_REPLACEMENT ||
+            irFunction.origin == JvmLoweredDeclarationOrigin.STATIC_MULTI_FIELD_VALUE_CLASS_REPLACEMENT
+        ) {
             return null
         }
 
@@ -455,7 +459,7 @@ class MethodSignatureMapper(private val context: JvmBackendContext, private val 
     }
 
     private val IrSimpleFunction.isBuiltIn: Boolean
-        get() = getPackageFragment().fqName == StandardNames.BUILT_INS_PACKAGE_FQ_NAME ||
+        get() = getPackageFragment().packageFqName == StandardNames.BUILT_INS_PACKAGE_FQ_NAME ||
                 (parent as? IrClass)?.fqNameWhenAvailable?.toUnsafe()?.let(JavaToKotlinClassMap::mapKotlinToJava) != null
 
     // From BuiltinMethodsWithDifferentJvmName.isBuiltinFunctionWithDifferentNameInJvm, BuiltinMethodsWithDifferentJvmName.getJvmName

@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cinttypes>
+#include <cstring>
 #include <new>
 
 #include "ConcurrentMarkAndSweep.hpp"
@@ -17,28 +18,16 @@
 #include "ExtraObjectData.hpp"
 #include "ExtraObjectPage.hpp"
 #include "GCScheduler.hpp"
+#include "KAssert.h"
 #include "SingleObjectPage.hpp"
 #include "NextFitPage.hpp"
 #include "Memory.h"
 #include "FixedBlockPage.hpp"
 #include "GCImpl.hpp"
+#include "GCApi.hpp"
 #include "TypeInfo.h"
 
 namespace kotlin::alloc {
-
-using ObjectData = gc::ConcurrentMarkAndSweep::ObjectData;
-
-struct HeapObjHeader {
-    ObjectData gcData;
-    alignas(kObjectAlignment) ObjHeader object;
-};
-
-// Needs to be kept compatible with `HeapObjHeader` just like `ArrayHeader` is compatible
-// with `ObjHeader`: the former can always be casted to the other.
-struct HeapArrayHeader {
-    ObjectData gcData;
-    alignas(kObjectAlignment) ArrayHeader array;
-};
 
 size_t ObjectAllocatedDataSize(const TypeInfo* typeInfo) noexcept {
     size_t membersSize = typeInfo->instanceSize_ - sizeof(ObjHeader);
@@ -67,6 +56,8 @@ ObjHeader* CustomAllocator::CreateObject(const TypeInfo* typeInfo) noexcept {
     if (typeInfo->flags_ & TF_HAS_FINALIZER) {
         auto* extraObject = CreateExtraObject();
         object->typeInfoOrMeta_ = reinterpret_cast<TypeInfo*>(new (extraObject) mm::ExtraObjectData(object, typeInfo));
+        CustomAllocDebug("CustomAllocator: %p gets extraObject %p", object, extraObject);
+        CustomAllocDebug("CustomAllocator: %p->BaseObject == %p", extraObject, extraObject->GetBaseObject());
     } else {
         object->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
     }
@@ -94,7 +85,7 @@ mm::ExtraObjectData* CustomAllocator::CreateExtraObject() noexcept {
         }
     }
     CustomAllocDebug("Failed to allocate in current ExtraObjectPage");
-    while ((page = heap_.GetExtraObjectPage())) {
+    while ((page = heap_.GetExtraObjectPage(finalizerQueue_))) {
         mm::ExtraObjectData* block = page->TryAllocate();
         if (block) {
             extraObjectPage_ = page;
@@ -112,6 +103,10 @@ mm::ExtraObjectData& CustomAllocator::CreateExtraObjectDataForObject(
     return *new (extraObject) mm::ExtraObjectData(baseObject, info);
 }
 
+FinalizerQueue CustomAllocator::ExtractFinalizerQueue() noexcept {
+    return std::move(finalizerQueue_);
+}
+
 void CustomAllocator::PrepareForGC() noexcept {
     CustomAllocInfo("CustomAllocator@%p::PrepareForGC()", this);
     nextFitPage_ = nullptr;
@@ -119,7 +114,19 @@ void CustomAllocator::PrepareForGC() noexcept {
     extraObjectPage_ = nullptr;
 }
 
+// static
+size_t CustomAllocator::GetAllocatedHeapSize(ObjHeader* object) noexcept {
+    RuntimeAssert(object->heap(), "Object must be a heap object");
+    const auto* typeInfo = object->type_info();
+    if (typeInfo->IsArray()) {
+        return ArrayAllocatedDataSize(typeInfo, object->array()->count_);
+    } else {
+        return ObjectAllocatedDataSize(typeInfo);
+    }
+}
+
 uint8_t* CustomAllocator::Allocate(uint64_t size) noexcept {
+    RuntimeAssert(size, "CustomAllocator::Allocate cannot allocate 0 bytes");
     gcScheduler_.OnSafePointAllocation(size);
     CustomAllocDebug("CustomAllocator::Allocate(%" PRIu64 ")", size);
     uint64_t cellCount = (size + sizeof(Cell) - 1) / sizeof(Cell);
@@ -131,13 +138,13 @@ uint8_t* CustomAllocator::Allocate(uint64_t size) noexcept {
     } else {
         ptr = AllocateInNextFitPage(cellCount);
     }
-    memset(ptr, 0, size);
+    RuntimeAssert(ptr[0] == 0 && memcmp(ptr, ptr + 1, size - 1) == 0, "CustomAllocator::Allocate: memory not zero!");
     return ptr;
 }
 
 uint8_t* CustomAllocator::AllocateInSingleObjectPage(uint64_t cellCount) noexcept {
     CustomAllocDebug("CustomAllocator::AllocateInSingleObjectPage(%" PRIu64 ")", cellCount);
-    uint8_t* block = heap_.GetSingleObjectPage(cellCount)->TryAllocate();
+    uint8_t* block = heap_.GetSingleObjectPage(cellCount, finalizerQueue_)->TryAllocate();
     return block;
 }
 
@@ -149,7 +156,7 @@ uint8_t* CustomAllocator::AllocateInNextFitPage(uint32_t cellCount) noexcept {
     }
     CustomAllocDebug("Failed to allocate in curPage");
     while (true) {
-        nextFitPage_ = heap_.GetNextFitPage(cellCount);
+        nextFitPage_ = heap_.GetNextFitPage(cellCount, finalizerQueue_);
         uint8_t* block = nextFitPage_->TryAllocate(cellCount);
         if (block) return block;
     }
@@ -163,7 +170,7 @@ uint8_t* CustomAllocator::AllocateInFixedBlockPage(uint32_t cellCount) noexcept 
         if (block) return block;
     }
     CustomAllocDebug("Failed to allocate in current FixedBlockPage");
-    while ((page = heap_.GetFixedBlockPage(cellCount))) {
+    while ((page = heap_.GetFixedBlockPage(cellCount, finalizerQueue_))) {
         uint8_t* block = page->TryAllocate();
         if (block) {
             fixedBlockPages_[cellCount] = page;

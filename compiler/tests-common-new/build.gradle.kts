@@ -1,5 +1,3 @@
-import org.jetbrains.kotlin.ideaExt.idea
-
 plugins {
     kotlin("jvm")
     id("jps-compatible")
@@ -8,6 +6,7 @@ plugins {
 dependencies {
     testApi(project(":compiler:fir:entrypoint"))
     testApi(project(":compiler:fir:fir-serialization"))
+    testApi(project(":compiler:fir:fir2ir:jvm-backend"))
     testApi(project(":compiler:cli"))
     testImplementation(project(":compiler:ir.tree"))
     testImplementation(project(":compiler:backend.jvm.entrypoint"))
@@ -31,7 +30,7 @@ dependencies {
      */
     testApi(commonDependency("org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil"))
     testApi(commonDependency("one.util:streamex"))
-    testApi(commonDependency("net.java.dev.jna:jna"))
+    testApi(commonDependency("org.jetbrains.intellij.deps.jna:jna"))
     testApi(jpsModel()) { isTransitive = false }
     testApi(jpsModelImpl()) { isTransitive = false }
     testApi(intellijJavaRt())
@@ -49,15 +48,37 @@ sourceSets {
     }
 }
 
+fun Test.configureTest(configureJUnit: JUnitPlatformOptions.() -> Unit = {}) {
+    dependsOn(":dist")
+    workingDir = rootDir
+    useJUnitPlatform {
+        configureJUnit()
+    }
+}
+
 projectTest(
     jUnitMode = JUnitMode.JUnit5,
     defineJDKEnvVariables = listOf(
         JdkMajorVersion.JDK_11_0 // e.g. org.jetbrains.kotlin.test.runners.ForeignAnnotationsCompiledJavaTestGenerated.Java11Tests
     )
 ) {
-    dependsOn(":dist")
-    workingDir = rootDir
-    useJUnitPlatform()
+    configureTest {
+        excludeTags("Jdk21Test")
+    }
+}
+
+// Separate configuration is only necessary while JDK 21 is not released, so cannot be obtained via toolchain.
+// See KT-58765 for tracking
+projectTest(
+    "jdk21Tests",
+    jUnitMode = JUnitMode.JUnit5,
+    defineJDKEnvVariables = listOf(
+        JdkMajorVersion.JDK_21_0
+    )
+) {
+    configureTest {
+        includeTags("Jdk21Test")
+    }
 }
 
 testsJar()

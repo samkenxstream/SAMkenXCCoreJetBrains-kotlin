@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import kotlinx.cinterop.*
 import llvm.*
 import org.jetbrains.kotlin.backend.common.ir.inlineFunction
+import org.jetbrains.kotlin.backend.common.ir.isUnconditional
 import org.jetbrains.kotlin.backend.common.lower.coroutines.getOrCreateFunctionWithContinuationStub
 import org.jetbrains.kotlin.backend.common.lower.inline.InlinerExpressionLocationHint
 import org.jetbrains.kotlin.backend.konan.*
@@ -763,7 +764,7 @@ internal class CodeGeneratorVisitor(
     }
 
     private val IrDeclarationContainer.initVariableSuffix get() = when (this) {
-        is IrFile -> "${fqName}\$${fileEntry.name}"
+        is IrFile -> "${packageFqName}\$${fileEntry.name}"
         else -> fqNameForIrSerialization.asString()
     }
 
@@ -783,8 +784,15 @@ internal class CodeGeneratorVisitor(
                 }
             }
 
+    private fun buildVirtualFunctionTrampoline(irFunction: IrSimpleFunction) {
+        codegen.getVirtualFunctionTrampoline(irFunction)
+    }
+
     override fun visitFunction(declaration: IrFunction) {
         context.log{"visitFunction                  : ${ir2string(declaration)}"}
+
+        if (declaration is IrSimpleFunction && declaration.isOverridable && declaration.origin !is DECLARATION_ORIGIN_BRIDGE_METHOD)
+            buildVirtualFunctionTrampoline(declaration)
 
         val scopeState = llvm.initializersGenerationState.scopeState
         if (declaration.origin == DECLARATION_ORIGIN_STATIC_GLOBAL_INITIALIZER) {
@@ -1577,29 +1585,14 @@ internal class CodeGeneratorVisitor(
 
     //-------------------------------------------------------------------------//
 
-    private fun genInstanceOf(obj: LLVMValueRef, dstClass: IrClass): LLVMValueRef {
+    private fun genInstanceOf(obj: LLVMValueRef, dstClass: IrClass) = with(functionGenerationContext) {
         if (dstClass.defaultType.isObjCObjectType()) {
-            return genInstanceOfObjC(obj, dstClass)
-        }
-
-        val srcObjInfoPtr = functionGenerationContext.bitcast(codegen.kObjHeaderPtr, obj)
-
-        return if (!context.ghaEnabled()) {
-            call(llvm.isInstanceFunction, listOf(srcObjInfoPtr, codegen.typeInfoValue(dstClass)))
-        } else {
-            val dstHierarchyInfo = context.getLayoutBuilder(dstClass).hierarchyInfo
-            if (!dstClass.isInterface) {
-                call(llvm.isInstanceOfClassFastFunction,
-                        listOf(srcObjInfoPtr, llvm.int32(dstHierarchyInfo.classIdLo), llvm.int32(dstHierarchyInfo.classIdHi)))
-            } else {
-                // Essentially: typeInfo.itable[place(interfaceId)].id == interfaceId
-                val interfaceId = dstHierarchyInfo.interfaceId
-                val typeInfo = functionGenerationContext.loadTypeInfo(srcObjInfoPtr)
-                with(functionGenerationContext) {
-                    val interfaceTableRecord = lookupInterfaceTableRecord(typeInfo, interfaceId)
-                    icmpEq(load(structGep(interfaceTableRecord, 0 /* id */)), llvm.int32(interfaceId))
-                }
-            }
+            genInstanceOfObjC(obj, dstClass)
+        } else with(VirtualTablesLookup) {
+            checkIsSubtype(
+                    objTypeInfo = loadTypeInfo(bitcast(codegen.kObjHeaderPtr, obj)),
+                    dstClass
+            )
         }
     }
 
@@ -1709,7 +1702,8 @@ internal class CodeGeneratorVisitor(
 
     private fun needLifetimeConstraintsCheck(valueToAssign: LLVMValueRef, irClass: IrClass): Boolean {
         // TODO: Likely, we don't need isFrozen check here at all.
-        return functionGenerationContext.isObjectType(valueToAssign.type) && !irClass.isFrozen(context)
+        return context.config.memoryModel != MemoryModel.EXPERIMENTAL
+                && functionGenerationContext.isObjectType(valueToAssign.type) && !irClass.isFrozen(context)
     }
 
     private fun isZeroConstValue(value: IrExpression): Boolean {
@@ -2615,8 +2609,8 @@ internal class CodeGeneratorVisitor(
 
     //-------------------------------------------------------------------------//
 
-    fun callVirtual(function: IrFunction, args: List<LLVMValueRef>, resultLifetime: Lifetime, resultSlot: LLVMValueRef?): LLVMValueRef {
-        val functionDeclarations = functionGenerationContext.lookupVirtualImpl(args.first(), function)
+    fun callVirtual(function: IrSimpleFunction, args: List<LLVMValueRef>, resultLifetime: Lifetime, resultSlot: LLVMValueRef?): LLVMValueRef {
+        val functionDeclarations = codegen.getVirtualFunctionTrampoline(function)
         return call(function, functionDeclarations, args, resultLifetime, resultSlot)
     }
 
@@ -2742,6 +2736,7 @@ internal class CodeGeneratorVisitor(
         overrideRuntimeGlobal("Kotlin_appStateTracking", llvm.constInt32(context.config.appStateTracking.value))
         overrideRuntimeGlobal("Kotlin_mimallocUseDefaultOptions", llvm.constInt32(if (context.config.mimallocUseDefaultOptions) 1 else 0))
         overrideRuntimeGlobal("Kotlin_mimallocUseCompaction", llvm.constInt32(if (context.config.mimallocUseCompaction) 1 else 0))
+        overrideRuntimeGlobal("Kotlin_objcDisposeOnMain", llvm.constInt32(if (context.config.objcDisposeOnMain) 1 else 0))
     }
 
     //-------------------------------------------------------------------------//
@@ -2947,6 +2942,7 @@ internal fun NativeGenerationState.generateRuntimeConstantsModule() : LLVMModule
 
     setRuntimeConstGlobal("Kotlin_needDebugInfo", llvm.constInt32(if (shouldContainDebugInfo()) 1 else 0))
     setRuntimeConstGlobal("Kotlin_runtimeAssertsMode", llvm.constInt32(config.runtimeAssertsMode.value))
+    setRuntimeConstGlobal("Kotlin_disableMmap", llvm.constInt32(if (config.disableMmap) 1 else 0))
     val runtimeLogs = config.runtimeLogs?.let {
         static.cStringLiteral(it)
     } ?: NullPointer(llvm.int8Type)

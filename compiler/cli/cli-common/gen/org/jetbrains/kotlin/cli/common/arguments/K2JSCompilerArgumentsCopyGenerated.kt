@@ -24,6 +24,8 @@ fun copyK2JSCompilerArguments(from: K2JSCompilerArguments, to: K2JSCompilerArgum
     to.irBaseClassInMetadata = from.irBaseClassInMetadata
     to.irBuildCache = from.irBuildCache
     to.irDce = from.irDce
+    to.irDceDumpDeclarationIrSizesToFile = from.irDceDumpDeclarationIrSizesToFile
+    to.irDceDumpReachabilityInfoToFile = from.irDceDumpReachabilityInfoToFile
     to.irDcePrintReachabilityInfo = from.irDcePrintReachabilityInfo
     to.irDceRuntimeDiagnostic = from.irDceRuntimeDiagnostic
     to.irGenerateInlineAnonymousFunctions = from.irGenerateInlineAnonymousFunctions
@@ -48,6 +50,7 @@ fun copyK2JSCompilerArguments(from: K2JSCompilerArguments, to: K2JSCompilerArgum
     to.moduleKind = from.moduleKind
     to.moduleName = from.moduleName
     to.noStdlib = from.noStdlib
+    to.optimizeGeneratedJs = from.optimizeGeneratedJs
     to.outputDir = from.outputDir
     to.outputFile = from.outputFile
     to.outputPostfix = from.outputPostfix

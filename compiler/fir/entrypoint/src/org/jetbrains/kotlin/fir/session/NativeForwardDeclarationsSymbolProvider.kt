@@ -18,16 +18,18 @@ import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.builder.buildRegularClass
 import org.jetbrains.kotlin.fir.declarations.getDeprecationsProvider
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
+import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolNamesProvider
+import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolNamesProviderWithoutCallables
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals
 import org.jetbrains.kotlin.fir.scopes.FirKotlinScopeProvider
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.constructClassType
+import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.includedForwardDeclarations
 import org.jetbrains.kotlin.library.isInterop
 import org.jetbrains.kotlin.library.metadata.impl.ForwardDeclarationKind
-import org.jetbrains.kotlin.library.metadata.resolver.KotlinResolvedLibrary
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -36,7 +38,7 @@ class NativeForwardDeclarationsSymbolProvider(
     session: FirSession,
     private val forwardDeclarationsModuleData: FirModuleData,
     private val kotlinScopeProvider: FirKotlinScopeProvider,
-    private val resolvedLibraries: Collection<KotlinResolvedLibrary>,
+    private val kotlinLibraries: Collection<KotlinLibrary>,
 ) : FirSymbolProvider(session) {
     private companion object {
         private val validPackages = ForwardDeclarationKind.packageFqNameToKind.keys
@@ -44,8 +46,7 @@ class NativeForwardDeclarationsSymbolProvider(
 
     private val includedForwardDeclarations: Set<ClassId> by lazy {
         buildSet {
-            for (resolvedLibrary in resolvedLibraries) {
-                val library = resolvedLibrary.library
+            for (library in kotlinLibraries) {
                 if (!library.isInterop) continue
 
                 for (fqName in library.includedForwardDeclarations) {
@@ -138,11 +139,8 @@ class NativeForwardDeclarationsSymbolProvider(
         return null
     }
 
-    override fun knownTopLevelClassifiersInPackage(packageFqName: FqName): Set<String> {
-        return includedForwardDeclarationsByPackage[packageFqName].orEmpty()
+    override val symbolNamesProvider: FirSymbolNamesProvider = object : FirSymbolNamesProviderWithoutCallables() {
+        override fun getTopLevelClassifierNamesInPackage(packageFqName: FqName): Set<String> =
+            includedForwardDeclarationsByPackage[packageFqName].orEmpty()
     }
-
-    override fun computePackageSetWithTopLevelCallables(): Set<String> = emptySet()
-
-    override fun computeCallableNamesInPackage(packageFqName: FqName): Set<Name> = emptySet()
 }

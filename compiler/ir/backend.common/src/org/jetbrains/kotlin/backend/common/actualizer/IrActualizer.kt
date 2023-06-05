@@ -10,9 +10,9 @@ import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.ir.util.DeepCopyTypeRemapper
 
-data class IrActualizationResult(val actualizedExpectDeclarations: List<IrDeclaration>)
+data class IrActualizedResult(val actualizedExpectDeclarations: List<IrDeclaration>)
 
 object IrActualizer {
     fun actualize(
@@ -20,24 +20,55 @@ object IrActualizer {
         dependentFragments: List<IrModuleFragment>,
         diagnosticReporter: DiagnosticReporter,
         languageVersionSettings: LanguageVersionSettings
-    ): IrActualizationResult {
+    ): IrActualizedResult {
         val ktDiagnosticReporter = KtDiagnosticReporterWithImplicitIrBasedContext(diagnosticReporter, languageVersionSettings)
-        val (expectActualMap, expectActualTypeAliasMap) = ExpectActualCollector(mainFragment, dependentFragments, ktDiagnosticReporter).collect()
-        FunctionDefaultParametersActualizer(expectActualMap).actualize()
-        val removedExpectDeclarationMetadata = removeExpectDeclarations(dependentFragments, expectActualMap)
-        addMissingFakeOverrides(expectActualMap, dependentFragments, expectActualTypeAliasMap, ktDiagnosticReporter)
-        linkExpectToActual(expectActualMap, dependentFragments)
+
+        // The ir modules processing is performed phase-to-phase:
+        //   1. Collect expect-actual links for classes and their members from dependent fragments
+        val expectActualMap = ExpectActualCollector(
+            mainFragment,
+            dependentFragments,
+            ktDiagnosticReporter
+        ).collect()
+
+        //   2. Remove top-only expect declarations since they are not needed anymore and should not be presented in the final IrFragment
+        //      Expect fake-overrides from non-expect classes remain untouched since they will be actualized in the next phase.
+        //      Also, it doesn't remove unactualized expect declarations marked with @OptionalExpectation
+        val removedExpectDeclarations = removeExpectDeclarations(dependentFragments, expectActualMap)
+
+        //   3. Actualize expect fake overrides in non-expect classes inside common or multi-platform module.
+        //      It's probably important to run FakeOverridesActualizer before ActualFakeOverridesAdder
+        FakeOverridesActualizer(expectActualMap).apply { dependentFragments.forEach { visitModuleFragment(it) } }
+
+        //   4. Add fake overrides to non-expect classes inside common or multi-platform module,
+        //      taken from these non-expect classes actualized super classes.
+        ActualFakeOverridesAdder(
+            expectActualMap,
+            ktDiagnosticReporter
+        ).apply { dependentFragments.forEach { visitModuleFragment(it) } }
+
+        //   5. Copy and actualize function parameter default values from expect functions
+        val symbolRemapper = ActualizerSymbolRemapper(expectActualMap)
+        val typeRemapper = DeepCopyTypeRemapper(symbolRemapper)
+        FunctionDefaultParametersActualizer(symbolRemapper, typeRemapper, expectActualMap).actualize()
+
+        //   6. Actualize expect calls in dependent fragments using info obtained in the previous steps
+        val actualizerVisitor = ActualizerVisitor(symbolRemapper, typeRemapper)
+        dependentFragments.forEach { it.transform(actualizerVisitor, null) }
+
+        //   7. Merge dependent fragments into the main one
         mergeIrFragments(mainFragment, dependentFragments)
-        return IrActualizationResult(removedExpectDeclarationMetadata)
+
+        return IrActualizedResult(removedExpectDeclarations)
     }
 
     private fun removeExpectDeclarations(dependentFragments: List<IrModuleFragment>, expectActualMap: Map<IrSymbol, IrSymbol>): List<IrDeclaration> {
-        val removedDeclarationMetadata = mutableListOf<IrDeclaration>()
+        val removedExpectDeclarations = mutableListOf<IrDeclaration>()
         for (fragment in dependentFragments) {
             for (file in fragment.files) {
                 file.declarations.removeIf {
                     if (shouldRemoveExpectDeclaration(it, expectActualMap)) {
-                        removedDeclarationMetadata.add(it)
+                        removedExpectDeclarations.add(it)
                         true
                     } else {
                         false
@@ -45,7 +76,7 @@ object IrActualizer {
                 }
             }
         }
-        return removedDeclarationMetadata
+        return removedExpectDeclarations
     }
 
     private fun shouldRemoveExpectDeclaration(irDeclaration: IrDeclaration, expectActualMap: Map<IrSymbol, IrSymbol>): Boolean {
@@ -55,23 +86,6 @@ object IrActualizer {
             is IrFunction -> irDeclaration.isExpect
             else -> false
         }
-    }
-
-    private fun addMissingFakeOverrides(
-        expectActualMap: Map<IrSymbol, IrSymbol>,
-        dependentFragments: List<IrModuleFragment>,
-        expectActualTypeAliasMap: Map<FqName, FqName>,
-        diagnosticsReporter: KtDiagnosticReporterWithImplicitIrBasedContext
-    ) {
-        MissingFakeOverridesAdder(
-            expectActualMap,
-            expectActualTypeAliasMap,
-            diagnosticsReporter
-        ).apply { dependentFragments.forEach { visitModuleFragment(it) } }
-    }
-
-    private fun linkExpectToActual(expectActualMap: Map<IrSymbol, IrSymbol>, dependentFragments: List<IrModuleFragment>) {
-        ExpectActualLinker(expectActualMap).apply { dependentFragments.forEach { actualize(it) } }
     }
 
     private fun mergeIrFragments(mainFragment: IrModuleFragment, dependentFragments: List<IrModuleFragment>) {

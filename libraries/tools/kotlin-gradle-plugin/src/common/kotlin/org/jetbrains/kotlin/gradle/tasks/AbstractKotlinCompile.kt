@@ -27,15 +27,16 @@ import org.jetbrains.kotlin.cli.common.CompilerSystemProperties
 import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.compilerRunner.CompilerExecutionSettings
 import org.jetbrains.kotlin.compilerRunner.GradleCompilerRunner
-import org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWithWorkers
 import org.jetbrains.kotlin.compilerRunner.UsesCompilerSystemPropertiesService
+import org.jetbrains.kotlin.compilerRunner.createGradleCompilerRunner
 import org.jetbrains.kotlin.daemon.common.MultiModuleICSettings
+import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinCommonCompilerOptions
 import org.jetbrains.kotlin.gradle.incremental.UsesIncrementalModuleInfoBuildService
+import org.jetbrains.kotlin.gradle.internal.UsesClassLoadersCachingBuildService
 import org.jetbrains.kotlin.gradle.internal.tasks.allOutputFiles
 import org.jetbrains.kotlin.gradle.logging.GradleKotlinLogger
 import org.jetbrains.kotlin.gradle.logging.kotlinDebug
-import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.default
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_SUPPRESS_EXPERIMENTAL_IC_OPTIMIZATIONS_WARNING
 import org.jetbrains.kotlin.gradle.plugin.UsesBuildFinishedListenerService
 import org.jetbrains.kotlin.gradle.plugin.UsesVariantImplementationFactories
@@ -56,11 +57,11 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
 ) : AbstractKotlinCompileTool<T>(objectFactory),
     CompileUsingKotlinDaemonWithNormalization,
     UsesBuildMetricsService,
-    UsesBuildReportsService,
     UsesIncrementalModuleInfoBuildService,
     UsesCompilerSystemPropertiesService,
     UsesVariantImplementationFactories,
     UsesBuildFinishedListenerService,
+    UsesClassLoadersCachingBuildService,
     BaseKotlinCompile {
 
     init {
@@ -102,17 +103,21 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
     internal open fun isIncrementalCompilationEnabled(): Boolean =
         incremental
 
-    @Deprecated("Scheduled for removal with Kotlin 1.9", ReplaceWith("moduleName"))
+    @Deprecated("Scheduled for removal with Kotlin 2.0", ReplaceWith("moduleName"))
     @get:Input
     abstract val ownModuleName: Property<String>
 
     @get:Internal
     val startParameters = BuildReportsService.getStartParameters(project)
 
+    @get:Input
+    @get:Optional
+    abstract val explicitApiMode: Property<ExplicitApiMode>
+
     @get:Internal
     internal abstract val suppressKotlinOptionsFreeArgsModificationWarning: Property<Boolean>
 
-    internal fun reportingSettings() = buildReportsService.orNull?.parameters?.reportingSettings?.orNull ?: ReportingSettings()
+    internal fun reportingSettings() = buildMetricsService.orNull?.parameters?.reportingSettings?.orNull ?: ReportingSettings()
 
     @get:Internal
     protected val multiModuleICSettings: MultiModuleICSettings
@@ -173,7 +178,7 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
                         defaultKotlinJavaToolchain
                             .map {
                                 val toolsJar = it.currentJvmJdkToolsJar.orNull
-                                GradleCompilerRunnerWithWorkers(
+                                createGradleCompilerRunner(
                                     taskProvider,
                                     toolsJar,
                                     CompilerExecutionSettings(
@@ -182,7 +187,9 @@ abstract class AbstractKotlinCompile<T : CommonCompilerArguments> @Inject constr
                                         useDaemonFallbackStrategy.get()
                                     ),
                                     params.first,
-                                    workerExecutor
+                                    workerExecutor,
+                                    runViaBuildToolsApi.get(),
+                                    classLoadersCachingService,
                                 )
                             }
                     }

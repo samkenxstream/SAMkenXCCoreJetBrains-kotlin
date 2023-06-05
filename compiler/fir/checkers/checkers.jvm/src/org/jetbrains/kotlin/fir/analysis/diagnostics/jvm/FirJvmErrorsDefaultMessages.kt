@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.REND
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.SYMBOL
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.CONCURRENT_HASH_MAP_CONTAINS_OPERATOR
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.CONFLICTING_JVM_DECLARATIONS
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.DELEGATION_BY_IN_JVM_RECORD
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.DEPRECATED_JAVA_ANNOTATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.ENUM_JVM_RECORD
@@ -30,14 +29,9 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.INAPPLICAB
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.INAPPLICABLE_JVM_NAME
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.INNER_JVM_RECORD
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JAVA_SAM_INTERFACE_CONSTRUCTOR_REFERENCE
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JAVA_SHADOWED_PROTECTED_FIELD_REFERENCE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JAVA_TYPE_MISMATCH
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_DEFAULT_IN_DECLARATION
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_DEFAULT_IN_JVM6_TARGET
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_DEFAULT_NOT_IN_INTERFACE
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_DEFAULT_REQUIRED_FOR_OVERRIDE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_DEFAULT_WITH_COMPATIBILITY_IN_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_DEFAULT_WITH_COMPATIBILITY_NOT_ON_INTERFACE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_INLINE_WITHOUT_VALUE_CLASS
@@ -57,7 +51,6 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.JVM_SYNTHE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.LOCAL_JVM_RECORD
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.NON_DATA_CLASS_JVM_RECORD
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.NON_FINAL_JVM_RECORD
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.NON_JVM_DEFAULT_OVERRIDES_JAVA_DEFAULT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.NON_SOURCE_REPEATED_ANNOTATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.OVERLOADS_ABSTRACT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.OVERLOADS_ANNOTATION_CLASS_CONSTRUCTOR
@@ -73,7 +66,6 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.REPEATABLE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.REPEATABLE_CONTAINER_HAS_SHORTER_RETENTION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.REPEATABLE_CONTAINER_MUST_HAVE_VALUE_ARRAY
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.REPEATABLE_CONTAINER_TARGET_SET_NOT_A_SUBSET
-import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.REPEATED_ANNOTATION_TARGET6
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.REPEATED_ANNOTATION_WITH_CONTAINER
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.SPREAD_ON_SIGNATURE_POLYMORPHIC_CALL
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors.STRICTFP_ON_CLASS
@@ -170,13 +162,6 @@ object FirJvmErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(VALUE_CLASS_WITHOUT_JVM_INLINE_ANNOTATION, "Value classes without @JvmInline annotation are not supported yet")
         map.put(JVM_INLINE_WITHOUT_VALUE_CLASS, "@JvmInline annotation is only applicable to value classes")
 
-        map.put(JVM_DEFAULT_NOT_IN_INTERFACE, "'@JvmDefault' is only supported on interface members")
-        map.put(
-            JVM_DEFAULT_IN_JVM6_TARGET,
-            "''@{0}'' is only supported since JVM target 1.8. Recompile with ''-jvm-target 1.8''",
-            STRING
-        )
-        map.put(JVM_DEFAULT_REQUIRED_FOR_OVERRIDE, "'@JvmDefault' is required for an override of a '@JvmDefault' member")
         map.put(JVM_DEFAULT_IN_DECLARATION, "Usage of ''@{0}'' is only allowed with -Xjvm-default option", STRING)
         map.put(
             JVM_DEFAULT_WITH_COMPATIBILITY_IN_DECLARATION,
@@ -185,10 +170,6 @@ object FirJvmErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(
             JVM_DEFAULT_WITH_COMPATIBILITY_NOT_ON_INTERFACE,
             "'@JvmDefaultWithCompatibility' annotation is only allowed on interfaces"
-        )
-        map.put(
-            NON_JVM_DEFAULT_OVERRIDES_JAVA_DEFAULT,
-            "Non-@JvmDefault interface method cannot override default Java method. Please annotate this method with @JvmDefault or enable `-Xjvm-default=all|all-compatibility`"
         )
 
         map.put(EXTERNAL_DECLARATION_IN_INTERFACE, "Members of interfaces can not be external")
@@ -206,24 +187,12 @@ object FirJvmErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
             "Repeatable annotations with non-SOURCE retention are only supported starting from Kotlin 1.6"
         )
         map.put(
-            REPEATED_ANNOTATION_TARGET6,
-            "Repeatable annotations with non-SOURCE retention are not supported with JVM target 1.6. Use -jvm-target 1.8"
-        )
-        map.put(
             REPEATED_ANNOTATION_WITH_CONTAINER,
             "Repeated annotation ''@{0}'' cannot be used on a declaration which is annotated with its container annotation ''@{1}''",
             TO_STRING,
             TO_STRING
         )
 
-        map.put(
-            DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET,
-            "Super calls to Java default methods are prohibited in JVM target 1.6. Recompile with '-jvm-target 1.8'"
-        )
-        map.put(
-            INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET,
-            "Calls to static methods in Java interfaces are prohibited in JVM target 1.6. Recompile with '-jvm-target 1.8'"
-        )
         map.put(
             INTERFACE_CANT_CALL_DEFAULT_METHOD_VIA_SUPER,
             "Interfaces can call JVM-default members via super only within JVM-default members. Please use '-Xjvm-default=all/all-compatibility' modes for such calls"
@@ -281,14 +250,6 @@ object FirJvmErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(
             JAVA_SAM_INTERFACE_CONSTRUCTOR_REFERENCE,
             "Java SAM interface constructor references are prohibited"
-        )
-        map.put(
-            JAVA_SHADOWED_PROTECTED_FIELD_REFERENCE,
-            "It's impossible to refer here a protected Java field from class ''{0}'', " +
-                    "because an invisible property from class ''{1}'' shadows it. " +
-                    "Rename the property from class ''{1}'' or change visibility of the field from class ''{0}''",
-            TO_STRING,
-            TO_STRING
         )
         map.put(
             REDUNDANT_REPEATABLE_ANNOTATION,

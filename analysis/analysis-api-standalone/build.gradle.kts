@@ -3,10 +3,6 @@ plugins {
     id("jps-compatible")
 }
 
-kotlin {
-    explicitApiWarning()
-}
-
 dependencies {
     implementation(intellijCore())
     implementation(project(":compiler:psi"))
@@ -18,12 +14,14 @@ dependencies {
     api(project(":analysis:symbol-light-classes"))
     api(project(":analysis:decompiled:light-classes-for-decompiled"))
     api(project(":analysis:analysis-api-standalone:analysis-api-standalone-base"))
-    testApi(projectTests(":analysis:analysis-test-framework"))
-    testApi(projectTests(":analysis:analysis-api-impl-base"))
-    testApi(projectTests(":analysis:analysis-api-fir"))
+    implementation(project(":analysis:analysis-api-standalone:analysis-api-fir-standalone-base"))
+    testImplementation(projectTests(":analysis:analysis-test-framework"))
+    testImplementation(projectTests(":analysis:low-level-api-fir"))
+    testImplementation(projectTests(":analysis:analysis-api-impl-base"))
+    testImplementation(projectTests(":analysis:analysis-api-fir"))
 
-    testApi(project(":kotlin-test:kotlin-test-junit"))
-    testApi(toolsJar())
+    testImplementation(project(":kotlin-test:kotlin-test-junit"))
+    testImplementation(toolsJar())
     testApiJUnit5()
 }
 

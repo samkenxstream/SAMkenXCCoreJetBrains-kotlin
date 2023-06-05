@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.descriptors.isClass
 import org.jetbrains.kotlin.descriptors.isInterface
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.backend.js.JsIrBackendContext
+import org.jetbrains.kotlin.ir.backend.js.JsLoweredDeclarationOrigin
 import org.jetbrains.kotlin.ir.backend.js.JsStatementOrigins
 import org.jetbrains.kotlin.ir.backend.js.export.isExported
 import org.jetbrains.kotlin.ir.backend.js.ir.JsIrBuilder
@@ -20,8 +21,10 @@ import org.jetbrains.kotlin.ir.expressions.IrInlinedFunctionBlock
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetFieldImpl
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrReturnableBlockSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.isAnnotationClass
 import org.jetbrains.kotlin.ir.util.parentAsClass
@@ -70,7 +73,7 @@ fun IrConstructor.hasStrictSignature(context: JsIrBackendContext): Boolean {
 }
 
 private fun getKotlinOrJsQualifier(parent: IrPackageFragment, shouldIncludePackage: Boolean): FqName? {
-    return (parent as? IrFile)?.getJsQualifier()?.let { FqName(it) } ?: parent.fqName.takeIf { shouldIncludePackage }
+    return (parent as? IrFile)?.getJsQualifier()?.let { FqName(it) } ?: parent.packageFqName.takeIf { shouldIncludePackage }
 }
 
 val IrFunctionAccessExpression.typeArguments: List<IrType?>
@@ -78,11 +81,17 @@ val IrFunctionAccessExpression.typeArguments: List<IrType?>
 
 val IrFunctionAccessExpression.valueArguments: List<IrExpression?>
     get() = List(valueArgumentsCount) { getValueArgument(it) }
+
 val IrClass.isInstantiableEnum: Boolean
     get() = isEnumClass && !isExpect && !isEffectivelyExternal()
 
 val IrDeclaration.parentEnumClassOrNull: IrClass?
     get() = parents.filterIsInstance<IrClass>().firstOrNull { it.isInstantiableEnum }
+
+fun IrFunctionSymbol.isUnitInstanceFunction(context: JsIrBackendContext): Boolean {
+    return owner.origin === JsLoweredDeclarationOrigin.OBJECT_GET_INSTANCE_FUNCTION &&
+            owner.returnType.classifierOrNull === context.irBuiltIns.unitClass
+}
 
 // TODO: the code is written to pass Repl tests, so we should understand. why in Repl tests we don't have backingField
 fun JsIrBackendContext.getVoid(): IrExpression =
@@ -103,3 +112,18 @@ fun irEmpty(context: JsIrBackendContext): IrExpression {
     return JsIrBuilder.buildComposite(context.dynamicType, emptyList())
 }
 
+fun IrDeclaration.isObjectInstanceGetter(): Boolean {
+    return this is IrSimpleFunction && isObjectInstanceGetter()
+}
+
+fun IrSimpleFunction.isObjectInstanceGetter(): Boolean {
+    return origin == JsLoweredDeclarationOrigin.OBJECT_GET_INSTANCE_FUNCTION
+}
+
+fun IrDeclaration.isObjectInstanceField(): Boolean {
+    return this is IrField && isObjectInstanceField()
+}
+
+fun IrField.isObjectInstanceField(): Boolean {
+    return origin == IrDeclarationOrigin.FIELD_FOR_OBJECT_INSTANCE
+}

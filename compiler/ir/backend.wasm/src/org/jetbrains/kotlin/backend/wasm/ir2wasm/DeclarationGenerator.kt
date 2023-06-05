@@ -12,16 +12,14 @@ import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.backend.js.utils.isJsExport
-import org.jetbrains.kotlin.ir.backend.js.utils.findUnitGetInstanceFunction
-import org.jetbrains.kotlin.ir.backend.js.utils.getJsNameOrKotlinName
-import org.jetbrains.kotlin.ir.backend.js.utils.realOverrideTarget
+import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.IrConstKind
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -40,6 +38,7 @@ class DeclarationGenerator(
     private val irBuiltIns: IrBuiltIns = backendContext.irBuiltIns
 
     private val unitGetInstanceFunction: IrSimpleFunction by lazy { backendContext.findUnitGetInstanceFunction() }
+    private val unitPrimaryConstructor: IrConstructor? by lazy { backendContext.irBuiltIns.unitClass.owner.primaryConstructor }
 
     override fun visitElement(element: IrElement) {
         error("Unexpected element of type ${element::class}")
@@ -100,12 +99,11 @@ class DeclarationGenerator(
         // Generate function type
         val watName = declaration.fqNameWhenAvailable.toString()
         val irParameters = declaration.getEffectiveValueParameters()
-        val resultType =
-            when {
-                // Unit_getInstance returns true Unit reference instead of "void"
-                declaration == unitGetInstanceFunction -> context.transformType(declaration.returnType)
-                else -> context.transformResultType(declaration.returnType)
-            }
+        val resultType = when (declaration) {
+            // Unit_getInstance returns true Unit reference instead of "void"
+            unitGetInstanceFunction, unitPrimaryConstructor -> context.transformType(declaration.returnType)
+            else -> context.transformResultType(declaration.returnType)
+        }
 
         val wasmFunctionType =
             WasmFunctionType(
@@ -151,7 +149,6 @@ class DeclarationGenerator(
             context = context,
             functionContext = functionCodegenContext,
             hierarchyDisjointUnions = hierarchyDisjointUnions,
-            isGetUnitFunction = declaration == unitGetInstanceFunction
         )
 
         if (declaration is IrConstructor) {
@@ -366,7 +363,7 @@ class DeclarationGenerator(
             createClassITable(metadata)
 
             val vtableRefGcType = WasmRefType(WasmHeapType.Type(context.referenceVTableGcType(symbol)))
-            val classITableRefGcType = WasmRefNullType(WasmHeapType.Simple.Data)
+            val classITableRefGcType = WasmRefNullType(WasmHeapType.Simple.Struct)
             val fields = mutableListOf<WasmStructFieldDeclaration>()
             fields.add(WasmStructFieldDeclaration("vtable", vtableRefGcType, false))
             fields.add(WasmStructFieldDeclaration("itable", classITableRefGcType, false))
@@ -488,6 +485,8 @@ fun generateDefaultInitializerForType(type: WasmType, g: WasmExpressionBuilder) 
             WasmF32 -> g.buildConstF32(0f, location)
             WasmF64 -> g.buildConstF64(0.0, location)
             is WasmRefNullType -> g.buildRefNull(type.heapType, location)
+            is WasmRefNullNoneType -> g.buildRefNull(WasmHeapType.Simple.NullNone, location)
+            is WasmRefNullExternrefType -> g.buildRefNull(WasmHeapType.Simple.NullNoExtern, location)
             is WasmAnyRef -> g.buildRefNull(WasmHeapType.Simple.Any, location)
             is WasmExternRef -> g.buildRefNull(WasmHeapType.Simple.Extern, location)
             WasmUnreachableType -> error("Unreachable type can't be initialized")
@@ -511,7 +510,11 @@ fun generateConstExpression(
     location: SourceLocation
 ) =
     when (val kind = expression.kind) {
-        is IrConstKind.Null -> generateDefaultInitializerForType(context.transformType(expression.type), body)
+        is IrConstKind.Null -> {
+            val isExternal = expression.type.getClass()?.isExternal ?: expression.type.erasedUpperBound?.isExternal
+            val bottomType = if (isExternal == true) WasmRefNullExternrefType else WasmRefNullNoneType
+            body.buildInstr(WasmOp.REF_NULL, location, WasmImmediate.HeapType(bottomType))
+        }
         is IrConstKind.Boolean -> body.buildConstI32(if (kind.valueOf(expression)) 1 else 0, location)
         is IrConstKind.Byte -> body.buildConstI32(kind.valueOf(expression).toInt(), location)
         is IrConstKind.Short -> body.buildConstI32(kind.valueOf(expression).toInt(), location)

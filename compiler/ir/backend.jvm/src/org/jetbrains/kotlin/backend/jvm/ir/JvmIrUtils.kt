@@ -441,11 +441,14 @@ fun IrMemberAccessExpression<*>.getBooleanConstArgument(i: Int): Boolean =
     } ?: throw AssertionError("Value argument #$i should be a Boolean const: ${dump()}")
 
 val IrDeclaration.fileParent: IrFile
-    get() {
-        return when (val myParent = parent) {
-            is IrFile -> myParent
-            else -> (myParent as IrDeclaration).fileParent
-        }
+    get() = fileParentOrNull ?: error("No file parent: $this")
+
+@Suppress("RecursivePropertyAccessor")
+val IrDeclaration.fileParentOrNull: IrFile?
+    get() = when (val myParent = parent) {
+        is IrFile -> myParent
+        is IrDeclaration -> myParent.fileParentOrNull
+        else -> null
     }
 
 private val RETENTION_PARAMETER_NAME = Name.identifier("value")
@@ -472,7 +475,7 @@ val IrMemberWithContainerSource.parentClassId: ClassId?
 // Translated into IR-based terms from classifierDescriptor?.classId
 private val IrClass.classId: ClassId?
     get() = when (val parent = parent) {
-        is IrExternalPackageFragment -> ClassId(parent.fqName, name)
+        is IrExternalPackageFragment -> ClassId(parent.packageFqName, name)
         // TODO: there's `context.classNameOverride`; theoretically it's only relevant for top-level members,
         //       where `containerSource` is a `JvmPackagePartSource` anyway, but I'm not 100% sure.
         is IrClass -> parent.classId?.createNestedClassId(name)

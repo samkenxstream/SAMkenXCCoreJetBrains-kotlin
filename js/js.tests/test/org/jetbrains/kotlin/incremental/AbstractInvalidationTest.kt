@@ -62,6 +62,14 @@ abstract class AbstractInvalidationTest(private val targetBackend: TargetBackend
         private const val SOURCE_MAPPING_URL_PREFIX = "//# sourceMappingURL="
     }
 
+    open fun getModuleInfoFile(directory: File): File {
+        return directory.resolve(MODULE_INFO_FILE)
+    }
+
+    open fun getProjectInfoFile(directory: File): File {
+        return directory.resolve(PROJECT_INFO_FILE)
+    }
+
     private val zipAccessor = ZipFileSystemCacheableAccessor(2)
     protected val environment =
         KotlinCoreEnvironment.createForParallelTests(TestDisposable(), CompilerConfiguration(), EnvironmentConfigFiles.JS_CONFIG_FILES)
@@ -85,7 +93,7 @@ abstract class AbstractInvalidationTest(private val targetBackend: TargetBackend
     protected fun runTest(@TestDataFile testPath: String) {
         val testDirectory = File(testPath)
         val testName = testDirectory.name
-        val projectInfoFile = File(testDirectory, PROJECT_INFO_FILE)
+        val projectInfoFile = getProjectInfoFile(testDirectory)
         val projectInfo = parseProjectInfo(testName, projectInfoFile)
 
         if (isIgnoredTest(projectInfo)) {
@@ -95,7 +103,7 @@ abstract class AbstractInvalidationTest(private val targetBackend: TargetBackend
         val modulesInfos = mutableMapOf<String, ModuleInfo>()
         for (module in projectInfo.modules) {
             val moduleDirectory = File(testDirectory, module)
-            val moduleInfo = File(moduleDirectory, MODULE_INFO_FILE)
+            val moduleInfo = getModuleInfoFile(moduleDirectory)
             modulesInfos[module] = parseModuleInfo(module, moduleInfo)
         }
 
@@ -161,15 +169,8 @@ abstract class AbstractInvalidationTest(private val targetBackend: TargetBackend
             val moduleSourceDir = File(sourceDir, module)
             val moduleInfo = moduleInfos[module] ?: error("No module info found for $module")
             val moduleStep = moduleInfo.steps.getValue(projStepId)
-            val deletedFiles = mutableSetOf<String>()
             for (modification in moduleStep.modifications) {
-                modification.execute(moduleTestDir, moduleSourceDir) { deletedFiles.add(it.name) }
-            }
-
-            val expectedFileStats = moduleStep.expectedFileStats.toMutableMap()
-            if (deletedFiles.isNotEmpty()) {
-                val removedFiles = expectedFileStats[DirtyFileState.REMOVED_FILE.str] ?: emptySet()
-                expectedFileStats[DirtyFileState.REMOVED_FILE.str] = removedFiles + deletedFiles
+                modification.execute(moduleTestDir, moduleSourceDir) {}
             }
 
             val outputKlibFile = resolveModuleArtifact(module, buildDir)
@@ -196,7 +197,7 @@ abstract class AbstractInvalidationTest(private val targetBackend: TargetBackend
                 module.safeModuleName,
                 outputKlibFile.canonicalPath,
                 friends.map { it.canonicalPath },
-                expectedFileStats,
+                moduleStep.expectedFileStats,
                 dtsFile?.readText()
             )
         }

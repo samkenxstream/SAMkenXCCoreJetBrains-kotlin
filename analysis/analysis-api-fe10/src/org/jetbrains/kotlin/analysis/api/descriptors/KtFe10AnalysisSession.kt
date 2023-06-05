@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.api.descriptors
 
+import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.analysis.api.KtAnalysisApiInternals
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.components.*
@@ -16,7 +17,7 @@ import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
 import org.jetbrains.kotlin.analysis.api.symbols.KtSymbolProvider
 import org.jetbrains.kotlin.analysis.api.symbols.KtSymbolProviderByJavaPsi
 import org.jetbrains.kotlin.analysis.project.structure.KtModule
-import org.jetbrains.kotlin.analysis.project.structure.getKtModule
+import org.jetbrains.kotlin.analysis.project.structure.ProjectStructureProvider
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 
@@ -26,9 +27,9 @@ class KtFe10AnalysisSession(
     val analysisContext: Fe10AnalysisContext,
     override val useSiteModule: KtModule
 ) : KtAnalysisSession(analysisContext.token) {
-    constructor(contextElement: KtElement, token: KtLifetimeToken) : this(
-        Fe10AnalysisContext(Fe10AnalysisFacade.getInstance(contextElement.project), contextElement, token),
-        contextElement.getKtModule()
+    constructor(project: Project, contextElement: KtElement, token: KtLifetimeToken) : this(
+        Fe10AnalysisContext(Fe10AnalysisFacade.getInstance(project), contextElement, token),
+        ProjectStructureProvider.getModule(project, contextElement, contextualModule = null)
     )
 
 
@@ -53,6 +54,7 @@ class KtFe10AnalysisSession(
     override val visibilityCheckerImpl: KtVisibilityChecker = KtFe10VisibilityChecker(this)
     override val overrideInfoProviderImpl: KtOverrideInfoProvider = KtFe10OverrideInfoProvider(this)
     override val multiplatformInfoProviderImpl: KtMultiplatformInfoProvider = KtFe10MultiplatformInfoProvider(this)
+    override val originalPsiProviderImpl: KtOriginalPsiProvider = KtFe10OriginalPsiProvider(this)
     override val inheritorsProviderImpl: KtInheritorsProvider = KtFe10InheritorsProvider(this)
     override val typesCreatorImpl: KtTypeCreator = KtFe10TypeCreator(this)
     override val samResolverImpl: KtSamResolver = KtFe10SamResolver(this)
@@ -65,9 +67,10 @@ class KtFe10AnalysisSession(
     override val scopeSubstitutionImpl: KtScopeSubstitution = KtFe10ScopeSubstitution(this)
     override val substitutorFactoryImpl: KtSubstitutorFactory = KtFe10SubstitutorFactory(this)
     override val symbolProviderByJavaPsiImpl: KtSymbolProviderByJavaPsi = KtFe10SymbolProviderByJavaPsi(this)
+    override val resolveExtensionProviderImpl: KtSymbolFromResolveExtensionProvider = KtFe10SymbolFromResolveExtensionProvider(this)
 
     override fun createContextDependentCopy(originalKtFile: KtFile, elementToReanalyze: KtElement): KtAnalysisSession =
         withValidityAssertion {
-            KtFe10AnalysisSession(elementToReanalyze, token)
+            KtFe10AnalysisSession(originalKtFile.project, elementToReanalyze, token)
         }
 }

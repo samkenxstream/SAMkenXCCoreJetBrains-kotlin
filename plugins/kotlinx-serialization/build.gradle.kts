@@ -72,11 +72,36 @@ sourceSets {
 
 optInToExperimentalCompilerApi()
 
-runtimeJar()
+publish {
+    artifactId = artifactId.replace("kotlinx-", "kotlin-")
+}
+
+val runtimeJar = runtimeJar {
+    archiveBaseName.set("kotlin-serialization-compiler-plugin")
+}
 sourcesJar()
 javadocJar()
 testsJar()
 useD8Plugin()
+
+val distCompat by configurations.creating {
+    isCanBeResolved = false
+    isCanBeConsumed = true
+}
+
+val compatJar = tasks.register<Copy>("compatJar") {
+    from(runtimeJar)
+    into(layout.buildDirectory.dir("libsCompat"))
+    rename {
+        it.replace("kotlin-", "kotlinx-")
+    }
+}
+
+artifacts {
+    add(distCompat.name, compatJar) {
+        builtBy(runtimeJar, compatJar)
+    }
+}
 
 projectTest(parallel = true, jUnitMode = JUnitMode.JUnit5) {
     workingDir = rootDir

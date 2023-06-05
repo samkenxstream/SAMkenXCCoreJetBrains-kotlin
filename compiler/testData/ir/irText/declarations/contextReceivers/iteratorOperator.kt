@@ -1,7 +1,6 @@
 // !LANGUAGE: +ContextReceivers
-// TARGET_BACKEND: JVM_IR
+// IGNORE_BACKEND: JS_IR
 // WITH_STDLIB
-
 data class Counter(var i: Int = 0)
 
 data class CounterConfig(val max: Int = 10)

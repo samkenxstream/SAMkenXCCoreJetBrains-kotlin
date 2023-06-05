@@ -13,6 +13,7 @@ import org.gradle.api.attributes.Usage
 import org.gradle.jvm.tasks.Jar
 import org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.ide.kotlinIdeMultiplatformImport
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.plugin.mpp.configureSourcesPublicationAttributes
@@ -22,11 +23,17 @@ import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
 import org.jetbrains.kotlin.gradle.utils.markConsumable
 import org.jetbrains.kotlin.gradle.utils.named
 
+/**
+ * Creates an adhoc/external Kotlin Target which can be maintained and evolved outside the kotlin.git repository.
+ * The target will be created adhering to the configuration provided by the [descriptor].
+ * The instance will be backed by an internal implementation of [KotlinTarget]
+ * The instance will be created using the [ExternalKotlinTargetDescriptor.targetFactory] which will have to inject the backing
+ * internal implementation using the [DecoratedExternalKotlinTarget.Delegate] into [DecoratedExternalKotlinTarget]
+ */
 @ExternalKotlinTargetApi
 fun <T : DecoratedExternalKotlinTarget> KotlinMultiplatformExtension.createExternalKotlinTarget(
     descriptor: ExternalKotlinTargetDescriptor<T>
 ): T {
-    val defaultConfiguration = project.configurations.maybeCreate(lowerCamelCaseName(descriptor.targetName, "default"))
     val apiElementsConfiguration = project.configurations.maybeCreate(lowerCamelCaseName(descriptor.targetName, "apiElements"))
     val runtimeElementsConfiguration = project.configurations.maybeCreate(lowerCamelCaseName(descriptor.targetName, "runtimeElements"))
     val sourcesElementsConfiguration = project.configurations.maybeCreate(lowerCamelCaseName(descriptor.targetName, "sourcesElements"))
@@ -50,7 +57,6 @@ fun <T : DecoratedExternalKotlinTarget> KotlinMultiplatformExtension.createExter
         targetName = descriptor.targetName,
         platformType = descriptor.platformType,
         publishable = true,
-        defaultConfiguration = defaultConfiguration,
         apiElementsConfiguration = apiElementsConfiguration,
         runtimeElementsConfiguration = runtimeElementsConfiguration,
         sourcesElementsConfiguration = sourcesElementsConfiguration,
@@ -91,6 +97,9 @@ fun <T : DecoratedExternalKotlinTarget> KotlinMultiplatformExtension.createExter
     return decorated
 }
 
+/**
+ * @see createExternalKotlinTarget
+ */
 @ExternalKotlinTargetApi
 fun <T : DecoratedExternalKotlinTarget> KotlinMultiplatformExtension.createExternalKotlinTarget(
     descriptor: ExternalKotlinTargetDescriptorBuilder<T>.() -> Unit

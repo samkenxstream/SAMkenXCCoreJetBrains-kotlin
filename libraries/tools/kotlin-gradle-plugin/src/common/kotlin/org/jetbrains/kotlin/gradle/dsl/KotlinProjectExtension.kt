@@ -13,6 +13,8 @@ import org.gradle.api.internal.plugins.DslObject
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaToolchainSpec
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.internal.KOTLIN_BUILD_TOOLS_API_IMPL
+import org.jetbrains.kotlin.gradle.internal.KOTLIN_MODULE_GROUP
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinAndroidTarget
@@ -26,6 +28,7 @@ import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrSingleTargetPreset
 import org.jetbrains.kotlin.gradle.tasks.CompileUsingKotlinDaemon
 import org.jetbrains.kotlin.gradle.tasks.withType
 import org.jetbrains.kotlin.gradle.utils.castIsolatedKotlinPluginClassLoaderAware
+import org.jetbrains.kotlin.gradle.utils.configureExperimentalTryK2
 import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.statistics.metrics.StringMetrics
@@ -72,7 +75,7 @@ abstract class KotlinTopLevelExtension(internal val project: Project) : KotlinTo
 
     override lateinit var coreLibrariesVersion: String
 
-    private val toolchainSupport = ToolchainSupport.createToolchain(project)
+    private val toolchainSupport = ToolchainSupport.createToolchain(project, this)
 
     /**
      * Configures [Java toolchain](https://docs.gradle.org/current/userguide/toolchains.html) both for Kotlin JVM and Java tasks.
@@ -140,6 +143,29 @@ abstract class KotlinTopLevelExtension(internal val project: Project) : KotlinTo
             }
         }
     }
+
+    /**
+     * Allows to use a different version of the Kotlin Build Tools API implementation and effectively a different version of the compiler.
+     *
+     * By default, the Kotlin Build Tools API implementation of the same version as the KGP is used.
+     *
+     * Currently only has an effect if the `kotlin.compiler.runViaBuildToolsApi` Gradle property is set to `true`.
+     */
+    fun useCompilerVersion(version: String) {
+        project.dependencies.add(BUILD_TOOLS_API_CLASSPATH_CONFIGURATION_NAME, "$KOTLIN_MODULE_GROUP:$KOTLIN_BUILD_TOOLS_API_IMPL:$version")
+    }
+}
+
+internal fun ExplicitApiMode.toCompilerValue() = when (this) {
+    ExplicitApiMode.Strict -> "strict"
+    ExplicitApiMode.Warning -> "warning"
+    ExplicitApiMode.Disabled -> "disable"
+}
+
+internal fun KotlinTopLevelExtension.explicitApiModeAsCompilerArg(): String? {
+    val cliOption = explicitApi?.toCompilerValue()
+
+    return cliOption?.let { "-Xexplicit-api=$it" }
 }
 
 open class KotlinProjectExtension @Inject constructor(project: Project) : KotlinTopLevelExtension(project), KotlinSourceSetContainer {
@@ -151,7 +177,7 @@ open class KotlinProjectExtension @Inject constructor(project: Project) : Kotlin
         }
 
     internal suspend fun awaitSourceSets(): NamedDomainObjectContainer<KotlinSourceSet> {
-        KotlinPluginLifecycle.Stage.AfterFinaliseDsl.await()
+        KotlinPluginLifecycle.Stage.AfterFinaliseRefinesEdges.await()
         return sourceSets
     }
 }
@@ -170,8 +196,9 @@ abstract class KotlinJvmProjectExtension(project: Project) : KotlinSingleJavaTar
 
     open fun target(body: KotlinWithJavaTarget<KotlinJvmOptions, KotlinJvmCompilerOptions>.() -> Unit) = target.run(body)
 
-    val compilerOptions: KotlinJvmCompilerOptions =
-        project.objects.newInstance(KotlinJvmCompilerOptionsDefault::class.java)
+    val compilerOptions: KotlinJvmCompilerOptions = project.objects
+        .newInstance(KotlinJvmCompilerOptionsDefault::class.java)
+        .configureExperimentalTryK2(project)
 
     fun compilerOptions(configure: Action<KotlinJvmCompilerOptions>) {
         configure.execute(compilerOptions)
@@ -393,8 +420,9 @@ abstract class KotlinAndroidProjectExtension(project: Project) : KotlinSingleTar
 
     open fun target(body: KotlinAndroidTarget.() -> Unit) = target.run(body)
 
-    val compilerOptions: KotlinJvmCompilerOptions =
-        project.objects.newInstance(KotlinJvmCompilerOptionsDefault::class.java)
+    val compilerOptions: KotlinJvmCompilerOptions = project.objects
+        .newInstance(KotlinJvmCompilerOptionsDefault::class.java)
+        .configureExperimentalTryK2(project)
 
     fun compilerOptions(configure: Action<KotlinJvmCompilerOptions>) {
         configure.execute(compilerOptions)

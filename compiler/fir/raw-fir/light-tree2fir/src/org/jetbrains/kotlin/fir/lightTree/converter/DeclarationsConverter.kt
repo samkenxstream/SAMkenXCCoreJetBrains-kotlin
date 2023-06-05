@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.fir.lightTree.converter
 
 import com.intellij.lang.LighterASTNode
-import com.intellij.lang.impl.PsiBuilderImpl
 import com.intellij.psi.TokenType
 import com.intellij.util.diff.FlyweightCapableTreeStructure
 import org.jetbrains.kotlin.*
@@ -19,9 +18,6 @@ import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget.*
-import org.jetbrains.kotlin.diagnostics.DiagnosticContext
-import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
-import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.builder.*
 import org.jetbrains.kotlin.fir.contracts.FirContractDescription
@@ -33,14 +29,10 @@ import org.jetbrains.kotlin.fir.declarations.utils.DanglingTypeConstraint
 import org.jetbrains.kotlin.fir.declarations.utils.addDeclarations
 import org.jetbrains.kotlin.fir.declarations.utils.addDefaultBoundIfNecessary
 import org.jetbrains.kotlin.fir.declarations.utils.danglingTypeConstraints
-import org.jetbrains.kotlin.fir.diagnostics.ConeDanglingModifierOnTopLevel
-import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
-import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
-import org.jetbrains.kotlin.fir.diagnostics.DiagnosticKind
+import org.jetbrains.kotlin.fir.diagnostics.*
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirSingleExpressionBlock
-import org.jetbrains.kotlin.fir.lightTree.LightTree2Fir
 import org.jetbrains.kotlin.fir.lightTree.fir.*
 import org.jetbrains.kotlin.fir.lightTree.fir.modifier.Modifier
 import org.jetbrains.kotlin.fir.lightTree.fir.modifier.TypeModifier
@@ -52,10 +44,13 @@ import org.jetbrains.kotlin.fir.references.builder.buildSimpleNamedReference
 import org.jetbrains.kotlin.fir.scopes.FirScopeProvider
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
-import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.types.ConeClassLikeType
+import org.jetbrains.kotlin.fir.types.FirTypeProjection
+import org.jetbrains.kotlin.fir.types.FirTypeRef
+import org.jetbrains.kotlin.fir.types.FirUserTypeRef
 import org.jetbrains.kotlin.fir.types.builder.*
-import org.jetbrains.kotlin.fir.types.impl.FirImplicitTypeRefImplWithoutSource
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
+import org.jetbrains.kotlin.fir.types.impl.FirImplicitTypeRefImplWithoutSource
 import org.jetbrains.kotlin.fir.types.impl.FirQualifierPartImpl
 import org.jetbrains.kotlin.fir.types.impl.FirTypeArgumentListImpl
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
@@ -69,33 +64,10 @@ class DeclarationsConverter(
     session: FirSession,
     internal val baseScopeProvider: FirScopeProvider,
     tree: FlyweightCapableTreeStructure<LighterASTNode>,
-    @set:PrivateForInline override var offset: Int = 0,
     context: Context<LighterASTNode> = Context(),
-    private val diagnosticsReporter: DiagnosticReporter? = null,
-    private val diagnosticContext: DiagnosticContext? = null
 ) : BaseConverter(session, tree, context) {
 
-    @OptIn(PrivateForInline::class)
-    inline fun <R> withOffset(newOffset: Int, block: () -> R): R {
-        val oldOffset = offset
-        offset = newOffset
-        return try {
-            block()
-        } finally {
-            offset = oldOffset
-        }
-    }
-
     private val expressionConverter = ExpressionsConverter(session, tree, this, context)
-
-    override fun reportSyntaxError(node: LighterASTNode) {
-        val message = PsiBuilderImpl.getErrorMessage(node)
-        if (message == null) {
-            diagnosticsReporter?.reportOn(node.toFirSourceElement(), FirSyntaxErrors.SYNTAX, diagnosticContext!!)
-        } else {
-            diagnosticsReporter?.reportOn(node.toFirSourceElement(), FirSyntaxErrors.SYNTAX_WITH_MESSAGE, message, diagnosticContext!!)
-        }
-    }
 
     /**
      * [org.jetbrains.kotlin.parsing.KotlinParsing.parseFile]
@@ -148,11 +120,12 @@ class DeclarationsConverter(
             this.sourceFile = sourceFile
             this.sourceFileLinesMapping = linesMapping
             this.packageDirective = packageDirective ?: buildPackageDirective { packageFqName = context.packageFqName }
-            annotationsContainer = fileAnnotationContainer
-                 ?: buildFileAnnotationsContainer {
-                    moduleData = baseModuleData
-                    containingFileSymbol = fileSymbol
-                }
+            annotationsContainer = fileAnnotationContainer ?: buildFileAnnotationsContainer {
+                moduleData = baseModuleData
+                containingFileSymbol = fileSymbol
+                resolvePhase = FirResolvePhase.BODY_RESOLVE
+            }
+
             imports += importList
             declarations += firDeclarationList
         }
@@ -356,6 +329,10 @@ class DeclarationsConverter(
                     ANNOTATION -> container += convertAnnotation(node)
                     ANNOTATION_ENTRY -> container += convertAnnotationEntry(node)
                 }
+            }
+
+            annotations.ifEmpty {
+                resolvePhase = FirResolvePhase.BODY_RESOLVE
             }
         }
     }
@@ -622,6 +599,13 @@ class DeclarationsConverter(
                             context.className,
                             createClassTypeRefWithSourceKind = { firPrimaryConstructor.returnTypeRef },
                             createParameterTypeRefWithSourceKind = { property, _ -> property.returnTypeRef },
+                            addValueParameterAnnotations = { valueParam ->
+                                valueParam.forEachChildren {
+                                    if (it.tokenType == MODIFIER_LIST) convertModifierList(it).annotations.filterTo(annotations) {
+                                        it.useSiteTarget.appliesToPrimaryConstructorParameter()
+                                    }
+                                }
+                            },
                         ).generate()
                     }
 
@@ -874,6 +858,7 @@ class DeclarationsConverter(
                 CLASS_INITIALIZER -> container += convertAnonymousInitializer(node) //anonymousInitializer
                 SECONDARY_CONSTRUCTOR -> container += convertSecondaryConstructor(node, classWrapper)
                 MODIFIER_LIST -> modifierLists += node
+                DESTRUCTURING_DECLARATION -> container += buildErrorTopLevelDestructuringDeclaration(node.toFirSourceElement())
             }
         }
         for (node in modifierLists) {
@@ -1186,7 +1171,11 @@ class DeclarationsConverter(
                     accessors += it
                 }
                 BACKING_FIELD -> fieldDeclaration = it
-                else -> if (it.isExpression()) propertyInitializer = expressionConverter.getAsFirExpression(it, "Should have initializer")
+                else -> if (it.isExpression()) {
+                    context.calleeNamesForLambda += null
+                    propertyInitializer = expressionConverter.getAsFirExpression(it, "Should have initializer")
+                    context.calleeNamesForLambda.removeLast()
+                }
             }
         }
 
@@ -1216,7 +1205,13 @@ class DeclarationsConverter(
 
             typeParameterList?.let { firTypeParameters += convertTypeParameters(it, typeConstraints, symbol) }
 
-            backingField = fieldDeclaration.convertBackingField(symbol, modifiers, returnType, isVar)
+            backingField = fieldDeclaration.convertBackingField(
+                symbol, modifiers, returnType, isVar,
+                if (isLocal) emptyList() else modifiers.annotations.filter {
+                    it.useSiteTarget == FIELD || it.useSiteTarget == PROPERTY_DELEGATE_FIELD
+                },
+                property,
+            )
 
             if (isLocal) {
                 this.isLocal = true
@@ -1314,7 +1309,7 @@ class DeclarationsConverter(
                 }
             }
             annotations += if (isLocal) modifiers.annotations else modifiers.annotations.filter {
-                it.useSiteTarget != PROPERTY_GETTER &&
+                it.useSiteTarget != FIELD && it.useSiteTarget != PROPERTY_DELEGATE_FIELD && it.useSiteTarget != PROPERTY_GETTER &&
                         (!isVar || it.useSiteTarget != SETTER_PARAMETER && it.useSiteTarget != PROPERTY_SETTER)
             }
 
@@ -1348,7 +1343,7 @@ class DeclarationsConverter(
             entries,
             firExpression ?: buildErrorExpression(
                 null,
-                ConeSimpleDiagnostic("Initializer required for destructuring declaration", DiagnosticKind.Syntax)
+                ConeSyntaxDiagnostic("Initializer required for destructuring declaration")
             ),
             source,
             modifiers
@@ -1470,8 +1465,8 @@ class DeclarationsConverter(
             this.isGetter = isGetter
             this.status = status
             context.firFunctionTargets += target
-            annotations += modifiers.annotations
             annotations += accessorAdditionalAnnotations
+            annotations += modifiers.annotations
 
             if (!isGetter) {
                 valueParameters += firValueParameters
@@ -1499,6 +1494,8 @@ class DeclarationsConverter(
         propertyModifiers: Modifier,
         propertyReturnType: FirTypeRef,
         isVar: Boolean,
+        annotationsFromProperty: List<FirAnnotationCall>,
+        property: LighterASTNode,
     ): FirBackingField {
         var modifiers = Modifier()
         var returnType: FirTypeRef = implicitType
@@ -1528,6 +1525,7 @@ class DeclarationsConverter(
                 symbol = FirBackingFieldSymbol(CallableId(name))
                 this.status = status
                 annotations += modifiers.annotations
+                annotations += annotationsFromProperty
                 this.propertySymbol = propertySymbol
                 this.initializer = backingFieldInitializer
                 this.isVar = isVar
@@ -1536,7 +1534,9 @@ class DeclarationsConverter(
         } else {
             FirDefaultPropertyBackingField(
                 moduleData = baseModuleData,
-                annotations = mutableListOf(),
+                origin = FirDeclarationOrigin.Source,
+                source = property.toFirSourceElement(KtFakeSourceElementKind.DefaultAccessor),
+                annotations = annotationsFromProperty.toMutableList(),
                 returnTypeRef = propertyReturnType.copyWithNewSourceKind(KtFakeSourceElementKind.DefaultAccessor),
                 isVar = isVar,
                 propertySymbol = propertySymbol,
@@ -1677,6 +1677,9 @@ class DeclarationsConverter(
                 label = context.getLastLabel(functionDeclaration)
                 val labelName = label?.name ?: context.calleeNamesForLambda.lastOrNull()?.identifier
                 target = FirFunctionTarget(labelName = labelName, isLambda = false)
+                if (modifiers.hasSuspend()) {
+                    status = FirResolvedDeclarationStatusImpl.DEFAULT_STATUS_FOR_SUSPEND_FUNCTION_EXPRESSION
+                }
             }
         } else {
             val functionName = identifier.nameAsSafeName()
@@ -1797,11 +1800,7 @@ class DeclarationsConverter(
             )
         }
 
-        val blockTree = LightTree2Fir.buildLightTreeBlockExpression(block.asText)
-        return DeclarationsConverter(
-            baseSession, baseScopeProvider, blockTree, offset = offset + tree.getStartOffset(block), context,
-            diagnosticsReporter, diagnosticContext
-        ).convertBlockExpression(blockTree.root)
+        return convertBlockExpression(block)
     }
 
     /**
@@ -1893,13 +1892,13 @@ class DeclarationsConverter(
         }
 
         val calculatedFirExpression = firExpression ?: buildErrorExpression(
-            explicitDelegation.toFirSourceElement(), ConeSimpleDiagnostic("Should have delegate", DiagnosticKind.Syntax)
+            explicitDelegation.toFirSourceElement(), ConeSyntaxDiagnostic("Should have delegate")
         )
 
         delegateFieldsMap.put(
             index,
             buildField {
-                source = calculatedFirExpression.source?.fakeElement(KtFakeSourceElementKind.ClassDelegationField)
+                source = explicitDelegation.toFirSourceElement().fakeElement(KtFakeSourceElementKind.ClassDelegationField)
                 moduleData = baseModuleData
                 origin = FirDeclarationOrigin.Synthetic
                 name = NameUtils.delegateFieldName(delegateFieldsMap.size)
@@ -2046,14 +2045,14 @@ class DeclarationsConverter(
                 CONTEXT_RECEIVER_LIST, TokenType.ERROR_ELEMENT -> firType =
                     buildErrorTypeRef {
                         source = typeRefSource
-                        diagnostic = ConeSimpleDiagnostic("Unwrapped type is null", DiagnosticKind.Syntax)
+                        diagnostic = ConeSyntaxDiagnostic("Unwrapped type is null")
                     }
             }
         }
 
         val calculatedFirType = firType ?: buildErrorTypeRef {
             source = typeRefSource
-            diagnostic = ConeSimpleDiagnostic("Incomplete code", DiagnosticKind.Syntax)
+            diagnostic = ConeSyntaxDiagnostic("Incomplete code")
         }
 
         for (modifierList in allTypeModifiers) {
@@ -2075,7 +2074,7 @@ class DeclarationsConverter(
         if (children.size != 2) {
             return buildErrorTypeRef {
                 source = typeRefSource
-                diagnostic = ConeSimpleDiagnostic("Wrong code", DiagnosticKind.Syntax)
+                diagnostic = ConeSyntaxDiagnostic("Wrong code")
             }
         }
 
@@ -2158,7 +2157,7 @@ class DeclarationsConverter(
         if (identifier == null)
             return buildErrorTypeRef {
                 source = typeRefSource
-                diagnostic = ConeSimpleDiagnostic("Incomplete user type", DiagnosticKind.Syntax)
+                diagnostic = ConeSyntaxDiagnostic("Incomplete user type")
             }
 
         val qualifierPart = FirQualifierPartImpl(

@@ -7,24 +7,33 @@ package org.jetbrains.kotlin.analysis.api.standalone.base.project.structure
 
 import com.intellij.codeInsight.ExternalAnnotationsManager
 import com.intellij.codeInsight.InferredAnnotationsManager
+import com.intellij.core.CoreApplicationEnvironment
 import com.intellij.core.CoreJavaFileManager
 import com.intellij.core.CorePackageIndex
 import com.intellij.ide.highlighter.JavaFileType
+import com.intellij.mock.MockApplication
 import com.intellij.mock.MockProject
 import com.intellij.openapi.Disposable
-import com.intellij.openapi.components.ServiceManager
 import com.intellij.openapi.roots.PackageIndex
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VirtualFileManager
-import com.intellij.psi.PsiDirectory
-import com.intellij.psi.PsiFileSystemItem
-import com.intellij.psi.PsiJavaFile
+import com.intellij.psi.*
 import com.intellij.psi.impl.file.impl.JavaFileManager
+import com.intellij.psi.impl.smartPointers.PsiClassReferenceTypePointerFactory
+import com.intellij.psi.impl.smartPointers.SmartPointerManagerImpl
+import com.intellij.psi.impl.smartPointers.SmartTypePointerManagerImpl
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.ProjectScope
 import com.intellij.util.io.URLUtil.JAR_PROTOCOL
 import com.intellij.util.io.URLUtil.JAR_SEPARATOR
+import org.jetbrains.kotlin.analysis.api.impl.base.references.HLApiReferenceProviderService
+import org.jetbrains.kotlin.analysis.api.impl.base.java.source.JavaElementSourceWithSmartPointerFactory
+import org.jetbrains.kotlin.analysis.api.resolve.extensions.KtResolveExtensionProvider
+import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache
+import org.jetbrains.kotlin.analysis.decompiler.stub.file.DummyFileAttributeService
+import org.jetbrains.kotlin.analysis.decompiler.stub.file.FileAttributeService
 import org.jetbrains.kotlin.analysis.project.structure.*
+import org.jetbrains.kotlin.analysis.providers.impl.KotlinFakeClsStubsCache
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.*
 import org.jetbrains.kotlin.cli.jvm.index.JavaRoot
@@ -36,9 +45,12 @@ import org.jetbrains.kotlin.cli.jvm.modules.CliJavaModuleResolver
 import org.jetbrains.kotlin.cli.jvm.modules.CoreJrtFileSystem
 import org.jetbrains.kotlin.cli.jvm.modules.JavaModuleGraph
 import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory
 import org.jetbrains.kotlin.load.kotlin.MetadataFinderFactory
 import org.jetbrains.kotlin.load.kotlin.VirtualFileFinderFactory
+import org.jetbrains.kotlin.psi.KotlinReferenceProvidersService
 import org.jetbrains.kotlin.resolve.ModuleAnnotationsResolver
+import org.jetbrains.kotlin.resolve.jvm.KotlinJavaPsiFacade
 import org.jetbrains.kotlin.resolve.jvm.modules.JavaModuleResolver
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.popLast
@@ -52,9 +64,62 @@ object StandaloneProjectFactory {
     ): KotlinCoreProjectEnvironment {
         val applicationEnvironment =
             KotlinCoreEnvironment.getOrCreateApplicationEnvironmentForTests(applicationDisposable, compilerConfiguration)
+        registerApplicationExtensionPoints(applicationEnvironment, applicationDisposable)
+
+        registerApplicationServices(applicationEnvironment.application)
 
         return KotlinCoreProjectEnvironment(projectDisposable, applicationEnvironment).apply {
+            registerProjectServices(project)
             registerJavaPsiFacade(project)
+        }
+    }
+
+    private fun registerApplicationServices(application: MockApplication) {
+        if (application.getServiceIfCreated(KotlinFakeClsStubsCache::class.java) != null) {
+            // application services already registered by som other threads, tests
+            return
+        }
+        KotlinCoreEnvironment.underApplicationLock {
+            if (application.getServiceIfCreated(KotlinFakeClsStubsCache::class.java) != null) {
+                // application services already registered by som other threads, tests
+                return
+            }
+            application.apply {
+                registerService(KotlinFakeClsStubsCache::class.java, KotlinFakeClsStubsCache::class.java)
+                registerService(ClsKotlinBinaryClassCache::class.java)
+                registerService(FileAttributeService::class.java, DummyFileAttributeService::class.java)
+            }
+        }
+    }
+
+    private fun registerProjectServices(project: MockProject) {
+        @Suppress("UnstableApiUsage")
+        CoreApplicationEnvironment.registerExtensionPoint(
+            project.extensionArea,
+            KtResolveExtensionProvider.EP_NAME.name,
+            KtResolveExtensionProvider::class.java
+        )
+
+        project.apply {
+            registerService(KotlinReferenceProvidersService::class.java, HLApiReferenceProviderService::class.java)
+        }
+    }
+
+    private fun registerApplicationExtensionPoints(
+        applicationEnvironment: KotlinCoreApplicationEnvironment,
+        applicationDisposable: Disposable,
+    ) {
+        val applicationArea = applicationEnvironment.application.extensionArea
+
+        if (applicationArea.hasExtensionPoint(ClassTypePointerFactory.EP_NAME)) return
+        KotlinCoreEnvironment.underApplicationLock {
+            if (applicationArea.hasExtensionPoint(ClassTypePointerFactory.EP_NAME)) return@underApplicationLock
+            CoreApplicationEnvironment.registerApplicationExtensionPoint(
+                ClassTypePointerFactory.EP_NAME,
+                ClassTypePointerFactory::class.java
+            )
+            applicationArea.getExtensionPoint(ClassTypePointerFactory.EP_NAME)
+                .registerExtension(PsiClassReferenceTypePointerFactory(), applicationDisposable)
         }
     }
 
@@ -62,7 +127,7 @@ object StandaloneProjectFactory {
         with(project) {
             registerService(
                 CoreJavaFileManager::class.java,
-                ServiceManager.getService(this, JavaFileManager::class.java) as CoreJavaFileManager
+                this.getService(JavaFileManager::class.java) as CoreJavaFileManager
             )
 
             registerService(ExternalAnnotationsManager::class.java, MockExternalAnnotationsManager())
@@ -84,7 +149,14 @@ object StandaloneProjectFactory {
         val project = environment.project
 
         KotlinCoreEnvironment.registerProjectExtensionPoints(project.extensionArea)
-        KotlinCoreEnvironment.registerProjectServices(project)
+        with(project) {
+            registerService(SmartTypePointerManager::class.java, SmartTypePointerManagerImpl::class.java)
+            registerService(SmartPointerManager::class.java, SmartPointerManagerImpl::class.java)
+            registerService(JavaElementSourceFactory::class.java, JavaElementSourceWithSmartPointerFactory::class.java)
+
+            registerService(KotlinJavaPsiFacade::class.java, KotlinJavaPsiFacade(this))
+            registerService(ModuleAnnotationsResolver::class.java, CliModuleAnnotationsResolver())
+        }
 
         project.registerService(ProjectStructureProvider::class.java, projectStructureProvider)
         initialiseVirtualFileFinderServices(environment, modules, sourceFiles, languageVersionSettings, jdkHome)
@@ -203,14 +275,14 @@ object StandaloneProjectFactory {
 
     fun getAllBinaryRoots(
         modules: List<KtModule>,
-        environment: KotlinCoreProjectEnvironment
+        environment: KotlinCoreProjectEnvironment,
     ): List<JavaRoot> = withAllTransitiveDependencies(modules)
         .filterIsInstance<KtBinaryModule>()
         .flatMap { it.getJavaRoots(environment) }
 
     fun getVirtualFilesForLibraryRoots(
         roots: Collection<Path>,
-        environment: KotlinCoreProjectEnvironment
+        environment: KotlinCoreProjectEnvironment,
     ): List<VirtualFile> {
         return roots.mapNotNull { path ->
             val pathString = path.toAbsolutePath().toString()
@@ -227,7 +299,7 @@ object StandaloneProjectFactory {
                     VirtualFileManager.getInstance().findFileByNioPath(path)
                 }
             }
-        }
+        }.distinct()
     }
 
     private fun withAllTransitiveDependencies(ktModules: List<KtModule>): List<KtModule> {

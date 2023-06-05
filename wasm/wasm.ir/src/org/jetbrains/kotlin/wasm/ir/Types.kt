@@ -25,6 +25,8 @@ object WasmFuncRef : WasmType("funcref", -0x10)
 object WasmExternRef : WasmType("externref", -0x11)
 object WasmAnyRef : WasmType("anyref", -0x12)
 object WasmEqRef : WasmType("eqref", -0x13)
+object WasmRefNullNoneType : WasmType("nullnone", -0x1b)
+object WasmRefNullExternrefType : WasmType("nullexternref", -0x17)
 
 data class WasmRefNullType(val heapType: WasmHeapType) : WasmType("ref null", -0x14)
 data class WasmRefType(val heapType: WasmHeapType) : WasmType("ref", -0x15)
@@ -33,7 +35,7 @@ data class WasmRefType(val heapType: WasmHeapType) : WasmType("ref", -0x15)
 object WasmI31Ref : WasmType("i31ref", -0x16)
 
 @Suppress("unused")
-object WasmDataRef : WasmType("dataref", -0x19)
+object WasmStructRef : WasmType("structref", -0x19)
 
 sealed class WasmHeapType {
     data class Type(val type: WasmSymbolReadOnly<WasmTypeDeclaration>) : WasmHeapType() {
@@ -47,8 +49,9 @@ sealed class WasmHeapType {
         object Extern : Simple("extern", -0x11)
         object Any : Simple("any", -0x12)
         object Eq : Simple("eq", -0x13)
-
-        object Data : Simple("data", -0x19)
+        object Struct : Simple("struct", -0x19)
+        object NullNone : Simple("nullref", -0x1b)
+        object NullNoExtern : Simple("nullexternref", -0x17)
 
         override fun toString(): String {
             return "Simple:$name(${code.toString(16)})"
@@ -66,6 +69,8 @@ fun WasmType.getHeapType(): WasmHeapType =
     when (this) {
         is WasmRefType -> heapType
         is WasmRefNullType -> heapType
+        is WasmRefNullNoneType -> WasmHeapType.Simple.NullNone
+        is WasmRefNullExternrefType -> WasmHeapType.Simple.NullNoExtern
         is WasmEqRef -> WasmHeapType.Simple.Eq
         is WasmAnyRef -> WasmHeapType.Simple.Any
         is WasmFuncRef -> WasmHeapType.Simple.Func

@@ -28,10 +28,7 @@ import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstructorCallImpl
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
-import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
-import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
@@ -375,18 +372,29 @@ class IrBuiltInsOverFir(
     override val ieee754equalsFunByOperandType: MutableMap<IrClassifierSymbol, IrSimpleFunctionSymbol>
         get() = _ieee754equalsFunByOperandType
 
-    override lateinit var eqeqeqSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var eqeqSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var throwCceSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var throwIseSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var andandSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var ororSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var noWhenBranchMatchedExceptionSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var illegalArgumentExceptionSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var dataClassArrayMemberHashCodeSymbol: IrSimpleFunctionSymbol private set
-    override lateinit var dataClassArrayMemberToStringSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var eqeqeqSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var eqeqSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var throwCceSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var throwIseSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var andandSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var ororSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var noWhenBranchMatchedExceptionSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var illegalArgumentExceptionSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var dataClassArrayMemberHashCodeSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var dataClassArrayMemberToStringSymbol: IrSimpleFunctionSymbol private set
 
-    override lateinit var checkNotNullSymbol: IrSimpleFunctionSymbol private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var checkNotNullSymbol: IrSimpleFunctionSymbol private set
     override val arrayOfNulls: IrSimpleFunctionSymbol by lazy {
         findFunctions(kotlinPackage, Name.identifier("arrayOfNulls")).first {
             it.owner.dispatchReceiverParameter == null && it.owner.valueParameters.size == 1 &&
@@ -397,10 +405,14 @@ class IrBuiltInsOverFir(
     override val linkageErrorSymbol: IrSimpleFunctionSymbol
         get() = TODO("Not yet implemented")
 
-    override lateinit var lessFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
-    override lateinit var lessOrEqualFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
-    override lateinit var greaterOrEqualFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
-    override lateinit var greaterFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var lessFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var lessOrEqualFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var greaterOrEqualFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
+    @Suppress("RedundantModalityModifier") // Explicit `final` keyword can be dropped after bootstrap update
+    final override var greaterFunByOperandType: Map<IrClassifierSymbol, IrSimpleFunctionSymbol> private set
 
     init {
         with(this.operatorsPackageFragment) {
@@ -450,7 +462,7 @@ class IrBuiltInsOverFir(
                 }
 
                 createFunction(
-                    "CHECK_NOT_NULL",
+                    BuiltInOperatorNames.CHECK_NOT_NULL,
                     IrSimpleTypeImpl(typeParameter.symbol, SimpleTypeNullability.DEFINITELY_NOT_NULL, emptyList(), emptyList()),
                     arrayOf("" to IrSimpleTypeImpl(typeParameter.symbol, hasQuestionMark = true, emptyList(), emptyList())),
                     typeParameters = listOf(typeParameter),
@@ -536,37 +548,11 @@ class IrBuiltInsOverFir(
         }
     }
 
-    private class KotlinPackageFuns(
-        val arrayOf: IrSimpleFunctionSymbol,
-    )
-
-    private val kotlinBuiltinFunctions by lazy {
-        fun IrClassSymbol.addPackageFun(
-            name: String,
-            returnType: IrType,
-            vararg argumentTypes: Pair<String, IrType>,
-            builder: IrSimpleFunction.() -> Unit
-        ) =
-            kotlinIrPackage.createFunction(name, returnType, argumentTypes, postBuild = builder).also {
-                this.owner.declarations.add(it)
-            }.symbol
-
-        val kotlinKt = kotlinIrPackage.createClass(kotlinPackage.child(Name.identifier("KotlinKt")))
-        KotlinPackageFuns(
-            arrayOf = kotlinKt.addPackageFun("arrayOf", arrayClass.defaultType) arrayOf@{
-                val typeParameter = addTypeParameter("T", anyNType)
-                addValueParameter {
-                    this.name = Name.identifier("elements")
-                    this.type = arrayClass.typeWithParameters(listOf(typeParameter))
-                    this.varargElementType = typeParameter.defaultType
-                    this.origin = this@arrayOf.origin
-                }
-                returnType = arrayClass.typeWithParameters(listOf(typeParameter))
-            }
-        )
+    override val arrayOf: IrSimpleFunctionSymbol by lazy {
+        // distinct() is needed because we can get two Fir symbols for arrayOf function (from builtins and from stdlib)
+        //   with the same IR symbol for them
+        findFunctions(kotlinPackage, Name.identifier("arrayOf")).distinct().single()
     }
-
-    override val arrayOf: IrSimpleFunctionSymbol get() = kotlinBuiltinFunctions.arrayOf
 
     private fun <T : Any> getFunctionsByKey(
         name: Name,
@@ -622,6 +608,9 @@ class IrBuiltInsOverFir(
 
     override fun findFunctions(name: Name, packageFqName: FqName): Iterable<IrSimpleFunctionSymbol> =
         findFunctions(packageFqName, name)
+
+    override fun findProperties(name: Name, packageFqName: FqName): Iterable<IrPropertySymbol> =
+        findProperties(packageFqName, name)
 
     override fun findClass(name: Name, vararg packageNameSegments: String): IrClassSymbol? =
         referenceClassByFqname(FqName.fromSegments(packageNameSegments.asList()), name)
@@ -849,6 +838,7 @@ class IrBuiltInsOverFir(
                         it.valueParameters.count() == fn.valueParameters.count() &&
                         it.valueParameters.zip(fn.valueParameters).all { (l, r) -> l.type == r.type }
             }?.let {
+                assert(it.symbol != fn) { "Cannot add function $fn to its own overriddenSymbols" }
                 fn.overriddenSymbols += it.symbol
             }
         }
@@ -965,6 +955,7 @@ class IrBuiltInsOverFir(
             // TODO: replace with correct logic or explicit specification if cases become more complex
             forEachSuperClass {
                 properties.find { it.name == property.name }?.let {
+                    assert(property != it.symbol) { "Cannot add property $property to its own overriddenSymbols"}
                     property.overriddenSymbols += it.symbol
                 }
             }
@@ -1164,5 +1155,10 @@ class IrBuiltInsOverFir(
     private fun findFunctions(packageName: FqName, name: Name): List<IrSimpleFunctionSymbol> =
         components.session.symbolProvider.getTopLevelFunctionSymbols(packageName, name).mapNotNull { firOpSymbol ->
             components.declarationStorage.getIrFunctionSymbol(firOpSymbol) as? IrSimpleFunctionSymbol
+        }
+
+    private fun findProperties(packageName: FqName, name: Name): List<IrPropertySymbol> =
+        components.session.symbolProvider.getTopLevelPropertySymbols(packageName, name).mapNotNull { firOpSymbol ->
+            components.declarationStorage.getIrPropertySymbol(firOpSymbol) as? IrPropertySymbol
         }
 }

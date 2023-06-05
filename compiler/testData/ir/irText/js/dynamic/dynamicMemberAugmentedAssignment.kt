@@ -1,5 +1,4 @@
 // TARGET_BACKEND: JS_IR
-
 fun testAugmentedMemberAssignment(d: dynamic) {
     d.m += "+="
     d.m -= "-="

@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.fir.scopes.impl.*
 import org.jetbrains.kotlin.fir.scopes.scopeForSupertype
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.types.constructClassLikeType
+import org.jetbrains.kotlin.fir.types.isAny
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.utils.DFS
 
@@ -73,11 +74,15 @@ object JavaScopeProvider : FirScopeProvider() {
     }
 
     private fun buildDeclaredMemberScope(useSiteSession: FirSession, regularClass: FirRegularClass): FirContainingNamesAwareScope {
-        return if (regularClass is FirJavaClass) useSiteSession.declaredMemberScopeWithLazyNestedScope(
-            regularClass,
-            existingNames = regularClass.existingNestedClassifierNames,
-            symbolProvider = useSiteSession.symbolProvider
-        ) else useSiteSession.declaredMemberScope(regularClass)
+        return if (regularClass is FirJavaClass) {
+            useSiteSession.declaredMemberScopeWithLazyNestedScope(
+                regularClass,
+                existingNames = regularClass.existingNestedClassifierNames,
+                symbolProvider = useSiteSession.symbolProvider
+            )
+        } else {
+            useSiteSession.declaredMemberScope(regularClass, memberRequiredPhase = null)
+        }
     }
 
     private fun buildUseSiteMemberScopeWithJavaTypes(
@@ -88,13 +93,12 @@ object JavaScopeProvider : FirScopeProvider() {
     ): JavaClassUseSiteMemberScope {
         return scopeSession.getOrBuild(regularClass.symbol, JAVA_USE_SITE) {
             val declaredScope = buildDeclaredMemberScope(useSiteSession, regularClass)
-            val superTypes =
-                if (regularClass.isThereLoopInSupertypes(useSiteSession))
-                    listOf(StandardClassIds.Any.constructClassLikeType(emptyArray(), isNullable = false))
-                else
-                    lookupSuperTypes(
-                        regularClass, lookupInterfaces = true, deep = false, useSiteSession = useSiteSession, substituteTypes = true
-                    )
+            val superTypes = if (regularClass.isThereLoopInSupertypes(useSiteSession))
+                listOf(StandardClassIds.Any.constructClassLikeType(emptyArray(), isNullable = false))
+            else
+                lookupSuperTypes(
+                    regularClass, lookupInterfaces = true, deep = false, useSiteSession = useSiteSession, substituteTypes = true
+                )
 
             val superTypeScopes = superTypes.mapNotNull {
                 it.scopeForSupertype(useSiteSession, scopeSession, regularClass, memberRequiredPhase = memberRequiredPhase)
@@ -157,6 +161,7 @@ object JavaScopeProvider : FirScopeProvider() {
 
     private tailrec fun FirRegularClass.findJavaSuperClass(useSiteSession: FirSession): FirRegularClass? {
         val superClass = superConeTypes.firstNotNullOfOrNull {
+            if (it.isAny) return@firstNotNullOfOrNull null
             (it.lookupTag.toSymbol(useSiteSession)?.fir as? FirRegularClass)?.takeIf { superClass ->
                 superClass.classKind == ClassKind.CLASS
             }

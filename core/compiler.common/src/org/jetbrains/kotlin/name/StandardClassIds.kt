@@ -5,6 +5,8 @@
 
 package org.jetbrains.kotlin.name
 
+import org.jetbrains.kotlin.builtins.StandardNames
+
 object StandardClassIds {
     val BASE_KOTLIN_PACKAGE = FqName("kotlin")
     val BASE_REFLECT_PACKAGE = BASE_KOTLIN_PACKAGE.child(Name.identifier("reflect"))
@@ -172,6 +174,7 @@ object StandardClassIds {
 
         val RawTypeAnnotation = "RawType".internalIrId()
         val FlexibleNullability = "FlexibleNullability".internalIrId()
+        val FlexibleMutability = "FlexibleMutability".internalIrId()
         val EnhancedNullability = "EnhancedNullability".jvmInternalId()
 
         val InlineOnly = "InlineOnly".internalId()
@@ -199,7 +202,6 @@ object StandardClassIds {
 
             val retentionValue = value
             val targetAllowedTargets = Name.identifier("allowedTargets")
-            val jvmNameName = Name.identifier("name")
 
             val sinceKotlinVersion = Name.identifier("version")
 
@@ -210,7 +212,7 @@ object StandardClassIds {
             val deprecatedSinceKotlinErrorSince = Name.identifier("errorSince")
             val deprecatedSinceKotlinHiddenSince = Name.identifier("hiddenSince")
 
-            val parameterNameName = jvmNameName
+            val parameterNameName = StandardNames.NAME
         }
     }
 

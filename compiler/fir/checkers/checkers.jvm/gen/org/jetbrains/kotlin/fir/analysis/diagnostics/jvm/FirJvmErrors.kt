@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.fir.analysis.diagnostics.jvm
 
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.config.LanguageFeature.DefaultMethodsCallFromJava6TargetError
 import org.jetbrains.kotlin.config.LanguageFeature.ProhibitConcurrentHashMapContains
 import org.jetbrains.kotlin.config.LanguageFeature.ProhibitJvmOverloadsOnConstructorsOfAnnotationClasses
 import org.jetbrains.kotlin.config.LanguageFeature.ProhibitSpreadOnSignaturePolymorphicCall
@@ -90,13 +89,9 @@ object FirJvmErrors {
     val ILLEGAL_JAVA_LANG_RECORD_SUPERTYPE by error0<PsiElement>()
 
     // JVM Default
-    val JVM_DEFAULT_NOT_IN_INTERFACE by error0<PsiElement>()
-    val JVM_DEFAULT_IN_JVM6_TARGET by error1<PsiElement, String>()
-    val JVM_DEFAULT_REQUIRED_FOR_OVERRIDE by error0<KtDeclaration>(SourceElementPositioningStrategies.DECLARATION_SIGNATURE)
     val JVM_DEFAULT_IN_DECLARATION by error1<KtElement, String>(SourceElementPositioningStrategies.DECLARATION_SIGNATURE_OR_DEFAULT)
     val JVM_DEFAULT_WITH_COMPATIBILITY_IN_DECLARATION by error0<KtElement>()
     val JVM_DEFAULT_WITH_COMPATIBILITY_NOT_ON_INTERFACE by error0<KtElement>()
-    val NON_JVM_DEFAULT_OVERRIDES_JAVA_DEFAULT by warning0<KtDeclaration>(SourceElementPositioningStrategies.DECLARATION_SIGNATURE)
 
     // External Declaration
     val EXTERNAL_DECLARATION_CANNOT_BE_ABSTRACT by error0<KtDeclaration>(SourceElementPositioningStrategies.ABSTRACT_MODIFIER)
@@ -106,7 +101,6 @@ object FirJvmErrors {
 
     // Repeatable Annotations
     val NON_SOURCE_REPEATED_ANNOTATION by error0<KtAnnotationEntry>()
-    val REPEATED_ANNOTATION_TARGET6 by error0<KtAnnotationEntry>()
     val REPEATED_ANNOTATION_WITH_CONTAINER by error2<KtAnnotationEntry, ClassId, ClassId>()
     val REPEATABLE_CONTAINER_MUST_HAVE_VALUE_ARRAY by deprecationError2<KtAnnotationEntry, ClassId, ClassId>(RepeatableAnnotationContainerConstraints)
     val REPEATABLE_CONTAINER_HAS_NON_DEFAULT_PARAMETER by deprecationError2<KtAnnotationEntry, ClassId, Name>(RepeatableAnnotationContainerConstraints)
@@ -121,13 +115,10 @@ object FirJvmErrors {
     val INAPPLICABLE_JVM_FIELD by error1<KtAnnotationEntry, String>()
     val INAPPLICABLE_JVM_FIELD_WARNING by warning1<KtAnnotationEntry, String>()
     val JVM_SYNTHETIC_ON_DELEGATE by error0<KtAnnotationEntry>()
-    val DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET by deprecationError0<PsiElement>(DefaultMethodsCallFromJava6TargetError, SourceElementPositioningStrategies.REFERENCE_BY_QUALIFIED)
-    val INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET by deprecationError0<PsiElement>(DefaultMethodsCallFromJava6TargetError, SourceElementPositioningStrategies.REFERENCE_BY_QUALIFIED)
     val SUBCLASS_CANT_CALL_COMPANION_PROTECTED_NON_STATIC by error0<PsiElement>(SourceElementPositioningStrategies.REFERENCED_NAME_BY_QUALIFIED)
     val CONCURRENT_HASH_MAP_CONTAINS_OPERATOR by deprecationError0<PsiElement>(ProhibitConcurrentHashMapContains)
     val SPREAD_ON_SIGNATURE_POLYMORPHIC_CALL by deprecationError0<PsiElement>(ProhibitSpreadOnSignaturePolymorphicCall, SourceElementPositioningStrategies.SPREAD_OPERATOR)
     val JAVA_SAM_INTERFACE_CONSTRUCTOR_REFERENCE by error0<PsiElement>()
-    val JAVA_SHADOWED_PROTECTED_FIELD_REFERENCE by error2<PsiElement, ClassId, ClassId>()
 
     init {
         RootDiagnosticRendererFactory.registerFactory(FirJvmErrorsDefaultMessages)

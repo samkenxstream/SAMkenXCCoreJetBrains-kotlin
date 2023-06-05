@@ -24,12 +24,19 @@ import org.jetbrains.kotlin.gradle.internal.customizeKotlinDependencies
 import org.jetbrains.kotlin.gradle.model.builder.KotlinModelBuilder
 import org.jetbrains.kotlin.gradle.plugin.internal.JavaSourceSetsAccessor
 import org.jetbrains.kotlin.gradle.plugin.internal.MavenPluginConfigurator
+import org.jetbrains.kotlin.gradle.plugin.internal.compatibilityConventionRegistrar
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.tasks.InspectClassesForMultiModuleIC
 import org.jetbrains.kotlin.gradle.tasks.KotlinTasksProvider
 import org.jetbrains.kotlin.gradle.tasks.locateTask
 import org.jetbrains.kotlin.gradle.tasks.registerTask
 import org.jetbrains.kotlin.gradle.utils.archivePathCompatible
+
+const val PLUGIN_CLASSPATH_CONFIGURATION_NAME = "kotlinCompilerPluginClasspath"
+const val NATIVE_COMPILER_PLUGIN_CLASSPATH_CONFIGURATION_NAME = "kotlinNativeCompilerPluginClasspath"
+const val COMPILER_CLASSPATH_CONFIGURATION_NAME = "kotlinCompilerClasspath"
+internal const val BUILD_TOOLS_API_CLASSPATH_CONFIGURATION_NAME = "kotlinBuildToolsApiClasspath"
+internal const val KLIB_COMMONIZER_CLASSPATH_CONFIGURATION_NAME = "kotlinKlibCommonizerClasspath"
 
 internal abstract class AbstractKotlinPlugin(
     val tasksProvider: KotlinTasksProvider,
@@ -178,18 +185,25 @@ internal abstract class AbstractKotlinPlugin(
                 if (duplicateJavaSourceSetsAsKotlinSourceSets) {
                     val kotlinSourceSet = project.kotlinExtension.sourceSets.maybeCreate(kotlinCompilation.name)
                     kotlinSourceSet.kotlin.source(javaSourceSet.java)
-                    kotlinCompilation.source(kotlinSourceSet)
+                    // Registering resources from KotlinSourceSet as Java SourceSet resources. In case of KotlinPlugin
+                    // Java Sources set will create ProcessResources task to process all resources into output
+                    // 'kotlinSourceSet.resources' should contain Java SourceSet default resource directories and to avoid
+                    // duplication error we are replacing here already configured default one.
+                    javaSourceSet.resources.setSrcDirs(
+                        listOf { kotlinSourceSet.resources.sourceDirectories }
+                    )
                     @Suppress("DEPRECATION")
-                    javaSourceSet.addConvention(kotlinSourceSetDslName, kotlinSourceSet)
+                    kotlinCompilation.source(kotlinSourceSet)
+                    project.compatibilityConventionRegistrar.addConvention(javaSourceSet, kotlinSourceSetDslName, kotlinSourceSet)
                     javaSourceSet.addExtension(kotlinSourceSetDslName, kotlinSourceSet.kotlin)
                 } else {
-                    @Suppress("DEPRECATION")
-                    javaSourceSet.addConvention(kotlinSourceSetDslName, kotlinCompilation.defaultSourceSet)
+                    project.compatibilityConventionRegistrar.addConvention(javaSourceSet, kotlinSourceSetDslName, kotlinCompilation.defaultSourceSet)
                     javaSourceSet.addExtension(kotlinSourceSetDslName, kotlinCompilation.defaultSourceSet.kotlin)
                 }
             }
 
             kotlinTarget.compilations.all { kotlinCompilation ->
+                @Suppress("DEPRECATION")
                 kotlinCompilation.source(kotlinCompilation.defaultSourceSet)
             }
 

@@ -3,13 +3,10 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:OptIn(ExperimentalTime::class)
-
 package org.jetbrains.kotlin.native.executors
 
 import java.io.*
 import kotlin.time.Duration
-import kotlin.time.ExperimentalTime
 
 private class CloseProtectedOutputStream(stream : OutputStream) : FilterOutputStream(stream) {
     override fun close() {
@@ -54,20 +51,13 @@ data class ExecuteRequest(
         /**
          * Bound execution time of the process. By default it's [Duration.INFINITE] meaning it's unbounded.
          */
-        val timeout: Duration = Duration.INFINITE
+        var timeout: Duration = Duration.INFINITE
 ) {
     /**
      * Create a copy of this [ExecuteRequest], modify the copy by running [block] on it, and return that copy.
      */
     inline fun copying(block: ExecuteRequest.() -> Unit): ExecuteRequest = copy().apply(block)
 }
-
-/**
- * Helper for [ExecuteRequest] creation.
- * Allows to create it without opting in [kotlin.time.ExperimentalTime] for API < 1.6.
- */
-fun executeRequest(executableAbsolutePath: String, args: MutableList<String> = mutableListOf()): ExecuteRequest =
-        ExecuteRequest(executableAbsolutePath, args)
 
 data class ExecuteResponse(
         /**
@@ -85,7 +75,13 @@ data class ExecuteResponse(
      * @throws IllegalStateException if [exitCode] is not 0.
      */
     fun assertSuccess(): ExecuteResponse {
-        check(exitCode == 0) { "Exited with code $exitCode" }
+        check(exitCode == 0) {
+            if (exitCode == null) {
+                "Timed out in $executionTime"
+            } else {
+                "Exited with code $exitCode in $executionTime"
+            }
+        }
         return this
     }
 }

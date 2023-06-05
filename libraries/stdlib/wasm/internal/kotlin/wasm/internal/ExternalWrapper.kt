@@ -126,8 +126,8 @@ private fun externrefEquals(lhs: ExternalInterfaceType, rhs: ExternalInterfaceTy
 
 private external fun tryGetOrSetExternrefBox(
     ref: ExternalInterfaceType,
-    ifNotCached: JsHandle<JsExternalBox>
-): JsHandle<JsExternalBox>?
+    ifNotCached: JsReference<JsExternalBox>
+): JsReference<JsExternalBox>?
 
 @WasmNoOpCast
 @Suppress("unused")
@@ -159,7 +159,7 @@ internal fun isNullish(ref: ExternalInterfaceType?): Boolean =
 * }
 * ```
 */
-internal fun returnArgumentIfItIsKotlinAny(ref: ExternalInterfaceType): Unit = implementedAsIntrinsic
+internal fun returnArgumentIfItIsKotlinAny(): Unit = implementedAsIntrinsic
 
 internal fun externRefToAny(ref: ExternalInterfaceType): Any? {
     // TODO rewrite it so to get something like:
@@ -169,12 +169,12 @@ internal fun externRefToAny(ref: ExternalInterfaceType): Any? {
     //     return
     // }
     // If ref is an instance of kotlin class -- return it casted to Any
-    returnArgumentIfItIsKotlinAny(ref)
+    returnArgumentIfItIsKotlinAny()
 
     // If we have Null in notNullRef -- return null
     // If we already have a box -- return it,
     // otherwise -- remember new box and return it.
-    return tryGetOrSetExternrefBox(ref, JsExternalBox(ref).toJsHandle())
+    return tryGetOrSetExternrefBox(ref, JsExternalBox(ref).toJsReference())
 }
 
 

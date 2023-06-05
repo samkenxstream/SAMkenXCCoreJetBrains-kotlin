@@ -5,7 +5,10 @@
 
 package org.jetbrains.kotlin.backend.jvm
 
-import org.jetbrains.kotlin.backend.jvm.ir.*
+import org.jetbrains.kotlin.backend.jvm.ir.classFileContainsMethod
+import org.jetbrains.kotlin.backend.jvm.ir.extensionReceiverName
+import org.jetbrains.kotlin.backend.jvm.ir.isStaticValueClassReplacement
+import org.jetbrains.kotlin.backend.jvm.ir.parentClassId
 import org.jetbrains.kotlin.codegen.state.KotlinTypeMapper
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
@@ -43,7 +46,6 @@ class MemoizedInlineClassReplacements(
                 (it.isLocal && it is IrSimpleFunction && it.overriddenSymbols.isEmpty()) ||
                         (it.origin == IrDeclarationOrigin.DELEGATED_PROPERTY_ACCESSOR && it.visibility == DescriptorVisibilities.LOCAL) ||
                         it.isStaticValueClassReplacement ||
-                        it in context.multiFieldValueClassReplacements.bindingNewFunctionToParameterTemplateStructure ||
                         it.origin == JvmLoweredDeclarationOrigin.MULTI_FIELD_VALUE_CLASS_GENERATED_IMPL_METHOD ||
                         it.origin.isSynthetic && it.origin != IrDeclarationOrigin.SYNTHETIC_GENERATED_SAM_IMPLEMENTATION ->
                     null
@@ -82,13 +84,6 @@ class MemoizedInlineClassReplacements(
                     null
             }
         }
-
-    override fun quickCheckIfFunctionIsNotApplicable(function: IrFunction) = !(
-            function.parent.let { (it is IrClass && it.isSingleFieldValueClass) } ||
-                    function.dispatchReceiverParameter?.type?.isInlineClassType() == true ||
-                    function.extensionReceiverParameter?.type?.isInlineClassType() == true ||
-                    function.valueParameters.any { it.type.isInlineClassType() } || function.returnType.isInlineClassType()
-            )
 
     /**
      * Get the box function for an inline class. Concretely, this is a synthetic
@@ -250,7 +245,7 @@ class MemoizedInlineClassReplacements(
             else ->
                 replacementOrigin
         }
-        name = InlineClassAbi.mangledNameFor(function, mangleReturnTypes, useOldManglingScheme)
+        name = InlineClassAbi.mangledNameFor(context, function, mangleReturnTypes, useOldManglingScheme)
     }
 
     override fun getReplacementForRegularClassConstructor(constructor: IrConstructor): IrConstructor? = null

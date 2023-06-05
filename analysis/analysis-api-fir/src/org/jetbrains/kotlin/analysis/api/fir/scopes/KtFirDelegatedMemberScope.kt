@@ -11,13 +11,18 @@ import org.jetbrains.kotlin.analysis.api.scopes.KtScopeNameFilter
 import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtSymbolOrigin
 import org.jetbrains.kotlin.fir.scopes.FirContainingNamesAwareScope
+import org.jetbrains.kotlin.name.Name
 
 internal class KtFirDelegatedMemberScope(
     firScope: FirContainingNamesAwareScope,
     builder: KtSymbolByFirBuilder
-) : KtFirDelegatingScope(firScope, builder) {
+) : KtFirDelegatingNamesAwareScope(firScope, builder) {
 
     override fun getCallableSymbols(nameFilter: KtScopeNameFilter): Sequence<KtCallableSymbol> = withValidityAssertion {
         return super.getCallableSymbols(nameFilter).filter { it.origin == KtSymbolOrigin.DELEGATED }
+    }
+
+    override fun getCallableSymbols(names: Collection<Name>): Sequence<KtCallableSymbol> = withValidityAssertion {
+        return super.getCallableSymbols(names).filter { it.origin == KtSymbolOrigin.DELEGATED }
     }
 }

@@ -35,7 +35,6 @@ import kotlin.math.floor
 val intrinsicConstEvaluationAnnotation = FqName("kotlin.internal.IntrinsicConstEvaluation")
 val compileTimeAnnotation = FqName("kotlin.CompileTimeCalculation")
 val evaluateIntrinsicAnnotation = FqName("kotlin.EvaluateIntrinsic")
-val contractsDslAnnotation = FqName("kotlin.internal.ContractsDsl")
 
 internal val IrElement.fqName: String
     get() = (this as? IrDeclarationWithName)?.fqNameWhenAvailable?.asString() ?: ""
@@ -159,7 +158,7 @@ internal fun IrClass.internalName(): String {
         .forEach {
             when (it) {
                 is IrClass -> internalName.insert(0, it.name.asString() + "$")
-                is IrPackageFragment -> it.fqName.asString().takeIf { it.isNotEmpty() }?.let { internalName.insert(0, "$it.") }
+                is IrPackageFragment -> it.packageFqName.asString().takeIf { it.isNotEmpty() }?.let { internalName.insert(0, "$it.") }
             }
         }
     return internalName.toString()
@@ -205,6 +204,14 @@ internal fun IrFunction.getArgsForMethodInvocation(
     return argsValues
 }
 
+internal fun IrType.fqNameWithNullability(): String {
+    val fqName = classFqName?.toString()
+        ?: (this.classifierOrNull?.owner as? IrDeclarationWithName)?.name?.asString()
+        ?: render()
+    val nullability = if (this is IrSimpleType && this.nullability == SimpleTypeNullability.MARKED_NULLABLE) "?" else ""
+    return fqName + nullability
+}
+
 internal fun IrType.getOnlyName(): String {
     if (this !is IrSimpleType) return this.render()
     return (this.classifierOrFail.owner as IrDeclarationWithName).name.asString() + when (nullability) {
@@ -220,7 +227,7 @@ internal fun IrFieldAccessExpression.accessesTopLevelOrObjectField(): Boolean {
 
 internal fun IrClass.getOriginalPropertyByName(name: String): IrProperty {
     val property = this.properties.single { it.name.asString() == name }
-    return (property.getter!!.getLastOverridden() as IrSimpleFunction).correspondingPropertySymbol!!.owner
+    return property.getter!!.getLastOverridden().property!!
 }
 
 internal fun IrFunctionAccessExpression.getFunctionThatContainsDefaults(): IrFunction {
@@ -297,7 +304,8 @@ internal fun IrClass.getSingleAbstractMethod(): IrFunction {
     return declarations.filterIsInstance<IrSimpleFunction>().single { it.modality == Modality.ABSTRACT }
 }
 
-internal fun IrGetValue.isAccessToNotNullableObject(): Boolean {
+internal fun IrExpression?.isAccessToNotNullableObject(): Boolean {
+    if (this !is IrGetValue) return false
     val owner = this.symbol.owner
     val expectedClass = this.type.classOrNull?.owner
     if (expectedClass == null || !expectedClass.isObject || this.type.isNullable()) return false
@@ -342,3 +350,7 @@ internal fun IrEnumEntry.toState(irBuiltIns: IrBuiltIns): Common {
 
     return enumClassObject
 }
+
+internal val IrFunction.property: IrProperty?
+    get() = (this as? IrSimpleFunction)?.correspondingPropertySymbol?.owner
+

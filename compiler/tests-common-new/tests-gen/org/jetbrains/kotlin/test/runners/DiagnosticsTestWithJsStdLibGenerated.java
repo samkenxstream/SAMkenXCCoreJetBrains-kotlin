@@ -49,6 +49,12 @@ public class DiagnosticsTestWithJsStdLibGenerated extends AbstractDiagnosticsTes
     }
 
     @Test
+    @TestMetadata("jsExternalArgument.kt")
+    public void testJsExternalArgument() throws Exception {
+        runTest("compiler/testData/diagnostics/testsWithJsStdLib/jsExternalArgument.kt");
+    }
+
+    @Test
     @TestMetadata("jsExternalInheritorsOnly.kt")
     public void testJsExternalInheritorsOnly() throws Exception {
         runTest("compiler/testData/diagnostics/testsWithJsStdLib/jsExternalInheritorsOnly.kt");
@@ -224,6 +230,12 @@ public class DiagnosticsTestWithJsStdLibGenerated extends AbstractDiagnosticsTes
         }
 
         @Test
+        @TestMetadata("dynamicExtensionCallableReference.kt")
+        public void testDynamicExtensionCallableReference() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/dynamicExtensionCallableReference.kt");
+        }
+
+        @Test
         @TestMetadata("dynamicSafeCalls.kt")
         public void testDynamicSafeCalls() throws Exception {
             runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/dynamicSafeCalls.kt");
@@ -284,6 +296,12 @@ public class DiagnosticsTestWithJsStdLibGenerated extends AbstractDiagnosticsTes
         }
 
         @Test
+        @TestMetadata("kt57960.kt")
+        public void testKt57960() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/kt57960.kt");
+        }
+
+        @Test
         @TestMetadata("membersOfAny.kt")
         public void testMembersOfAny() throws Exception {
             runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/membersOfAny.kt");
@@ -305,6 +323,12 @@ public class DiagnosticsTestWithJsStdLibGenerated extends AbstractDiagnosticsTes
         @TestMetadata("nullable.kt")
         public void testNullable() throws Exception {
             runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/nullable.kt");
+        }
+
+        @Test
+        @TestMetadata("objectAccessInLambdaWithDynamicReceiver.kt")
+        public void testObjectAccessInLambdaWithDynamicReceiver() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/objectAccessInLambdaWithDynamicReceiver.kt");
         }
 
         @Test
@@ -353,6 +377,12 @@ public class DiagnosticsTestWithJsStdLibGenerated extends AbstractDiagnosticsTes
         @TestMetadata("reified.kt")
         public void testReified() throws Exception {
             runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/reified.kt");
+        }
+
+        @Test
+        @TestMetadata("setOperatorOnDynamic.kt")
+        public void testSetOperatorOnDynamic() throws Exception {
+            runTest("compiler/testData/diagnostics/testsWithJsStdLib/dynamicTypes/setOperatorOnDynamic.kt");
         }
 
         @Test

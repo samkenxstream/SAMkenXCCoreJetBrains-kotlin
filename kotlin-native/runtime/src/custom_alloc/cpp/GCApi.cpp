@@ -5,85 +5,115 @@
 
 #include "GCApi.hpp"
 
+#include <atomic>
+#include <cstdint>
 #include <limits>
 
+#ifndef KONAN_WINDOWS
+#include <sys/mman.h>
+#endif
+
 #include "ConcurrentMarkAndSweep.hpp"
+#include "CompilerConstants.hpp"
 #include "CustomLogging.hpp"
+#include "ExtraObjectData.hpp"
+#include "ExtraObjectPage.hpp"
 #include "FinalizerHooks.hpp"
+#include "GCStatistics.hpp"
 #include "KAssert.h"
 #include "ObjectFactory.hpp"
 
+namespace {
+
+std::atomic<size_t> allocatedBytesCounter;
+
+}
+
 namespace kotlin::alloc {
 
-bool TryResetMark(void* ptr) noexcept {
-    using Node = typename kotlin::mm::ObjectFactory<kotlin::gc::ConcurrentMarkAndSweep>::Storage::Node;
-    using NodeRef = typename kotlin::mm::ObjectFactory<kotlin::gc::ConcurrentMarkAndSweep>::NodeRef;
-    Node& node = Node::FromData(ptr);
-    NodeRef ref = NodeRef(node);
-    auto& objectData = ref.ObjectData();
-    bool reset = objectData.tryResetMark();
-    CustomAllocDebug("TryResetMark(%p) = %d", ptr, reset);
-    return reset;
-}
-
-using ObjectFactory = mm::ObjectFactory<gc::ConcurrentMarkAndSweep>;
-using ExtraObjectsFactory = mm::ExtraObjectDataFactory;
-
-static void KeepAlive(ObjHeader* baseObject) noexcept {
-    auto& objectData = ObjectFactory::NodeRef::From(baseObject).ObjectData();
-    objectData.tryMark();
-}
-
-static bool IsAlive(ObjHeader* baseObject) noexcept {
-    auto& objectData = ObjectFactory::NodeRef::From(baseObject).ObjectData();
-    return objectData.marked();
-}
-
-bool SweepExtraObject(ExtraObjectCell* extraObjectCell, AtomicStack<ExtraObjectCell>& finalizerQueue) noexcept {
-    auto* extraObject = extraObjectCell->Data();
-    if (extraObject->getFlag(mm::ExtraObjectData::FLAGS_FINALIZED)) {
-        CustomAllocDebug("SweepIsCollectable(%p): already finalized", extraObject);
+bool SweepObject(uint8_t* object, FinalizerQueue& finalizerQueue, gc::GCHandle::GCSweepScope& gcHandle) noexcept {
+    HeapObjHeader* objHeader = reinterpret_cast<HeapObjHeader*>(object);
+    if (objHeader->gcData.tryResetMark()) {
+        CustomAllocDebug("SweepObject(%p): still alive", object);
+        gcHandle.addKeptObject();
         return true;
     }
-    auto* baseObject = extraObject->GetBaseObject();
-    RuntimeAssert(baseObject->heap(), "SweepIsCollectable on a non-heap object");
-    if (extraObject->getFlag(mm::ExtraObjectData::FLAGS_IN_FINALIZER_QUEUE)) {
-        CustomAllocDebug("SweepIsCollectable(%p): already in finalizer queue, keep base object (%p) alive", extraObject, baseObject);
-        KeepAlive(baseObject);
-        return false;
-    }
-    if (IsAlive(baseObject)) {
-        CustomAllocDebug("SweepIsCollectable(%p): base object (%p) is alive", extraObject, baseObject);
-        return false;
-    }
-    extraObject->ClearRegularWeakReferenceImpl();
-    if (extraObject->HasAssociatedObject()) {
-        extraObject->setFlag(mm::ExtraObjectData::FLAGS_IN_FINALIZER_QUEUE);
-        finalizerQueue.Push(extraObjectCell);
-        KeepAlive(baseObject);
-        CustomAllocDebug("SweepIsCollectable(%p): add to finalizerQueue", extraObject);
-        return false;
-    } else {
-        if (HasFinalizers(baseObject)) {
+    auto* extraObject = mm::ExtraObjectData::Get(&objHeader->object);
+    if (extraObject) {
+        if (!extraObject->getFlag(mm::ExtraObjectData::FLAGS_IN_FINALIZER_QUEUE)) {
+            CustomAllocDebug("SweepObject(%p): needs to be finalized, extraObject at %p", object, extraObject);
             extraObject->setFlag(mm::ExtraObjectData::FLAGS_IN_FINALIZER_QUEUE);
-            finalizerQueue.Push(extraObjectCell);
-            KeepAlive(baseObject);
-            CustomAllocDebug("SweepIsCollectable(%p): addings to finalizerQueue, keep base object (%p) alive", extraObject, baseObject);
-            return false;
+            extraObject->ClearRegularWeakReferenceImpl();
+            CustomAllocDebug("SweepObject: fromExtraObject(%p) = %p", extraObject, ExtraObjectCell::fromExtraObject(extraObject));
+            finalizerQueue.Push(ExtraObjectCell::fromExtraObject(extraObject));
+            gcHandle.addMarkedObject();
+            return true;
         }
-        extraObject->Uninstall();
-        CustomAllocDebug("SweepIsCollectable(%p): uninstalled extraObject", extraObject);
-        return true;
+        if (!extraObject->getFlag(mm::ExtraObjectData::FLAGS_SWEEPABLE)) {
+            CustomAllocDebug("SweepObject(%p): already waiting to be finalized", object);
+            gcHandle.addMarkedObject();
+            return true;
+        }
     }
+    CustomAllocDebug("SweepObject(%p): can be reclaimed", object);
+    gcHandle.addSweptObject();
+    return false;
+}
+
+bool SweepExtraObject(mm::ExtraObjectData* extraObject, gc::GCHandle::GCSweepExtraObjectsScope& gcHandle) noexcept {
+    if (extraObject->getFlag(mm::ExtraObjectData::FLAGS_SWEEPABLE)) {
+        CustomAllocDebug("SweepExtraObject(%p): can be reclaimed", extraObject);
+        return false;
+    }
+    CustomAllocDebug("SweepExtraObject(%p): is still needed", extraObject);
+    return true;
 }
 
 void* SafeAlloc(uint64_t size) noexcept {
-    void* memory;
-    if (size > std::numeric_limits<size_t>::max() || !(memory = std_support::malloc(size))) {
+    if (size > std::numeric_limits<size_t>::max()) {
         konan::consoleErrorf("Out of memory trying to allocate %" PRIu64 "bytes. Aborting.\n", size);
         konan::abort();
     }
+    void* memory;
+    bool error;
+    if (compiler::disableMmap()) {
+        memory = calloc(size, 1);
+        error = memory == nullptr;
+    } else {
+#if KONAN_WINDOWS
+        RuntimeFail("mmap is not available on mingw");
+#elif KONAN_LINUX
+        memory = mmap(nullptr, size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE | MAP_POPULATE, -1, 0);
+        error = memory == MAP_FAILED;
+#else
+        memory = mmap(nullptr, size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
+        error = memory == MAP_FAILED;
+#endif
+    }
+    if (error) {
+        konan::consoleErrorf("Out of memory trying to allocate %" PRIu64 "bytes: %s. Aborting.\n", size, strerror(errno));
+        konan::abort();
+    }
+    allocatedBytesCounter.fetch_add(static_cast<size_t>(size), std::memory_order_relaxed);
     return memory;
+}
+
+void Free(void* ptr, size_t size) noexcept {
+    if (compiler::disableMmap()) {
+        free(ptr);
+    } else {
+#if KONAN_WINDOWS
+        RuntimeFail("mmap is not available on mingw");
+#else
+        auto result = munmap(ptr, size);
+        RuntimeAssert(result == 0, "Failed to munmap: %s", strerror(errno));
+#endif
+    }
+    allocatedBytesCounter.fetch_sub(static_cast<size_t>(size), std::memory_order_relaxed);
+}
+
+size_t GetAllocatedBytes() noexcept {
+    return allocatedBytesCounter.load(std::memory_order_relaxed);
 }
 
 } // namespace kotlin::alloc

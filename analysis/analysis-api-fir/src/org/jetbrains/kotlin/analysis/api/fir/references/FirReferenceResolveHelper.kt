@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -218,6 +218,7 @@ internal object FirReferenceResolveHelper {
             is FirResolvable -> getSymbolsByResolvable(fir, expression, session, symbolBuilder)
             is FirNamedArgumentExpression -> getSymbolsByNameArgumentExpression(expression, analysisSession, symbolBuilder)
             is FirEqualityOperatorCall -> getSymbolsByEqualsName(fir, session, analysisSession, symbolBuilder)
+            is FirTypeParameter -> getSybmolsByTypeParameter(symbolBuilder, fir)
             else -> handleUnknownFirElement(expression, analysisSession, session, symbolBuilder)
         }
     }
@@ -233,8 +234,9 @@ internal object FirReferenceResolveHelper {
             session,
             analysisSession.getScopeSessionFor(analysisSession.useSiteSession),
             FakeOverrideTypeCalculator.DoNothing,
-            requiredPhase = FirResolvePhase.STATUS
+            requiredMembersPhase = FirResolvePhase.STATUS,
         ) ?: return emptyList()
+
         return buildList {
             scope.processFunctionsByName(OperatorNameConventions.EQUALS) { functionSymbol ->
                 val parameterSymbol = functionSymbol.valueParameterSymbols.singleOrNull()
@@ -426,6 +428,13 @@ internal object FirReferenceResolveHelper {
     private fun getSymbolsByFirFile(
         symbolBuilder: KtSymbolByFirBuilder,
         fir: FirFile
+    ): List<KtSymbol> {
+        return listOf(symbolBuilder.buildSymbol(fir.symbol))
+    }
+
+    private fun getSybmolsByTypeParameter(
+        symbolBuilder: KtSymbolByFirBuilder,
+        fir: FirTypeParameter
     ): List<KtSymbol> {
         return listOf(symbolBuilder.buildSymbol(fir.symbol))
     }

@@ -160,7 +160,7 @@ private class DeclarationsGeneratorVisitor(override val generationState: NativeG
     private fun getFqName(declaration: IrDeclaration): FqName {
         val parent = declaration.parent
         val parentFqName = when (parent) {
-            is IrPackageFragment -> parent.fqName
+            is IrPackageFragment -> parent.packageFqName
             is IrDeclaration -> getFqName(parent)
             else -> error(parent)
         }
@@ -392,12 +392,7 @@ private class DeclarationsGeneratorVisitor(override val generationState: NativeG
                 }
             }
 
-            val linkage = when {
-                declaration.isExported() -> LLVMLinkage.LLVMExternalLinkage
-                context.config.producePerFileCache && declaration in generationState.calledFromExportedInlineFunctions -> LLVMLinkage.LLVMExternalLinkage
-                else -> LLVMLinkage.LLVMInternalLinkage
-            }
-            val proto = LlvmFunctionProto(declaration, symbolName, this, linkage)
+            val proto = LlvmFunctionProto(declaration, symbolName, this, linkageOf(declaration))
             context.log {
                 "Creating llvm function ${symbolName} for ${declaration.render()}"
             }

@@ -199,6 +199,13 @@ class FirRenderer(
         override fun visitCallableDeclaration(callableDeclaration: FirCallableDeclaration) {
             renderContexts(callableDeclaration.contextReceivers)
             annotationRenderer?.render(callableDeclaration)
+            if (callableDeclaration is FirProperty) {
+                val backingField = callableDeclaration.backingField
+                if (backingField?.annotations?.isNotEmpty() == true) {
+                    print("field:")
+                    annotationRenderer?.render(backingField)
+                }
+            }
             visitMemberDeclaration(callableDeclaration)
             val receiverParameter = callableDeclaration.receiverParameter
             if (callableDeclaration !is FirProperty || callableDeclaration.isCatchParameter != true) {
@@ -312,6 +319,16 @@ class FirRenderer(
             propertyAccessorRenderer?.render(property)
         }
 
+        override fun visitErrorProperty(errorProperty: FirErrorProperty) {
+            print("<ERROR PROPERTY: ${errorProperty.diagnostic.reason}>")
+            printer.newLine()
+        }
+
+        override fun visitErrorFunction(errorFunction: FirErrorFunction) {
+            print("<ERROR FUNCTION: ${errorFunction.diagnostic.reason}>")
+            printer.newLine()
+        }
+
         override fun visitBackingField(backingField: FirBackingField) {
             modifierRenderer?.renderModifiers(backingField)
             print("<explicit backing field>: ")
@@ -371,6 +388,7 @@ class FirRenderer(
 
         override fun visitAnonymousFunction(anonymousFunction: FirAnonymousFunction) {
             annotationRenderer?.render(anonymousFunction)
+            modifierRenderer?.renderModifiers(anonymousFunction)
             declarationRenderer?.render(anonymousFunction)
             print(" ")
             val receiverParameter = anonymousFunction.receiverParameter
@@ -631,6 +649,12 @@ class FirRenderer(
 
         override fun visitWrappedDelegateExpression(wrappedDelegateExpression: FirWrappedDelegateExpression) {
             wrappedDelegateExpression.expression.accept(this)
+        }
+
+        override fun visitEnumEntryDeserializedAccessExpression(enumEntryDeserializedAccessExpression: FirEnumEntryDeserializedAccessExpression) {
+            with(enumEntryDeserializedAccessExpression) {
+                print("$enumClassId.$enumEntryName")
+            }
         }
 
         override fun visitNamedArgumentExpression(namedArgumentExpression: FirNamedArgumentExpression) {

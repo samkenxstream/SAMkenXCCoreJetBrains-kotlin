@@ -343,7 +343,7 @@ class DeclarationsChecker(
 
         checkPrimaryConstructor(classOrObject, classDescriptor)
 
-        checkPrivateExpectedDeclaration(classOrObject, classDescriptor)
+        checkExpectDeclarationModifiers(classOrObject, classDescriptor)
     }
 
     private fun checkLocalAnnotation(classDescriptor: ClassDescriptor, classOrObject: KtClassOrObject) {
@@ -618,13 +618,28 @@ class DeclarationsChecker(
         shadowedExtensionChecker.checkDeclaration(property, propertyDescriptor)
         checkPropertyTypeParametersAreUsedInReceiverType(propertyDescriptor)
         checkImplicitCallableType(property, propertyDescriptor)
-        checkPrivateExpectedDeclaration(property, propertyDescriptor)
+        checkExpectDeclarationModifiers(property, propertyDescriptor)
         checkBackingField(property)
     }
 
-    private fun checkPrivateExpectedDeclaration(declaration: KtDeclaration, descriptor: MemberDescriptor) {
-        if (descriptor.isExpect && DescriptorVisibilities.isPrivate(descriptor.visibility)) {
+    private fun checkExpectDeclarationModifiers(declaration: KtDeclaration, descriptor: MemberDescriptor) {
+        if (!descriptor.isExpect) return
+
+        if (DescriptorVisibilities.isPrivate(descriptor.visibility)) {
             trace.report(EXPECTED_PRIVATE_DECLARATION.on(declaration.modifierList?.getModifier(KtTokens.PRIVATE_KEYWORD) ?: declaration))
+        }
+
+        checkExpectDeclarationHasNoExternalModifier(declaration)
+        if (declaration is KtFunction) {
+            declaration.modifierList?.getModifier(KtTokens.TAILREC_KEYWORD)?.let {
+                trace.report(EXPECTED_TAILREC_FUNCTION.on(it))
+            }
+        }
+    }
+
+    private fun checkExpectDeclarationHasNoExternalModifier(declaration: KtDeclaration) {
+        declaration.modifierList?.getModifier(KtTokens.EXTERNAL_KEYWORD)?.let {
+            trace.report(EXPECTED_EXTERNAL_DECLARATION.on(it))
         }
     }
 
@@ -694,7 +709,7 @@ class DeclarationsChecker(
     }
 
     private fun checkPropertyInitializer(property: KtProperty, propertyDescriptor: PropertyDescriptor) {
-        val hasAccessorImplementation = propertyDescriptor.hasAccessorImplementation()
+        val hasAnyAccessorImplementation = propertyDescriptor.hasAnyAccessorImplementation()
 
         val containingDeclaration = propertyDescriptor.containingDeclaration
         val inInterface = DescriptorUtils.isInterface(containingDeclaration)
@@ -709,7 +724,7 @@ class DeclarationsChecker(
         }
 
         val backingFieldRequired = trace.bindingContext.get(BACKING_FIELD_REQUIRED, propertyDescriptor) ?: false
-        if (inInterface && backingFieldRequired && hasAccessorImplementation) {
+        if (inInterface && backingFieldRequired && hasAnyAccessorImplementation) {
             trace.report(BACKING_FIELD_IN_INTERFACE.on(property))
         }
 
@@ -772,14 +787,17 @@ class DeclarationsChecker(
             val isUninitialized = trace.bindingContext.get(IS_UNINITIALIZED, propertyDescriptor) ?: false
             val isExternal = propertyDescriptor.isEffectivelyExternal()
             if (backingFieldRequired && !inInterface && !propertyDescriptor.isLateInit && !isExpect && isUninitialized && !isExternal) {
-                if (propertyDescriptor.extensionReceiverParameter != null && !hasAccessorImplementation) {
+                if (propertyDescriptor.extensionReceiverParameter != null && !hasAnyAccessorImplementation) {
                     trace.report(EXTENSION_PROPERTY_MUST_HAVE_ACCESSORS_OR_BE_ABSTRACT.on(property))
                 } else if (diagnosticSuppressor.shouldReportNoBody(propertyDescriptor)) {
-                    if (containingDeclaration !is ClassDescriptor || hasAccessorImplementation) {
-                        trace.report(MUST_BE_INITIALIZED.on(property))
-                    } else {
-                        trace.report(MUST_BE_INITIALIZED_OR_BE_ABSTRACT.on(property))
-                    }
+                    reportMustBeInitialized(
+                        propertyDescriptor,
+                        containingDeclaration,
+                        hasAnyAccessorImplementation,
+                        property,
+                        languageVersionSettings,
+                        trace
+                    )
                 }
             } else if (property.typeReference == null && !languageVersionSettings.supportsFeature(LanguageFeature.ShortSyntaxForPropertyGetters)) {
                 trace.report(
@@ -802,6 +820,58 @@ class DeclarationsChecker(
             }
         }
     }
+
+    private fun reportMustBeInitialized(
+        propertyDescriptor: PropertyDescriptor,
+        containingDeclaration: DeclarationDescriptor,
+        hasAnyAccessorImplementation: Boolean,
+        property: KtProperty,
+        languageVersionSettings: LanguageVersionSettings,
+        trace: BindingTrace,
+    ) {
+        check(propertyDescriptor.getEffectiveModality(languageVersionSettings) != Modality.ABSTRACT) {
+            "${::reportMustBeInitialized.name} isn't called for abstract properties"
+        }
+        val suggestMakingItFinal = containingDeclaration is ClassDescriptor &&
+                !propertyDescriptor.hasSetterAccessorImplementation() &&
+                propertyDescriptor.getEffectiveModality(languageVersionSettings) != Modality.FINAL &&
+                trace.bindingContext.get(IS_DEFINITELY_NOT_ASSIGNED_IN_CONSTRUCTOR, propertyDescriptor) == false
+        val suggestMakingItAbstract = containingDeclaration is ClassDescriptor && !hasAnyAccessorImplementation
+        val isOpenValDeferredInitDeprecationWarning =
+            !languageVersionSettings.supportsFeature(LanguageFeature.ProhibitOpenValDeferredInitialization) &&
+                    propertyDescriptor.getEffectiveModality(languageVersionSettings) == Modality.OPEN &&
+                    !propertyDescriptor.isVar &&
+                    trace.bindingContext.get(IS_DEFINITELY_NOT_ASSIGNED_IN_CONSTRUCTOR, propertyDescriptor) == false
+        if (isOpenValDeferredInitDeprecationWarning && !suggestMakingItFinal && suggestMakingItAbstract) {
+            error("Not reachable case. Every \"open val + deferred init\" case that could be made `abstract`, also could be made `final`")
+        }
+        val isMissedMustBeInitializedDeprecationWarning =
+            !languageVersionSettings.supportsFeature(LanguageFeature.ProhibitMissedMustBeInitializedWhenThereIsNoPrimaryConstructor) &&
+                    containingDeclaration is ClassDescriptor &&
+                    containingDeclaration.constructors.none { it.isPrimary } &&
+                    trace.bindingContext.get(IS_DEFINITELY_NOT_ASSIGNED_IN_CONSTRUCTOR, propertyDescriptor) == false
+        val factory = when {
+            suggestMakingItFinal && suggestMakingItAbstract -> MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT
+            suggestMakingItFinal -> MUST_BE_INITIALIZED_OR_BE_FINAL
+            suggestMakingItAbstract -> MUST_BE_INITIALIZED_OR_BE_ABSTRACT
+            else -> MUST_BE_INITIALIZED
+        }
+        trace.report(
+            when (isMissedMustBeInitializedDeprecationWarning || isOpenValDeferredInitDeprecationWarning) {
+                true -> factory.deprecationWarning
+                false -> factory
+            }.on(property)
+        )
+    }
+
+    private val DiagnosticFactory0<KtProperty>.deprecationWarning: DiagnosticFactory0<KtProperty>
+        get() = when (this) {
+            MUST_BE_INITIALIZED -> MUST_BE_INITIALIZED_WARNING
+            MUST_BE_INITIALIZED_OR_BE_ABSTRACT -> MUST_BE_INITIALIZED_OR_BE_ABSTRACT_WARNING
+            MUST_BE_INITIALIZED_OR_BE_FINAL -> MUST_BE_INITIALIZED_OR_BE_FINAL_WARNING
+            MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT -> MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT_WARNING
+            else -> error("Only MUST_BE_INITIALIZED is supported")
+        }
 
     private fun noExplicitTypeOrGetterType(property: KtProperty) =
         property.typeReference == null
@@ -870,7 +940,7 @@ class DeclarationsChecker(
             trace.report(EXPECTED_DECLARATION_WITH_BODY.on(function))
         }
 
-        checkPrivateExpectedDeclaration(function, functionDescriptor)
+        checkExpectDeclarationModifiers(function, functionDescriptor)
     }
 
     private fun checkActualFunction(element: KtDeclaration, functionDescriptor: FunctionDescriptor) {
@@ -966,6 +1036,9 @@ class DeclarationsChecker(
                     reportVisibilityModifierDiagnostics(tokens.values, SETTER_VISIBILITY_INCONSISTENT_WITH_PROPERTY_VISIBILITY)
                 }
             }
+        }
+        if (propertyDescriptor.isExpect) {
+            checkExpectDeclarationHasNoExternalModifier(accessor)
         }
     }
 
@@ -1067,10 +1140,14 @@ class DeclarationsChecker(
             return !modifierList.hasModifier(KtTokens.OVERRIDE_KEYWORD)
         }
 
-        fun PropertyDescriptor.hasAccessorImplementation(): Boolean {
-            getter?.let { if (it.hasBody()) return true }
-            setter?.let { if (it.hasBody()) return true }
-            return false
-        }
+        private fun PropertyDescriptor.hasSetterAccessorImplementation(): Boolean = setter?.hasBody() == true
+        fun PropertyDescriptor.hasAnyAccessorImplementation(): Boolean = hasSetterAccessorImplementation() || getter?.hasBody() == true
     }
 }
+
+fun PropertyDescriptor.getEffectiveModality(languageVersionSettings: LanguageVersionSettings): Modality =
+    when (languageVersionSettings.supportsFeature(LanguageFeature.TakeIntoAccountEffectivelyFinalInMustBeInitializedCheck) &&
+            modality == Modality.OPEN && (containingDeclaration as? ClassDescriptor)?.modality == Modality.FINAL) {
+        true -> Modality.FINAL
+        false -> modality
+    }

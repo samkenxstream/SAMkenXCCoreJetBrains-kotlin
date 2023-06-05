@@ -167,8 +167,9 @@ class JvmBackendContext(
 
     val inlineClassReplacements = MemoizedInlineClassReplacements(state.functionsWithInlineClassReturnTypesMangled, irFactory, this)
 
-    val multiFieldValueClassReplacements =
-        MemoizedMultiFieldValueClassReplacements(irFactory, this)
+    val multiFieldValueClassReplacements = MemoizedMultiFieldValueClassReplacements(irFactory, this)
+
+    val valueClassLoweringDispatcherSharedData = MemoizedValueClassLoweringDispatcherSharedData()
 
     val continuationClassesVarsCountByType: MutableMap<IrAttributeContainer, Map<Type, Int>> = hashMapOf()
 
@@ -292,10 +293,6 @@ class JvmBackendContext(
         symbolTable: SymbolTable
     ) : Ir<JvmBackendContext>(this) {
         override val symbols = JvmSymbols(this@JvmBackendContext, symbolTable)
-
-        override fun unfoldInlineClassType(irType: IrType): IrType? {
-            return InlineClassAbi.unboxType(irType)
-        }
 
         override fun shouldGenerateHandlerParameterForDefaultBodyFun() = true
     }

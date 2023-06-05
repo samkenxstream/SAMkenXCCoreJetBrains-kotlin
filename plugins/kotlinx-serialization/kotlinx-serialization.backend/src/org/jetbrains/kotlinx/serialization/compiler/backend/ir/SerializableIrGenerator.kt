@@ -55,7 +55,7 @@ class SerializableIrGenerator(
     private val IrClass.isInternalSerializable: Boolean get() = kind == ClassKind.CLASS && hasSerializableOrMetaAnnotationWithoutArgs()
 
     private val cachedChildSerializers: List<IrExpression?> =
-        irClass.companionObject()!!.createCachedChildSerializers(properties.serializableProperties)
+        irClass.companionObject()!!.createCachedChildSerializers(irClass, properties.serializableProperties)
 
     private val cachedChildSerializersProperty: IrProperty? =
         irClass.companionObject()!!.addCachedChildSerializersProperty(cachedChildSerializers)
@@ -82,7 +82,7 @@ class SerializableIrGenerator(
                     it is IrProperty && it.backingField != null -> {
                         if (it in serialDescs) {
                             current = it
-                        } else if (it.backingField?.initializer != null) {
+                        } else if (it.backingField?.initializer != null && !it.isDelegated) {
                             // skip transient lateinit or deferred properties (with null initializer)
                             val expression = initializerAdapter(it.backingField!!.initializer!!)
 

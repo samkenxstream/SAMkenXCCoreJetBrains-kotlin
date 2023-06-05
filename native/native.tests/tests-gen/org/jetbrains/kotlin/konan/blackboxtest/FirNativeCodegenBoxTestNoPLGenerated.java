@@ -8,8 +8,8 @@ package org.jetbrains.kotlin.konan.blackboxtest;
 import com.intellij.testFramework.TestDataPath;
 import org.jetbrains.kotlin.test.util.KtTestUtil;
 import org.junit.jupiter.api.Tag;
-import org.jetbrains.kotlin.konan.blackboxtest.support.group.UseExtTestCaseGroupProvider;
 import org.jetbrains.kotlin.konan.blackboxtest.support.group.FirPipeline;
+import org.jetbrains.kotlin.konan.blackboxtest.support.group.UseExtTestCaseGroupProvider;
 import org.jetbrains.kotlin.konan.blackboxtest.support.group.UsePartialLinkage;
 import org.jetbrains.kotlin.konan.blackboxtest.support.group.UsePartialLinkage.Mode;
 import org.jetbrains.kotlin.test.TargetBackend;
@@ -27,10 +27,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
     @Nested
     @TestMetadata("compiler/testData/codegen/box")
     @TestDataPath("$PROJECT_ROOT")
-    @Tag("codegenK2")
-    @Tag("firCodegen")
-    @UseExtTestCaseGroupProvider()
+    @Tag("frontend-fir")
     @FirPipeline()
+    @UseExtTestCaseGroupProvider()
     @UsePartialLinkage(mode = Mode.DISABLED)
     @Tag("no-partial-linkage-may-be-skipped")
     public class Box {
@@ -39,13 +38,18 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
         }
 
+        @Test
+        @TestMetadata("kt-57353.kt")
+        public void testKt_57353() throws Exception {
+            runTest("compiler/testData/codegen/box/kt-57353.kt");
+        }
+
         @Nested
         @TestMetadata("compiler/testData/codegen/box/annotations")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Annotations {
@@ -84,13 +88,18 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 runTest("compiler/testData/codegen/box/annotations/resolveWithLowPriorityAnnotation.kt");
             }
 
+            @Test
+            @TestMetadata("selfReferentialAnnotation.kt")
+            public void testSelfReferentialAnnotation() throws Exception {
+                runTest("compiler/testData/codegen/box/annotations/selfReferentialAnnotation.kt");
+            }
+
             @Nested
             @TestMetadata("compiler/testData/codegen/box/annotations/annotatedLambda")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class AnnotatedLambda {
@@ -103,10 +112,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/annotations/instances")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Instances {
@@ -185,10 +193,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/annotations/kClassMapping")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class KClassMapping {
@@ -201,10 +208,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/annotations/repeatable")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Repeatable {
@@ -217,10 +223,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/annotations/typeAnnotations")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TypeAnnotations {
@@ -240,10 +245,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/argumentOrder")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ArgumentOrder {
@@ -352,10 +356,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/arrays")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Arrays {
@@ -757,10 +760,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/arrays/arraysOfInlineClass")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ArraysOfInlineClass {
@@ -791,10 +793,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/arrays/forInReversed")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInReversed {
@@ -831,10 +832,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/arrays/forInUnsignedArray")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInUnsignedArray {
@@ -895,10 +895,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/arrays/multiDecl")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MultiDecl {
@@ -958,10 +957,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/arrays/multiDecl/int")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Int {
@@ -998,10 +996,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/arrays/multiDecl/long")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Long {
@@ -1040,10 +1037,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/assert")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Assert {
@@ -1067,10 +1063,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/assert/jvm")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Jvm {
@@ -1084,10 +1079,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/binaryOp")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class BinaryOp {
@@ -1256,10 +1250,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/boxingOptimization")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class BoxingOptimization {
@@ -1506,10 +1499,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/bridges")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Bridges {
@@ -1869,10 +1861,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/bridges/substitutionInSuperClass")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SubstitutionInSuperClass {
@@ -1952,10 +1943,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/builtinStubMethods")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class BuiltinStubMethods {
@@ -1973,10 +1963,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/builtinStubMethods/bridgesForStubs")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class BridgesForStubs {
@@ -1989,10 +1978,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/builtinStubMethods/extendJavaClasses")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ExtendJavaClasses {
@@ -2035,10 +2023,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/builtinStubMethods/mapGetOrDefault")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MapGetOrDefault {
@@ -2051,10 +2038,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/builtinStubMethods/mapRemove")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MapRemove {
@@ -2068,10 +2054,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/callableReference")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class CallableReference {
@@ -2239,10 +2224,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/callableReference/adaptedReferences")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class AdaptedReferences {
@@ -2416,10 +2400,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/callableReference/adaptedReferences/suspendConversion")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class SuspendConversion {
@@ -2529,10 +2512,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/callableReference/bound")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Bound {
@@ -2712,10 +2694,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/callableReference/bound/equals")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Equals {
@@ -2747,10 +2728,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/callableReference/equality")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Equality {
@@ -2841,10 +2821,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/callableReference/funInterfaceConstructor")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class FunInterfaceConstructor {
@@ -2887,10 +2866,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/callableReference/function")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Function {
@@ -3068,12 +3046,6 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 }
 
                 @Test
-                @TestMetadata("getArityViaFunctionImpl.kt")
-                public void testGetArityViaFunctionImpl() throws Exception {
-                    runTest("compiler/testData/codegen/box/callableReference/function/getArityViaFunctionImpl.kt");
-                }
-
-                @Test
                 @TestMetadata("innerClassConstructorWithTwoReceivers.kt")
                 public void testInnerClassConstructorWithTwoReceivers() throws Exception {
                     runTest("compiler/testData/codegen/box/callableReference/function/innerClassConstructorWithTwoReceivers.kt");
@@ -3238,10 +3210,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/callableReference/function/local")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Local {
@@ -3375,10 +3346,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/callableReference/property")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Property {
@@ -3577,10 +3547,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/callableReference/serializability")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Serializability {
@@ -3600,10 +3569,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/casts")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Casts {
@@ -3801,10 +3769,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/casts/functions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Functions {
@@ -3889,10 +3856,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/casts/javaInterop")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class JavaInterop {
@@ -3905,10 +3871,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/casts/literalExpressionAsGenericArgument")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class LiteralExpressionAsGenericArgument {
@@ -3957,10 +3922,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/casts/mutableCollections")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MutableCollections {
@@ -4015,10 +3979,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/casts/nativeCCEMessage")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class NativeCCEMessage {
@@ -4056,10 +4019,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/checkcastOptimization")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class CheckcastOptimization {
@@ -4096,10 +4058,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/classLiteral")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ClassLiteral {
@@ -4129,10 +4090,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/classLiteral/bound")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Bound {
@@ -4169,10 +4129,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/classLiteral/java")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Java {
@@ -4192,10 +4151,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/classes")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Classes {
@@ -4879,10 +4837,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/classes/inner")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Inner {
@@ -4938,10 +4895,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/closures")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Closures {
@@ -5229,10 +5185,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/closures/captureInSuperConstructorCall")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CaptureInSuperConstructorCall {
@@ -5437,10 +5392,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/closures/captureOuterProperty")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CaptureOuterProperty {
@@ -5501,10 +5455,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/closures/capturedVarsOptimization")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CapturedVarsOptimization {
@@ -5595,10 +5548,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/closures/closureInsideClosure")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ClosureInsideClosure {
@@ -5648,10 +5600,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/collectionLiterals")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class CollectionLiterals {
@@ -5664,10 +5615,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/collections")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Collections {
@@ -5716,10 +5666,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/companion")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Companion {
@@ -5750,10 +5699,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/compatibility")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Compatibility {
@@ -5772,10 +5720,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class CompileKotlinAgainstKotlin {
@@ -5860,18 +5807,6 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @TestMetadata("enum.kt")
             public void testEnum() throws Exception {
                 runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/enum.kt");
-            }
-
-            @Test
-            @TestMetadata("expectClassActualTypeAlias.kt")
-            public void testExpectClassActualTypeAlias() throws Exception {
-                runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/expectClassActualTypeAlias.kt");
-            }
-
-            @Test
-            @TestMetadata("expectClassActualTypeAlias2.kt")
-            public void testExpectClassActualTypeAlias2() throws Exception {
-                runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/expectClassActualTypeAlias2.kt");
             }
 
             @Test
@@ -6033,10 +5968,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/fir")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Fir {
@@ -6049,10 +5983,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/inlineClasses")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InlineClasses {
@@ -6160,10 +6093,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/inlineClasses/oldMangling")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class OldMangling {
@@ -6183,10 +6115,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Jvm8 {
@@ -6198,16 +6129,21 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Defaults {
                     @Test
                     public void testAllFilesPresentInDefaults() throws Exception {
                         KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
+                    }
+
+                    @Test
+                    @TestMetadata("callStackTrace.kt")
+                    public void testCallStackTrace() throws Exception {
+                        runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/callStackTrace.kt");
                     }
 
                     @Test
@@ -6223,12 +6159,6 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     }
 
                     @Test
-                    @TestMetadata("superCallFromInterface2.kt")
-                    public void testSuperCallFromInterface2() throws Exception {
-                        runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/superCallFromInterface2.kt");
-                    }
-
-                    @Test
                     @TestMetadata("superPropAccess.kt")
                     public void testSuperPropAccess() throws Exception {
                         runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/superPropAccess.kt");
@@ -6240,19 +6170,12 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/superPropAccessFromInterface.kt");
                     }
 
-                    @Test
-                    @TestMetadata("superPropAccessFromInterface2.kt")
-                    public void testSuperPropAccessFromInterface2() throws Exception {
-                        runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/superPropAccessFromInterface2.kt");
-                    }
-
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/allCompatibility")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class AllCompatibility {
@@ -6306,10 +6229,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/allCompatibility/delegationBy")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class DelegationBy {
@@ -6323,10 +6245,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/interop")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Interop {
@@ -6382,44 +6303,15 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         public void testNewAndOldSchemes3() throws Exception {
                             runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/interop/newAndOldSchemes3.kt");
                         }
-
-                        @Test
-                        @TestMetadata("newSchemeWithJvmDefault.kt")
-                        public void testNewSchemeWithJvmDefault() throws Exception {
-                            runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/interop/newSchemeWithJvmDefault.kt");
-                        }
-                    }
-
-                    @Nested
-                    @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/noDefaultImpls")
-                    @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
-                    @FirPipeline()
-                    @UsePartialLinkage(mode = Mode.DISABLED)
-                    @Tag("no-partial-linkage-may-be-skipped")
-                    public class NoDefaultImpls {
-                        @Test
-                        public void testAllFilesPresentInNoDefaultImpls() throws Exception {
-                            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/noDefaultImpls"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
-                        }
-
-                        @Test
-                        @TestMetadata("superPropAccessFromInterface.kt")
-                        public void testSuperPropAccessFromInterface() throws Exception {
-                            runTest("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/defaults/noDefaultImpls/superPropAccessFromInterface.kt");
-                        }
                     }
                 }
 
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/jvm8against6")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Jvm8against6 {
@@ -6467,10 +6359,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/jvm8/jvm8against6/delegation")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Delegation {
@@ -6503,10 +6394,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/compileKotlinAgainstKotlin/typeAnnotations")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TypeAnnotations {
@@ -6520,10 +6410,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/constants")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Constants {
@@ -6593,6 +6482,12 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
+            @TestMetadata("literalToLongConversion.kt")
+            public void testLiteralToLongConversion() throws Exception {
+                runTest("compiler/testData/codegen/box/constants/literalToLongConversion.kt");
+            }
+
+            @Test
             @TestMetadata("long.kt")
             public void testLong() throws Exception {
                 runTest("compiler/testData/codegen/box/constants/long.kt");
@@ -6614,10 +6509,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/constructor")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Constructor {
@@ -6630,10 +6524,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/constructorCall")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ConstructorCall {
@@ -6646,10 +6539,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/contracts")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Contracts {
@@ -6758,10 +6650,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/controlStructures")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ControlStructures {
@@ -7259,10 +7150,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/breakContinueInExpressions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class BreakContinueInExpressions {
@@ -7394,10 +7284,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/controlStructures/breakContinueInExpressions/inlinedBreakContinue")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class InlinedBreakContinue {
@@ -7453,10 +7342,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/forInArray")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInArray {
@@ -7529,10 +7417,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/forInArrayWithIndex")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInArrayWithIndex {
@@ -7665,10 +7552,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/forInCharSequenceWithIndex")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInCharSequenceWithIndex {
@@ -7765,10 +7651,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/forInIterableWithIndex")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInIterableWithIndex {
@@ -7853,10 +7738,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/forInIterator")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInIterator {
@@ -7869,10 +7753,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/forInSequenceWithIndex")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInSequenceWithIndex {
@@ -7945,10 +7828,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/returnsNothing")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ReturnsNothing {
@@ -7991,10 +7873,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/slowDsl")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SlowDsl {
@@ -8007,10 +7888,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/controlStructures/tryCatchInExpressions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TryCatchInExpressions {
@@ -8210,10 +8090,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/coroutines")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Coroutines {
@@ -8349,15 +8228,15 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
-            @TestMetadata("defaultParametersInSuspend.kt")
-            public void testDefaultParametersInSuspend() throws Exception {
-                runTest("compiler/testData/codegen/box/coroutines/defaultParametersInSuspend.kt");
+            @TestMetadata("defaultParameterLambdaInSuspend.kt")
+            public void testDefaultParameterLambdaInSuspend() throws Exception {
+                runTest("compiler/testData/codegen/box/coroutines/defaultParameterLambdaInSuspend.kt");
             }
 
             @Test
-            @TestMetadata("defaultParamterLambdaInSuspend.kt")
-            public void testDefaultParamterLambdaInSuspend() throws Exception {
-                runTest("compiler/testData/codegen/box/coroutines/defaultParamterLambdaInSuspend.kt");
+            @TestMetadata("defaultParametersInSuspend.kt")
+            public void testDefaultParametersInSuspend() throws Exception {
+                runTest("compiler/testData/codegen/box/coroutines/defaultParametersInSuspend.kt");
             }
 
             @Test
@@ -9011,10 +8890,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/bridges")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Bridges {
@@ -9063,10 +8941,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/controlFlow")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ControlFlow {
@@ -9217,10 +9094,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/debug")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Debug {
@@ -9233,10 +9109,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class FeatureIntersection {
@@ -9362,10 +9237,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/callableReference")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class CallableReference {
@@ -9395,10 +9269,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/callableReference/bound")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Bound {
@@ -9417,10 +9290,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/callableReference/function")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Function {
@@ -9444,10 +9316,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/callableReference/function/local")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Local {
@@ -9468,10 +9339,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/funInterface")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class FunInterface {
@@ -9508,10 +9378,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/jvmDefault")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class JvmDefault {
@@ -9523,10 +9392,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/jvmDefault/kt46007")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Kt46007 {
@@ -9540,10 +9408,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/featureIntersection/tailrec")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Tailrec {
@@ -9641,10 +9508,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/inlineClasses")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InlineClasses {
@@ -9674,10 +9540,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/inlineClasses/direct")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Direct {
@@ -9972,10 +9837,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/inlineClasses/resume")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Resume {
@@ -10270,10 +10134,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/inlineClasses/resumeWithException")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ResumeWithException {
@@ -10539,10 +10402,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/intLikeVarSpilling")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class IntLikeVarSpilling {
@@ -10615,10 +10477,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/intrinsicSemantics")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class IntrinsicSemantics {
@@ -10691,10 +10552,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/javaInterop")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class JavaInterop {
@@ -10707,10 +10567,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/localFunctions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class LocalFunctions {
@@ -10722,10 +10581,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/localFunctions/anonymous")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Anonymous {
@@ -10744,10 +10602,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/localFunctions/named")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Named {
@@ -10833,10 +10690,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/multiModule")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MultiModule {
@@ -10903,10 +10759,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/redundantLocalsElimination")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class RedundantLocalsElimination {
@@ -10925,10 +10780,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/reflect")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Reflect {
@@ -10941,10 +10795,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/stackUnwinding")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class StackUnwinding {
@@ -10993,10 +10846,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/suspendConversion")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SuspendConversion {
@@ -11033,10 +10885,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/suspendFunctionAsCoroutine")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SuspendFunctionAsCoroutine {
@@ -11151,10 +11002,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/suspendFunctionTypeCall")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SuspendFunctionTypeCall {
@@ -11197,10 +11047,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/tailCallOptimizations")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TailCallOptimizations {
@@ -11236,10 +11085,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/tailCallOptimizations/unit")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Unit {
@@ -11253,10 +11101,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/tailOperations")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TailOperations {
@@ -11293,10 +11140,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/unitTypeReturn")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class UnitTypeReturn {
@@ -11351,10 +11197,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/coroutines/varSpilling")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class VarSpilling {
@@ -11414,10 +11259,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/varSpilling/cleanup")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Cleanup {
@@ -11430,10 +11274,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/coroutines/varSpilling/debugMode")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class DebugMode {
@@ -11448,10 +11291,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/correctFrontendCode")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class CorrectFrontendCode {
@@ -11470,10 +11312,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/dataClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DataClasses {
@@ -11593,10 +11434,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/dataClasses/components")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Components {
@@ -11621,10 +11461,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/dataClasses/copy")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Copy {
@@ -11685,10 +11524,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/dataClasses/equals")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Equals {
@@ -11737,10 +11575,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/dataClasses/hashCode")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class HashCode {
@@ -11819,10 +11656,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/dataClasses/toString")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ToString {
@@ -11878,10 +11714,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/dataObjects")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DataObjects {
@@ -11912,10 +11747,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/deadCodeElimination")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DeadCodeElimination {
@@ -11952,10 +11786,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/defaultArguments")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DefaultArguments {
@@ -12111,10 +11944,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/defaultArguments/constructor")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Constructor {
@@ -12217,10 +12049,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/defaultArguments/convention")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Convention {
@@ -12269,10 +12100,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/defaultArguments/function")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Function {
@@ -12453,10 +12283,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/defaultArguments/private")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Private {
@@ -12493,10 +12322,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/defaultArguments/signature")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Signature {
@@ -12528,10 +12356,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/delegatedProperty")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DelegatedProperty {
@@ -12837,10 +12664,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/delegateToAnother")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DelegateToAnother {
@@ -12913,10 +12739,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/delegateToConst")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DelegateToConst {
@@ -12947,10 +12772,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/delegateToFinalProperty")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DelegateToFinalProperty {
@@ -13011,10 +12835,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/delegateToSingleton")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DelegateToSingleton {
@@ -13069,10 +12892,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/delegateToThis")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DelegateToThis {
@@ -13103,10 +12925,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/local")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Local {
@@ -13215,10 +13036,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/optimizedDelegatedProperties")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class OptimizedDelegatedProperties {
@@ -13297,10 +13117,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/delegatedProperty/provideDelegate")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProvideDelegate {
@@ -13440,10 +13259,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/delegation")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Delegation {
@@ -13456,6 +13274,18 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @TestMetadata("delegationDifferentModule.kt")
             public void testDelegationDifferentModule() throws Exception {
                 runTest("compiler/testData/codegen/box/delegation/delegationDifferentModule.kt");
+            }
+
+            @Test
+            @TestMetadata("delegationDifferentModule2.kt")
+            public void testDelegationDifferentModule2() throws Exception {
+                runTest("compiler/testData/codegen/box/delegation/delegationDifferentModule2.kt");
+            }
+
+            @Test
+            @TestMetadata("delegationToIntersectionType.kt")
+            public void testDelegationToIntersectionType() throws Exception {
+                runTest("compiler/testData/codegen/box/delegation/delegationToIntersectionType.kt");
             }
 
             @Test
@@ -13495,6 +13325,12 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
+            @TestMetadata("smartCastedDelegation.kt")
+            public void testSmartCastedDelegation() throws Exception {
+                runTest("compiler/testData/codegen/box/delegation/smartCastedDelegation.kt");
+            }
+
+            @Test
             @TestMetadata("viaTypeAlias.kt")
             public void testViaTypeAlias() throws Exception {
                 runTest("compiler/testData/codegen/box/delegation/viaTypeAlias.kt");
@@ -13516,10 +13352,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/deprecated")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Deprecated {
@@ -13532,10 +13367,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/destructuringDeclInLambdaParam")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DestructuringDeclInLambdaParam {
@@ -13596,10 +13430,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/diagnostics")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Diagnostics {
@@ -13611,10 +13444,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/diagnostics/functions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Functions {
@@ -13626,10 +13458,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/diagnostics/functions/inference")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Inference {
@@ -13648,10 +13479,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/diagnostics/functions/invoke")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Invoke {
@@ -13663,10 +13493,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/diagnostics/functions/invoke/onObjects")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class OnObjects {
@@ -13740,10 +13569,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/diagnostics/functions/tailRecursion")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class TailRecursion {
@@ -14027,10 +13855,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/diagnostics/vararg")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Vararg {
@@ -14050,10 +13877,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/differentDependencyVersion")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DifferentDependencyVersion {
@@ -14066,10 +13892,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/directInvokeOptimization")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DirectInvokeOptimization {
@@ -14166,10 +13991,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/elvis")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Elvis {
@@ -14236,10 +14060,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/enum")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Enum {
@@ -14324,6 +14147,18 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @TestMetadata("enumEntries.kt")
             public void testEnumEntries() throws Exception {
                 runTest("compiler/testData/codegen/box/enum/enumEntries.kt");
+            }
+
+            @Test
+            @TestMetadata("enumEntriesCompatibilityCheck.kt")
+            public void testEnumEntriesCompatibilityCheck() throws Exception {
+                runTest("compiler/testData/codegen/box/enum/enumEntriesCompatibilityCheck.kt");
+            }
+
+            @Test
+            @TestMetadata("enumEntriesInCompanion.kt")
+            public void testEnumEntriesInCompanion() throws Exception {
+                runTest("compiler/testData/codegen/box/enum/enumEntriesInCompanion.kt");
             }
 
             @Test
@@ -14683,10 +14518,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/enum/defaultCtor")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DefaultCtor {
@@ -14742,10 +14576,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/evaluate")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Evaluate {
@@ -14764,10 +14597,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/exclExcl")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ExclExcl {
@@ -14804,10 +14636,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/extensionClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ExtensionClasses {
@@ -14820,10 +14651,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/extensionFunctions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ExtensionFunctions {
@@ -15003,10 +14833,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/extensionFunctions/contextReceivers")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ContextReceivers {
@@ -15018,10 +14847,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/extensionFunctions/contextReceivers/fromKEEP")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class FromKEEP {
@@ -15036,10 +14864,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/extensionProperties")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ExtensionProperties {
@@ -15142,10 +14969,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/external")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class External {
@@ -15158,10 +14984,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/fakeOverride")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class FakeOverride {
@@ -15228,10 +15053,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/fieldRename")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class FieldRename {
@@ -15262,10 +15086,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/finally")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Finally {
@@ -15416,10 +15239,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/fir")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Fir {
@@ -15445,15 +15267,26 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             public void testNestedClassTypeParameterDeserialization() throws Exception {
                 runTest("compiler/testData/codegen/box/fir/nestedClassTypeParameterDeserialization.kt");
             }
+
+            @Test
+            @TestMetadata("SamWithReceiverMavenProjectImportHandler.kt")
+            public void testSamWithReceiverMavenProjectImportHandler() throws Exception {
+                runTest("compiler/testData/codegen/box/fir/SamWithReceiverMavenProjectImportHandler.kt");
+            }
+
+            @Test
+            @TestMetadata("toLong.kt")
+            public void testToLong() throws Exception {
+                runTest("compiler/testData/codegen/box/fir/toLong.kt");
+            }
         }
 
         @Nested
         @TestMetadata("compiler/testData/codegen/box/fullJdk")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class FullJdk {
@@ -15465,10 +15298,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/fullJdk/native")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Native {
@@ -15481,10 +15313,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/fullJdk/regressions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Regressions {
@@ -15498,10 +15329,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/funInterface")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class FunInterface {
@@ -15693,10 +15523,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/funInterface/equality")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Equality {
@@ -15740,10 +15569,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/functions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Functions {
@@ -15846,12 +15674,6 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @TestMetadata("functionNtoStringGeneric.kt")
             public void testFunctionNtoStringGeneric() throws Exception {
                 runTest("compiler/testData/codegen/box/functions/functionNtoStringGeneric.kt");
-            }
-
-            @Test
-            @TestMetadata("functionNtoStringNoReflect.kt")
-            public void testFunctionNtoStringNoReflect() throws Exception {
-                runTest("compiler/testData/codegen/box/functions/functionNtoStringNoReflect.kt");
             }
 
             @Test
@@ -16061,10 +15883,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/functions/bigArity")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class BigArity {
@@ -16119,10 +15940,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/functions/functionExpression")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class FunctionExpression {
@@ -16165,10 +15985,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/functions/invoke")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Invoke {
@@ -16265,10 +16084,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/functions/localFunctions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class LocalFunctions {
@@ -16462,10 +16280,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/ieee754")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Ieee754 {
@@ -16790,10 +16607,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/increment")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Increment {
@@ -16962,10 +16778,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/inference")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Inference {
@@ -17119,6 +16934,18 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
+            @TestMetadata("overrideDefaultProperty.kt")
+            public void testOverrideDefaultProperty() throws Exception {
+                runTest("compiler/testData/codegen/box/inference/overrideDefaultProperty.kt");
+            }
+
+            @Test
+            @TestMetadata("overrideGenericDefaultMethod.kt")
+            public void testOverrideGenericDefaultMethod() throws Exception {
+                runTest("compiler/testData/codegen/box/inference/overrideGenericDefaultMethod.kt");
+            }
+
+            @Test
             @TestMetadata("plusAssignInsideLambda.kt")
             public void testPlusAssignInsideLambda() throws Exception {
                 runTest("compiler/testData/codegen/box/inference/plusAssignInsideLambda.kt");
@@ -17163,10 +16990,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inference/builderInference")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class BuilderInference {
@@ -17378,10 +17204,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/inlineArgsInPlace")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class InlineArgsInPlace {
@@ -17460,10 +17285,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/inlineClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class InlineClasses {
@@ -17609,6 +17433,7 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 register("compiler/testData/codegen/box/inlineClasses/genericVararg2ndConstructor.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/initBlock.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/initBlockGeneric.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
+                register("compiler/testData/codegen/box/inlineClasses/initInCompanion.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/inlineClassAsLastExpressionInInLambda.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/inlineClassAsLastExpressionInInLambdaGeneric.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/inlineClassEqualityShouldUseTotalOrderForFloatingPointData.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
@@ -17711,6 +17536,7 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 register("compiler/testData/codegen/box/inlineClasses/kt51254.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/kt52913.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/kt54455.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
+                register("compiler/testData/codegen/box/inlineClasses/kt57973.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/lateinitInlineClasses.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/mangledDefaultParameterFunction.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/mangledDefaultParameterFunctionGeneric.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
@@ -17752,6 +17578,7 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 register("compiler/testData/codegen/box/inlineClasses/safeAsOfTypeParameterWithInlineClassBoundGeneric.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/samWrapperDifferentModule.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/samWrapperDifferentModuleGeneric.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
+                register("compiler/testData/codegen/box/inlineClasses/secondaryConstructorVisibilies.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/secondaryConstructorWithVararg.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/secondaryConstructorWithVarargGeneric.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
                 register("compiler/testData/codegen/box/inlineClasses/secondaryConstructorsInsideInlineClass.kt", TransformersFunctions.getRemoveOptionalJvmInlineAnnotation());
@@ -18796,6 +18623,13 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
+            @TestMetadata("initInCompanion.kt")
+            public void testInitInCompanion() throws Exception {
+                // There is a registered source transformer for the testcase: TransformersFunctions.getRemoveOptionalJvmInlineAnnotation()
+                runTest("compiler/testData/codegen/box/inlineClasses/initInCompanion.kt");
+            }
+
+            @Test
             @TestMetadata("inlineClassAsLastExpressionInInLambda.kt")
             public void testInlineClassAsLastExpressionInInLambda() throws Exception {
                 // There is a registered source transformer for the testcase: TransformersFunctions.getRemoveOptionalJvmInlineAnnotation()
@@ -19570,6 +19404,13 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
+            @TestMetadata("kt57973.kt")
+            public void testKt57973() throws Exception {
+                // There is a registered source transformer for the testcase: TransformersFunctions.getRemoveOptionalJvmInlineAnnotation()
+                runTest("compiler/testData/codegen/box/inlineClasses/kt57973.kt");
+            }
+
+            @Test
             @TestMetadata("lateinitInlineClasses.kt")
             public void testLateinitInlineClasses() throws Exception {
                 // There is a registered source transformer for the testcase: TransformersFunctions.getRemoveOptionalJvmInlineAnnotation()
@@ -19872,6 +19713,13 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             public void testSamWrapperDifferentModuleGeneric() throws Exception {
                 // There is a registered source transformer for the testcase: TransformersFunctions.getRemoveOptionalJvmInlineAnnotation()
                 runTest("compiler/testData/codegen/box/inlineClasses/samWrapperDifferentModuleGeneric.kt");
+            }
+
+            @Test
+            @TestMetadata("secondaryConstructorVisibilies.kt")
+            public void testSecondaryConstructorVisibilies() throws Exception {
+                // There is a registered source transformer for the testcase: TransformersFunctions.getRemoveOptionalJvmInlineAnnotation()
+                runTest("compiler/testData/codegen/box/inlineClasses/secondaryConstructorVisibilies.kt");
             }
 
             @Test
@@ -20232,10 +20080,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/boxReturnValueInLambda")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class BoxReturnValueInLambda {
@@ -20471,10 +20318,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/boxReturnValueOnOverride")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class BoxReturnValueOnOverride {
@@ -20978,10 +20824,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/callableReferences")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CallableReferences {
@@ -21316,10 +21161,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/inlineClasses/callableReferences/let")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Let {
@@ -21478,10 +21322,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/contextsAndAccessors")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ContextsAndAccessors {
@@ -21833,10 +21676,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/defaultParameterValues")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DefaultParameterValues {
@@ -22035,10 +21877,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/inlineClasses/defaultParameterValues/defaultWithDefaultParameter")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class DefaultWithDefaultParameter {
@@ -22051,10 +21892,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/inlineClasses/defaultParameterValues/overrideFunctionWithDefaultParameter")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class OverrideFunctionWithDefaultParameter {
@@ -22068,10 +21908,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/delegationByUnderlyingType")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DelegationByUnderlyingType {
@@ -22120,10 +21959,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/funInterface")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class FunInterface {
@@ -22231,10 +22069,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/functionNameMangling")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class FunctionNameMangling {
@@ -22506,10 +22343,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/genericUnderlyingValue")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class GenericUnderlyingValue {
@@ -22564,10 +22400,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/hiddenConstructor")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class HiddenConstructor {
@@ -22781,10 +22616,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/inlineClassCollection")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InlineClassCollection {
@@ -22856,10 +22690,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/interfaceDelegation")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InterfaceDelegation {
@@ -22995,10 +22828,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/interfaceMethodCalls")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InterfaceMethodCalls {
@@ -23190,10 +23022,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/javaInterop")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class JavaInterop {
@@ -23206,10 +23037,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/jvm8DefaultInterfaceMethods")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Jvm8DefaultInterfaceMethods {
@@ -23222,10 +23052,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/propertyDelegation")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class PropertyDelegation {
@@ -23417,10 +23246,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/result")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Result {
@@ -23481,10 +23309,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/returnResult")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ReturnResult {
@@ -23533,10 +23360,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/inlineClasses/unboxGenericParameter")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class UnboxGenericParameter {
@@ -23548,10 +23374,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/inlineClasses/unboxGenericParameter/funInterface")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class FunInterface {
@@ -23699,10 +23524,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/inlineClasses/unboxGenericParameter/lambda")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Lambda {
@@ -23850,10 +23674,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/inlineClasses/unboxGenericParameter/objectLiteral")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ObjectLiteral {
@@ -24003,10 +23826,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/innerNested")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class InnerNested {
@@ -24186,10 +24008,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/innerNested/superConstructorCall")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SuperConstructorCall {
@@ -24329,10 +24150,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/instructions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Instructions {
@@ -24344,10 +24164,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/instructions/swap")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Swap {
@@ -24373,10 +24192,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/intrinsics")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Intrinsics {
@@ -24527,10 +24345,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/invokedynamic")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Invokedynamic {
@@ -24542,10 +24359,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/invokedynamic/lambdas")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Lambdas {
@@ -24563,10 +24379,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/invokedynamic/lambdas/inlineClassInSignature")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class InlineClassInSignature {
@@ -24580,10 +24395,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/invokedynamic/sam")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Sam {
@@ -24595,10 +24409,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/invokedynamic/sam/functionExprToJavaInterface")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class FunctionExprToJavaInterface {
@@ -24611,10 +24424,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/invokedynamic/sam/functionRefToJavaInterface")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class FunctionRefToJavaInterface {
@@ -24626,10 +24438,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/invokedynamic/sam/functionRefToJavaInterface/specialFunctions")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class SpecialFunctions {
@@ -24642,10 +24453,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/invokedynamic/sam/functionRefToJavaInterface/withAccessor")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class WithAccessor {
@@ -24659,10 +24469,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/invokedynamic/sam/inlineClassInSignature")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class InlineClassInSignature {
@@ -24675,10 +24484,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/invokedynamic/sam/specializedGenerics")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class SpecializedGenerics {
@@ -24692,10 +24500,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/invokedynamic/serializable")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Serializable {
@@ -24709,16 +24516,57 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/involvesIrInterpreter")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class InvolvesIrInterpreter {
             @Test
             public void testAllFilesPresentInInvolvesIrInterpreter() throws Exception {
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/involvesIrInterpreter"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
+            }
+
+            @Test
+            @TestMetadata("booleanOperations.kt")
+            public void testBooleanOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/booleanOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("byteOperations.kt")
+            public void testByteOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/byteOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("charOperations.kt")
+            public void testCharOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/charOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("doubleOperations.kt")
+            public void testDoubleOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/doubleOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("floatOperations.kt")
+            public void testFloatOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/floatOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("intOperations.kt")
+            public void testIntOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/intOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("jvmFloatDoubleToString.kt")
+            public void testJvmFloatDoubleToString() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/jvmFloatDoubleToString.kt");
             }
 
             @Test
@@ -24734,9 +24582,39 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
+            @TestMetadata("longOperations.kt")
+            public void testLongOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/longOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("shortOperations.kt")
+            public void testShortOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/shortOperations.kt");
+            }
+
+            @Test
+            @TestMetadata("stdlibConst.kt")
+            public void testStdlibConst() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/stdlibConst.kt");
+            }
+
+            @Test
+            @TestMetadata("stringConcatenation.kt")
+            public void testStringConcatenation() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/stringConcatenation.kt");
+            }
+
+            @Test
             @TestMetadata("stringConcatenationWithObject.kt")
             public void testStringConcatenationWithObject() throws Exception {
                 runTest("compiler/testData/codegen/box/involvesIrInterpreter/stringConcatenationWithObject.kt");
+            }
+
+            @Test
+            @TestMetadata("stringOperations.kt")
+            public void testStringOperations() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/stringOperations.kt");
             }
 
             @Test
@@ -24745,107 +24623,39 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 runTest("compiler/testData/codegen/box/involvesIrInterpreter/thisPlusString.kt");
             }
 
+            @Test
+            @TestMetadata("unsignedConst.kt")
+            public void testUnsignedConst() throws Exception {
+                runTest("compiler/testData/codegen/box/involvesIrInterpreter/unsignedConst.kt");
+            }
+
             @Nested
-            @TestMetadata("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck")
+            @TestMetadata("compiler/testData/codegen/box/involvesIrInterpreter/intrinsicConst")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
-            public class DumpIrAndCheck {
+            public class IntrinsicConst {
                 @Test
-                public void testAllFilesPresentInDumpIrAndCheck() throws Exception {
-                    KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
-                }
-
-                @Test
-                @TestMetadata("booleanOperations.kt")
-                public void testBooleanOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/booleanOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("byteOperations.kt")
-                public void testByteOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/byteOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("charOperations.kt")
-                public void testCharOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/charOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("doubleOperations.kt")
-                public void testDoubleOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/doubleOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("floatOperations.kt")
-                public void testFloatOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/floatOperations.kt");
+                public void testAllFilesPresentInIntrinsicConst() throws Exception {
+                    KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/involvesIrInterpreter/intrinsicConst"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
                 }
 
                 @Test
                 @TestMetadata("ifConstVal.kt")
                 public void testIfConstVal() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/ifConstVal.kt");
-                }
-
-                @Test
-                @TestMetadata("intOperations.kt")
-                public void testIntOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/intOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("longOperations.kt")
-                public void testLongOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/longOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("shortOperations.kt")
-                public void testShortOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/shortOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("stdlibConst.kt")
-                public void testStdlibConst() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/stdlibConst.kt");
-                }
-
-                @Test
-                @TestMetadata("stringConcatenation.kt")
-                public void testStringConcatenation() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/stringConcatenation.kt");
-                }
-
-                @Test
-                @TestMetadata("stringOperations.kt")
-                public void testStringOperations() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/stringOperations.kt");
-                }
-
-                @Test
-                @TestMetadata("unsignedConst.kt")
-                public void testUnsignedConst() throws Exception {
-                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/dumpIrAndCheck/unsignedConst.kt");
+                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/intrinsicConst/ifConstVal.kt");
                 }
             }
 
             @Nested
             @TestMetadata("compiler/testData/codegen/box/involvesIrInterpreter/serialization")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Serialization {
@@ -24877,16 +24687,27 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 public void testAnnotationWithDefaults() throws Exception {
                     runTest("compiler/testData/codegen/box/involvesIrInterpreter/serialization/annotationWithDefaults.kt");
                 }
+
+                @Test
+                @TestMetadata("nestedTypeAnnotation.kt")
+                public void testNestedTypeAnnotation() throws Exception {
+                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/serialization/nestedTypeAnnotation.kt");
+                }
+
+                @Test
+                @TestMetadata("typeAnnotation.kt")
+                public void testTypeAnnotation() throws Exception {
+                    runTest("compiler/testData/codegen/box/involvesIrInterpreter/serialization/typeAnnotation.kt");
+                }
             }
         }
 
         @Nested
         @TestMetadata("compiler/testData/codegen/box/ir")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Ir {
@@ -25024,10 +24845,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ir/closureConversion")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ClosureConversion {
@@ -25088,10 +24908,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ir/primitiveNumberComparisons")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class PrimitiveNumberComparisons {
@@ -25128,10 +24947,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ir/privateSignatures")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class PrivateSignatures {
@@ -25156,10 +24974,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ir/serializationRegressions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SerializationRegressions {
@@ -25227,10 +25044,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/javaFieldAndKotlinProperty")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JavaFieldAndKotlinProperty {
@@ -25243,10 +25059,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/javaInterop")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JavaInterop {
@@ -25258,10 +25073,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/javaInterop/foreignAnnotationsTests")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForeignAnnotationsTests {
@@ -25273,10 +25087,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/javaInterop/foreignAnnotationsTests/tests")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Tests {
@@ -25290,10 +25103,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/javaInterop/generics")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Generics {
@@ -25318,10 +25130,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/javaInterop/notNullAssertions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class NotNullAssertions {
@@ -25339,10 +25150,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/javaInterop/notNullAssertions/enhancedNullability")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class EnhancedNullability {
@@ -25353,12 +25163,26 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 }
 
                 @Nested
+                @TestMetadata("compiler/testData/codegen/box/javaInterop/notNullAssertions/expressionAssertionMessages")
+                @TestDataPath("$PROJECT_ROOT")
+                @Tag("frontend-fir")
+                @FirPipeline()
+                @UseExtTestCaseGroupProvider()
+                @UsePartialLinkage(mode = Mode.DISABLED)
+                @Tag("no-partial-linkage-may-be-skipped")
+                public class ExpressionAssertionMessages {
+                    @Test
+                    public void testAllFilesPresentInExpressionAssertionMessages() throws Exception {
+                        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/javaInterop/notNullAssertions/expressionAssertionMessages"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
+                    }
+                }
+
+                @Nested
                 @TestMetadata("compiler/testData/codegen/box/javaInterop/notNullAssertions/nullCheckOnLambdaReturnValue")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class NullCheckOnLambdaReturnValue {
@@ -25372,10 +25196,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/javaInterop/objectMethods")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ObjectMethods {
@@ -25413,10 +25236,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/javaVisibility")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JavaVisibility {
@@ -25428,10 +25250,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/javaVisibility/package")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Package {
@@ -25444,10 +25265,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/javaVisibility/protectedAndPackage")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProtectedAndPackage {
@@ -25460,10 +25280,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/javaVisibility/protectedStatic")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProtectedStatic {
@@ -25477,10 +25296,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/jdk")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Jdk {
@@ -25512,15 +25330,20 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             public void testKt1397() throws Exception {
                 runTest("compiler/testData/codegen/box/jdk/kt1397.kt");
             }
+
+            @Test
+            @TestMetadata("noStringToCharArray.kt")
+            public void testNoStringToCharArray() throws Exception {
+                runTest("compiler/testData/codegen/box/jdk/noStringToCharArray.kt");
+            }
         }
 
         @Nested
         @TestMetadata("compiler/testData/codegen/box/js")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Js {
@@ -25533,10 +25356,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/jvm8")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Jvm8 {
@@ -25548,10 +25370,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/jvm8/defaults")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Defaults {
@@ -25563,10 +25384,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/allCompatibility")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class AllCompatibility {
@@ -25578,10 +25398,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/allCompatibility/delegationBy")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class DelegationBy {
@@ -25593,28 +25412,11 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 }
 
                 @Nested
-                @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/compatibility")
-                @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
-                @FirPipeline()
-                @UsePartialLinkage(mode = Mode.DISABLED)
-                @Tag("no-partial-linkage-may-be-skipped")
-                public class Compatibility {
-                    @Test
-                    public void testAllFilesPresentInCompatibility() throws Exception {
-                        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/jvm8/defaults/compatibility"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
-                    }
-                }
-
-                @Nested
                 @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/delegationBy")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class DelegationBy {
@@ -25627,10 +25429,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/noDefaultImpls")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class NoDefaultImpls {
@@ -25642,10 +25443,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/noDefaultImpls/delegationBy")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class DelegationBy {
@@ -25658,10 +25458,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/noDefaultImpls/specialization")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Specialization {
@@ -25674,10 +25473,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/noDefaultImpls/withCompatibility")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class WithCompatibility {
@@ -25689,28 +25487,11 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 }
 
                 @Nested
-                @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/noDelegation")
-                @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
-                @FirPipeline()
-                @UsePartialLinkage(mode = Mode.DISABLED)
-                @Tag("no-partial-linkage-may-be-skipped")
-                public class NoDelegation {
-                    @Test
-                    public void testAllFilesPresentInNoDelegation() throws Exception {
-                        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/jvm8/defaults/noDelegation"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
-                    }
-                }
-
-                @Nested
                 @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/nonDefaultInheritance")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class NonDefaultInheritance {
@@ -25723,10 +25504,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/jvm8/defaults/reflection")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Reflection {
@@ -25740,10 +25520,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/jvm8/interfaceFlag")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InterfaceFlag {
@@ -25756,10 +25535,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/jvm8/javaDefaults")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class JavaDefaults {
@@ -25773,10 +25551,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/jvmField")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JvmField {
@@ -25789,10 +25566,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/jvmName")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JvmName {
@@ -25804,10 +25580,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/jvmName/fileFacades")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class FileFacades {
@@ -25821,10 +25596,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/jvmOverloads")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JvmOverloads {
@@ -25837,10 +25611,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/jvmPackageName")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JvmPackageName {
@@ -25853,10 +25626,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/jvmStatic")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JvmStatic {
@@ -25868,10 +25640,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/jvmStatic/protectedInSuperClass")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProtectedInSuperClass {
@@ -25885,10 +25656,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/labels")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Labels {
@@ -25949,10 +25719,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/lazyCodegen")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class LazyCodegen {
@@ -26018,10 +25787,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/lazyCodegen/optimizations")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Optimizations {
@@ -26089,10 +25857,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/localClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class LocalClasses {
@@ -26345,10 +26112,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/mangling")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Mangling {
@@ -26397,10 +26163,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/mixedNamedPosition")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class MixedNamedPosition {
@@ -26437,10 +26202,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/multiDecl")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class MultiDecl {
@@ -26536,10 +26300,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multiDecl/forIterator")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForIterator {
@@ -26581,10 +26344,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiDecl/forIterator/longIterator")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class LongIterator {
@@ -26622,10 +26384,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForRange {
@@ -26679,10 +26440,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/explicitRangeTo")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ExplicitRangeTo {
@@ -26724,10 +26484,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/explicitRangeTo/int")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Int {
@@ -26764,10 +26523,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/explicitRangeTo/long")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Long {
@@ -26805,10 +26563,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/explicitRangeToWithDot")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ExplicitRangeToWithDot {
@@ -26850,10 +26607,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/explicitRangeToWithDot/int")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Int {
@@ -26890,10 +26646,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/explicitRangeToWithDot/long")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Long {
@@ -26931,10 +26686,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/int")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Int {
@@ -26971,10 +26725,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiDecl/forRange/long")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Long {
@@ -27013,10 +26766,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/multifileClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class MultifileClasses {
@@ -27028,10 +26780,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multifileClasses/optimized")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Optimized {
@@ -27045,10 +26796,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/multiplatform")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Multiplatform {
@@ -27078,10 +26828,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multiplatform/defaultArguments")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DefaultArguments {
@@ -27238,10 +26987,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multiplatform/exhaustiveness")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Exhaustiveness {
@@ -27254,10 +27002,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multiplatform/hmpp")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Hmpp {
@@ -27270,10 +27017,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multiplatform/k2")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class K2 {
@@ -27282,13 +27028,18 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/multiplatform/k2"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
                 }
 
+                @Test
+                @TestMetadata("anonymousObjectAndSpecificImplementationInDeserializedIr.kt")
+                public void testAnonymousObjectAndSpecificImplementationInDeserializedIr() throws Exception {
+                    runTest("compiler/testData/codegen/box/multiplatform/k2/anonymousObjectAndSpecificImplementationInDeserializedIr.kt");
+                }
+
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiplatform/k2/annotations")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Annotations {
@@ -27307,10 +27058,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiplatform/k2/basic")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Basic {
@@ -27368,9 +27118,51 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     }
 
                     @Test
+                    @TestMetadata("expectActualFakeOverrides2.kt")
+                    public void testExpectActualFakeOverrides2() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualFakeOverrides2.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectActualFakeOverrides3.kt")
+                    public void testExpectActualFakeOverrides3() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualFakeOverrides3.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectActualFakeOverridesWithTypeParameters.kt")
+                    public void testExpectActualFakeOverridesWithTypeParameters() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualFakeOverridesWithTypeParameters.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectActualFakeOverridesWithTypeParameters2.kt")
+                    public void testExpectActualFakeOverridesWithTypeParameters2() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualFakeOverridesWithTypeParameters2.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectActualIntersectionOverride.kt")
+                    public void testExpectActualIntersectionOverride() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualIntersectionOverride.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectActualIntersectionOverride2.kt")
+                    public void testExpectActualIntersectionOverride2() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualIntersectionOverride2.kt");
+                    }
+
+                    @Test
                     @TestMetadata("expectActualMultiCommon.kt")
                     public void testExpectActualMultiCommon() throws Exception {
                         runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualMultiCommon.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectActualNullabilityBasedOverloads.kt")
+                    public void testExpectActualNullabilityBasedOverloads() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualNullabilityBasedOverloads.kt");
                     }
 
                     @Test
@@ -27386,15 +27178,33 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     }
 
                     @Test
+                    @TestMetadata("expectActualTypeParameters.kt")
+                    public void testExpectActualTypeParameters() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualTypeParameters.kt");
+                    }
+
+                    @Test
                     @TestMetadata("expectActualTypealias.kt")
                     public void testExpectActualTypealias() throws Exception {
                         runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualTypealias.kt");
                     }
 
                     @Test
+                    @TestMetadata("expectActualTypealiasCoercion.kt")
+                    public void testExpectActualTypealiasCoercion() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectActualTypealiasCoercion.kt");
+                    }
+
+                    @Test
                     @TestMetadata("expectInterfaceInSupertypes.kt")
                     public void testExpectInterfaceInSupertypes() throws Exception {
                         runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectInterfaceInSupertypes.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectInterfaceInSupertypes2.kt")
+                    public void testExpectInterfaceInSupertypes2() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/expectInterfaceInSupertypes2.kt");
                     }
 
                     @Test
@@ -27416,6 +27226,12 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     }
 
                     @Test
+                    @TestMetadata("interfaceMethodFromSuperTypeIsImplementedInOtherExpectSuperClass.kt")
+                    public void testInterfaceMethodFromSuperTypeIsImplementedInOtherExpectSuperClass() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/interfaceMethodFromSuperTypeIsImplementedInOtherExpectSuperClass.kt");
+                    }
+
+                    @Test
                     @TestMetadata("kt-56329.kt")
                     public void testKt_56329() throws Exception {
                         runTest("compiler/testData/codegen/box/multiplatform/k2/basic/kt-56329.kt");
@@ -27428,6 +27244,12 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     }
 
                     @Test
+                    @TestMetadata("overridesOfExpectMembers.kt")
+                    public void testOverridesOfExpectMembers() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/basic/overridesOfExpectMembers.kt");
+                    }
+
+                    @Test
                     @TestMetadata("removeExpectDeclarationsFromMetadata.kt")
                     public void testRemoveExpectDeclarationsFromMetadata() throws Exception {
                         runTest("compiler/testData/codegen/box/multiplatform/k2/basic/removeExpectDeclarationsFromMetadata.kt");
@@ -27437,10 +27259,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/multiplatform/k2/defaultArguments")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class DefaultArguments {
@@ -27477,6 +27298,12 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @TestMetadata("dispatchReceiverValue.kt")
                     public void testDispatchReceiverValue() throws Exception {
                         runTest("compiler/testData/codegen/box/multiplatform/k2/defaultArguments/dispatchReceiverValue.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("expectPropertyAsDefaultArgument.kt")
+                    public void testExpectPropertyAsDefaultArgument() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/defaultArguments/expectPropertyAsDefaultArgument.kt");
                     }
 
                     @Test
@@ -27587,15 +27414,98 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         runTest("compiler/testData/codegen/box/multiplatform/k2/defaultArguments/withTypeParameter.kt");
                     }
                 }
+
+                @Nested
+                @TestMetadata("compiler/testData/codegen/box/multiplatform/k2/migratedOldTests")
+                @TestDataPath("$PROJECT_ROOT")
+                @Tag("frontend-fir")
+                @FirPipeline()
+                @UseExtTestCaseGroupProvider()
+                @UsePartialLinkage(mode = Mode.DISABLED)
+                @Tag("no-partial-linkage-may-be-skipped")
+                public class MigratedOldTests {
+                    @Test
+                    public void testAllFilesPresentInMigratedOldTests() throws Exception {
+                        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/multiplatform/k2/migratedOldTests"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
+                    }
+
+                    @Test
+                    @TestMetadata("mpp1.kt")
+                    public void testMpp1() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/migratedOldTests/mpp1.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("mpp2.kt")
+                    public void testMpp2() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/migratedOldTests/mpp2.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("mpp_default_args.kt")
+                    public void testMpp_default_args() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/migratedOldTests/mpp_default_args.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("mpp_optional_expectation.kt")
+                    public void testMpp_optional_expectation() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/migratedOldTests/mpp_optional_expectation.kt");
+                    }
+
+                    @Test
+                    @TestMetadata("remap_expect_property_ref.kt")
+                    public void testRemap_expect_property_ref() throws Exception {
+                        runTest("compiler/testData/codegen/box/multiplatform/k2/migratedOldTests/remap_expect_property_ref.kt");
+                    }
+                }
+            }
+
+            @Nested
+            @TestMetadata("compiler/testData/codegen/box/multiplatform/migratedOldTests")
+            @TestDataPath("$PROJECT_ROOT")
+            @Tag("frontend-fir")
+            @FirPipeline()
+            @UseExtTestCaseGroupProvider()
+            @UsePartialLinkage(mode = Mode.DISABLED)
+            @Tag("no-partial-linkage-may-be-skipped")
+            public class MigratedOldTests {
+                @Test
+                public void testAllFilesPresentInMigratedOldTests() throws Exception {
+                    KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/multiplatform/migratedOldTests"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
+                }
+
+                @Test
+                @TestMetadata("mpp1.kt")
+                public void testMpp1() throws Exception {
+                    runTest("compiler/testData/codegen/box/multiplatform/migratedOldTests/mpp1.kt");
+                }
+
+                @Test
+                @TestMetadata("mpp2.kt")
+                public void testMpp2() throws Exception {
+                    runTest("compiler/testData/codegen/box/multiplatform/migratedOldTests/mpp2.kt");
+                }
+
+                @Test
+                @TestMetadata("mpp_default_args.kt")
+                public void testMpp_default_args() throws Exception {
+                    runTest("compiler/testData/codegen/box/multiplatform/migratedOldTests/mpp_default_args.kt");
+                }
+
+                @Test
+                @TestMetadata("remap_expect_property_ref.kt")
+                public void testRemap_expect_property_ref() throws Exception {
+                    runTest("compiler/testData/codegen/box/multiplatform/migratedOldTests/remap_expect_property_ref.kt");
+                }
             }
 
             @Nested
             @TestMetadata("compiler/testData/codegen/box/multiplatform/multiModule")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MultiModule {
@@ -27633,10 +27543,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/nonLocalReturns")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class NonLocalReturns {
@@ -27667,10 +27576,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/notNullAssertions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class NotNullAssertions {
@@ -27683,10 +27591,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/nothingValue")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class NothingValue {
@@ -27711,10 +27618,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/nullCheckOptimization")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class NullCheckOptimization {
@@ -27763,10 +27669,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/objectIntrinsics")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ObjectIntrinsics {
@@ -27785,16 +27690,21 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/objects")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Objects {
             @Test
             public void testAllFilesPresentInObjects() throws Exception {
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/box/objects"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.NATIVE, true);
+            }
+
+            @Test
+            @TestMetadata("anonymousObjectAndContrvariantProjection.kt")
+            public void testAnonymousObjectAndContrvariantProjection() throws Exception {
+                runTest("compiler/testData/codegen/box/objects/anonymousObjectAndContrvariantProjection.kt");
             }
 
             @Test
@@ -28262,10 +28172,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/objects/companionObjectAccess")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CompanionObjectAccess {
@@ -28373,10 +28282,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/objects/companionObjectAccess/multipleCompanionsWithAccessors")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class MultipleCompanionsWithAccessors {
@@ -28461,10 +28369,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/objects/companionObjectAccess/primitiveCompanion")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class PrimitiveCompanion {
@@ -28521,10 +28428,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/operatorConventions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class OperatorConventions {
@@ -28678,6 +28584,12 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             }
 
             @Test
+            @TestMetadata("suspendOperators.kt")
+            public void testSuspendOperators() throws Exception {
+                runTest("compiler/testData/codegen/box/operatorConventions/suspendOperators.kt");
+            }
+
+            @Test
             @TestMetadata("untilOperator.kt")
             public void testUntilOperator() throws Exception {
                 runTest("compiler/testData/codegen/box/operatorConventions/untilOperator.kt");
@@ -28686,10 +28598,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/operatorConventions/compareTo")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CompareTo {
@@ -28769,10 +28680,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/optimizations")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Optimizations {
@@ -28791,10 +28701,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/package")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Package {
@@ -28873,10 +28782,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/parametersMetadata")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ParametersMetadata {
@@ -28889,10 +28797,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/platformTypes")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class PlatformTypes {
@@ -28904,10 +28811,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/platformTypes/primitives")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Primitives {
@@ -29035,10 +28941,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/polymorphicSignature")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class PolymorphicSignature {
@@ -29051,10 +28956,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/primitiveTypes")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class PrimitiveTypes {
@@ -29420,10 +29324,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/primitiveTypes/equalityWithObject")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class EqualityWithObject {
@@ -29489,10 +29392,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/primitiveTypes/equalityWithObject/generated")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Generated {
@@ -29614,10 +29516,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/primitiveTypes/numberToChar")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class NumberToChar {
@@ -29667,10 +29568,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/private")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Private {
@@ -29695,10 +29595,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/privateConstructors")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class PrivateConstructors {
@@ -29783,10 +29682,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/properties")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Properties {
@@ -30266,10 +30164,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/properties/backingField")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class BackingField {
@@ -30282,10 +30179,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/properties/const")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Const {
@@ -30322,10 +30218,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/properties/lateinit")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Lateinit {
@@ -30427,10 +30322,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/properties/lateinit/isInitializedAndDeinitialize")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class IsInitializedAndDeinitialize {
@@ -30497,10 +30391,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/properties/lateinit/local")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Local {
@@ -30555,10 +30448,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/properties/lateinit/topLevel")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class TopLevel {
@@ -30603,10 +30495,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/publishedApi")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class PublishedApi {
@@ -30631,10 +30522,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/ranges")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Ranges {
@@ -30790,10 +30680,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/contains")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Contains {
@@ -31105,10 +30994,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/contains/generated")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Generated {
@@ -31284,10 +31172,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/evaluationOrder")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class EvaluationOrder {
@@ -31353,10 +31240,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/evaluationOrder/stepped")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Stepped {
@@ -31368,10 +31254,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/evaluationOrder/stepped/forInDownTo")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class ForInDownTo {
@@ -31432,10 +31317,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/evaluationOrder/stepped/forInRangeLiteral")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class ForInRangeLiteral {
@@ -31496,10 +31380,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/evaluationOrder/stepped/forInUntil")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class ForInUntil {
@@ -31562,10 +31445,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/expression")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Expression {
@@ -31764,10 +31646,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/forInDownTo")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInDownTo {
@@ -31822,10 +31703,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/forInIndices")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInIndices {
@@ -31982,10 +31862,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/forInProgressionWithIndex")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInProgressionWithIndex {
@@ -32088,10 +31967,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/forInReversed")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInReversed {
@@ -32212,10 +32090,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/forInUntil")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForInUntil {
@@ -32318,10 +32195,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/forWithPossibleOverflow")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ForWithPossibleOverflow {
@@ -32412,10 +32288,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/javaInterop")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class JavaInterop {
@@ -32427,10 +32302,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/javaInterop/withIndex")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class WithIndex {
@@ -32444,10 +32318,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/literal")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Literal {
@@ -32646,10 +32519,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/nullableLoopParameter")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class NullableLoopParameter {
@@ -32680,10 +32552,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/stepped")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Stepped {
@@ -32695,10 +32566,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Expression {
@@ -32710,10 +32580,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/downTo")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class DownTo {
@@ -32821,10 +32690,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/downTo/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -32885,10 +32753,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/downTo/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -32938,10 +32805,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/rangeTo")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class RangeTo {
@@ -33049,10 +32915,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/rangeTo/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -33113,10 +32978,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/rangeTo/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -33166,10 +33030,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/rangeUntil")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class RangeUntil {
@@ -33241,10 +33104,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/rangeUntil/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -33305,10 +33167,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/rangeUntil/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -33358,10 +33219,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/until")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Until {
@@ -33475,10 +33335,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/until/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -33539,10 +33398,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/expression/until/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -33593,10 +33451,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Literal {
@@ -33608,10 +33465,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/downTo")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class DownTo {
@@ -33719,10 +33575,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/downTo/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -33783,10 +33638,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/downTo/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -33836,10 +33690,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/rangeTo")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class RangeTo {
@@ -33947,10 +33800,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/rangeTo/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -34011,10 +33863,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/rangeTo/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -34064,10 +33915,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/rangeUntil")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class RangeUntil {
@@ -34139,10 +33989,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/rangeUntil/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -34203,10 +34052,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/rangeUntil/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -34256,10 +34104,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/until")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Until {
@@ -34373,10 +34220,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/until/nestedStep")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class NestedStep {
@@ -34437,10 +34283,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/literal/until/reversed")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Reversed {
@@ -34491,10 +34336,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Unsigned {
@@ -34506,10 +34350,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Expression {
@@ -34521,10 +34364,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/downTo")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class DownTo {
@@ -34632,10 +34474,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/downTo/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -34696,10 +34537,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/downTo/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -34749,10 +34589,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/rangeTo")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class RangeTo {
@@ -34860,10 +34699,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/rangeTo/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -34924,10 +34762,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/rangeTo/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -34977,10 +34814,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/rangeUntil")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class RangeUntil {
@@ -35052,10 +34888,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/rangeUntil/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -35116,10 +34951,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/rangeUntil/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -35169,10 +35003,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/until")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Until {
@@ -35286,10 +35119,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/until/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -35350,10 +35182,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/expression/until/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -35404,10 +35235,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Literal {
@@ -35419,10 +35249,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/downTo")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class DownTo {
@@ -35530,10 +35359,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/downTo/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -35594,10 +35422,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/downTo/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -35647,10 +35474,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/rangeTo")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class RangeTo {
@@ -35758,10 +35584,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/rangeTo/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -35822,10 +35647,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/rangeTo/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -35875,10 +35699,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/rangeUntil")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class RangeUntil {
@@ -35950,10 +35773,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/rangeUntil/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -36014,10 +35836,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/rangeUntil/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -36067,10 +35888,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                         @Nested
                         @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/until")
                         @TestDataPath("$PROJECT_ROOT")
-                        @Tag("codegenK2")
-                        @Tag("firCodegen")
-                        @UseExtTestCaseGroupProvider()
+                        @Tag("frontend-fir")
                         @FirPipeline()
+                        @UseExtTestCaseGroupProvider()
                         @UsePartialLinkage(mode = Mode.DISABLED)
                         @Tag("no-partial-linkage-may-be-skipped")
                         public class Until {
@@ -36184,10 +36004,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/until/nestedStep")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class NestedStep {
@@ -36248,10 +36067,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                             @Nested
                             @TestMetadata("compiler/testData/codegen/box/ranges/stepped/unsigned/literal/until/reversed")
                             @TestDataPath("$PROJECT_ROOT")
-                            @Tag("codegenK2")
-                            @Tag("firCodegen")
-                            @UseExtTestCaseGroupProvider()
+                            @Tag("frontend-fir")
                             @FirPipeline()
+                            @UseExtTestCaseGroupProvider()
                             @UsePartialLinkage(mode = Mode.DISABLED)
                             @Tag("no-partial-linkage-may-be-skipped")
                             public class Reversed {
@@ -36304,10 +36122,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/ranges/unsigned")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Unsigned {
@@ -36355,10 +36172,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/unsigned/expression")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Expression {
@@ -36557,10 +36373,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/unsigned/literal")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Literal {
@@ -36759,10 +36574,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/ranges/unsigned/nullableLoopParameter")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class NullableLoopParameter {
@@ -36795,10 +36609,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/recursiveRawTypes")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class RecursiveRawTypes {
@@ -36811,10 +36624,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/reflection")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Reflection {
@@ -36826,10 +36638,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/annotations")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Annotations {
@@ -36913,10 +36724,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/annotations/onTypes")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class OnTypes {
@@ -36929,10 +36739,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/annotations/repeatable")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Repeatable {
@@ -36946,10 +36755,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/builtins")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Builtins {
@@ -36974,10 +36782,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/call")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Call {
@@ -37061,10 +36868,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/call/bound")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Bound {
@@ -37125,10 +36931,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/call/inlineClasses")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class InlineClasses {
@@ -37158,10 +36963,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/reflection/call/inlineClasses/nonNullObject")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class NonNullObject {
@@ -37174,10 +36978,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/reflection/call/inlineClasses/nullableObject")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class NullableObject {
@@ -37190,10 +36993,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/reflection/call/inlineClasses/primitive")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Primitive {
@@ -37207,10 +37009,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/call/valueClasses")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ValueClasses {
@@ -37224,10 +37025,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/callBy")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CallBy {
@@ -37372,10 +37172,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/classLiterals")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ClassLiterals {
@@ -37418,10 +37217,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/classes")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Classes {
@@ -37464,10 +37262,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/constructors")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Constructors {
@@ -37510,10 +37307,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/createAnnotation")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CreateAnnotation {
@@ -37574,10 +37370,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/enclosing")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Enclosing {
@@ -37590,10 +37385,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/functions")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Functions {
@@ -37630,10 +37424,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/genericSignature")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class GenericSignature {
@@ -37652,10 +37445,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/isInstance")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class IsInstance {
@@ -37668,10 +37460,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/kClassInAnnotation")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class KClassInAnnotation {
@@ -37696,10 +37487,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/lambdaClasses")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class LambdaClasses {
@@ -37712,10 +37502,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/mapping")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Mapping {
@@ -37727,10 +37516,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/mapping/fakeOverrides")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class FakeOverrides {
@@ -37743,10 +37531,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/mapping/inlineClasses")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class InlineClasses {
@@ -37759,10 +37546,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/mapping/jvmStatic")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class JvmStatic {
@@ -37775,10 +37561,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/mapping/types")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Types {
@@ -37791,10 +37576,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/mapping/valueClasses")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ValueClasses {
@@ -37808,10 +37592,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/methodsFromAny")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MethodsFromAny {
@@ -37938,10 +37721,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/modifiers")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Modifiers {
@@ -37996,10 +37778,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/multifileClasses")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MultifileClasses {
@@ -38012,10 +37793,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/noReflectAtRuntime")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class NoReflectAtRuntime {
@@ -38045,10 +37825,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/noReflectAtRuntime/methodsFromAny")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class MethodsFromAny {
@@ -38074,10 +37853,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/parameters")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Parameters {
@@ -38144,10 +37922,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/properties")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Properties {
@@ -38231,10 +38008,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/properties/accessors")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Accessors {
@@ -38277,10 +38053,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/properties/getDelegate")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class GetDelegate {
@@ -38292,10 +38067,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/reflection/properties/getDelegate/method")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class Method {
@@ -38309,10 +38083,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/properties/jvmField")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class JvmField {
@@ -38325,10 +38098,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/properties/localDelegated")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class LocalDelegated {
@@ -38342,10 +38114,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/supertypes")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Supertypes {
@@ -38376,10 +38147,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/typeOf")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TypeOf {
@@ -38439,10 +38209,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/typeOf/js")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Js {
@@ -38455,10 +38224,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/typeOf/noReflect")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class NoReflect {
@@ -38476,10 +38244,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                     @Nested
                     @TestMetadata("compiler/testData/codegen/box/reflection/typeOf/noReflect/nonReifiedTypeParameters")
                     @TestDataPath("$PROJECT_ROOT")
-                    @Tag("codegenK2")
-                    @Tag("firCodegen")
-                    @UseExtTestCaseGroupProvider()
+                    @Tag("frontend-fir")
                     @FirPipeline()
+                    @UseExtTestCaseGroupProvider()
                     @UsePartialLinkage(mode = Mode.DISABLED)
                     @Tag("no-partial-linkage-may-be-skipped")
                     public class NonReifiedTypeParameters {
@@ -38493,10 +38260,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/typeOf/nonReifiedTypeParameters")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class NonReifiedTypeParameters {
@@ -38576,10 +38342,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/typeParameters")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TypeParameters {
@@ -38610,10 +38375,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reflection/types")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Types {
@@ -38655,10 +38419,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/types/createType")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class CreateType {
@@ -38701,10 +38464,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/reflection/types/subtyping")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Subtyping {
@@ -38737,10 +38499,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/regressions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Regressions {
@@ -39173,10 +38934,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/reified")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Reified {
@@ -39314,10 +39074,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/reified/arraysReification")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ArraysReification {
@@ -39355,10 +39114,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/safeCall")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SafeCall {
@@ -39473,10 +39231,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/sam")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Sam {
@@ -39506,10 +39263,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/sam/adapters")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Adapters {
@@ -39521,10 +39277,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/box/sam/adapters/operators")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Operators {
@@ -39538,10 +39293,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/sam/approximation")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Approximation {
@@ -39578,10 +39332,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/sam/constructors")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Constructors {
@@ -39612,10 +39365,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/sam/equality")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Equality {
@@ -39628,10 +39380,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/sam/javaSamWithEqualsHashCode")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class JavaSamWithEqualsHashCode {
@@ -39645,10 +39396,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/sameFileInSourceAndDependencies")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SameFileInSourceAndDependencies {
@@ -39715,10 +39465,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/script")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Script {
@@ -39731,10 +39480,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/sealed")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Sealed {
@@ -39795,10 +39543,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/secondaryConstructors")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SecondaryConstructors {
@@ -39997,10 +39744,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/size")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Size {
@@ -40013,10 +39759,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/smap")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Smap {
@@ -40029,10 +39774,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/smartCasts")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SmartCasts {
@@ -40195,10 +39939,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/specialBuiltins")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SpecialBuiltins {
@@ -40355,10 +40098,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/statics")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Statics {
@@ -40419,10 +40161,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/storeStackBeforeInline")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class StoreStackBeforeInline {
@@ -40465,10 +40206,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/strings")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Strings {
@@ -40697,10 +40437,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/super")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Super {
@@ -40892,10 +40631,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/super/superConstructor")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class SuperConstructor {
@@ -40951,10 +40689,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/suppressions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Suppressions {
@@ -40973,10 +40710,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/suspendConversion")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SuspendConversion {
@@ -41061,10 +40797,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/synchronized")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Synchronized {
@@ -41077,10 +40812,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/syntheticAccessors")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SyntheticAccessors {
@@ -41206,10 +40940,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/syntheticAccessors/protectedJavaFieldAccessor")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProtectedJavaFieldAccessor {
@@ -41222,10 +40955,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/syntheticAccessors/protectedMemberReferenceAccessor")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProtectedMemberReferenceAccessor {
@@ -41263,10 +40995,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/syntheticExtensions")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SyntheticExtensions {
@@ -41279,10 +41010,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/throws")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Throws {
@@ -41295,10 +41025,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/toArray")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ToArray {
@@ -41329,10 +41058,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/topLevelInitializtion")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class TopLevelInitializtion {
@@ -41375,10 +41103,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/topLevelPrivate")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class TopLevelPrivate {
@@ -41403,10 +41130,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/trailingComma")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class TrailingComma {
@@ -41425,10 +41151,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/traits")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Traits {
@@ -41645,10 +41370,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/typeInfo")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class TypeInfo {
@@ -41697,10 +41421,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/typeMapping")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class TypeMapping {
@@ -41755,10 +41478,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/typealias")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Typealias {
@@ -41915,10 +41637,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/unaryOp")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class UnaryOp {
@@ -41967,10 +41688,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/underscoredTypeArguments")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class UnderscoredTypeArguments {
@@ -42007,10 +41727,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/unit")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Unit {
@@ -42107,10 +41826,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/unsignedTypes")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class UnsignedTypes {
@@ -42189,6 +41907,18 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @TestMetadata("forInUnsignedUntil.kt")
             public void testForInUnsignedUntil() throws Exception {
                 runTest("compiler/testData/codegen/box/unsignedTypes/forInUnsignedUntil.kt");
+            }
+
+            @Test
+            @TestMetadata("implicitIntegerCoercionNamedArg.kt")
+            public void testImplicitIntegerCoercionNamedArg() throws Exception {
+                runTest("compiler/testData/codegen/box/unsignedTypes/implicitIntegerCoercionNamedArg.kt");
+            }
+
+            @Test
+            @TestMetadata("implicitIntegerCoercionOverloadResolutionAmbiguity.kt")
+            public void testImplicitIntegerCoercionOverloadResolutionAmbiguity() throws Exception {
+                runTest("compiler/testData/codegen/box/unsignedTypes/implicitIntegerCoercionOverloadResolutionAmbiguity.kt");
             }
 
             @Test
@@ -42380,10 +42110,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/unsignedTypes/jvm8Intrinsics")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Jvm8Intrinsics {
@@ -42397,10 +42126,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/valueClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ValueClasses {
@@ -42413,10 +42141,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/vararg")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Vararg {
@@ -42525,10 +42252,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/volatile")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Volatile {
@@ -42619,10 +42345,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/box/when")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class When {
@@ -42898,10 +42623,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/when/enumOptimization")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class EnumOptimization {
@@ -43040,10 +42764,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/when/stringOptimization")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class StringOptimization {
@@ -43110,10 +42833,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/box/when/whenSubjectVariable")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class WhenSubjectVariable {
@@ -43236,10 +42958,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
     @Nested
     @TestMetadata("compiler/testData/codegen/boxInline")
     @TestDataPath("$PROJECT_ROOT")
-    @Tag("codegenK2")
-    @Tag("firCodegen")
-    @UseExtTestCaseGroupProvider()
+    @Tag("frontend-fir")
     @FirPipeline()
+    @UseExtTestCaseGroupProvider()
     @UsePartialLinkage(mode = Mode.DISABLED)
     @Tag("no-partial-linkage-may-be-skipped")
     public class BoxInline {
@@ -43251,10 +42972,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/annotations")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Annotations {
@@ -43279,10 +42999,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/anonymousObject")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class AnonymousObject {
@@ -43684,10 +43403,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/anonymousObject/enumEntries")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class EnumEntries {
@@ -43700,10 +43418,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/anonymousObject/enumWhen")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class EnumWhen {
@@ -43740,10 +43457,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/anonymousObject/properRecapturing")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProperRecapturing {
@@ -43792,10 +43508,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/anonymousObject/properRecapturingInClass")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class ProperRecapturingInClass {
@@ -43880,10 +43595,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/anonymousObject/sam")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Sam {
@@ -43896,10 +43610,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/anonymousObject/twoCapturedReceivers")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TwoCapturedReceivers {
@@ -43955,10 +43668,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/argumentOrder")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ArgumentOrder {
@@ -44055,10 +43767,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/arrayConvention")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ArrayConvention {
@@ -44107,10 +43818,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/assert")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Assert {
@@ -44123,10 +43833,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/builders")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Builders {
@@ -44139,10 +43848,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/bytecodePreprocessing")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class BytecodePreprocessing {
@@ -44155,10 +43863,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/callableReference")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class CallableReference {
@@ -44266,10 +43973,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/callableReference/adaptedReferences")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class AdaptedReferences {
@@ -44318,10 +44024,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/callableReference/bound")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Bound {
@@ -44491,10 +44196,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/capture")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Capture {
@@ -44573,10 +44277,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/complex")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Complex {
@@ -44625,10 +44328,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/complexStack")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class ComplexStack {
@@ -44695,10 +44397,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/contracts")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Contracts {
@@ -44801,10 +44502,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/defaultValues")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DefaultValues {
@@ -44936,10 +44636,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class LambdaInlining {
@@ -45149,10 +44848,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/defaultValues/lambdaInlining/callableReferences")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class CallableReferences {
@@ -45334,10 +45032,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/defaultValues/maskElimination")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class MaskElimination {
@@ -45393,10 +45090,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/delegatedProperty")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class DelegatedProperty {
@@ -45445,10 +45141,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/enclosingInfo")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class EnclosingInfo {
@@ -45461,10 +45156,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/enum")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Enum {
@@ -45555,10 +45249,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/functionExpression")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class FunctionExpression {
@@ -45577,10 +45270,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/inlineArgsInplace")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class InlineArgsInplace {
@@ -45599,10 +45291,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/inlineClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class InlineClasses {
@@ -45656,10 +45347,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/inlineClasses/unboxGenericParameter")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class UnboxGenericParameter {
@@ -45671,10 +45361,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/inlineClasses/unboxGenericParameter/funInterface")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class FunInterface {
@@ -45723,10 +45412,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/inlineClasses/unboxGenericParameter/lambda")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Lambda {
@@ -45775,10 +45463,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/inlineClasses/unboxGenericParameter/objectLiteral")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ObjectLiteral {
@@ -45829,10 +45516,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/innerClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class InnerClasses {
@@ -45893,10 +45579,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/invokedynamic")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Invokedynamic {
@@ -45908,10 +45593,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/invokedynamic/lambdas")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Lambdas {
@@ -45924,10 +45608,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/invokedynamic/sam")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Sam {
@@ -45941,10 +45624,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/jvmName")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JvmName {
@@ -45957,10 +45639,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/jvmPackageName")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class JvmPackageName {
@@ -45973,10 +45654,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/lambdaClassClash")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class LambdaClassClash {
@@ -46001,10 +45681,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/lambdaTransformation")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class LambdaTransformation {
@@ -46047,10 +45726,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/localFunInLambda")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class LocalFunInLambda {
@@ -46087,10 +45765,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/multiModule")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class MultiModule {
@@ -46109,10 +45786,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/multifileClasses")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class MultifileClasses {
@@ -46125,10 +45801,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/multiplatform")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Multiplatform {
@@ -46140,10 +45815,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/multiplatform/defaultArguments")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DefaultArguments {
@@ -46163,10 +45837,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/noInline")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class NoInline {
@@ -46221,10 +45894,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class NonLocalReturns {
@@ -46374,10 +46046,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns/deparenthesize")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Deparenthesize {
@@ -46402,10 +46073,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns/tryFinally")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class TryFinally {
@@ -46495,10 +46165,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns/tryFinally/callSite")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class CallSite {
@@ -46547,10 +46216,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns/tryFinally/chained")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Chained {
@@ -46611,10 +46279,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns/tryFinally/declSite")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class DeclSite {
@@ -46699,10 +46366,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns/tryFinally/exceptionTable")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class ExceptionTable {
@@ -46835,10 +46501,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
                 @Nested
                 @TestMetadata("compiler/testData/codegen/boxInline/nonLocalReturns/tryFinally/variables")
                 @TestDataPath("$PROJECT_ROOT")
-                @Tag("codegenK2")
-                @Tag("firCodegen")
-                @UseExtTestCaseGroupProvider()
+                @Tag("frontend-fir")
                 @FirPipeline()
+                @UseExtTestCaseGroupProvider()
                 @UsePartialLinkage(mode = Mode.DISABLED)
                 @Tag("no-partial-linkage-may-be-skipped")
                 public class Variables {
@@ -46859,10 +46524,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/optimizations")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Optimizations {
@@ -46881,10 +46545,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/private")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Private {
@@ -46969,10 +46632,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/property")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Property {
@@ -47069,10 +46731,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/reified")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Reified {
@@ -47210,10 +46871,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/reified/checkCast")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CheckCast {
@@ -47280,10 +46940,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/reified/defaultLambda")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DefaultLambda {
@@ -47296,10 +46955,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/reified/isCheck")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class IsCheck {
@@ -47331,10 +46989,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/signature")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Signature {
@@ -47347,10 +47004,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/signatureMangling")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SignatureMangling {
@@ -47363,10 +47019,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/simple")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Simple {
@@ -47517,10 +47172,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/smap")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Smap {
@@ -47658,10 +47312,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/smap/anonymous")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Anonymous {
@@ -47734,10 +47387,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/smap/defaultLambda")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DefaultLambda {
@@ -47804,10 +47456,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/smap/inlineOnly")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InlineOnly {
@@ -47844,10 +47495,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/smap/newsmap")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Newsmap {
@@ -47884,10 +47534,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/smap/resolve")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Resolve {
@@ -47913,10 +47562,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/special")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Special {
@@ -47983,10 +47631,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/stackOnReturn")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class StackOnReturn {
@@ -48095,10 +47742,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/suspend")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Suspend {
@@ -48254,10 +47900,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/suspend/callableReference")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class CallableReference {
@@ -48300,10 +47945,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/suspend/defaultParameter")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class DefaultParameter {
@@ -48352,10 +47996,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/suspend/inlineClass")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InlineClass {
@@ -48392,10 +48035,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/suspend/inlineUsedAsNoinline")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class InlineUsedAsNoinline {
@@ -48420,10 +48062,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/suspend/receiver")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class Receiver {
@@ -48484,10 +48125,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/suspend/stateMachine")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class StateMachine {
@@ -48639,10 +48279,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/syntheticAccessors")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class SyntheticAccessors {
@@ -48702,10 +48341,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
             @Nested
             @TestMetadata("compiler/testData/codegen/boxInline/syntheticAccessors/withinInlineLambda")
             @TestDataPath("$PROJECT_ROOT")
-            @Tag("codegenK2")
-            @Tag("firCodegen")
-            @UseExtTestCaseGroupProvider()
+            @Tag("frontend-fir")
             @FirPipeline()
+            @UseExtTestCaseGroupProvider()
             @UsePartialLinkage(mode = Mode.DISABLED)
             @Tag("no-partial-linkage-may-be-skipped")
             public class WithinInlineLambda {
@@ -48773,10 +48411,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/trait")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Trait {
@@ -48795,10 +48432,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/tryCatchFinally")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class TryCatchFinally {
@@ -48835,10 +48471,9 @@ public class FirNativeCodegenBoxTestNoPLGenerated extends AbstractNativeCodegenB
         @Nested
         @TestMetadata("compiler/testData/codegen/boxInline/varargs")
         @TestDataPath("$PROJECT_ROOT")
-        @Tag("codegenK2")
-        @Tag("firCodegen")
-        @UseExtTestCaseGroupProvider()
+        @Tag("frontend-fir")
         @FirPipeline()
+        @UseExtTestCaseGroupProvider()
         @UsePartialLinkage(mode = Mode.DISABLED)
         @Tag("no-partial-linkage-may-be-skipped")
         public class Varargs {

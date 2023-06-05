@@ -5,23 +5,29 @@
 
 package org.jetbrains.kotlin.fir.analysis.checkers.declaration
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.SourceElementPositioningStrategies
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isActual
+import org.jetbrains.kotlin.fir.declarations.utils.isExpect
+import org.jetbrains.kotlin.fir.declarations.utils.isExternal
+import org.jetbrains.kotlin.fir.declarations.utils.isTailRec
 import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
+import org.jetbrains.kotlin.fir.scopes.collectAllFunctions
+import org.jetbrains.kotlin.fir.scopes.getDeclaredConstructors
+import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
-import org.jetbrains.kotlin.fir.symbols.impl.FirConstructorSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirTypeAliasSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.toSymbol
 import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualCompatibility
@@ -31,10 +37,70 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 @Suppress("DuplicatedCode")
 object FirExpectActualDeclarationChecker : FirBasicDeclarationChecker() {
     override fun check(declaration: FirDeclaration, context: CheckerContext, reporter: DiagnosticReporter) {
-        if (!context.session.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects)) return
         if (declaration !is FirMemberDeclaration) return
+        if (!context.session.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects)) {
+            if ((declaration.isExpect || declaration.isActual) && context.containingDeclarations.lastOrNull() is FirFile) {
+                reporter.reportOn(
+                    declaration.source,
+                    FirErrors.UNSUPPORTED_FEATURE,
+                    LanguageFeature.MultiPlatformProjects to context.session.languageVersionSettings,
+                    context,
+                    positioningStrategy = SourceElementPositioningStrategies.EXPECT_ACTUAL_MODIFIER
+                )
+            }
+            return
+        }
+        if (declaration.isExpect) {
+            checkExpectDeclarationModifiers(declaration, context, reporter)
+        }
         if (declaration.isActual) {
             checkActualDeclarationHasExpected(declaration, context, reporter)
+        }
+    }
+
+    private fun checkExpectDeclarationModifiers(
+        declaration: FirMemberDeclaration,
+        context: CheckerContext,
+        reporter: DiagnosticReporter,
+    ) {
+        checkExpectDeclarationHasNoExternalModifier(declaration, context, reporter)
+        if (declaration is FirProperty) {
+            checkExpectPropertyAccessorsModifiers(declaration, context, reporter)
+        }
+        if (declaration is FirFunction && declaration.isTailRec) {
+            reporter.reportOn(declaration.source, FirErrors.EXPECTED_TAILREC_FUNCTION, context)
+        }
+    }
+
+    private fun checkExpectPropertyAccessorsModifiers(
+        property: FirProperty,
+        context: CheckerContext,
+        reporter: DiagnosticReporter,
+    ) {
+        for (accessor in listOfNotNull(property.getter, property.setter)) {
+            checkExpectPropertyAccessorModifiers(accessor, context, reporter)
+        }
+    }
+
+    private fun checkExpectPropertyAccessorModifiers(
+        accessor: FirPropertyAccessor,
+        context: CheckerContext,
+        reporter: DiagnosticReporter,
+    ) {
+        fun FirPropertyAccessor.isDefault() = source?.kind == KtFakeSourceElementKind.DefaultAccessor
+
+        if (!accessor.isDefault()) {
+            checkExpectDeclarationHasNoExternalModifier(accessor, context, reporter)
+        }
+    }
+
+    private fun checkExpectDeclarationHasNoExternalModifier(
+        declaration: FirMemberDeclaration,
+        context: CheckerContext,
+        reporter: DiagnosticReporter,
+    ) {
+        if (declaration.isExternal) {
+            reporter.reportOn(declaration.source, FirErrors.EXPECTED_EXTERNAL_DECLARATION, context)
         }
     }
 
@@ -114,6 +180,15 @@ object FirExpectActualDeclarationChecker : FirBasicDeclarationChecker() {
                 }
             }
         }
+        val expectedSingleCandidate = compatibilityToMembersMap.values.singleOrNull()?.firstOrNull()
+        if (expectedSingleCandidate != null) {
+            checkIfExpectHasDefaultArgumentsAndActualizedWithTypealias(
+                expectedSingleCandidate,
+                symbol,
+                context,
+                reporter,
+            )
+        }
     }
 
     @Suppress("UNUSED_PARAMETER")
@@ -174,6 +249,33 @@ object FirExpectActualDeclarationChecker : FirBasicDeclarationChecker() {
                 context
             )
         }
+    }
+
+    private fun checkIfExpectHasDefaultArgumentsAndActualizedWithTypealias(
+        expectSymbol: FirBasedSymbol<*>,
+        actualSymbol: FirBasedSymbol<*>,
+        context: CheckerContext,
+        reporter: DiagnosticReporter,
+    ) {
+        if (expectSymbol !is FirClassSymbol ||
+            actualSymbol !is FirTypeAliasSymbol ||
+            expectSymbol.classKind == ClassKind.ANNOTATION_CLASS
+        ) return
+
+        val membersWithDefaultValueParameters =
+            expectSymbol.declaredMemberScope(expectSymbol.moduleData.session, memberRequiredPhase = null)
+                .run { collectAllFunctions() + getDeclaredConstructors() }
+                .filter { it.valueParameterSymbols.any(FirValueParameterSymbol::hasDefaultValue) }
+
+        if (membersWithDefaultValueParameters.isEmpty()) return
+
+        reporter.reportOn(
+            actualSymbol.source,
+            FirErrors.DEFAULT_ARGUMENTS_IN_EXPECT_WITH_ACTUAL_TYPEALIAS,
+            expectSymbol,
+            membersWithDefaultValueParameters,
+            context
+        )
     }
 
     fun Map<out ExpectActualCompatibility<*>, *>.allStrongIncompatibilities(): Boolean {

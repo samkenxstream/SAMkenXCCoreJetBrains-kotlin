@@ -21,7 +21,7 @@ NextFitPage* NextFitPage::Create(uint32_t cellCount) noexcept {
 }
 
 void NextFitPage::Destroy() noexcept {
-    std_support::free(this);
+    Free(this, NEXT_FIT_PAGE_SIZE);
 }
 
 NextFitPage::NextFitPage(uint32_t cellCount) noexcept : curBlock_(cells_) {
@@ -39,13 +39,13 @@ uint8_t* NextFitPage::TryAllocate(uint32_t blockSize) noexcept {
     return curBlock_->TryAllocate(cellsNeeded);
 }
 
-bool NextFitPage::Sweep() noexcept {
+bool NextFitPage::Sweep(GCSweepScope& sweepHandle, FinalizerQueue& finalizerQueue) noexcept {
     CustomAllocDebug("NextFitPage@%p::Sweep()", this);
     Cell* end = cells_ + NEXT_FIT_PAGE_CELL_COUNT;
     bool alive = false;
     for (Cell* block = cells_ + 1; block != end; block = block->Next()) {
         if (block->isAllocated_) {
-            if (TryResetMark(block->data_)) {
+            if (SweepObject(block->data_, finalizerQueue, sweepHandle)) {
                 alive = true;
             } else {
                 block->Deallocate();
@@ -55,8 +55,12 @@ bool NextFitPage::Sweep() noexcept {
     Cell* maxBlock = cells_; // size 0 block
     for (Cell* block = cells_ + 1; block != end; block = block->Next()) {
         if (block->isAllocated_) continue;
-        while (block->Next() != end && !block->Next()->isAllocated_) {
-            block->size_ += block->Next()->size_;
+        for (auto* next = block->Next(); next != end; next = block->Next()) {
+            if (next->isAllocated_) {
+                break;
+            }
+            block->size_ += next->size_;
+            memset(next, 0, sizeof(*next));
         }
         if (block->size_ > maxBlock->size_) maxBlock = block;
     }

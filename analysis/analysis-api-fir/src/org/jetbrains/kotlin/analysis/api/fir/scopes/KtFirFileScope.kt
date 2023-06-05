@@ -78,14 +78,20 @@ internal class KtFirFileScope(
         }
     }
 
+    override fun getCallableSymbols(names: Collection<Name>): Sequence<KtCallableSymbol> = withValidityAssertion {
+        if (names.isEmpty()) return emptySequence()
+        val namesSet = names.toSet()
+        return getCallableSymbols { it in namesSet }
+    }
+
     override fun getClassifierSymbols(nameFilter: KtScopeNameFilter): Sequence<KtClassifierSymbol> = withValidityAssertion {
         sequence {
             owner.firSymbol.fir.declarations.forEach { firDeclaration ->
                 val classLikeDeclaration = when (firDeclaration) {
-                        is FirTypeAlias -> if (nameFilter(firDeclaration.name)) firDeclaration else null
-                        is FirRegularClass -> if (nameFilter(firDeclaration.name)) firDeclaration else null
-                        else -> null
-                    }
+                    is FirTypeAlias -> firDeclaration.takeIf { nameFilter(it.name) }
+                    is FirRegularClass -> firDeclaration.takeIf { nameFilter(it.name) }
+                    else -> null
+                }
                 if (classLikeDeclaration != null) {
                     yield(builder.classifierBuilder.buildClassLikeSymbol(classLikeDeclaration.symbol))
                 }
@@ -93,6 +99,11 @@ internal class KtFirFileScope(
         }
     }
 
+    override fun getClassifierSymbols(names: Collection<Name>): Sequence<KtClassifierSymbol> = withValidityAssertion {
+        if (names.isEmpty()) return emptySequence()
+        val namesSet = names.toSet()
+        return getClassifierSymbols { it in namesSet }
+    }
 
     override fun getConstructors(): Sequence<KtConstructorSymbol> = withValidityAssertion { emptySequence() }
 

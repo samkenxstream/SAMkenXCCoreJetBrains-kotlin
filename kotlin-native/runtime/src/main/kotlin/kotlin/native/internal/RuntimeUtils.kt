@@ -1,14 +1,18 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2023 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
+@file:OptIn(ExperimentalForeignApi::class)
 
+@file:Suppress("DEPRECATION", "DEPRECATION_ERROR") // Char.toInt()
 package kotlin.native.internal
 
+import kotlin.experimental.ExperimentalNativeApi
 import kotlin.internal.getProgressionLastElement
 import kotlin.reflect.KClass
-import kotlin.native.concurrent.FreezableAtomicReference
 import kotlin.native.concurrent.freeze
+import kotlinx.cinterop.*
+import kotlin.native.concurrent.FreezableAtomicReference
 
 @ExportForCppRuntime
 @PublishedApi
@@ -152,7 +156,7 @@ internal fun ReportUnhandledException(throwable: Throwable) {
 // Using object to make sure that `hook` is initialized when it's needed instead of
 // in a normal global initialization flow. This is important if some global happens
 // to throw an exception during it's initialization before this hook would've been initialized.
-@OptIn(FreezingIsDeprecated::class, ExperimentalStdlibApi::class)
+@OptIn(FreezingIsDeprecated::class, ExperimentalNativeApi::class)
 internal object UnhandledExceptionHookHolder {
     internal val hook: FreezableAtomicReference<ReportUnhandledExceptionHook?> =
         if (Platform.memoryModel == MemoryModel.EXPERIMENTAL) {
@@ -165,7 +169,7 @@ internal object UnhandledExceptionHookHolder {
 // TODO: Can be removed only when native-mt coroutines stop using it.
 @PublishedApi
 @ExportForCppRuntime
-@OptIn(FreezingIsDeprecated::class, ExperimentalStdlibApi::class)
+@OptIn(FreezingIsDeprecated::class, ExperimentalNativeApi::class)
 internal fun OnUnhandledException(throwable: Throwable) {
     val handler = UnhandledExceptionHookHolder.hook.value
     if (handler == null) {
@@ -180,7 +184,7 @@ internal fun OnUnhandledException(throwable: Throwable) {
 }
 
 @ExportForCppRuntime("Kotlin_runUnhandledExceptionHook")
-@OptIn(FreezingIsDeprecated::class, ExperimentalStdlibApi::class)
+@OptIn(FreezingIsDeprecated::class, ExperimentalNativeApi::class)
 internal fun runUnhandledExceptionHook(throwable: Throwable) {
     val handler = UnhandledExceptionHookHolder.hook.value ?: throw throwable
     handler(throwable)
@@ -221,6 +225,10 @@ internal external fun <T> createUninitializedInstance(): T
 @PublishedApi
 @TypedIntrinsic(IntrinsicType.INIT_INSTANCE)
 internal external fun initInstance(thiz: Any, constructorCall: Any): Unit
+
+@PublishedApi
+@TypedIntrinsic(IntrinsicType.IS_SUBTYPE)
+internal external fun <T> isSubtype(objTypeInfo: NativePtr): Boolean
 
 @PublishedApi
 internal fun checkProgressionStep(step: Int)  =

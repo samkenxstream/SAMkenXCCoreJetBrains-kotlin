@@ -152,9 +152,21 @@ public class ClassFileToSourceStubConverterTestGenerated extends AbstractClassFi
     }
 
     @Test
+    @TestMetadata("delegateToList.kt")
+    public void testDelegateToList() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/delegateToList.kt");
+    }
+
+    @Test
     @TestMetadata("delegatedProperties.kt")
     public void testDelegatedProperties() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/delegatedProperties.kt");
+    }
+
+    @Test
+    @TestMetadata("delegationAndCompanionObject.kt")
+    public void testDelegationAndCompanionObject() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/delegationAndCompanionObject.kt");
     }
 
     @Test
@@ -173,6 +185,12 @@ public class ClassFileToSourceStubConverterTestGenerated extends AbstractClassFi
     @TestMetadata("enumInCompanion.kt")
     public void testEnumInCompanion() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/enumInCompanion.kt");
+    }
+
+    @Test
+    @TestMetadata("enumSecondaryConstructor.kt")
+    public void testEnumSecondaryConstructor() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/enumSecondaryConstructor.kt");
     }
 
     @Test
@@ -323,18 +341,6 @@ public class ClassFileToSourceStubConverterTestGenerated extends AbstractClassFi
     @TestMetadata("jvmDefaultAllCompatibility.kt")
     public void testJvmDefaultAllCompatibility() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/jvmDefaultAllCompatibility.kt");
-    }
-
-    @Test
-    @TestMetadata("jvmDefaultDisable.kt")
-    public void testJvmDefaultDisable() throws Exception {
-        runTest("plugins/kapt3/kapt3-compiler/testData/converter/jvmDefaultDisable.kt");
-    }
-
-    @Test
-    @TestMetadata("jvmDefaultEnable.kt")
-    public void testJvmDefaultEnable() throws Exception {
-        runTest("plugins/kapt3/kapt3-compiler/testData/converter/jvmDefaultEnable.kt");
     }
 
     @Test
@@ -608,6 +614,12 @@ public class ClassFileToSourceStubConverterTestGenerated extends AbstractClassFi
     }
 
     @Test
+    @TestMetadata("superConstructorCall.kt")
+    public void testSuperConstructorCall() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/superConstructorCall.kt");
+    }
+
+    @Test
     @TestMetadata("suspendArgName.kt")
     public void testSuspendArgName() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/suspendArgName.kt");
@@ -623,6 +635,12 @@ public class ClassFileToSourceStubConverterTestGenerated extends AbstractClassFi
     @TestMetadata("suspendFunctionSupertype.kt")
     public void testSuspendFunctionSupertype() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/suspendFunctionSupertype.kt");
+    }
+
+    @Test
+    @TestMetadata("suspendFunctionWithBigArity.kt")
+    public void testSuspendFunctionWithBigArity() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/suspendFunctionWithBigArity.kt");
     }
 
     @Test

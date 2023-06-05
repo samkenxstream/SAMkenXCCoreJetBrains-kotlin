@@ -134,14 +134,14 @@ class FirJvmSerializerExtension(
         if (moduleName != JvmProtoBufUtil.DEFAULT_MODULE_NAME) {
             proto.setExtension(JvmProtoBuf.packageModuleName, stringTable.getStringIndex(moduleName))
         }
-    }
-
-    fun serializeJvmPackage(proto: ProtoBuf.Package.Builder) {
         writeLocalProperties(proto, JvmProtoBuf.packageLocalVariable)
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    private fun <MessageType : GeneratedMessageLite.ExtendableMessage<MessageType>, BuilderType : GeneratedMessageLite.ExtendableBuilder<MessageType, BuilderType>> writeLocalProperties(
+    @Suppress("Reformat")
+    private fun <
+        MessageType : GeneratedMessageLite.ExtendableMessage<MessageType>,
+        BuilderType : GeneratedMessageLite.ExtendableBuilder<MessageType, BuilderType>
+    > writeLocalProperties(
         proto: BuilderType,
         extension: GeneratedMessageLite.GeneratedExtension<MessageType, List<ProtoBuf.Property>>
     ) {
@@ -176,8 +176,7 @@ class FirJvmSerializerExtension(
 
     override fun serializeTypeParameter(typeParameter: FirTypeParameter, proto: ProtoBuf.TypeParameter.Builder) {
         for (annotation in typeParameter.nonSourceAnnotations(session)) {
-            val annotationWithConstants = constValueProvider?.getNewFirAnnotationWithConstantValues(typeParameter, annotation) ?: annotation
-            proto.addExtension(JvmProtoBuf.typeParameterAnnotation, annotationSerializer.serializeAnnotation(annotationWithConstants))
+            proto.addExtension(JvmProtoBuf.typeParameterAnnotation, annotationSerializer.serializeAnnotation(annotation))
         }
     }
 

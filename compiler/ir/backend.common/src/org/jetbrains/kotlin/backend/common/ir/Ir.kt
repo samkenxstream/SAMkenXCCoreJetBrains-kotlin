@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.builtins.StandardNames.KOTLIN_REFLECT_FQ_NAME
 import org.jetbrains.kotlin.ir.IrBuiltIns
-import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrPackageFragment
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
@@ -26,13 +25,7 @@ abstract class Ir<out T : CommonBackendContext>(val context: T) {
 
     abstract val symbols: Symbols
 
-    val defaultParameterDeclarationsCache = mutableMapOf<IrFunction, IrFunction>()
-
     internal val localScopeWithCounterMap = LocalDeclarationsLowering.LocalScopeWithCounterMap()
-
-    // If irType is an inline class type, return the underlying type according to the
-    // unfolding rules of the current backend. Otherwise, returns null.
-    open fun unfoldInlineClassType(irType: IrType): IrType? = null
 
     open fun shouldGenerateHandlerParameterForDefaultBodyFun() = false
 }
@@ -67,10 +60,10 @@ open class BuiltinSymbolsBase(val irBuiltIns: IrBuiltIns, private val symbolTabl
     // The "...OrNull" variants are used for the classes below because the minimal stdlib used in tests do not include those classes.
     // It was not feasible to add them to the JS reduced runtime because all its transitive dependencies also need to be
     // added, which would include a lot of the full stdlib.
-    open val uByte = irBuiltIns.findClass(Name.identifier("UByte"), "kotlin")
-    open val uShort = irBuiltIns.findClass(Name.identifier("UShort"), "kotlin")
-    open val uInt = irBuiltIns.findClass(Name.identifier("UInt"), "kotlin")
-    open val uLong = irBuiltIns.findClass(Name.identifier("ULong"), "kotlin")
+    val uByte = irBuiltIns.findClass(Name.identifier("UByte"), "kotlin")
+    val uShort = irBuiltIns.findClass(Name.identifier("UShort"), "kotlin")
+    val uInt = irBuiltIns.findClass(Name.identifier("UInt"), "kotlin")
+    val uLong = irBuiltIns.findClass(Name.identifier("ULong"), "kotlin")
     val uIntProgression = progressionOrNull("UIntProgression")
     val uLongProgression = progressionOrNull("ULongProgression")
     val uIntRange = progressionOrNull("UIntRange")
@@ -248,7 +241,7 @@ abstract class Symbols(
             symbol is IrSimpleFunctionSymbol && symbol.owner.let { function ->
                 function.name.asString() == "<get-isInitialized>" &&
                         function.isTopLevel &&
-                        function.getPackageFragment().fqName.asString() == "kotlin" &&
+                        function.getPackageFragment().packageFqName.asString() == "kotlin" &&
                         function.valueParameters.isEmpty() &&
                         symbol.owner.extensionReceiverParameter?.type?.classOrNull?.owner.let { receiverClass ->
                             receiverClass?.fqNameWhenAvailable?.toUnsafe() == StandardNames.FqNames.kProperty0
@@ -259,7 +252,7 @@ abstract class Symbols(
             symbol is IrSimpleFunctionSymbol && symbol.owner.let { function ->
                 function.name.asString() == "typeOf" &&
                         function.valueParameters.isEmpty() &&
-                        (function.parent as? IrPackageFragment)?.fqName == KOTLIN_REFLECT_FQ_NAME
+                        (function.parent as? IrPackageFragment)?.packageFqName == KOTLIN_REFLECT_FQ_NAME
             }
     }
 }

@@ -269,12 +269,13 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
                 @Suppress("DEPRECATION")
                 js(BOTH)
                 linuxX64("linux")
-                android()
+                androidTarget()
             }
         }
 
         project.evaluate()
 
+        @Suppress("DEPRECATION")
         project.kotlinExtension.targets.flatMap { it.compilations }.forEach { compilation ->
             val compilationSourceSets = compilation.allKotlinSourceSets
             val compilationConfigurationNames = compilation.relatedConfigurationNames
@@ -440,7 +441,11 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
                 jvm()
                 sourceSets.getByName("jvmMain").apply {
                     dependencies {
-                        api(platform("test:platform-dependency:1.0.0"))
+                        api(
+                            // Deprecated in KT-58759, remove test after deletion
+                            @Suppress("DEPRECATION")
+                            platform("test:platform-dependency:1.0.0")
+                        )
                     }
                 }
             }
@@ -463,7 +468,11 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
                 }
                 sourceSets.getByName("browserMain").apply {
                     dependencies {
-                        implementation(enforcedPlatform("test:enforced-platform-dependency"))
+                        implementation(
+                            // Deprecated in KT-58759, remove test after deletion
+                            @Suppress("DEPRECATION")
+                            enforcedPlatform("test:enforced-platform-dependency")
+                        )
                     }
                 }
             }
@@ -571,6 +580,15 @@ class ConfigurationsTest : MultiplatformExtensionTest() {
 
                 macosX64 {
                     binaries.framework("main", listOf(NativeBuildType.DEBUG))
+                }
+
+                iosX64 {
+                    binaries.framework("foo", listOf(NativeBuildType.DEBUG)) { baseName = "foo" }
+                    binaries.framework("bar", listOf(NativeBuildType.DEBUG)) { baseName = "bar" }
+                }
+                iosArm64 {
+                    binaries.framework("foo", listOf(NativeBuildType.DEBUG)) { baseName = "foo" }
+                    binaries.framework("bar", listOf(NativeBuildType.DEBUG)) { baseName = "bar" }
                 }
 
                 linuxX64("linuxA") { attributes { attribute(distinguishingAttribute, "linuxA") } }

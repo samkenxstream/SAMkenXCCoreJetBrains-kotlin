@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -11,15 +11,15 @@ import org.jetbrains.kotlin.fir.expressions.FirAnonymousObjectExpression
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.references.FirControlFlowGraphReference
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
+import org.jetbrains.kotlin.mpp.PropertySymbolMarker
+import org.jetbrains.kotlin.mpp.ValueParameterSymbolMarker
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
 sealed class FirVariableSymbol<E : FirVariable>(override val callableId: CallableId) : FirCallableSymbol<E>()
 
-open class FirPropertySymbol(
-    callableId: CallableId,
-) : FirVariableSymbol<FirProperty>(callableId) {
+open class FirPropertySymbol(callableId: CallableId, ) : FirVariableSymbol<FirProperty>(callableId), PropertySymbolMarker {
     // TODO: should we use this constructor for local variables?
     constructor(name: Name) : this(CallableId(name))
 
@@ -38,6 +38,12 @@ open class FirPropertySymbol(
     val delegateFieldSymbol: FirDelegateFieldSymbol?
         get() = fir.delegateFieldSymbol
 
+    val delegate: FirExpression?
+        get() = fir.delegate
+
+    val hasDelegate: Boolean
+        get() = fir.delegate != null
+
     val hasInitializer: Boolean
         get() = fir.initializer != null
 
@@ -46,9 +52,6 @@ open class FirPropertySymbol(
             lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
             return fir.initializer
         }
-
-    val hasDelegate: Boolean
-        get() = fir.delegate != null
 
     val controlFlowGraphReference: FirControlFlowGraphReference?
         get() {
@@ -61,15 +64,6 @@ open class FirPropertySymbol(
 
     val isVar: Boolean
         get() = fir.isVar
-
-    override fun canBeDeprecated(): Boolean {
-        if (isLocal || callableId.className == null) {
-            return annotations.isNotEmpty()
-                    || getterSymbol?.annotations?.isNotEmpty() == true
-                    || setterSymbol?.annotations?.isNotEmpty() == true
-        }
-        return true
-    }
 }
 
 class FirIntersectionOverridePropertySymbol(
@@ -114,7 +108,7 @@ class FirEnumEntrySymbol(callableId: CallableId) : FirVariableSymbol<FirEnumEntr
         get() = (fir.initializer as? FirAnonymousObjectExpression)?.anonymousObject?.symbol
 }
 
-class FirValueParameterSymbol(name: Name) : FirVariableSymbol<FirValueParameter>(CallableId(name)) {
+class FirValueParameterSymbol(name: Name) : FirVariableSymbol<FirValueParameter>(CallableId(name)), ValueParameterSymbolMarker {
     val hasDefaultValue: Boolean
         get() = fir.defaultValue != null
 
@@ -129,10 +123,6 @@ class FirValueParameterSymbol(name: Name) : FirVariableSymbol<FirValueParameter>
 
     val containingFunctionSymbol: FirFunctionSymbol<*>
         get() = fir.containingFunctionSymbol
-
-    override fun canBeDeprecated(): Boolean {
-        return false
-    }
 }
 
 class FirErrorPropertySymbol(

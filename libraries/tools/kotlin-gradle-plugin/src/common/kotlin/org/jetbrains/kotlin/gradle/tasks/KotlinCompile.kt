@@ -29,9 +29,9 @@ import org.jetbrains.kotlin.compilerRunner.GradleCompilerEnvironment
 import org.jetbrains.kotlin.compilerRunner.IncrementalCompilationEnvironment
 import org.jetbrains.kotlin.compilerRunner.OutputItemsCollectorImpl
 import org.jetbrains.kotlin.config.JvmTarget
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
+import org.jetbrains.kotlin.gradle.dsl.*
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptionsHelper
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmOptions
+import org.jetbrains.kotlin.gradle.dsl.jvm.JvmTargetValidationMode
 import org.jetbrains.kotlin.gradle.dsl.usesK2
 import org.jetbrains.kotlin.gradle.internal.tasks.allOutputFiles
 import org.jetbrains.kotlin.gradle.logging.GradleErrorMessageCollector
@@ -39,7 +39,6 @@ import org.jetbrains.kotlin.gradle.logging.GradlePrintingMessageCollector
 import org.jetbrains.kotlin.gradle.logging.kotlinDebug
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.create
-import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
 import org.jetbrains.kotlin.gradle.report.BuildReportMode
 import org.jetbrains.kotlin.gradle.tasks.internal.KotlinJvmOptionsCompat
@@ -98,16 +97,6 @@ abstract class KotlinCompile @Inject constructor(
     @get:Internal // To support compile avoidance (ClasspathSnapshotProperties.classpathSnapshot will be used as input instead)
     abstract override val libraries: ConfigurableFileCollection
 
-    @Deprecated(
-        "Replaced with 'libraries' input",
-        replaceWith = ReplaceWith("libraries"),
-        level = DeprecationLevel.ERROR
-    )
-    @get:Internal
-    var classpath: FileCollection
-        set(value) = libraries.setFrom(value)
-        get() = libraries
-
     @get:Deprecated(
         message = "Please migrate to compilerOptions.moduleName",
         replaceWith = ReplaceWith("compilerOptions.moduleName")
@@ -155,7 +144,7 @@ abstract class KotlinCompile @Inject constructor(
 
     @get:Internal
     final override val defaultKotlinJavaToolchain: Provider<DefaultKotlinJavaToolchain> = objectFactory
-        .propertyWithNewInstance({ this })
+        .propertyWithNewInstance({ compilerOptions })
 
     final override val kotlinJavaToolchainProvider: Provider<KotlinJavaToolchain> = defaultKotlinJavaToolchain.cast()
 
@@ -164,9 +153,6 @@ abstract class KotlinCompile @Inject constructor(
 
     @get:Internal
     internal abstract val associatedJavaCompileTaskName: Property<String>
-
-    @get:Input
-    internal abstract val jvmTargetValidationMode: Property<PropertiesProvider.JvmTargetValidationMode>
 
     @get:Internal
     internal val nagTaskModuleNameUsage: Property<Boolean> = objectFactory.propertyWithConvention(false)
@@ -223,6 +209,13 @@ abstract class KotlinCompile @Inject constructor(
     @get:Internal
     internal var executionTimeFreeCompilerArgs: List<String>? = null
 
+    @Suppress("DeprecatedCallableAddReplaceWith")
+    @Deprecated("KTIJ-25227: Necessary override for IDEs < 2023.2", level = DeprecationLevel.ERROR)
+    override fun setupCompilerArgs(args: K2JVMCompilerArguments, defaultsOnly: Boolean, ignoreClasspathResolutionErrors: Boolean) {
+        @Suppress("DEPRECATION_ERROR")
+        super.setupCompilerArgs(args, defaultsOnly, ignoreClasspathResolutionErrors)
+    }
+
     override fun createCompilerArguments(
         context: KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext
     ): K2JVMCompilerArguments = context.create<K2JVMCompilerArguments> {
@@ -236,7 +229,7 @@ abstract class KotlinCompile @Inject constructor(
 
             args.javaPackagePrefix = javaPackagePrefix
 
-            if (compilerOptions.usesK2.get()) {
+            if (compilerOptions.usesK2.get() && multiPlatformEnabled.get()) {
                 args.fragments = multiplatformStructure.fragmentsCompilerArgs
                 args.fragmentRefines = multiplatformStructure.fragmentRefinesCompilerArgs
             }
@@ -254,6 +247,8 @@ abstract class KotlinCompile @Inject constructor(
             if (localExecutionTimeFreeCompilerArgs != null) {
                 args.freeArgs = localExecutionTimeFreeCompilerArgs
             }
+
+            explicitApiMode.orNull?.run { args.explicitApi = toCompilerValue() }
         }
 
         pluginClasspath { args ->
@@ -273,7 +268,7 @@ abstract class KotlinCompile @Inject constructor(
 
         sources { args ->
             if (compilerOptions.usesK2.get()) {
-                args.fragmentSources = multiplatformStructure.fragmentSourcesCompilerArgs
+                args.fragmentSources = multiplatformStructure.fragmentSourcesCompilerArgs(sourceFileFilter)
             } else {
                 args.commonSources = commonSourceSet.asFileTree.toPathsArray()
             }
@@ -361,6 +356,9 @@ abstract class KotlinCompile @Inject constructor(
     private fun validateKotlinAndJavaHasSameTargetCompatibility(
         args: K2JVMCompilerArguments,
     ) {
+        val jvmTargetValidationMode: JvmTargetValidationMode = jvmTargetValidationMode.get()
+        if (jvmTargetValidationMode == JvmTargetValidationMode.IGNORE) return
+
         associatedJavaCompileTaskTargetCompatibility.orNull?.let { targetCompatibility ->
             val normalizedJavaTarget = when (targetCompatibility) {
                 "6" -> "1.6"
@@ -385,9 +383,9 @@ abstract class KotlinCompile @Inject constructor(
                     appendLine("Consider using JVM toolchain: https://kotl.in/gradle/jvm/toolchain")
                 }
 
-                when (jvmTargetValidationMode.get()) {
-                    PropertiesProvider.JvmTargetValidationMode.ERROR -> throw GradleException(errorMessage)
-                    PropertiesProvider.JvmTargetValidationMode.WARNING -> logger.warn(errorMessage)
+                when (jvmTargetValidationMode) {
+                    JvmTargetValidationMode.ERROR -> throw GradleException(errorMessage)
+                    JvmTargetValidationMode.WARNING -> logger.warn(errorMessage)
                     else -> Unit
                 }
             }

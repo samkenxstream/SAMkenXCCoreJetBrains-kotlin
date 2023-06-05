@@ -126,6 +126,7 @@ internal fun KtLightElement<*, *>.isOriginEquivalentTo(that: PsiElement?): Boole
 }
 
 internal fun KtAnalysisSession.getTypeNullability(ktType: KtType): NullabilityType {
+    if (ktType is KtClassErrorType) return NullabilityType.NotNull
     if (ktType.nullabilityType != NullabilityType.NotNull) return ktType.nullabilityType
 
     if (ktType.isUnit) return NullabilityType.NotNull
@@ -205,22 +206,20 @@ private fun KtEnumEntryAnnotationValue.asPsiReferenceExpression(parent: PsiEleme
     return SymbolPsiReference(sourcePsi, parent, psiReference)
 }
 
-private fun KtKClassAnnotationValue.toAnnotationMemberValue(parent: PsiElement): PsiExpression? {
+private fun KtKClassAnnotationValue.toAnnotationMemberValue(parent: PsiElement): SymbolPsiClassObjectAccessExpression? {
     val typeString = when (this) {
         is KtKClassAnnotationValue.KtNonLocalKClassAnnotationValue -> classId.asSingleFqName().asString()
         is KtKClassAnnotationValue.KtLocalKClassAnnotationValue -> null
         is KtKClassAnnotationValue.KtErrorClassAnnotationValue -> unresolvedQualifierName
     } ?: return null
 
-    val canonicalText = psiType(
+    val psiType = psiType(
         kotlinFqName = typeString,
         context = parent,
         boxPrimitiveType = false, /* TODO value.arrayNestedness > 0*/
-    ).let(TypeConversionUtil::erasure).getCanonicalText(false)
+    ).let(TypeConversionUtil::erasure)
 
-    return parent.project.withElementFactorySafe {
-        createExpressionFromText("$canonicalText.class", parent)
-    }
+    return SymbolPsiClassObjectAccessExpression(sourcePsi, parent, psiType)
 }
 
 private fun KtConstantValue.asStringForPsiExpression(): String =
@@ -287,7 +286,8 @@ internal inline fun <T : KtSymbol, R> KtSymbolPointer<T>.withSymbol(
     crossinline action: KtAnalysisSession.(T) -> R,
 ): R = analyzeForLightClasses(ktModule) { action(this, restoreSymbolOrThrowIfDisposed()) }
 
-internal val KtPropertySymbol.isConstOrJvmField: Boolean get() = isConst || hasJvmFieldAnnotation()
+internal val KtPropertySymbol.isConstOrJvmField: Boolean get() = isConst || isJvmField
+internal val KtPropertySymbol.isJvmField: Boolean get() = backingFieldSymbol?.hasJvmFieldAnnotation() == true
 internal val KtPropertySymbol.isConst: Boolean get() = (this as? KtKotlinPropertySymbol)?.isConst == true
 internal val KtPropertySymbol.isLateInit: Boolean get() = (this as? KtKotlinPropertySymbol)?.isLateInit == true
 internal val KtPropertySymbol.canHaveNonPrivateField: Boolean get() = isConstOrJvmField || isLateInit

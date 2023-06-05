@@ -3,6 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:OptIn(kotlin.time.ExperimentalTime::class)
 package org.jetbrains.kotlin.cpp
 
 import org.gradle.api.DefaultTask
@@ -15,7 +16,9 @@ import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 import org.jetbrains.kotlin.native.executors.*
 import org.jetbrains.kotlin.konan.target.*
+import java.time.Duration
 import javax.inject.Inject
+import kotlin.time.toKotlinDuration
 
 private abstract class RunGTestJob : WorkAction<RunGTestJob.Parameters> {
     interface Parameters : WorkParameters {
@@ -29,6 +32,7 @@ private abstract class RunGTestJob : WorkAction<RunGTestJob.Parameters> {
         // TODO: Figure out a way to pass KonanTarget, but it is used as a key into PlatformManager,
         //       so object identity matters, and platform managers are different between project and worker sides.
         val targetName: Property<String>
+        val executionTimeout: Property<Duration>
     }
 
     // The `Executor` is created for every `RunGTest` task execution. It's okay, testing tasks are few-ish and big.
@@ -40,6 +44,7 @@ private abstract class RunGTestJob : WorkAction<RunGTestJob.Parameters> {
         when {
             target == hostTarget -> HostExecutor()
             configurables is AppleConfigurables && configurables.targetTriple.isSimulator -> XcodeSimulatorExecutor(configurables)
+            configurables is AppleConfigurables && RosettaExecutor.availableFor(configurables) -> RosettaExecutor(configurables)
             else -> error("Cannot run for target $target")
         }
     }
@@ -50,7 +55,7 @@ private abstract class RunGTestJob : WorkAction<RunGTestJob.Parameters> {
         with(parameters) {
             reportFileUnprocessed.asFile.get().parentFile.mkdirs()
 
-            executor.execute(executeRequest(this@with.executable.asFile.get().absolutePath).apply {
+            executor.execute(ExecuteRequest(this@with.executable.asFile.get().absolutePath).apply {
                 this.args.add("--gtest_output=xml:${reportFileUnprocessed.asFile.get().absolutePath}")
                 filter.orNull?.also {
                     this.args.add("--gtest_filter=${it}")
@@ -58,6 +63,7 @@ private abstract class RunGTestJob : WorkAction<RunGTestJob.Parameters> {
                 tsanSuppressionsFile.orNull?.also {
                     this.environment.put("TSAN_OPTIONS", "suppressions=${it.asFile.absolutePath}")
                 }
+                this.timeout = executionTimeout.get().toKotlinDuration()
             }).assertSuccess()
 
             reportFile.asFile.get().parentFile.mkdirs()
@@ -134,6 +140,12 @@ abstract class RunGTest : DefaultTask() {
     @get:Input
     abstract val target: Property<KonanTarget>
 
+    /**
+     * Timeout for the test run.
+     */
+    @get:Input
+    abstract val executionTimeout: Property<Duration>
+
     @TaskAction
     fun run() {
         val workQueue = workerExecutor.noIsolation()
@@ -147,6 +159,7 @@ abstract class RunGTest : DefaultTask() {
             tsanSuppressionsFile.set(this@RunGTest.tsanSuppressionsFile)
             platformManager.set(project.extensions.getByType<PlatformManager>())
             targetName.set(this@RunGTest.target.get().name)
+            executionTimeout.set(this@RunGTest.executionTimeout)
         }
     }
 }

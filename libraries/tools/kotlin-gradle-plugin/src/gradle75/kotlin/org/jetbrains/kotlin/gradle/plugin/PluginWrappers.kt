@@ -12,8 +12,7 @@ import org.gradle.api.Project
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.model.ObjectFactory
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
-import org.jetbrains.kotlin.gradle.plugin.internal.MppTestReportHelper
-import org.jetbrains.kotlin.gradle.plugin.internal.MppTestReportHelperG75
+import org.jetbrains.kotlin.gradle.plugin.internal.*
 import javax.inject.Inject
 
 private const val PLUGIN_VARIANT_NAME = "gradle75"
@@ -139,8 +138,19 @@ open class KotlinPlatformCommonPlugin : KotlinPlatformPluginBase("common") {
     }
 }
 
+open class KotlinApiPlugin : KotlinBaseApiPlugin() {
+    override fun apply(project: Project) {
+        project.registerVariantImplementations()
+        super.apply(project)
+    }
+}
+
 private fun Project.registerVariantImplementations() {
     val factories = VariantImplementationFactoriesConfigurator.get(gradle)
     factories[MppTestReportHelper.MppTestReportHelperVariantFactory::class] =
         MppTestReportHelperG75.MppTestReportHelperVariantFactoryG75()
+    factories[ProjectIsolationStartParameterAccessor.Factory::class] =
+        ProjectIsolationStartParameterAccessorG75.Factory()
+    factories[CompatibilityConventionRegistrar.Factory::class] =
+        CompatibilityConventionRegistrarG75.Factory()
 }

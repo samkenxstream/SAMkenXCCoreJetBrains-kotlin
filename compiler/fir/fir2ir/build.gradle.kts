@@ -17,6 +17,7 @@ dependencies {
     compileOnly(project(":compiler:ir.backend.common"))
     compileOnly(project(":compiler:ir.serialization.common"))
     compileOnly(project(":compiler:fir:fir-serialization"))
+    compileOnly(project(":compiler:fir:fir-deserialization"))
 
     compileOnly(intellijCore())
 
@@ -39,7 +40,7 @@ dependencies {
     testCompileOnly(intellijCore())
     testRuntimeOnly(intellijCore())
 
-    testRuntimeOnly(commonDependency("net.java.dev.jna:jna"))
+    testRuntimeOnly(commonDependency("org.jetbrains.intellij.deps.jna:jna"))
     testRuntimeOnly(commonDependency("org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil"))
     testRuntimeOnly(commonDependency("one.util:streamex"))
 
@@ -80,7 +81,10 @@ fun Test.configure(configureJUnit: JUnitPlatformOptions.() -> Unit = {}) {
     }
 }
 
-projectTest(jUnitMode = JUnitMode.JUnit5) {
+projectTest(
+    jUnitMode = JUnitMode.JUnit5,
+    defineJDKEnvVariables = listOf(JdkMajorVersion.JDK_1_8, JdkMajorVersion.JDK_11_0, JdkMajorVersion.JDK_17_0)
+) {
     configure()
 }
 

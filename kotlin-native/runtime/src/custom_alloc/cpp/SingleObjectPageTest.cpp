@@ -7,6 +7,7 @@
 #include <random>
 
 #include "CustomAllocConstants.hpp"
+#include "ExtraObjectPage.hpp"
 #include "gtest/gtest.h"
 #include "SingleObjectPage.hpp"
 #include "TypeInfo.h"
@@ -15,7 +16,7 @@ namespace {
 
 using SingleObjectPage = typename kotlin::alloc::SingleObjectPage;
 
-TypeInfo fakeType = {.flags_ = 0}; // a type without a finalizer
+TypeInfo fakeType = {.typeInfo_ = &fakeType, .flags_ = 0}; // a type without a finalizer
 
 #define MIN_BLOCK_SIZE NEXT_FIT_PAGE_CELL_COUNT
 
@@ -25,16 +26,19 @@ void mark(void* obj) {
 
 SingleObjectPage* alloc(uint64_t blockSize) {
     SingleObjectPage* page = SingleObjectPage::Create(blockSize);
-    uint64_t* ptr = reinterpret_cast<uint64_t*>(page->TryAllocate());
-    memset(ptr, 0, 8 * blockSize);
-    ptr[1] = reinterpret_cast<uint64_t>(&fakeType);
+    uint8_t* ptr = page->TryAllocate();
+    EXPECT_TRUE(ptr[0] == 0 && memcmp(ptr, ptr + 1, blockSize * 8 - 1) == 0);
+    reinterpret_cast<uint64_t*>(ptr)[1] = reinterpret_cast<uint64_t>(&fakeType);
     return page;
 }
 
 TEST(CustomAllocTest, SingleObjectPageSweepEmptyPage) {
     SingleObjectPage* page = alloc(MIN_BLOCK_SIZE);
     EXPECT_TRUE(page);
-    EXPECT_FALSE(page->Sweep());
+    auto gcHandle = kotlin::gc::GCHandle::createFakeForTests();
+    auto gcScope = gcHandle.sweep();
+    kotlin::alloc::FinalizerQueue finalizerQueue;
+    EXPECT_FALSE(page->Sweep(gcScope, finalizerQueue));
     page->Destroy();
 }
 
@@ -43,7 +47,10 @@ TEST(CustomAllocTest, SingleObjectPageSweepFullPage) {
     EXPECT_TRUE(page);
     EXPECT_TRUE(page->Data());
     mark(page->Data());
-    EXPECT_TRUE(page->Sweep());
+    auto gcHandle = kotlin::gc::GCHandle::createFakeForTests();
+    auto gcScope = gcHandle.sweep();
+    kotlin::alloc::FinalizerQueue finalizerQueue;
+    EXPECT_TRUE(page->Sweep(gcScope, finalizerQueue));
     page->Destroy();
 }
 

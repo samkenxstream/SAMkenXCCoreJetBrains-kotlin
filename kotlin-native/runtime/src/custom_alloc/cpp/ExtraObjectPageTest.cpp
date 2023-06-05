@@ -28,37 +28,41 @@ Data* alloc(Page* page) {
 }
 
 TEST(CustomAllocTest, ExtraObjectPageConsequtiveAlloc) {
-    Page* page = Page::Create();
+    Page* page = Page::Create(0);
     uint8_t* prev = reinterpret_cast<uint8_t*>(alloc(page));
     uint8_t* cur;
     while ((cur = reinterpret_cast<uint8_t*>(alloc(page)))) {
         EXPECT_EQ(prev + sizeof(Cell), cur);
         prev = cur;
     }
-    free(page);
+    page->Destroy();
 }
 
 TEST(CustomAllocTest, ExtraObjectPageSweepEmptyPage) {
-    Page* page = Page::Create();
+    Page* page = Page::Create(0);
     Queue finalizerQueue;
-    EXPECT_FALSE(page->Sweep(finalizerQueue));
+    auto gcHandle = kotlin::gc::GCHandle::createFakeForTests();
+    auto gcScope = gcHandle.sweepExtraObjects();
+    EXPECT_FALSE(page->Sweep(gcScope, finalizerQueue));
     EXPECT_EQ(finalizerQueue.size(), size_t(0));
-    free(page);
+    page->Destroy();
 }
 
 TEST(CustomAllocTest, ExtraObjectPageSweepFullFinalizedPage) {
-    Page* page = Page::Create();
+    Page* page = Page::Create(0);
     int count = 0;
     Data* ptr;
     while ((ptr = alloc(page))) {
-        ptr->setFlag(Data::FLAGS_FINALIZED);
+        ptr->setFlag(Data::FLAGS_SWEEPABLE);
         ++count;
     }
     EXPECT_EQ(count, EXTRA_OBJECT_COUNT);
     Queue finalizerQueue;
-    EXPECT_FALSE(page->Sweep(finalizerQueue));
+    auto gcHandle = kotlin::gc::GCHandle::createFakeForTests();
+    auto gcScope = gcHandle.sweepExtraObjects();
+    EXPECT_FALSE(page->Sweep(gcScope, finalizerQueue));
     EXPECT_EQ(finalizerQueue.size(), size_t(0));
-    free(page);
+    page->Destroy();
 }
 
 } // namespace

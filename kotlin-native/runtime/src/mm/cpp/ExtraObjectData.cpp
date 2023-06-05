@@ -5,6 +5,7 @@
 
 #include "ExtraObjectData.hpp"
 
+#include "MainQueueProcessor.hpp"
 #include "PointerBits.h"
 #include "ThreadData.hpp"
 
@@ -37,7 +38,7 @@ mm::ExtraObjectData& mm::ExtraObjectData::Install(ObjHeader* object) noexcept {
 
     if (!compareExchange(object->typeInfoOrMeta_, typeInfo, reinterpret_cast<TypeInfo*>(&data))) {
         // Somebody else created `mm::ExtraObjectData` for this object.
-        data.setFlag(mm::ExtraObjectData::FLAGS_FINALIZED);
+        data.setFlag(mm::ExtraObjectData::FLAGS_SWEEPABLE);
 #else
     auto& data = mm::ExtraObjectDataFactory::Instance().CreateExtraObjectDataForObject(threadData, object, typeInfo);
 
@@ -59,7 +60,13 @@ void mm::ExtraObjectData::Uninstall() noexcept {
             this);
 
 #ifdef KONAN_OBJC_INTEROP
-    Kotlin_ObjCExport_releaseAssociatedObject(associatedObject_);
+    if (getFlag(FLAGS_RELEASE_ON_MAIN_QUEUE) && isMainQueueProcessorAvailable()) {
+        runOnMainQueue(associatedObject_, [](void* obj) {
+            Kotlin_ObjCExport_releaseAssociatedObject(obj);
+        });
+    } else {
+        Kotlin_ObjCExport_releaseAssociatedObject(associatedObject_);
+    }
     associatedObject_ = nullptr;
 #endif
 }

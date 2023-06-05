@@ -128,6 +128,7 @@ import org.jetbrains.kotlin.fir.expressions.FirVariableAssignment
 import org.jetbrains.kotlin.fir.expressions.FirWhenSubjectExpression
 import org.jetbrains.kotlin.fir.expressions.FirDesugaredAssignmentValueReferenceExpression
 import org.jetbrains.kotlin.fir.expressions.FirWrappedDelegateExpression
+import org.jetbrains.kotlin.fir.expressions.FirEnumEntryDeserializedAccessExpression
 import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.FirNamedReferenceWithCandidateBase
 import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
@@ -148,6 +149,7 @@ import org.jetbrains.kotlin.fir.types.FirDynamicTypeRef
 import org.jetbrains.kotlin.fir.types.FirFunctionTypeRef
 import org.jetbrains.kotlin.fir.types.FirIntersectionTypeRef
 import org.jetbrains.kotlin.fir.types.FirImplicitTypeRef
+import org.jetbrains.kotlin.fir.contracts.FirContractElementDeclaration
 import org.jetbrains.kotlin.fir.contracts.FirEffectDeclaration
 import org.jetbrains.kotlin.fir.contracts.FirContractDescription
 import org.jetbrains.kotlin.fir.contracts.FirLegacyRawContractDescription
@@ -278,6 +280,8 @@ abstract class FirDefaultVisitor<out R, in D> : FirVisitor<R, D>() {
 
     override fun visitWrappedDelegateExpression(wrappedDelegateExpression: FirWrappedDelegateExpression, data: D): R  = visitWrappedExpression(wrappedDelegateExpression, data)
 
+    override fun visitEnumEntryDeserializedAccessExpression(enumEntryDeserializedAccessExpression: FirEnumEntryDeserializedAccessExpression, data: D): R  = visitExpression(enumEntryDeserializedAccessExpression, data)
+
     override fun visitNamedReference(namedReference: FirNamedReference, data: D): R  = visitReference(namedReference, data)
 
     override fun visitNamedReferenceWithCandidateBase(namedReferenceWithCandidateBase: FirNamedReferenceWithCandidateBase, data: D): R  = visitNamedReference(namedReferenceWithCandidateBase, data)
@@ -313,6 +317,8 @@ abstract class FirDefaultVisitor<out R, in D> : FirVisitor<R, D>() {
     override fun visitIntersectionTypeRef(intersectionTypeRef: FirIntersectionTypeRef, data: D): R  = visitTypeRefWithNullability(intersectionTypeRef, data)
 
     override fun visitImplicitTypeRef(implicitTypeRef: FirImplicitTypeRef, data: D): R  = visitTypeRef(implicitTypeRef, data)
+
+    override fun visitEffectDeclaration(effectDeclaration: FirEffectDeclaration, data: D): R  = visitContractElementDeclaration(effectDeclaration, data)
 
     override fun visitLegacyRawContractDescription(legacyRawContractDescription: FirLegacyRawContractDescription, data: D): R  = visitContractDescription(legacyRawContractDescription, data)
 

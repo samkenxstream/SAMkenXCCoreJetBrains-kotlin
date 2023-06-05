@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.backend.konan
 import org.jetbrains.kotlin.backend.konan.serialization.ClassFieldsSerializer
 import org.jetbrains.kotlin.backend.konan.serialization.EagerInitializedPropertySerializer
 import org.jetbrains.kotlin.backend.konan.serialization.InlineFunctionBodyReferenceSerializer
+import org.jetbrains.kotlin.konan.file.File
 
 internal class CacheStorage(private val generationState: NativeGenerationState) {
     private val outputFiles = generationState.outputFiles
@@ -16,8 +17,10 @@ internal class CacheStorage(private val generationState: NativeGenerationState) 
         fun renameOutput(outputFiles: OutputFiles) {
             // For caches the output file is a directory. It might be created by someone else,
             // we have to delete it in order for the next renaming operation to succeed.
-            // TODO: what if the directory is not empty?
-            java.io.File(outputFiles.mainFileName).delete()
+            val tempDirectoryForRemoval = File(outputFiles.mainFileName + "-to-remove")
+            if (outputFiles.mainFile.exists && !outputFiles.mainFile.renameTo(tempDirectoryForRemoval))
+                return
+            tempDirectoryForRemoval.deleteRecursively()
             if (!outputFiles.tempCacheDirectory!!.renameTo(outputFiles.mainFile))
                 outputFiles.tempCacheDirectory.deleteRecursively()
         }
@@ -25,10 +28,15 @@ internal class CacheStorage(private val generationState: NativeGenerationState) 
 
     fun saveAdditionalCacheInfo() {
         outputFiles.prepareTempDirectories()
+        saveKlibContentsHash()
         saveCacheBitcodeDependencies()
         saveInlineFunctionBodies()
         saveClassFields()
         saveEagerInitializedProperties()
+    }
+
+    private fun saveKlibContentsHash() {
+        outputFiles.hashFile!!.writeBytes(generationState.klibHash.toByteArray())
     }
 
     private fun saveCacheBitcodeDependencies() {

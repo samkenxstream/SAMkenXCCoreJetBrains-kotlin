@@ -1,14 +1,14 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.fir.resolve.dfa
 
+import org.jetbrains.kotlin.contracts.description.LogicOperationKind
 import org.jetbrains.kotlin.contracts.description.canBeRevisited
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.fir.*
-import org.jetbrains.kotlin.fir.contracts.FirResolvedContractDescription
 import org.jetbrains.kotlin.fir.contracts.description.ConeConditionalEffectDeclaration
 import org.jetbrains.kotlin.fir.contracts.description.ConeReturnsEffectDeclaration
 import org.jetbrains.kotlin.fir.declarations.*
@@ -20,12 +20,15 @@ import org.jetbrains.kotlin.fir.references.toResolvedPropertySymbol
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.ImplicitReceiverValue
 import org.jetbrains.kotlin.fir.resolve.dfa.cfg.*
+import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutorByMap
+import org.jetbrains.kotlin.fir.resolve.substitution.chain
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirAbstractBodyResolveTransformer
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.resultType
 import org.jetbrains.kotlin.fir.resolve.transformers.unwrapAnonymousFunctionExpression
 import org.jetbrains.kotlin.fir.scopes.getFunctions
 import org.jetbrains.kotlin.fir.scopes.impl.declaredMemberScope
+import org.jetbrains.kotlin.fir.scopes.impl.toConeType
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
@@ -514,7 +517,7 @@ abstract class FirDataFlowAnalyzer(
         //     return true
         // }
 
-        return session.declaredMemberScope(this)
+        return session.declaredMemberScope(this, memberRequiredPhase = FirResolvePhase.STATUS)
             .getFunctions(OperatorNameConventions.EQUALS)
             .any { it.fir.isEquals() }
     }
@@ -820,6 +823,8 @@ abstract class FirDataFlowAnalyzer(
     }
 
     private fun processConditionalContract(flow: MutableFlow, qualifiedAccess: FirStatement) {
+        // contracts has no effect on non-body resolve stages
+        if (!components.transformer.baseTransformerPhase.isBodyResolve) return
         val callee = when (qualifiedAccess) {
             is FirFunctionCall -> qualifiedAccess.toResolvedCallableSymbol()?.fir as? FirSimpleFunction
             is FirQualifiedAccessExpression -> qualifiedAccess.calleeReference.toResolvedPropertySymbol()?.fir?.getter
@@ -834,7 +839,8 @@ abstract class FirDataFlowAnalyzer(
             return exitBooleanNot(flow, qualifiedAccess as FirFunctionCall)
         }
 
-        val contractDescription = callee.contractDescription as? FirResolvedContractDescription ?: return
+        val originalFunction = callee.originalIfFakeOverride()
+        val contractDescription = (originalFunction?.symbol ?: callee.symbol).resolvedContractDescription ?: return
         val conditionalEffects = contractDescription.effects.mapNotNull { it.effect as? ConeConditionalEffectDeclaration }
         if (conditionalEffects.isEmpty()) return
 
@@ -845,14 +851,22 @@ abstract class FirDataFlowAnalyzer(
         if (argumentVariables.all { it == null }) return
 
         val typeParameters = callee.typeParameters
-        val substitutor = if (typeParameters.isNotEmpty() && qualifiedAccess is FirQualifiedAccessExpression) {
+        val typeArgumentsSubstitutor = if (typeParameters.isNotEmpty() && qualifiedAccess is FirQualifiedAccessExpression) {
             @Suppress("UNCHECKED_CAST")
             val substitutionFromArguments = typeParameters.zip(qualifiedAccess.typeArguments).map { (typeParameterRef, typeArgument) ->
                 typeParameterRef.symbol to typeArgument.toConeTypeProjection().type
             }.filter { it.second != null }.toMap() as Map<FirTypeParameterSymbol, ConeKotlinType>
             ConeSubstitutorByMap(substitutionFromArguments, components.session)
         } else {
-            null
+            ConeSubstitutor.Empty
+        }
+
+
+        val substitutor = if (originalFunction == null) {
+            typeArgumentsSubstitutor
+        } else {
+            val map = originalFunction.symbol.typeParameterSymbols.zip(typeParameters.map { it.symbol.toConeType() }).toMap()
+            ConeSubstitutorByMap(map, components.session).chain(typeArgumentsSubstitutor)
         }
 
         for (conditionalEffect in conditionalEffects) {
@@ -905,11 +919,8 @@ abstract class FirDataFlowAnalyzer(
         assignmentLhs: FirExpression?,
         hasExplicitType: Boolean,
     ) {
-        val propertyVariable = variableStorage.getOrCreateRealVariableWithoutUnwrappingAlias(
-            flow,
-            property.symbol,
-            assignmentLhs ?: property,
-            if (property.isVal) PropertyStability.STABLE_VALUE else PropertyStability.LOCAL_VAR
+        val propertyVariable = variableStorage.getOrCreateRealVariableWithoutUnwrappingAliasForPropertyInitialization(
+            flow, property.symbol, assignmentLhs ?: property
         )
         val isAssignment = assignmentLhs != null
         if (isAssignment) {
@@ -918,8 +929,7 @@ abstract class FirDataFlowAnalyzer(
 
         val initializerVariable = variableStorage.getOrCreateIfReal(flow, initializer)
         if (initializerVariable is RealVariable) {
-            val isInitializerStable =
-                initializerVariable.isStable || (initializerVariable.hasLocalStability && !isAccessToUnstableLocalVariable(initializer))
+            val isInitializerStable = initializerVariable.isStableOrLocalStableAccess(initializer)
             if (!hasExplicitType && isInitializerStable && (propertyVariable.hasLocalStability || propertyVariable.isStable)) {
                 // val a = ...
                 // val b = a
@@ -931,7 +941,7 @@ abstract class FirDataFlowAnalyzer(
                 // if (b != null) { /* a != null, but a.x could have changed */ }
                 logicSystem.translateVariableFromConditionInStatements(flow, initializerVariable, propertyVariable)
             }
-        } else if (initializerVariable != null) {
+        } else if (initializerVariable != null && propertyVariable.isStable) {
             // val b = x is String
             // if (b) { /* x is String */ }
             logicSystem.translateVariableFromConditionInStatements(flow, initializerVariable, propertyVariable)
@@ -947,6 +957,9 @@ abstract class FirDataFlowAnalyzer(
     private val RealVariable.isStable get() = stability == PropertyStability.STABLE_VALUE
     private val RealVariable.hasLocalStability get() = stability == PropertyStability.LOCAL_VAR
 
+    private fun RealVariable.isStableOrLocalStableAccess(access: FirExpression): Boolean {
+        return isStable || (hasLocalStability && !isAccessToUnstableLocalVariable(access))
+    }
 
     fun exitThrowExceptionNode(throwExpression: FirThrowExpression) {
         graphBuilder.exitThrowExceptionNode(throwExpression).mergeIncomingFlow()

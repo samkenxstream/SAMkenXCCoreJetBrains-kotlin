@@ -140,6 +140,12 @@ public class IrJsSteppingTestGenerated extends AbstractIrJsSteppingTest {
     }
 
     @Test
+    @TestMetadata("continue.kt")
+    public void testContinue() throws Exception {
+        runTest("compiler/testData/debug/stepping/continue.kt");
+    }
+
+    @Test
     @TestMetadata("dataClass.kt")
     public void testDataClass() throws Exception {
         runTest("compiler/testData/debug/stepping/dataClass.kt");
@@ -149,6 +155,12 @@ public class IrJsSteppingTestGenerated extends AbstractIrJsSteppingTest {
     @TestMetadata("defaultParameter.kt")
     public void testDefaultParameter() throws Exception {
         runTest("compiler/testData/debug/stepping/defaultParameter.kt");
+    }
+
+    @Test
+    @TestMetadata("delegation.kt")
+    public void testDelegation() throws Exception {
+        runTest("compiler/testData/debug/stepping/delegation.kt");
     }
 
     @Test

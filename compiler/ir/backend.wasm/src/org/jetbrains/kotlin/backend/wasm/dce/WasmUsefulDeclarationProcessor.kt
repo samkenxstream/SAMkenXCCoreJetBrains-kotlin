@@ -18,10 +18,13 @@ import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstanceOrNull
 
 internal class WasmUsefulDeclarationProcessor(
     override val context: WasmBackendContext,
-    printReachabilityInfo: Boolean
-) : UsefulDeclarationProcessor(printReachabilityInfo, removeUnusedAssociatedObjects = false) {
+    printReachabilityInfo: Boolean,
+    dumpReachabilityInfoToFile: String?
+) : UsefulDeclarationProcessor(printReachabilityInfo, removeUnusedAssociatedObjects = false, dumpReachabilityInfoToFile) {
 
-    private val unitGetInstance: IrSimpleFunction = context.findUnitGetInstanceFunction()
+    // The mapping from function for wrapping a kotlin closure/lambda with JS closure to function used to call a kotlin closure from JS side.
+    private val kotlinClosureToJsClosureConvertFunToKotlinClosureCallFun =
+        context.kotlinClosureToJsConverters.entries.associate { (k, v) -> v to context.closureCallExports[k] }
 
     override val bodyVisitor: BodyVisitorBase = object : BodyVisitorBase() {
         override fun visitConst(expression: IrConst<*>, data: IrDeclaration) = when (expression.kind) {
@@ -42,6 +45,22 @@ internal class WasmUsefulDeclarationProcessor(
                 .firstOrNull { it.hasWasmPrimitiveConstructorAnnotation() }
                 ?.enqueue(data, "implicit vararg constructor")
             super.visitVararg(expression, data)
+        }
+
+        override fun visitSetField(expression: IrSetField, data: IrDeclaration) {
+            if (!expression.symbol.owner.isObjectInstanceField()) {
+                super.visitSetField(expression, data)
+            }
+        }
+
+        override fun visitGetField(expression: IrGetField, data: IrDeclaration) {
+            val field = expression.symbol.owner
+
+            if (field.isObjectInstanceField()) {
+                field.type.classOrFail.owner.primaryConstructor?.enqueue(field, "object lazy initialization")
+            }
+
+            super.visitGetField(expression, data)
         }
 
         private fun tryToProcessIntrinsicCall(from: IrDeclaration, call: IrCall): Boolean = when (call.symbol) {
@@ -72,9 +91,6 @@ internal class WasmUsefulDeclarationProcessor(
             super.visitCall(expression, data)
 
             val function: IrFunction = expression.symbol.owner.realOverrideTarget
-            if (function.returnType == context.irBuiltIns.unitType) {
-                unitGetInstance.enqueue(data, "function Unit return type")
-            }
 
             if (tryToProcessIntrinsicCall(data, expression)) return
             if (function.hasWasmNoOpCastAnnotation()) return
@@ -160,23 +176,34 @@ internal class WasmUsefulDeclarationProcessor(
 
         irFunction.getEffectiveValueParameters().forEach { it.enqueueValueParameterType(irFunction) }
         irFunction.returnType.enqueueType(irFunction, "function return type")
+
+        kotlinClosureToJsClosureConvertFunToKotlinClosureCallFun[irFunction]?.enqueue(
+            irFunction,
+            "kotlin closure to JS closure conversion",
+            false
+        )
     }
 
     override fun processSimpleFunction(irFunction: IrSimpleFunction) {
         super.processSimpleFunction(irFunction)
         irFunction.enqueueParentClass()
-        if (irFunction.isFakeOverride) {
-            irFunction.overriddenSymbols.forEach { overridden ->
-                overridden.owner.enqueue(irFunction, "original for fake-override")
-            }
-        }
         processIrFunction(irFunction)
     }
 
     override fun processConstructor(irConstructor: IrConstructor) {
         super.processConstructor(irConstructor)
-        if (!context.inlineClassesUtils.isClassInlineLike(irConstructor.parentAsClass)) {
+        val constructedClass = irConstructor.constructedClass
+        if (!context.inlineClassesUtils.isClassInlineLike(constructedClass)) {
             processIrFunction(irConstructor)
+        }
+
+        // Primitive constructors has no body, since that such constructors implicitly initialize all fields, so we have to preserve them
+        if (irConstructor.hasWasmPrimitiveConstructorAnnotation()) {
+            constructedClass.declarations.forEach { declaration ->
+                if (declaration is IrField) {
+                    declaration.enqueue(constructedClass, "preserve all fields for primitive constructors")
+                }
+            }
         }
     }
 

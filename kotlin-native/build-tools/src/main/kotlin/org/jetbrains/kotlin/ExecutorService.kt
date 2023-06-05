@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+@file:OptIn(kotlin.time.ExperimentalTime::class)
 package org.jetbrains.kotlin
 
 import com.google.gson.annotations.Expose
@@ -35,6 +36,10 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 
+import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
+
 /**
  * A replacement of the standard `exec {}`
  * @see org.gradle.api.Project.exec
@@ -53,9 +58,10 @@ private fun Executor.service(project: Project) = object: ExecutorService {
         val execSpec = project.objects.newInstance<DefaultExecSpec>().apply {
             action.execute(this)
         }
-        val request = executeRequest(
+        val request = ExecuteRequest(
                 executableAbsolutePath = execSpec.executable,
                 args = execSpec.args,
+                timeout = 15.toDuration(DurationUnit.MINUTES),
         ).apply {
             execSpec.standardInput?.let {
                 stdin = it
@@ -105,6 +111,7 @@ fun create(project: Project): ExecutorService {
             }
         }.service(project)
         supportsRunningTestsOnDevice(testTarget) -> deviceLauncher(project)
+        configurables is AppleConfigurables && RosettaExecutor.availableFor(configurables) -> RosettaExecutor(configurables).service(project)
         else -> HostExecutor().service(project)
     }
 }

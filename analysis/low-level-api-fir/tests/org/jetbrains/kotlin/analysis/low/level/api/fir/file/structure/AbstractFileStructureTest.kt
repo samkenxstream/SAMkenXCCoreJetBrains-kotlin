@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirResolvableM
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.base.AbstractLowLevelApiSingleFileTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.AnalysisApiFirOutOfContentRootTestConfigurator
 import org.jetbrains.kotlin.analysis.low.level.api.fir.test.configurators.AnalysisApiFirSourceTestConfigurator
-import org.jetbrains.kotlin.analysis.project.structure.getKtModule
+import org.jetbrains.kotlin.analysis.project.structure.ProjectStructureProvider
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.forEachDescendantOfType
 import org.jetbrains.kotlin.test.KotlinTestUtils
@@ -63,6 +63,9 @@ abstract class AbstractFileStructureTest : AbstractLowLevelApiSingleFileTest() {
                 is KtTypeAlias -> {
                     elementToComment[ktDeclaration.getTypeReference()!!] = comment
                 }
+                is KtClassInitializer -> {
+                    elementToComment[ktDeclaration.openBraceNode!!] = comment
+                }
                 else -> error("Unsupported declaration $ktDeclaration")
             }
         }
@@ -99,9 +102,10 @@ abstract class AbstractFileStructureTest : AbstractLowLevelApiSingleFileTest() {
     }
 
     private fun KtFile.getFileStructure(): FileStructure {
-        val moduleFirResolveSession = getFirResolveSession()
+        val module = ProjectStructureProvider.getModule(project, this, contextualModule = null)
+        val moduleFirResolveSession = module.getFirResolveSession(project)
         check(moduleFirResolveSession.isSourceSession)
-        val session = moduleFirResolveSession.getSessionFor(getKtModule()) as LLFirResolvableModuleSession
+        val session = moduleFirResolveSession.getSessionFor(module) as LLFirResolvableModuleSession
         return session.moduleComponents.fileStructureCache.getFileStructure(this)
     }
 

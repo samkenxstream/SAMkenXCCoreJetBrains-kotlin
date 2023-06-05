@@ -32,6 +32,7 @@ val kotlinGradlePluginAndItsRequired = arrayOf(
     ":kotlin-noarg",
     ":kotlin-sam-with-receiver",
     ":kotlin-lombok",
+    ":kotlin-serialization",
     ":kotlin-android-extensions",
     ":kotlin-android-extensions-runtime",
     ":kotlin-parcelize-compiler",
@@ -54,7 +55,6 @@ val kotlinGradlePluginAndItsRequired = arrayOf(
     ":kotlin-tooling-metadata",
     ":kotlin-tooling-core",
     ":kotlin-reflect",
-    ":kotlin-annotation-processing-gradle",
     ":kotlin-test",
     ":kotlin-gradle-subplugin-example",
     ":kotlin-stdlib-common",
@@ -64,18 +64,23 @@ val kotlinGradlePluginAndItsRequired = arrayOf(
     ":kotlin-stdlib-js",
     ":kotlin-stdlib-wasm",
     ":examples:annotation-processor-example",
-    ":kotlin-sam-with-receiver",
+    ":kotlin-assignment-compiler-plugin.embeddable",
+    ":kotlin-allopen-compiler-plugin.embeddable",
+    ":kotlin-noarg-compiler-plugin.embeddable",
+    ":kotlin-sam-with-receiver-compiler-plugin.embeddable",
+    ":kotlin-lombok-compiler-plugin.embeddable",
+    ":kotlinx-serialization-compiler-plugin.embeddable",
+    ":kotlin-annotation-processing-embeddable",
     ":kotlin-script-runtime",
     ":kotlin-scripting-common",
     ":kotlin-scripting-jvm",
     ":kotlin-scripting-compiler-embeddable",
     ":kotlin-scripting-compiler-impl-embeddable",
-    ":kotlin-serialization",
     ":kotlin-test-js-runner",
     ":native:kotlin-klib-commonizer-embeddable",
     ":native:kotlin-klib-commonizer-api",
-    ":native:kotlin-native-utils",
-    ":kotlin-lombok"
+    ":compiler:build-tools:kotlin-build-tools-api",
+    ":compiler:build-tools:kotlin-build-tools-impl",
 )
 
 fun Task.dependsOnKotlinGradlePluginInstall() {
@@ -253,8 +258,8 @@ fun Project.projectTest(
         }
 
         defineJDKEnvVariables.forEach { version ->
-            val javaLauncher = project.getToolchainLauncherFor(version).orNull ?: error("Can't find toolchain for $version")
-            environment(version.envName, javaLauncher.metadata.installationPath.asFile.absolutePath)
+            val jdkHome = project.getToolchainJdkHomeFor(version).orNull ?: error("Can't find toolchain for $version")
+            environment(version.envName, jdkHome)
         }
     }.apply { configure(body) }
 }
@@ -324,6 +329,48 @@ fun Task.useAndroidSdk() {
 
 fun Task.useAndroidJar() {
     TaskUtils.useAndroidJar(this)
+}
+
+fun Task.acceptAndroidSdkLicenses() {
+    val separator = System.lineSeparator()
+    with(project) {
+        val androidSdk = configurations["androidSdk"].singleFile
+        val sdkLicensesDir = androidSdk.resolve("licenses").also {
+            if (!it.exists()) it.mkdirs()
+        }
+
+        val sdkLicenses = listOf(
+            "8933bad161af4178b1185d1a37fbf41ea5269c55",
+            "d56f5187479451eabf01fb78af6dfcb131a6481e",
+            "24333f8a63b6825ea9c5514f83c2829b004d1fee",
+        )
+        val sdkPreviewLicense = "84831b9409646a918e30573bab4c9c91346d8abd"
+
+        val sdkLicenseFile = sdkLicensesDir.resolve("android-sdk-license")
+        if (!sdkLicenseFile.exists()) {
+            sdkLicenseFile.createNewFile()
+            sdkLicenseFile.writeText(
+                sdkLicenses.joinToString(separator = separator)
+            )
+        } else {
+            sdkLicenses
+                .subtract(
+                    sdkLicenseFile.readText().lines()
+                )
+                .forEach {
+                    sdkLicenseFile.appendText("$it$separator")
+                }
+        }
+
+        val sdkPreviewLicenseFile = sdkLicensesDir.resolve("android-sdk-preview-license")
+        if (!sdkPreviewLicenseFile.exists()) {
+            sdkPreviewLicenseFile.writeText(sdkPreviewLicense)
+        } else {
+            if (sdkPreviewLicense != sdkPreviewLicenseFile.readText().trim()) {
+                sdkPreviewLicenseFile.writeText(sdkPreviewLicense)
+            }
+        }
+    }
 }
 
 fun Project.confugureFirPluginAnnotationsDependency(testTask: TaskProvider<Test>) {

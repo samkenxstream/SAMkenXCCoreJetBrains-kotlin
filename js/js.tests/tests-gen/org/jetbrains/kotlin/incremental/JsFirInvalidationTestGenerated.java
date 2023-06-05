@@ -272,6 +272,18 @@ public class JsFirInvalidationTestGenerated extends AbstractJsFirInvalidationTes
     }
 
     @Test
+    @TestMetadata("interfaceOpenMethods")
+    public void testInterfaceOpenMethods() throws Exception {
+        runTest("js/js.translator/testData/incremental/invalidation/interfaceOpenMethods/");
+    }
+
+    @Test
+    @TestMetadata("interfaceOpenMethodsInOpenClass")
+    public void testInterfaceOpenMethodsInOpenClass() throws Exception {
+        runTest("js/js.translator/testData/incremental/invalidation/interfaceOpenMethodsInOpenClass/");
+    }
+
+    @Test
     @TestMetadata("interfaceSuperUsage")
     public void testInterfaceSuperUsage() throws Exception {
         runTest("js/js.translator/testData/incremental/invalidation/interfaceSuperUsage/");
@@ -317,6 +329,12 @@ public class JsFirInvalidationTestGenerated extends AbstractJsFirInvalidationTes
     @TestMetadata("localInlineFunction")
     public void testLocalInlineFunction() throws Exception {
         runTest("js/js.translator/testData/incremental/invalidation/localInlineFunction/");
+    }
+
+    @Test
+    @TestMetadata("localObjectsLeakThroughInterface")
+    public void testLocalObjectsLeakThroughInterface() throws Exception {
+        runTest("js/js.translator/testData/incremental/invalidation/localObjectsLeakThroughInterface/");
     }
 
     @Test
@@ -371,6 +389,12 @@ public class JsFirInvalidationTestGenerated extends AbstractJsFirInvalidationTes
     @TestMetadata("privateInlineFunction1")
     public void testPrivateInlineFunction1() throws Exception {
         runTest("js/js.translator/testData/incremental/invalidation/privateInlineFunction1/");
+    }
+
+    @Test
+    @TestMetadata("privateObjectsLeakThroughSealedInterface")
+    public void testPrivateObjectsLeakThroughSealedInterface() throws Exception {
+        runTest("js/js.translator/testData/incremental/invalidation/privateObjectsLeakThroughSealedInterface/");
     }
 
     @Test

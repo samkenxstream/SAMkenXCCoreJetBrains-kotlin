@@ -140,6 +140,12 @@ public class SteppingTestGenerated extends AbstractSteppingTest {
     }
 
     @Test
+    @TestMetadata("continue.kt")
+    public void testContinue() throws Exception {
+        runTest("compiler/testData/debug/stepping/continue.kt");
+    }
+
+    @Test
     @TestMetadata("dataClass.kt")
     public void testDataClass() throws Exception {
         runTest("compiler/testData/debug/stepping/dataClass.kt");
@@ -149,6 +155,12 @@ public class SteppingTestGenerated extends AbstractSteppingTest {
     @TestMetadata("defaultParameter.kt")
     public void testDefaultParameter() throws Exception {
         runTest("compiler/testData/debug/stepping/defaultParameter.kt");
+    }
+
+    @Test
+    @TestMetadata("delegation.kt")
+    public void testDelegation() throws Exception {
+        runTest("compiler/testData/debug/stepping/delegation.kt");
     }
 
     @Test
@@ -377,6 +389,12 @@ public class SteppingTestGenerated extends AbstractSteppingTest {
     @TestMetadata("nestedInline.kt")
     public void testNestedInline() throws Exception {
         runTest("compiler/testData/debug/stepping/nestedInline.kt");
+    }
+
+    @Test
+    @TestMetadata("noLinenumberInInvokeOfSuspendLambda.kt")
+    public void testNoLinenumberInInvokeOfSuspendLambda() throws Exception {
+        runTest("compiler/testData/debug/stepping/noLinenumberInInvokeOfSuspendLambda.kt");
     }
 
     @Test

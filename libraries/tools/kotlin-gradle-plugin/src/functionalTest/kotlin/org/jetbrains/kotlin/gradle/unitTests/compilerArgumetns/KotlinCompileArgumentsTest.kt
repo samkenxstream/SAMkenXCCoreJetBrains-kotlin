@@ -18,11 +18,16 @@ import org.jetbrains.kotlin.gradle.dependencyResolutionTests.mavenCentralCacheRe
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.dsl.kotlinJvmExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.CreateCompilerArgumentsContext
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.ArgumentType.PluginClasspath
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.ArgumentType.Primitive
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.lenient
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.util.assertNotNull
 import org.jetbrains.kotlin.gradle.util.buildProjectWithJvm
 import org.jetbrains.kotlin.gradle.util.buildProjectWithMPP
+import org.jetbrains.kotlin.gradle.util.main
 import kotlin.reflect.full.findAnnotation
 import kotlin.test.*
 
@@ -43,7 +48,12 @@ class KotlinCompileArgumentsTest {
 
         val mainCompilation = kotlin.target.compilations.getByName("main")
         val mainCompilationTask = mainCompilation.compileTaskProvider.get() as KotlinCompile
-        val argumentsFromKotlinCompilerArgumentsAware = mainCompilationTask.createCompilerArguments(lenient)
+        val argumentsFromKotlinCompilerArgumentsAware = mainCompilationTask.createCompilerArguments(
+            CreateCompilerArgumentsContext(
+                includeArgumentTypes = setOf(Primitive, PluginClasspath),
+                isLenient = true
+            )
+        )
 
         @Suppress("DEPRECATION_ERROR")
         assertEquals(
@@ -94,8 +104,58 @@ class KotlinCompileArgumentsTest {
         val jvmMainCompileTask = jvmMainCompilation.compileTaskProvider.get() as KotlinCompile
         val arguments = jvmMainCompileTask.createCompilerArguments(lenient)
 
-        arguments.assertNotNull(CommonCompilerArguments::fragments).let { fragments ->
-            assertEquals(setOf("commonMain", "jvmMain"), fragments.toSet())
+        assertEquals(
+            setOf("commonMain", "jvmMain"),
+            arguments.assertNotNull(CommonCompilerArguments::fragments).toSet()
+        )
+    }
+
+    @Test
+    fun `test - multiplatform - with K2 - source filter on compile task is respected`() {
+        val project = buildProjectWithMPP()
+        val kotlin = project.multiplatformExtension
+        kotlin.jvm()
+        val compilation = kotlin.jvm().compilations.main
+        compilation.compilerOptions.options.languageVersion.set(KotlinVersion.KOTLIN_2_0)
+        val compileTask = compilation.compileTaskProvider.get() as KotlinCompile
+
+        /*
+        Create Source Files
+         */
+        val aKt = project.file("src/jvmMain/kotlin/A.kt")
+        val bKt = project.file("src/jvmMain/kotlin/B.kt")
+        val cTxt = project.file("src/jvmMain/kotlin/C.txt")
+
+        listOf(aKt, bKt, cTxt).forEach { file ->
+            file.parentFile.mkdirs()
+            file.writeText("Stub")
         }
+
+        /* Expect cTxt being filtered by default by the compile task */
+        assertEquals(
+            setOf(
+                "jvmMain:${aKt.absolutePath}",
+                "jvmMain:${bKt.absolutePath}",
+            ),
+            compileTask.createCompilerArguments(lenient).fragmentSources.orEmpty().toSet()
+        )
+
+        /* Explicitly include the txt file */
+        compileTask.include("**.txt")
+        assertEquals(
+            setOf(
+                "jvmMain:${aKt.absolutePath}",
+                "jvmMain:${bKt.absolutePath}",
+                "jvmMain:${cTxt.absolutePath}",
+            ),
+            compileTask.createCompilerArguments(lenient).fragmentSources.orEmpty().toSet()
+        )
+
+        /* Exclude B.kt and C.txt explicitly */
+        compileTask.exclude { it.file in setOf(bKt, cTxt) }
+        assertEquals(
+            setOf("jvmMain:${aKt.absolutePath}"),
+            compileTask.createCompilerArguments(lenient).fragmentSources.orEmpty().toSet()
+        )
     }
 }

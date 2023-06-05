@@ -42,6 +42,7 @@ fun TargetPlatform.createArguments(init: (CommonCompilerArguments).() -> Unit = 
             jvmTarget = (single() as? JdkPlatform)?.targetVersion?.description ?: JvmTarget.DEFAULT.description
         }
         isJs() -> K2JSCompilerArguments().apply { init() }
+        isWasm() -> K2JSCompilerArguments().apply { init() }
         isNative() -> K2NativeCompilerArguments().apply { init() }
         else -> error("Unknown platform $this")
     }
@@ -230,7 +231,7 @@ fun CommonCompilerArguments.convertPathsToSystemIndependent() {
     when (this) {
         is K2JVMCompilerArguments -> {
             destination = destination?.let(FileUtilRt::toSystemIndependentName)
-            classpath?.forEachIndexed { index, s -> classpath!![index] = FileUtilRt.toSystemIndependentName(s) }
+            classpath = classpath?.let(FileUtilRt::toSystemIndependentName)
             jdkHome = jdkHome?.let(FileUtilRt::toSystemIndependentName)
             kotlinHome = kotlinHome?.let(FileUtilRt::toSystemIndependentName)
             friendPaths?.forEachIndexed { index, s -> friendPaths!![index] = FileUtilRt.toSystemIndependentName(s) }

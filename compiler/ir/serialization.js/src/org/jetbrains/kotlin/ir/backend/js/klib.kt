@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.KtVirtualFileSourceFile
 import org.jetbrains.kotlin.analyzer.AbstractAnalyzerWithCompilerReport
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.analyzer.CompilationErrorException
-import org.jetbrains.kotlin.backend.common.CommonJsKLibResolver
+import org.jetbrains.kotlin.backend.common.CommonKLibResolver
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContextImpl
@@ -49,7 +49,6 @@ import org.jetbrains.kotlin.js.analyze.AbstractTopDownAnalyzerFacadeForWeb
 import org.jetbrains.kotlin.js.analyzer.JsAnalysisResult
 import org.jetbrains.kotlin.js.config.ErrorTolerancePolicy
 import org.jetbrains.kotlin.js.config.JSConfigurationKeys
-import org.jetbrains.kotlin.konan.file.ZipFileSystemAccessor
 import org.jetbrains.kotlin.konan.properties.Properties
 import org.jetbrains.kotlin.konan.properties.propertyList
 import org.jetbrains.kotlin.library.*
@@ -74,6 +73,7 @@ import org.jetbrains.kotlin.util.DummyLogger
 import org.jetbrains.kotlin.util.Logger
 import org.jetbrains.kotlin.utils.DFS
 import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
+import org.jetbrains.kotlin.utils.memoryOptimizedFilter
 import java.io.File
 
 val KotlinLibrary.moduleName: String
@@ -264,13 +264,19 @@ fun getIrModuleInfoForKlib(
     val mainModuleLib = sortedDependencies.last()
     val typeTranslator = TypeTranslatorImpl(symbolTable, configuration.languageVersionSettings, moduleDescriptor)
     val irBuiltIns = IrBuiltInsOverDescriptors(moduleDescriptor.builtIns, typeTranslator, symbolTable)
+    val errorPolicy = configuration[JSConfigurationKeys.ERROR_TOLERANCE_POLICY] ?: ErrorTolerancePolicy.DEFAULT
 
     val irLinker = JsIrLinker(
         currentModule = null,
         messageLogger = messageLogger,
         builtIns = irBuiltIns,
         symbolTable = symbolTable,
-        partialLinkageSupport = createPartialLinkageSupportForLinker(configuration.partialLinkageConfig, irBuiltIns, messageLogger),
+        partialLinkageSupport = createPartialLinkageSupportForLinker(
+            partialLinkageConfig = configuration.partialLinkageConfig,
+            allowErrorTypes = errorPolicy.allowErrors,
+            builtIns = irBuiltIns,
+            messageLogger = messageLogger
+        ),
         translationPluginContext = null,
         icData = null,
         friendModules = friendModules
@@ -292,7 +298,7 @@ fun getIrModuleInfoForKlib(
 
     irLinker.init(null, emptyList())
     ExternalDependenciesGenerator(symbolTable, listOf(irLinker)).generateUnboundSymbolsAsDependencies()
-    irLinker.postProcess()
+    irLinker.postProcess(inOrAfterLinkageStep = true)
 
     return IrModuleInfo(
         moduleFragment,
@@ -322,13 +328,19 @@ fun getIrModuleInfoForSourceFiles(
     val feContext = psi2IrContext.run {
         JsIrLinker.JsFePluginContext(moduleDescriptor, symbolTable, typeTranslator, irBuiltIns)
     }
+    val errorPolicy = configuration[JSConfigurationKeys.ERROR_TOLERANCE_POLICY] ?: ErrorTolerancePolicy.DEFAULT
 
     val irLinker = JsIrLinker(
         currentModule = psi2IrContext.moduleDescriptor,
         messageLogger = messageLogger,
         builtIns = irBuiltIns,
         symbolTable = symbolTable,
-        partialLinkageSupport = createPartialLinkageSupportForLinker(configuration.partialLinkageConfig, irBuiltIns, messageLogger),
+        partialLinkageSupport = createPartialLinkageSupportForLinker(
+            partialLinkageConfig = configuration.partialLinkageConfig,
+            allowErrorTypes = errorPolicy.allowErrors,
+            builtIns = irBuiltIns,
+            messageLogger = messageLogger
+        ),
         translationPluginContext = feContext,
         icData = null,
         friendModules = friendModules,
@@ -471,7 +483,7 @@ class ModulesStructure(
     friendDependenciesPaths: Collection<String>,
 ) {
 
-    val allDependenciesResolution = CommonJsKLibResolver.resolveWithoutDependencies(
+    val allDependenciesResolution = CommonKLibResolver.resolveWithoutDependencies(
         dependencies,
         compilerConfiguration.resolverLogger,
         compilerConfiguration.get(JSConfigurationKeys.ZIP_FILE_SYSTEM_ACCESSOR)
@@ -482,7 +494,7 @@ class ModulesStructure(
 
     val friendDependencies = allDependencies.run {
         val friendAbsolutePaths = friendDependenciesPaths.map { File(it).canonicalPath }
-        filter {
+        memoryOptimizedFilter {
             it.libraryFile.absolutePath in friendAbsolutePaths
         }
     }
@@ -603,6 +615,17 @@ private fun getDescriptorForElement(
     context: BindingContext,
     element: PsiElement
 ): DeclarationDescriptor = BindingContextUtils.getNotNull(context, BindingContext.DECLARATION_TO_DESCRIPTOR, element)
+
+
+private const val FILE_FINGERPRINTS_SEPARATOR = " "
+
+private fun List<SerializedIrFileFingerprint>.joinIrFileFingerprints(): String {
+    return joinToString(FILE_FINGERPRINTS_SEPARATOR)
+}
+
+private fun String.parseSerializedIrFileFingerprints(): List<SerializedIrFileFingerprint> {
+    return split(FILE_FINGERPRINTS_SEPARATOR).mapNotNull(SerializedIrFileFingerprint::fromString)
+}
 
 fun serializeModuleIntoKlib(
     moduleName: String,

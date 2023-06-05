@@ -119,7 +119,7 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
             override fun getReferencedClassifier(symbol: IrClassifierSymbol): IrClassifierSymbol = when (symbol) {
                 is IrClassSymbol -> getReferencedClass(symbol)
                 is IrTypeParameterSymbol -> remapExpectTypeParameter(symbol).symbol
-                else -> error("Unexpected symbol $symbol ${symbol.descriptor}")
+                is IrScriptSymbol -> symbol.unexpectedSymbolKind<IrClassifierSymbol>()
             }
 
             override fun getReferencedConstructor(symbol: IrConstructorSymbol) =
@@ -130,7 +130,6 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
             override fun getReferencedFunction(symbol: IrFunctionSymbol): IrFunctionSymbol = when (symbol) {
                 is IrSimpleFunctionSymbol -> getReferencedSimpleFunction(symbol)
                 is IrConstructorSymbol -> getReferencedConstructor(symbol)
-                else -> error("Unexpected symbol $symbol ${symbol.descriptor}")
             }
 
             override fun getReferencedSimpleFunction(symbol: IrSimpleFunctionSymbol) = when {

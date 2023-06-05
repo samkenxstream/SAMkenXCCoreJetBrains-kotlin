@@ -22,7 +22,9 @@ import org.jetbrains.kotlin.fir.extensions.assignAltererExtensions
 import org.jetbrains.kotlin.fir.extensions.expressionResolutionExtensions
 import org.jetbrains.kotlin.fir.extensions.extensionService
 import org.jetbrains.kotlin.fir.references.*
-import org.jetbrains.kotlin.fir.references.builder.*
+import org.jetbrains.kotlin.fir.references.builder.buildErrorNamedReference
+import org.jetbrains.kotlin.fir.references.builder.buildExplicitSuperReference
+import org.jetbrains.kotlin.fir.references.builder.buildSimpleNamedReference
 import org.jetbrains.kotlin.fir.references.impl.FirSimpleNamedReference
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.*
@@ -391,6 +393,13 @@ open class FirExpressionsResolveTransformer(transformer: FirAbstractBodyResolveT
     }
 
     override fun transformFunctionCall(functionCall: FirFunctionCall, data: ResolutionMode): FirStatement =
+        transformFunctionCallInternal(functionCall, data, provideDelegate = false)
+
+    internal fun transformFunctionCallInternal(
+        functionCall: FirFunctionCall,
+        data: ResolutionMode,
+        provideDelegate: Boolean,
+    ): FirStatement =
         whileAnalysing(session, functionCall) {
             val calleeReference = functionCall.calleeReference
             if (
@@ -416,7 +425,14 @@ open class FirExpressionsResolveTransformer(transformer: FirAbstractBodyResolveT
                     val initialExplicitReceiver = functionCall.explicitReceiver
                     val withTransformedArguments = if (!resolvingAugmentedAssignment) {
                         dataFlowAnalyzer.enterCallArguments(functionCall, functionCall.arguments)
-                        transformExplicitReceiver(functionCall).also {
+                        // In provideDelegate mode the explicitReceiver is already resolved
+                        // E.g. we have val some by someDelegate
+                        // At 1st stage of delegate inference we resolve someDelegate itself,
+                        // at 2nd stage in provideDelegate mode we are trying to resolve someDelegate.provideDelegate(),
+                        // and 'someDelegate' explicit receiver is resolved at 1st stage
+                        // See also FirDeclarationsResolveTransformer.transformWrappedDelegateExpression
+                        val withResolvedExplicitReceiver = if (provideDelegate) functionCall else transformExplicitReceiver(functionCall)
+                        withResolvedExplicitReceiver.also {
                             it.replaceArgumentList(it.argumentList.transform(this, ResolutionMode.ContextDependent))
                             dataFlowAnalyzer.exitCallArguments()
                         }
@@ -687,7 +703,7 @@ open class FirExpressionsResolveTransformer(transformer: FirAbstractBodyResolveT
         val expression = when (originalExpression) {
             is FirSafeCallExpression -> originalExpression.selector as? FirExpression ?: buildErrorExpression {
                 source = originalExpression.source
-                diagnostic = ConeSimpleDiagnostic("Safe call selector expected to be an expression here", DiagnosticKind.Syntax)
+                diagnostic = ConeSyntaxDiagnostic("Safe call selector expected to be an expression here")
             }
             else -> originalExpression
         }
@@ -788,13 +804,18 @@ open class FirExpressionsResolveTransformer(transformer: FirAbstractBodyResolveT
         equalityOperatorCall: FirEqualityOperatorCall,
         data: ResolutionMode
     ): FirStatement = whileAnalysing(session, equalityOperatorCall) {
-        // Currently, we use expectedType=Any? for both operands
-        // In FE1.0, it's only used for the right
-        // But it seems a bit inconsistent (see KT-47409)
-        // Also it's kind of complicated to transform different arguments with different expectType considering current FIR structure
+        val arguments = equalityOperatorCall.argumentList.arguments
+        require(arguments.size == 2) {
+            "Unexpected number of arguments in equality call: ${arguments.size}"
+        }
+        // In cases like materialize1() == materialize2() we add expected type just for the right argument.
+        // One of the reasons is just consistency with K1 and with the desugared form `a.equals(b)`. See KT-47409 for clarifications.
+        val leftArgumentTransformed: FirExpression = arguments[0].transform(transformer, ResolutionMode.ContextIndependent)
+        val rightArgumentTransformed: FirExpression = arguments[1].transform(transformer, withExpectedType(builtinTypes.nullableAnyType))
+
         equalityOperatorCall
             .transformAnnotations(transformer, ResolutionMode.ContextIndependent)
-            .replaceArgumentList(equalityOperatorCall.argumentList.transform(transformer, withExpectedType(builtinTypes.nullableAnyType)))
+            .replaceArgumentList(buildBinaryArgumentList(leftArgumentTransformed, rightArgumentTransformed))
         equalityOperatorCall.resultType = equalityOperatorCall.typeRef.resolvedTypeFromPrototype(builtinTypes.booleanType.type)
 
         dataFlowAnalyzer.exitEqualityOperatorCall(equalityOperatorCall)
@@ -940,19 +961,10 @@ open class FirExpressionsResolveTransformer(transformer: FirAbstractBodyResolveT
             .transformAnnotations(transformer, ResolutionMode.ContextIndependent)
             .replaceArgumentList(checkNotNullCall.argumentList.transform(transformer, ResolutionMode.ContextDependent))
 
-        var callCompleted = false
-        val result = components.syntheticCallGenerator.generateCalleeForCheckNotNullCall(checkNotNullCall, resolutionContext)?.let {
-            val completionResult = callCompleter.completeCall(it, data)
-            callCompleted = completionResult.callCompleted
-            completionResult.result
-        } ?: run {
-            checkNotNullCall.resultType =
-                buildErrorTypeRef {
-                    diagnostic = ConeSimpleDiagnostic("Can't resolve !! operator call", DiagnosticKind.InferenceError)
-                }
-            callCompleted = true
-            checkNotNullCall
-        }
+        val (result, callCompleted) = callCompleter.completeCall(
+            components.syntheticCallGenerator.generateCalleeForCheckNotNullCall(checkNotNullCall, resolutionContext), data
+        )
+
         dataFlowAnalyzer.exitCheckNotNullCall(result, callCompleted)
         return result
     }
@@ -1514,7 +1526,7 @@ open class FirExpressionsResolveTransformer(transformer: FirAbstractBodyResolveT
             initializer = lhsGetCall.explicitReceiver ?: buildErrorExpression {
                 source = augmentedArraySetCall.source
                     ?.fakeElement(KtFakeSourceElementKind.DesugaredCompoundAssignment)
-                diagnostic = ConeSimpleDiagnostic("No receiver for array access", DiagnosticKind.Syntax)
+                diagnostic = ConeSyntaxDiagnostic("No receiver for array access")
             }
         )
 

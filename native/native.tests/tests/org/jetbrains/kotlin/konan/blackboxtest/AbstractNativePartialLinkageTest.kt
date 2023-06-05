@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.codegen.ProjectInfo
 import org.jetbrains.kotlin.klib.PartialLinkageTestUtils
 import org.jetbrains.kotlin.klib.PartialLinkageTestUtils.Dependencies
 import org.jetbrains.kotlin.klib.PartialLinkageTestUtils.MAIN_MODULE_NAME
+import org.jetbrains.kotlin.klib.PartialLinkageTestUtils.ModuleBuildDirs
 import org.jetbrains.kotlin.konan.blackboxtest.support.*
 import org.jetbrains.kotlin.konan.blackboxtest.support.TestCase.WithTestRunnerExtras
 import org.jetbrains.kotlin.konan.blackboxtest.support.compilation.*
@@ -48,18 +49,20 @@ abstract class AbstractNativePartialLinkageTest : AbstractNativeSimpleTest() {
                 customizeMainModuleSources(moduleSourceDir)
         }
 
-        override fun buildKlib(moduleName: String, moduleSourceDir: File, dependencies: Dependencies, klibFile: File) =
-            this@AbstractNativePartialLinkageTest.buildKlib(moduleName, moduleSourceDir, dependencies, klibFile)
+        override fun buildKlib(
+            moduleName: String,
+            buildDirs: ModuleBuildDirs,
+            dependencies: Dependencies,
+            klibFile: File
+        ) = this@AbstractNativePartialLinkageTest.buildKlib(moduleName, buildDirs.sourceDir, dependencies, klibFile)
 
         override fun buildBinaryAndRun(mainModuleKlibFile: File, dependencies: Dependencies) =
             this@AbstractNativePartialLinkageTest.buildBinaryAndRun(dependencies)
 
         override fun onNonEmptyBuildDirectory(directory: File) = backupDirectoryContents(directory)
 
-        // Temporarily mute TA tests on FIR FE with caches.
-        override fun isIgnoredTest(projectInfo: ProjectInfo) = super.isIgnoredTest(projectInfo)
-                || (projectInfo.name == "typeAliasChanges" && testModeName.endsWith("STATIC_EVERYWHERE")
-                && this@AbstractNativePartialLinkageTest::class.java.simpleName.startsWith("Fir"))
+        override fun isIgnoredTest(projectInfo: ProjectInfo) =
+            super.isIgnoredTest(projectInfo) || projectInfo.name == "externalDeclarations"
 
         override fun onIgnoredTest() = throw TestAbortedException()
     }
@@ -203,7 +206,7 @@ abstract class AbstractNativePartialLinkageTest : AbstractNativeSimpleTest() {
         klib = this
     )
 
-    private val buildDir: File get() = testRunSettings.get<SimpleTestDirectories>().testBuildDir
+    private val buildDir: File get() = testRunSettings.get<Binaries>().testBinariesDir
     private val stdlibFile: File get() = testRunSettings.get<KotlinNativeHome>().stdlibFile
     private val useStaticCacheForUserLibraries: Boolean get() = testRunSettings.get<CacheMode>().useStaticCacheForUserLibraries
 

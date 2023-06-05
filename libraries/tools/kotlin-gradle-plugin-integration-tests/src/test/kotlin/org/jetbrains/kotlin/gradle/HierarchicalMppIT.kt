@@ -1183,6 +1183,33 @@ open class HierarchicalMppIT : KGPBaseTest() {
         }
     }
 
+    @GradleTest
+    @DisplayName("KT-56380: correct nullability inference in metadata compilations")
+    fun `test correct nullability inference in metadata compilation`(gradleVersion: GradleVersion) {
+        project("kt-56380_correct_nullability_inference", gradleVersion) {
+            build(":b:compileCommonMainKotlinMetadata")
+        }
+    }
+
+    @GradleTest
+    @GradleTestVersions(minVersion = TestVersions.Gradle.G_7_0)
+    fun `test type safe project accessors with KotlinDependencyHandler`(gradleVersion: GradleVersion) {
+        project("mpp-project-with-type-safe-accessors", gradleVersion) {
+            build("help") {
+                println(output)
+                val actualDependencies = output.lineSequence()
+                    .filter { it.startsWith("PROJECT_DEPENDENCY: ") }
+                    .map { it.removePrefix("PROJECT_DEPENDENCY: ") }
+                    .toList()
+
+                assertEquals(
+                    listOf(":foo", ":bar"),
+                    actualDependencies
+                )
+            }
+        }
+    }
+
 
     private fun TestProject.testDependencyTransformations(
         subproject: String? = null,

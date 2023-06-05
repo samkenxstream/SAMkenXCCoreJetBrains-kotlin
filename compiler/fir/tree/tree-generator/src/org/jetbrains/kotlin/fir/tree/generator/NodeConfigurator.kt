@@ -519,7 +519,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         annotation.configure {
-            +field("useSiteTarget", annotationUseSiteTargetType, nullable = true)
+            +field("useSiteTarget", annotationUseSiteTargetType, nullable = true, withReplace = true)
             +field("annotationTypeRef", typeRef, withReplace = true).withTransform()
             +field("argumentMapping", annotationArgumentMapping, withReplace = true)
             +typeArguments.withTransform()
@@ -620,7 +620,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         throwExpression.configure {
-            +field("exception", expression)
+            +field("exception", expression).withTransform()
         }
 
         variableAssignment.configure {
@@ -642,6 +642,11 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
 
         wrappedDelegateExpression.configure {
             +field("delegateProvider", expression).withReplace()
+        }
+
+        enumEntryDeserializedAccessExpression.configure {
+            +field("enumClassId", classIdType)
+            +field("enumEntryName", nameType)
         }
 
         namedReference.configure {
@@ -732,6 +737,10 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +field(varianceType)
         }
 
+        contractElementDeclaration.configure {
+            +field("effect", coneContractElementType)
+        }
+
         effectDeclaration.configure {
             +field("effect", coneEffectDeclarationType)
         }
@@ -742,7 +751,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
 
         resolvedContractDescription.configure {
             +fieldList("effects", effectDeclaration)
-            +fieldList("unresolvedEffects", coneUnresolvedEffect)
+            +fieldList("unresolvedEffects", contractElementDeclaration)
         }
 
         legacyRawContractDescription.configure {

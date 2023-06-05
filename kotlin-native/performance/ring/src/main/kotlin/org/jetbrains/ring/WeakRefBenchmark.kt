@@ -2,6 +2,7 @@
  * Copyright 2010-2022 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
 package org.jetbrains.ring
 
@@ -46,7 +47,7 @@ private fun ReferenceWrapper.stress() = (1..REPEAT_COUNT).sumOf {
     this.value
 }
 
-@file:OptIn(kotlin.native.runtime.NativeRuntimeApi::class)
+@OptIn(kotlin.native.runtime.NativeRuntimeApi::class)
 open class WeakRefBenchmark {
     private val aliveRef = ReferenceWrapper.create()
     private val deadRef = ReferenceWrapper.create().apply {

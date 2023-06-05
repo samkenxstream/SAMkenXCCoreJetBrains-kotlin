@@ -255,7 +255,6 @@ enum class LanguageFeature(
 
     // 1.9
 
-    DisableCheckingChangedProgressionsResolve(KOTLIN_1_9), // KT-49276
     ProhibitIllegalValueParameterUsageInDefaultArguments(KOTLIN_1_9, kind = BUG_FIX), // KT-25694
     ProhibitConstructorCallOnFunctionalSupertype(KOTLIN_1_9, kind = BUG_FIX), // KT-46344
     ProhibitArrayLiteralsInCompanionOfAnnotation(KOTLIN_1_9, kind = BUG_FIX), // KT-39041
@@ -273,9 +272,11 @@ enum class LanguageFeature(
     DataObjects(KOTLIN_1_9), // KT-4107
     ProhibitAccessToEnumCompanionMembersInEnumConstructorCall(KOTLIN_1_9, kind = BUG_FIX), // KT-49110
     RefineTypeCheckingOnAssignmentsToJavaFields(KOTLIN_1_9, kind = BUG_FIX), // KT-46727
-    ReferencesToSyntheticJavaProperties(KOTLIN_1_9), // KT-8575
     ValueClassesSecondaryConstructorWithBody(sinceVersion = KOTLIN_1_9, kind = UNSTABLE_FEATURE), // KT-55333
     NativeJsProhibitLateinitIsInitializedIntrinsicWithoutPrivateAccess(KOTLIN_1_9, kind = BUG_FIX), // KT-27002
+    TakeIntoAccountEffectivelyFinalInMustBeInitializedCheck(KOTLIN_1_9, kind = OTHER), // KT-58587
+    ProhibitUsingNullableTypeParameterAgainstNotNullAnnotated(sinceVersion = KOTLIN_1_9), // KT-36770
+    NoSourceCodeInNotNullAssertionExceptions(KOTLIN_1_9, sinceApiVersion = ApiVersion.KOTLIN_1_4, kind = OTHER), // KT-57570
 
     // End of 1.* language features --------------------------------------------------
 
@@ -287,15 +288,16 @@ enum class LanguageFeature(
     ForbidInferringPostponedTypeVariableIntoDeclaredUpperBound(KOTLIN_2_0, kind = BUG_FIX), // KT-47986
     ProhibitUseSiteGetTargetAnnotations(KOTLIN_2_0, kind = BUG_FIX), // KT-15470
     KeepNullabilityWhenApproximatingLocalType(KOTLIN_2_0, kind = BUG_FIX), // KT-53982
+    ProhibitAccessToInvisibleSetterFromDerivedClass(KOTLIN_2_0, kind = BUG_FIX), // KT-56662
+    ProhibitOpenValDeferredInitialization(KOTLIN_2_0, kind = BUG_FIX), // KT-57553
+    ProhibitMissedMustBeInitializedWhenThereIsNoPrimaryConstructor(KOTLIN_2_0, kind = BUG_FIX), // KT-58472
 
     // 2.1
 
-    // End of 2.* language features --------------------------------------------------
+    ReferencesToSyntheticJavaProperties(KOTLIN_2_1), // KT-8575
+    ProhibitImplementingVarByInheritedVal(KOTLIN_2_1, kind = BUG_FIX), // KT-56779
 
-    // This feature effectively might be removed because we decided to disable it until K2 and there it will be unconditionally enabled.
-    // But we leave it here just to minimize the changes in K1 and also to allow use the feature once somebody needs it.
-    // The reason for it's being disabled is described at KT-55357
-    ProhibitUsingNullableTypeParameterAgainstNotNullAnnotated(sinceVersion = null), // KT-36770
+    // End of 2.* language features --------------------------------------------------
 
     // Disabled for indefinite time. See KT-53751
     IgnoreNullabilityForErasedValueParameters(sinceVersion = null, kind = BUG_FIX),
@@ -310,6 +312,13 @@ enum class LanguageFeature(
     // Disabled for indefinite time. Forces K2 report errors (instead of warnings) for incompatible
     // equality & identity operators in cases where K1 would report warnings or would not report anything.
     ReportErrorsForComparisonOperators(sinceVersion = null, kind = BUG_FIX),
+
+    // Disabled for indefinite time.
+    // Disables reporting of new errors (see KT-55055, KT-55056, KT-55079) in DiagnosticReporterByTrackingStrategy.
+    // All these errors are "lost" errors which existed always, but wasn't reported before 1.9.0.
+    // When this feature is disabled, all these "lost" errors are reported properly.
+    // When this feature is enabled, no such errors are reported.
+    NoAdditionalErrorsInK1DiagnosticReporter(sinceVersion = null, kind = OTHER),
 
     // Experimental features
 
@@ -338,6 +347,8 @@ enum class LanguageFeature(
     ImplicitSignedToUnsignedIntegerConversion(sinceVersion = null), // KT-56583
     ForbidInferringTypeVariablesIntoEmptyIntersection(sinceVersion = null, kind = BUG_FIX), // KT-51221
     IntrinsicConstEvaluation(sinceVersion = null, kind = UNSTABLE_FEATURE), // KT-49303
+    DisableCheckingChangedProgressionsResolve(sinceVersion = null, kind = OTHER), // KT-49276
+    ContextSensitiveEnumResolutionInWhen(sinceVersion = null, kind = UNSTABLE_FEATURE), // KT-52774
     ;
 
     init {

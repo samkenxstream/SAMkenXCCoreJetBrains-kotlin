@@ -133,7 +133,7 @@ class IdeSourceDependencyResolutionTest {
 
     @Test
     fun `test - multiplatform to multiplatform - sample 1 - jvmAndAndroid`() {
-        assumeAndroidSdkAvailable()
+        assertAndroidSdkAvailable()
         val root = buildProject()
 
         fun Project.setup() {
@@ -146,7 +146,7 @@ class IdeSourceDependencyResolutionTest {
                 linuxX64()
                 linuxArm64()
                 jvm()
-                android()
+                androidTarget()
 
                 sourceSets.getByName("commonMain").let { commonMain ->
                     sourceSets.create("jvmAndAndroidMain").let { jvmAndAndroidMain ->

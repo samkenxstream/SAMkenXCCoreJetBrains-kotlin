@@ -329,6 +329,12 @@ public class IrBoxJsTestGenerated extends AbstractIrBoxJsTest {
         }
 
         @Test
+        @TestMetadata("objectLazyInitialized.kt")
+        public void testObjectLazyInitialized() throws Exception {
+            runTest("js/js.translator/testData/box/classObject/objectLazyInitialized.kt");
+        }
+
+        @Test
         @TestMetadata("setVar.kt")
         public void testSetVar() throws Exception {
             runTest("js/js.translator/testData/box/classObject/setVar.kt");
@@ -618,6 +624,12 @@ public class IrBoxJsTestGenerated extends AbstractIrBoxJsTest {
         @TestMetadata("recursiveFunctionWithSameNameDeclaration.kt")
         public void testRecursiveFunctionWithSameNameDeclaration() throws Exception {
             runTest("js/js.translator/testData/box/closure/recursiveFunctionWithSameNameDeclaration.kt");
+        }
+
+        @Test
+        @TestMetadata("superCallInsideLambda.kt")
+        public void testSuperCallInsideLambda() throws Exception {
+            runTest("js/js.translator/testData/box/closure/superCallInsideLambda.kt");
         }
 
         @Test
@@ -931,6 +943,12 @@ public class IrBoxJsTestGenerated extends AbstractIrBoxJsTest {
         public void testSuspendFunctionalInterface() throws Exception {
             runTest("js/js.translator/testData/box/coroutines/suspendFunctionalInterface.kt");
         }
+
+        @Test
+        @TestMetadata("suspendMethodWithSuperCall.kt")
+        public void testSuspendMethodWithSuperCall() throws Exception {
+            runTest("js/js.translator/testData/box/coroutines/suspendMethodWithSuperCall.kt");
+        }
     }
 
     @Nested
@@ -1218,6 +1236,22 @@ public class IrBoxJsTestGenerated extends AbstractIrBoxJsTest {
         @TestMetadata("tostring.kt")
         public void testTostring() throws Exception {
             runTest("js/js.translator/testData/box/dataClass/tostring.kt");
+        }
+    }
+
+    @Nested
+    @TestMetadata("js/js.translator/testData/box/dce")
+    @TestDataPath("$PROJECT_ROOT")
+    public class Dce {
+        @Test
+        public void testAllFilesPresentInDce() throws Exception {
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("js/js.translator/testData/box/dce"), Pattern.compile("^([^_](.+))\\.kt$"), null, TargetBackend.JS_IR, true);
+        }
+
+        @Test
+        @TestMetadata("removeUnusedOverride.kt")
+        public void testRemoveUnusedOverride() throws Exception {
+            runTest("js/js.translator/testData/box/dce/removeUnusedOverride.kt");
         }
     }
 
@@ -2178,6 +2212,12 @@ public class IrBoxJsTestGenerated extends AbstractIrBoxJsTest {
             }
 
             @Test
+            @TestMetadata("exportClassWithInitBlock.kt")
+            public void testExportClassWithInitBlock() throws Exception {
+                runTest("js/js.translator/testData/box/esModules/export/exportClassWithInitBlock.kt");
+            }
+
+            @Test
             @TestMetadata("exportEnumClass.kt")
             public void testExportEnumClass() throws Exception {
                 runTest("js/js.translator/testData/box/esModules/export/exportEnumClass.kt");
@@ -2710,6 +2750,12 @@ public class IrBoxJsTestGenerated extends AbstractIrBoxJsTest {
         @TestMetadata("exportClassPropertiesInDifferentCombinations.kt")
         public void testExportClassPropertiesInDifferentCombinations() throws Exception {
             runTest("js/js.translator/testData/box/export/exportClassPropertiesInDifferentCombinations.kt");
+        }
+
+        @Test
+        @TestMetadata("exportClassWithInitBlock.kt")
+        public void testExportClassWithInitBlock() throws Exception {
+            runTest("js/js.translator/testData/box/export/exportClassWithInitBlock.kt");
         }
 
         @Test
@@ -10724,6 +10770,12 @@ public class IrBoxJsTestGenerated extends AbstractIrBoxJsTest {
         @TestMetadata("propertySuperAccess.kt")
         public void testPropertySuperAccess() throws Exception {
             runTest("js/js.translator/testData/box/superCall/propertySuperAccess.kt");
+        }
+
+        @Test
+        @TestMetadata("superCallInPrivateMethod.kt")
+        public void testSuperCallInPrivateMethod() throws Exception {
+            runTest("js/js.translator/testData/box/superCall/superCallInPrivateMethod.kt");
         }
 
         @Test

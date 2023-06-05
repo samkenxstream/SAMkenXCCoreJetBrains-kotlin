@@ -1,5 +1,5 @@
 // !LANGUAGE: +ContextReceivers
-// TARGET_BACKEND: JVM_IR
+// IGNORE_BACKEND: JS_IR
 
 class Context {
     fun c() = 1

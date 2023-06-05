@@ -16,6 +16,12 @@
 
 package org.jetbrains.kotlin.cli.common.arguments
 
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.config.AnalysisFlag
+import org.jetbrains.kotlin.config.AnalysisFlags
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.config.LanguageVersion
+
 class K2MetadataCompilerArguments : CommonCompilerArguments() {
     companion object {
         @JvmStatic private val serialVersionUID = 0L
@@ -80,4 +86,13 @@ class K2MetadataCompilerArguments : CommonCompilerArguments() {
         }
 
     override fun copyOf(): Freezable = copyK2MetadataCompilerArguments(this, K2MetadataCompilerArguments())
+
+    override fun configureAnalysisFlags(collector: MessageCollector, languageVersion: LanguageVersion): MutableMap<AnalysisFlag<*>, Any> =
+        super.configureAnalysisFlags(collector, languageVersion).also {
+            it[AnalysisFlags.metadataCompilation] = true
+        }
+
+    override fun configureExtraLanguageFeatures(map: HashMap<LanguageFeature, LanguageFeature.State>) {
+        map[LanguageFeature.MultiPlatformProjects] = LanguageFeature.State.ENABLED
+    }
 }

@@ -16,14 +16,15 @@ import org.jetbrains.kotlin.gradle.native.transformNativeTestProject
 import org.jetbrains.kotlin.gradle.native.transformNativeTestProjectWithPluginDsl
 import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
 import org.jetbrains.kotlin.gradle.plugin.ProjectLocalConfigurations
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.lowerName
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmWithJavaTargetPreset
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMultiplatformPlugin
-import org.jetbrains.kotlin.gradle.plugin.mpp.UnusedSourceSetsChecker
 import org.jetbrains.kotlin.gradle.plugin.sources.METADATA_CONFIGURATION_NAME_SUFFIX
 import org.jetbrains.kotlin.gradle.plugin.sources.UnsatisfiedSourceSetVisibilityException
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 import org.jetbrains.kotlin.gradle.testbase.TestVersions
+import org.jetbrains.kotlin.gradle.testbase.assertHasDiagnostic
+import org.jetbrains.kotlin.gradle.testbase.assertNoDiagnostic
 import org.jetbrains.kotlin.gradle.util.*
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.library.KLIB_PROPERTY_SHORT_NAME
@@ -668,9 +669,9 @@ open class NewMultiplatformIT : BaseGradleIT() {
                 }
 
                 if (testJavaSupportInJvmTargets) {
-                    assertNotContains(KotlinJvmWithJavaTargetPreset.DEPRECATION_WARNING)
+                    assertNoDiagnostic(KotlinToolingDiagnostics.DeprecatedJvmWithJavaPresetDiagnostic)
                 } else {
-                    assertContains(KotlinJvmWithJavaTargetPreset.DEPRECATION_WARNING)
+                    assertHasDiagnostic(KotlinToolingDiagnostics.DeprecatedJvmWithJavaPresetDiagnostic)
                 }
 
                 assertTasksExecuted(":run")
@@ -1604,51 +1605,21 @@ open class NewMultiplatformIT : BaseGradleIT() {
 
         build {
             assertSuccessful()
-            assertContains(UnusedSourceSetsChecker.WARNING_PREFIX_ONE, UnusedSourceSetsChecker.WARNING_INTRO)
+            assertHasDiagnostic(KotlinToolingDiagnostics.UnusedSourceSetsWarning)
         }
 
         gradleBuildScript().appendText("\nkotlin { sourceSets { bar { dependsOn foo } } }")
 
         build {
             assertSuccessful()
-            assertContains(UnusedSourceSetsChecker.WARNING_PREFIX_MANY, UnusedSourceSetsChecker.WARNING_INTRO)
+            assertHasDiagnostic(KotlinToolingDiagnostics.UnusedSourceSetsWarning)
         }
 
         gradleBuildScript().appendText("\nkotlin { sourceSets { jvm6Main { dependsOn bar } } }")
 
         build {
             assertSuccessful()
-            assertNotContains(
-                UnusedSourceSetsChecker.WARNING_PREFIX_ONE,
-                UnusedSourceSetsChecker.WARNING_PREFIX_MANY,
-                UnusedSourceSetsChecker.WARNING_INTRO
-            )
-        }
-    }
-
-    // https://youtrack.jetbrains.com/issue/KT-48436
-    @Test
-    fun testUnusedSourceSetsReportAndroid() = with(Project("new-mpp-android", gradleVersion)) {
-        setupWorkingDir()
-
-        val currentGradleVersion = chooseWrapperVersionOrFinishTest()
-        build(
-            "assembleDebug",
-            // https://issuetracker.google.com/issues/152187160
-            options = defaultBuildOptions().copy(
-                androidGradlePluginVersion = AGPVersion.v4_2_0,
-            ).suppressDeprecationWarningsOn(
-                "AGP uses deprecated IncrementalTaskInputs (Gradle 7.5); relies on FileTrees for ignoring empty directories when using @SkipWhenEmpty (Gradle 7.4)"
-            ) { options ->
-                GradleVersion.version(currentGradleVersion) >= GradleVersion.version(TestVersions.Gradle.G_7_5) && options.safeAndroidGradlePluginVersion < AGPVersion.v7_3_0
-            }
-        ) {
-            assertSuccessful()
-            assertNotContains(
-                UnusedSourceSetsChecker.WARNING_PREFIX_ONE,
-                UnusedSourceSetsChecker.WARNING_PREFIX_MANY,
-                UnusedSourceSetsChecker.WARNING_INTRO
-            )
+            assertNoDiagnostic(KotlinToolingDiagnostics.UnusedSourceSetsWarning)
         }
     }
 

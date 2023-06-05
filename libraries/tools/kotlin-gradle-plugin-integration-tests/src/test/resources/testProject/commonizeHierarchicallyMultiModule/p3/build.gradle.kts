@@ -25,6 +25,7 @@ kotlin {
     ios()
 
     mingwX64("windowsX64")
+    @Suppress("DEPRECATION_ERROR")
     mingwX86("windowsX86")
 
     val commonMain by sourceSets.getting
@@ -68,6 +69,7 @@ kotlin {
 
     sourceSets.all {
         languageSettings.optIn("kotlin.RequiresOptIn")
+        languageSettings.optIn("kotlinx.cinterop.ExperimentalForeignApi")
     }
 
     targets.withType<KotlinNativeTarget>().forEach { target ->

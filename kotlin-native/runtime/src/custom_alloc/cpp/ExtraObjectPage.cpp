@@ -6,6 +6,7 @@
 #include "ExtraObjectPage.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <cstring>
 #include <random>
 
@@ -17,7 +18,7 @@
 
 namespace kotlin::alloc {
 
-ExtraObjectPage* ExtraObjectPage::Create() noexcept {
+ExtraObjectPage* ExtraObjectPage::Create(uint32_t ignored) noexcept {
     CustomAllocInfo("ExtraObjectPage::Create()");
     return new (SafeAlloc(EXTRA_OBJECT_PAGE_SIZE)) ExtraObjectPage();
 }
@@ -32,7 +33,7 @@ ExtraObjectPage::ExtraObjectPage() noexcept {
 }
 
 void ExtraObjectPage::Destroy() noexcept {
-    std_support::free(this);
+    Free(this, EXTRA_OBJECT_PAGE_SIZE);
 }
 
 mm::ExtraObjectData* ExtraObjectPage::TryAllocate() noexcept {
@@ -41,11 +42,11 @@ mm::ExtraObjectData* ExtraObjectPage::TryAllocate() noexcept {
     }
     ExtraObjectCell* freeBlock = nextFree_;
     nextFree_ = freeBlock->next_;
-    CustomAllocDebug("ExtraObjectPage(%p)::TryAllocate() = %p", this, freeBlock);
+    CustomAllocDebug("ExtraObjectPage(%p)::TryAllocate() = %p", this, freeBlock->Data());
     return freeBlock->Data();
 }
 
-bool ExtraObjectPage::Sweep(AtomicStack<ExtraObjectCell>& finalizerQueue) noexcept {
+bool ExtraObjectPage::Sweep(GCSweepScope& sweepHandle, FinalizerQueue& finalizerQueue) noexcept {
     CustomAllocInfo("ExtraObjectPage(%p)::Sweep()", this);
     // `end` is after the last legal allocation of a block, but does not
     // necessarily match an actual block starting point.
@@ -58,15 +59,15 @@ bool ExtraObjectPage::Sweep(AtomicStack<ExtraObjectCell>& finalizerQueue) noexce
             nextFree = &cell->next_;
             continue;
         }
-        // If the current cell was marked, it's alive, and the whole page is alive.
-        if (!SweepExtraObject(cell, finalizerQueue)) {
+        if (SweepExtraObject(cell->Data(), sweepHandle)) {
+            // If the current cell was marked, it's alive, and the whole page is alive.
             alive = true;
-            continue;
+        } else {
+            // Free the current block and insert it into the free list.
+            cell->next_ = *nextFree;
+            *nextFree = cell;
+            nextFree = &cell->next_;
         }
-        // Free the current block and insert it into the free list.
-        cell->next_ = *nextFree;
-        *nextFree = cell;
-        nextFree = &cell->next_;
     }
     return alive;
 }

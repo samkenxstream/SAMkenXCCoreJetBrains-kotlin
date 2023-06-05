@@ -26,7 +26,9 @@ import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.psi.*;
 import org.jetbrains.kotlin.resolve.VarianceConflictDiagnosticData;
 import org.jetbrains.kotlin.resolve.calls.inference.InferenceErrorData;
+import org.jetbrains.kotlin.resolve.calls.inference.model.ConstraintPosition;
 import org.jetbrains.kotlin.resolve.calls.model.ResolvedCall;
+import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability;
 import org.jetbrains.kotlin.resolve.calls.tower.WrongResolutionToClassifier;
 import org.jetbrains.kotlin.resolve.calls.util.BuilderLambdaLabelingInfo;
 import org.jetbrains.kotlin.resolve.deprecation.DescriptorBasedDeprecationInfo;
@@ -62,6 +64,7 @@ public interface Errors {
 
     DiagnosticFactory1<PsiElement, String> NEW_INFERENCE_ERROR = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<PsiElement, String> NEW_INFERENCE_DIAGNOSTIC = DiagnosticFactory1.create(WARNING);
+    DiagnosticFactory2<PsiElement, CandidateApplicability, String> NEW_INFERENCE_UNKNOWN_ERROR = DiagnosticFactory2.create(ERROR);
     DiagnosticFactory0<KtElement> NON_APPLICABLE_CALL_FOR_BUILDER_INFERENCE = DiagnosticFactory0.create(WARNING);
 
     DiagnosticFactory1<PsiElement, Pair<LanguageFeature, LanguageVersionSettings>> UNSUPPORTED_FEATURE = DiagnosticFactory1.create(ERROR);
@@ -387,6 +390,8 @@ public interface Errors {
 
     DiagnosticFactory0<KtTypeReference> SUPERTYPE_NOT_A_CLASS_OR_INTERFACE = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<KtTypeReference> SUPERTYPE_IS_EXTENSION_FUNCTION_TYPE = DiagnosticFactory0.create(ERROR);
+
+    DiagnosticFactory0<KtTypeReference> SUPERTYPE_IS_SUSPEND_EXTENSION_FUNCTION_TYPE = DiagnosticFactory0.create(WARNING);
     DiagnosticFactory0<KtTypeReference> SUPERTYPE_IS_SUSPEND_FUNCTION_TYPE = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<KtTypeReference> SUPERTYPE_IS_KSUSPEND_FUNCTION_TYPE = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<PsiElement> MIXING_SUSPEND_AND_NON_SUSPEND_SUPERTYPES = DiagnosticFactory0.create(ERROR);
@@ -668,7 +673,14 @@ public interface Errors {
     DiagnosticFactory0<KtProperty> PROPERTY_WITH_NO_TYPE_NO_INITIALIZER = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
 
     DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED_WARNING = DiagnosticFactory0.create(WARNING, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED_OR_BE_FINAL = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED_OR_BE_FINAL_WARNING = DiagnosticFactory0.create(WARNING, DECLARATION_SIGNATURE);
     DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED_OR_BE_ABSTRACT = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED_OR_BE_ABSTRACT_WARNING = DiagnosticFactory0.create(WARNING, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtProperty> MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT_WARNING = DiagnosticFactory0.create(WARNING, DECLARATION_SIGNATURE);
+
     DiagnosticFactory0<KtProperty> EXTENSION_PROPERTY_MUST_HAVE_ACCESSORS_OR_BE_ABSTRACT =
             DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
     DiagnosticFactory0<KtProperty> UNNECESSARY_LATEINIT = DiagnosticFactory0.create(WARNING, LATEINIT_MODIFIER);
@@ -778,6 +790,8 @@ public interface Errors {
     DiagnosticFactory0<PsiElement> EXPECTED_LATEINIT_PROPERTY = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<PsiElement> SUPERTYPE_INITIALIZED_IN_EXPECTED_CLASS = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<PsiElement> EXPECTED_PRIVATE_DECLARATION = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<PsiElement> EXPECTED_EXTERNAL_DECLARATION = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<PsiElement> EXPECTED_TAILREC_FUNCTION = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<KtDelegatedSuperTypeEntry> IMPLEMENTATION_BY_DELEGATION_IN_EXPECT_CLASS = DiagnosticFactory0.create(ERROR);
 
     DiagnosticFactory0<KtTypeAlias> ACTUAL_TYPE_ALIAS_NOT_TO_CLASS = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
@@ -786,6 +800,7 @@ public interface Errors {
     DiagnosticFactory0<KtTypeAlias> ACTUAL_TYPE_ALIAS_WITH_USE_SITE_VARIANCE = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
     DiagnosticFactory0<KtTypeAlias> ACTUAL_TYPE_ALIAS_WITH_COMPLEX_SUBSTITUTION = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
     DiagnosticFactory0<PsiElement> ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory2<KtNamedDeclaration, ClassDescriptor, Collection<FunctionDescriptor>> DEFAULT_ARGUMENTS_IN_EXPECT_WITH_ACTUAL_TYPEALIAS = DiagnosticFactory2.create(ERROR);
     DiagnosticFactory1<PsiElement, ValueParameterDescriptor> ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE =
             DiagnosticFactory1.create(ERROR);
 
@@ -827,6 +842,8 @@ public interface Errors {
 
     DiagnosticFactoryForDeprecation0<KtExpression> TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM =
             DiagnosticFactoryForDeprecation0.create(LanguageFeature.ForbidRecursiveDelegateExpressions);
+    DiagnosticFactoryForDeprecation0<KtExpression> TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM_IN_AUGMENTED_ASSIGNMENT =
+            DiagnosticFactoryForDeprecation0.create(LanguageFeature.ReportErrorsOnRecursiveTypeInsidePlusAssignment);
 
     // Checking call arguments
 
@@ -919,6 +936,7 @@ public interface Errors {
     DiagnosticFactory2<PsiElement, KotlinType, KotlinType> TYPE_MISMATCH_WARNING_FOR_INCORRECT_CAPTURE_APPROXIMATION = DiagnosticFactory2.create(WARNING);
     DiagnosticFactory2<PsiElement, KotlinType, KotlinType> RECEIVER_TYPE_MISMATCH_WARNING_FOR_INCORRECT_CAPTURE_APPROXIMATION = DiagnosticFactory2.create(WARNING);
     DiagnosticFactory2<PsiElement, KotlinType, KotlinType> RECEIVER_TYPE_MISMATCH = DiagnosticFactory2.create(ERROR);
+    DiagnosticFactory3<PsiElement, KotlinType, KotlinType, ConstraintPosition> TYPE_MISMATCH_IN_CONSTRAINT = DiagnosticFactory3.create(ERROR);
 
     // Type inference
 
@@ -1204,6 +1222,8 @@ public interface Errors {
 
     DiagnosticFactory3<PsiElement, DeclarationDescriptor, DescriptorVisibility, DeclarationDescriptor> INVISIBLE_SETTER =
             DiagnosticFactory3.create(ERROR);
+    DiagnosticFactory3<PsiElement, DeclarationDescriptor, DescriptorVisibility, DeclarationDescriptor> INVISIBLE_SETTER_FROM_DERIVED =
+            DiagnosticFactory3.create(WARNING);
 
     DiagnosticFactory1<PsiElement, KtKeywordToken> VAL_OR_VAR_ON_LOOP_PARAMETER = DiagnosticFactory1.create(ERROR);
     DiagnosticFactory1<PsiElement, KtKeywordToken> VAL_OR_VAR_ON_FUN_PARAMETER = DiagnosticFactory1.create(ERROR);

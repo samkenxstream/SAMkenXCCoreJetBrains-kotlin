@@ -77,14 +77,6 @@ fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArgu
 
     val jvmDefaultMode = languageVersionSettings.getFlag(JvmAnalysisFlags.jvmDefaultMode)
     val jvmTarget = get(JVMConfigurationKeys.JVM_TARGET) ?: JvmTarget.DEFAULT
-    if (jvmTarget.majorVersion < JvmTarget.JVM_1_8.majorVersion) {
-        if (jvmDefaultMode.forAllMethodsWithBody) {
-            messageCollector.report(
-                ERROR,
-                "'-Xjvm-default=${jvmDefaultMode.description}' is only supported since JVM target 1.8. Recompile with '-jvm-target 1.8'"
-            )
-        }
-    }
 
     if (jvmDefaultMode == JvmDefaultMode.ENABLE || jvmDefaultMode == JvmDefaultMode.ENABLE_WITH_DEFAULT_IMPLS) {
         messageCollector.report(
@@ -112,8 +104,8 @@ fun CompilerConfiguration.setupJvmSpecificArguments(arguments: K2JVMCompilerArgu
         }
     }
 
-    handleClosureGenerationSchemeArgument("-Xsam-conversions", arguments.samConversions, JVMConfigurationKeys.SAM_CONVERSIONS, jvmTarget)
-    handleClosureGenerationSchemeArgument("-Xlambdas", arguments.lambdas, JVMConfigurationKeys.LAMBDAS, jvmTarget)
+    handleClosureGenerationSchemeArgument("-Xsam-conversions", arguments.samConversions, JVMConfigurationKeys.SAM_CONVERSIONS)
+    handleClosureGenerationSchemeArgument("-Xlambdas", arguments.lambdas, JVMConfigurationKeys.LAMBDAS)
 
     addAll(JVMConfigurationKeys.ADDITIONAL_JAVA_MODULES, arguments.additionalJavaModules?.asList())
 }
@@ -122,26 +114,18 @@ private fun CompilerConfiguration.handleClosureGenerationSchemeArgument(
     flag: String,
     value: String?,
     key: CompilerConfigurationKey<JvmClosureGenerationScheme>,
-    jvmTarget: JvmTarget
 ) {
-    if (value != null) {
-        val parsedValue = JvmClosureGenerationScheme.fromString(value)
-        if (parsedValue != null) {
-            put(key, parsedValue)
-            if (jvmTarget < parsedValue.minJvmTarget) {
-                messageCollector.report(
-                    WARNING,
-                    "`$flag=$value` requires JVM target at least " +
-                            "${parsedValue.minJvmTarget.description} and is ignored."
-                )
-            }
-        } else {
-            messageCollector.report(
-                ERROR,
-                "Unknown `$flag` argument: ${value}\n." +
-                        "Supported arguments: ${JvmClosureGenerationScheme.values().joinToString { it.description }}"
-            )
-        }
+    if (value == null) return
+
+    val parsedValue = JvmClosureGenerationScheme.fromString(value)
+    if (parsedValue != null) {
+        put(key, parsedValue)
+    } else {
+        messageCollector.report(
+            ERROR,
+            "Unknown `$flag` argument: ${value}\n." +
+                    "Supported arguments: ${JvmClosureGenerationScheme.values().joinToString { it.description }}"
+        )
     }
 }
 
@@ -177,13 +161,13 @@ fun CompilerConfiguration.configureJdkHomeFromSystemProperty() {
 }
 
 fun CompilerConfiguration.configureJavaModulesContentRoots(arguments: K2JVMCompilerArguments) {
-    for (modularRoot in arguments.javaModulePath.orEmpty()) {
+    for (modularRoot in arguments.javaModulePath?.split(File.pathSeparatorChar).orEmpty()) {
         add(CLIConfigurationKeys.CONTENT_ROOTS, JvmModulePathRoot(File(modularRoot)))
     }
 }
 
 fun CompilerConfiguration.configureContentRootsFromClassPath(arguments: K2JVMCompilerArguments) {
-    for (path in arguments.classpath.orEmpty()) {
+    for (path in arguments.classpath?.split(File.pathSeparatorChar).orEmpty()) {
         add(CLIConfigurationKeys.CONTENT_ROOTS, JvmClasspathRoot(File(path)))
     }
 }
@@ -262,14 +246,8 @@ fun CompilerConfiguration.configureAdvancedJvmOptions(arguments: K2JVMCompilerAr
 
     put(JVMConfigurationKeys.PARAMETERS_METADATA, arguments.javaParameters)
 
-    // TODO: ignore previous configuration value when we do not need old backend in scripting by default
-    val useOldBackend = arguments.useOldBackend || (!arguments.useIR && get(JVMConfigurationKeys.IR) == false)
-    val useIR = arguments.useK2 || languageVersionSettings.languageVersion.usesK2 ||
-            if (languageVersionSettings.supportsFeature(LanguageFeature.JvmIrEnabledByDefault)) {
-                !useOldBackend
-            } else {
-                arguments.useIR && !useOldBackend
-            }
+    val useOldBackend = arguments.useOldBackend
+    val useIR = arguments.useK2 || languageVersionSettings.languageVersion.usesK2 || !useOldBackend
 
     messageCollector.report(LOGGING, "Using ${if (useIR) "JVM IR" else "old JVM"} backend")
 

@@ -3,7 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:OptIn(kotlin.ExperimentalStdlibApi::class, kotlin.native.runtime.NativeRuntimeApi::class)
+@file:OptIn(kotlin.ExperimentalStdlibApi::class, kotlin.native.runtime.NativeRuntimeApi::class, kotlinx.cinterop.ExperimentalForeignApi::class)
 
 import kotlin.native.runtime.GC
 import kotlin.test.*
@@ -12,13 +12,11 @@ import kotlin.test.*
 @Test
 fun `nothing new collected`() {
     GC.collect()
-    GC.collect();
+    GC.collect()
     val stat = GC.lastGCInfo
     assertNotNull(stat)
-    assertEquals(stat.memoryUsageBefore.keys, stat.memoryUsageAfter.keys)
-    for (key in stat.memoryUsageBefore.keys) {
-        assertEquals(stat.memoryUsageBefore[key]!!.objectsCount, stat.memoryUsageAfter[key]!!.objectsCount)
-        assertEquals(stat.memoryUsageBefore[key]!!.totalObjectsSizeBytes, stat.memoryUsageAfter[key]!!.totalObjectsSizeBytes)
+    for (key in stat.sweepStatistics.keys) {
+        assertEquals(stat.sweepStatistics[key]!!.sweptCount, 0L)
     }
 }
 

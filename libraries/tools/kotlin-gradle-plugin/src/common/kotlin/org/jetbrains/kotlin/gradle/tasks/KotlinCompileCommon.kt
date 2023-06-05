@@ -66,6 +66,13 @@ abstract class KotlinCompileCommon @Inject constructor(
     @get:Internal
     internal var executionTimeFreeCompilerArgs: List<String>? = null
 
+    @Suppress("DeprecatedCallableAddReplaceWith")
+    @Deprecated("KTIJ-25227: Necessary override for IDEs < 2023.2", level = DeprecationLevel.ERROR)
+    override fun setupCompilerArgs(args: K2MetadataCompilerArguments, defaultsOnly: Boolean, ignoreClasspathResolutionErrors: Boolean) {
+        @Suppress("DEPRECATION_ERROR")
+        super.setupCompilerArgs(args, defaultsOnly, ignoreClasspathResolutionErrors)
+    }
+
     override fun createCompilerArguments(context: CreateCompilerArgumentsContext) = context.create<K2MetadataCompilerArguments> {
         primitive { args ->
             args.multiPlatform = multiPlatformEnabled.get()
@@ -82,6 +89,8 @@ abstract class KotlinCompileCommon @Inject constructor(
             args.expectActualLinker = expectActualLinker.get()
 
             args.destination = destinationDirectory.get().asFile.normalize().absolutePath
+
+            explicitApiMode.orNull?.run { args.explicitApi = toCompilerValue() }
 
             KotlinCommonCompilerOptionsHelper.fillCompilerArguments(compilerOptions, args)
 

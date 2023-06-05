@@ -6,8 +6,6 @@
 package org.jetbrains.kotlin.fir.resolve.transformers.body.resolve
 
 import org.jetbrains.kotlin.fir.FirTargetElement
-import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
-import org.jetbrains.kotlin.fir.diagnostics.DiagnosticKind
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirElseIfTrueCondition
 import org.jetbrains.kotlin.fir.expressions.impl.FirEmptyExpressionBlock
@@ -18,7 +16,6 @@ import org.jetbrains.kotlin.fir.resolve.transformers.FirSyntheticCallGenerator
 import org.jetbrains.kotlin.fir.resolve.transformers.FirWhenExhaustivenessTransformer
 import org.jetbrains.kotlin.fir.resolvedTypeFromPrototype
 import org.jetbrains.kotlin.fir.types.*
-import org.jetbrains.kotlin.fir.types.builder.buildErrorTypeRef
 import org.jetbrains.kotlin.fir.visitors.transformSingle
 
 class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyResolveTransformerDispatcher) :
@@ -33,7 +30,8 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
     override fun transformWhileLoop(whileLoop: FirWhileLoop, data: ResolutionMode): FirStatement {
         val context = ResolutionMode.ContextIndependent
         return whileLoop.also(dataFlowAnalyzer::enterWhileLoop)
-            .transformCondition(transformer, context).also(dataFlowAnalyzer::exitWhileLoopCondition)
+            .transformCondition(transformer, withExpectedType(session.builtinTypes.booleanType))
+            .also(dataFlowAnalyzer::exitWhileLoopCondition)
             .transformBlock(transformer, context).also(dataFlowAnalyzer::exitWhileLoop)
             .transformOtherChildren(transformer, context)
     }
@@ -46,7 +44,8 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
                 .also {
                     transformer.expressionsTransformer.transformBlockInCurrentScope(it.block, context)
                 }
-                .also(dataFlowAnalyzer::enterDoWhileLoopCondition).transformCondition(transformer, context)
+                .also(dataFlowAnalyzer::enterDoWhileLoopCondition)
+                .transformCondition(transformer, withExpectedType(session.builtinTypes.booleanType))
                 .also(dataFlowAnalyzer::exitDoWhileLoop)
                 .transformOtherChildren(transformer, context)
         }
@@ -85,15 +84,7 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
                             resolutionModeForBranches,
                         )
 
-                        whenExpression = syntheticCallGenerator.generateCalleeForWhenExpression(whenExpression, resolutionContext) ?: run {
-                            whenExpression = whenExpression.transformSingle(whenExhaustivenessTransformer, null)
-                            dataFlowAnalyzer.exitWhenExpression(whenExpression, callCompleted = false)
-                            whenExpression.resultType = buildErrorTypeRef {
-                                diagnostic = ConeSimpleDiagnostic("Can't resolve when expression", DiagnosticKind.InferenceError)
-                            }
-                            return@withWhenSubjectType whenExpression
-                        }
-
+                        whenExpression = syntheticCallGenerator.generateCalleeForWhenExpression(whenExpression, resolutionContext)
                         completionNeeded = true
                     }
                 }
@@ -227,10 +218,13 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
 
     override fun transformThrowExpression(
         throwExpression: FirThrowExpression,
-        data: ResolutionMode
+        data: ResolutionMode,
     ): FirStatement {
-        return transformer.transformExpression(throwExpression, ResolutionMode.ContextIndependent).also {
-            dataFlowAnalyzer.exitThrowExceptionNode(it as FirThrowExpression)
+        return throwExpression.apply {
+            replaceTypeRef(throwExpression.typeRef.transform(transformer, data))
+            transformAnnotations(transformer, data)
+            transformException(transformer, withExpectedType(session.builtinTypes.throwableType))
+            dataFlowAnalyzer.exitThrowExceptionNode(this)
         }
     }
 
@@ -268,16 +262,9 @@ class FirControlFlowStatementsResolveTransformer(transformer: FirAbstractBodyRes
         )
         elvisExpression.transformRhs(transformer, resolutionModeForRhs)
 
-        var callCompleted = false
-        val result = syntheticCallGenerator.generateCalleeForElvisExpression(elvisExpression, resolutionContext)?.let {
-            val completed = callCompleter.completeCall(it, data)
-            callCompleted = completed.callCompleted
-            completed.result
-        } ?: elvisExpression.also {
-            it.resultType = buildErrorTypeRef {
-                diagnostic = ConeSimpleDiagnostic("Can't resolve ?: operator call", DiagnosticKind.InferenceError)
-            }
-        }
+        val (result, callCompleted) = callCompleter.completeCall(
+            syntheticCallGenerator.generateCalleeForElvisExpression(elvisExpression, resolutionContext), data
+        )
 
         var isLhsNotNull = false
         if (result.rhs.typeRef.coneTypeSafe<ConeKotlinType>()?.isNothing == true) {

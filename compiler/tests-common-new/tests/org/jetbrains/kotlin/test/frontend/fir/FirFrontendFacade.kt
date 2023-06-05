@@ -17,18 +17,25 @@ import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.cli.jvm.compiler.VfsBasedProjectEnvironment
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.jvmModularRoots
-import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
+import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
+import org.jetbrains.kotlin.config.LanguageFeature
+import org.jetbrains.kotlin.constant.EvaluatedConstTracker
 import org.jetbrains.kotlin.container.topologicalSort
 import org.jetbrains.kotlin.fir.*
+import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
 import org.jetbrains.kotlin.fir.checkers.registerExtendedCommonCheckers
 import org.jetbrains.kotlin.fir.deserialization.ModuleDataProvider
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.java.FirProjectSessionProvider
+import org.jetbrains.kotlin.fir.lightTree.toKotlinParsingErrorListener
 import org.jetbrains.kotlin.fir.session.FirCommonSessionFactory
 import org.jetbrains.kotlin.fir.session.FirJvmSessionFactory
 import org.jetbrains.kotlin.fir.session.FirNativeSessionFactory
 import org.jetbrains.kotlin.fir.session.FirSessionConfigurator
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectEnvironment
+import org.jetbrains.kotlin.test.services.configuration.NativeEnvironmentConfigurator
 import org.jetbrains.kotlin.load.kotlin.PackageAndMetadataPartProvider
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.platform.TargetPlatform
@@ -37,16 +44,17 @@ import org.jetbrains.kotlin.platform.isJs
 import org.jetbrains.kotlin.platform.jvm.isJvm
 import org.jetbrains.kotlin.platform.konan.isNative
 import org.jetbrains.kotlin.psi.KtFile
-import org.jetbrains.kotlin.test.TargetBackend
-import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.FirParser
+import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
 import org.jetbrains.kotlin.test.directives.model.singleValue
 import org.jetbrains.kotlin.test.getAnalyzerServices
 import org.jetbrains.kotlin.test.model.FrontendFacade
 import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.model.TestModule
+import org.jetbrains.kotlin.test.runners.lightTreeSyntaxDiagnosticsReporterHolder
 import org.jetbrains.kotlin.test.services.*
+import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurator
 import java.nio.file.Paths
 
 open class FirFrontendFacade(
@@ -163,13 +171,21 @@ open class FirFrontendFacade(
     ): DependencyListForCliModule {
         return DependencyListForCliModule.build(binaryModuleData) {
             when {
-                targetPlatform.isCommon() || targetPlatform.isJvm() || targetPlatform.isNative() -> {
+                targetPlatform.isCommon() || targetPlatform.isJvm() -> {
                     dependencies(configuration.jvmModularRoots.map { it.toPath() })
                     dependencies(configuration.jvmClasspathRoots.map { it.toPath() })
                     friendDependencies(configuration[JVMConfigurationKeys.FRIEND_PATHS] ?: emptyList())
                 }
                 targetPlatform.isJs() -> {
-                    val (runtimeKlibsPaths, transitiveLibraries, friendLibraries) = getJsDependencies(mainModule, testServices)
+                    val runtimeKlibsPaths = JsEnvironmentConfigurator.getRuntimePathsForModule(mainModule, testServices)
+                    val (transitiveLibraries, friendLibraries) = getTransitivesAndFriends(mainModule, testServices)
+                    dependencies(runtimeKlibsPaths.map { Paths.get(it).toAbsolutePath() })
+                    dependencies(transitiveLibraries.map { it.toPath().toAbsolutePath() })
+                    friendDependencies(friendLibraries.map { it.toPath().toAbsolutePath() })
+                }
+                targetPlatform.isNative() -> {
+                    val runtimeKlibsPaths = NativeEnvironmentConfigurator.getRuntimePathsForModule(mainModule, testServices)
+                    val (transitiveLibraries, friendLibraries) = getTransitivesAndFriends(mainModule, testServices)
                     dependencies(runtimeKlibsPaths.map { Paths.get(it).toAbsolutePath() })
                     dependencies(transitiveLibraries.map { it.toPath().toAbsolutePath() })
                     friendDependencies(friendLibraries.map { it.toPath().toAbsolutePath() })
@@ -244,11 +260,13 @@ open class FirFrontendFacade(
             }
             module.targetPlatform.isNative() -> {
                 projectEnvironment = null
-                FirNativeSessionFactory.createLibrarySession(
+                TestFirNativeSessionFactory.createLibrarySession(
                     moduleName,
-                    listOf(),
+                    module,
+                    testServices,
                     sessionProvider,
                     moduleDataProvider,
+                    configuration,
                     extensionRegistrars,
                     languageVersionSettings,
                     registerExtraComponents = ::registerExtraComponents,
@@ -271,13 +289,21 @@ open class FirFrontendFacade(
         val sessionProvider = moduleInfoProvider.firSessionProvider
 
         val project = compilerConfigurationProvider.getProject(module)
+        val compilerConfiguration = compilerConfigurationProvider.getCompilerConfiguration(module)
 
         PsiElementFinder.EP.getPoint(project).unregisterExtension(JavaElementFinder::class.java)
 
         val parser = module.directives.singleValue(FirDiagnosticsDirectives.FIR_PARSER)
 
         val (ktFiles, lightTreeFiles) = when (parser) {
-            FirParser.LightTree -> emptyList<KtFile>() to testServices.sourceFileProvider.getLightTreeFilesForSourceFiles(module.files).values
+            FirParser.LightTree -> {
+                emptyList<KtFile>() to testServices.sourceFileProvider.getLightTreeFilesForSourceFiles(module.files) {
+                    testServices.lightTreeSyntaxDiagnosticsReporterHolder?.reporter?.toKotlinParsingErrorListener(
+                        it,
+                        module.languageVersionSettings
+                    )
+                }.values
+            }
             FirParser.Psi -> testServices.sourceFileProvider.getKtFilesForSourceFiles(module.files, project).values to emptyList()
         }
 
@@ -303,13 +329,18 @@ open class FirFrontendFacade(
         val enablePluginPhases = FirDiagnosticsDirectives.ENABLE_PLUGIN_PHASES in module.directives
         val firAnalyzerFacade = FirAnalyzerFacade(
             moduleBasedSession,
-            module.languageVersionSettings,
+            Fir2IrConfiguration(
+                languageVersionSettings = module.languageVersionSettings,
+                linkViaSignatures = compilerConfiguration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES),
+                evaluatedConstTracker = compilerConfiguration
+                    .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+            ),
             ktFiles,
             lightTreeFiles,
             IrGenerationExtension.getInstances(project),
             parser,
             enablePluginPhases,
-            generateSignatures = module.targetBackend == TargetBackend.JVM_IR_SERIALIZE
+            testServices.lightTreeSyntaxDiagnosticsReporterHolder?.reporter,
         )
         val firFiles = firAnalyzerFacade.runResolution()
         val filesMap = firFiles.mapNotNull { firFile ->

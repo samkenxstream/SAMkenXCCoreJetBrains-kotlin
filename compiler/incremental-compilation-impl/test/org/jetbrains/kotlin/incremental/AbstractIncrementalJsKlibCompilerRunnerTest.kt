@@ -24,3 +24,15 @@ abstract class AbstractIncrementalJsKlibCompilerRunnerTest : AbstractIncremental
 abstract class AbstractIncrementalJsKlibCompilerWithScopeExpansionRunnerTest : AbstractIncrementalJsKlibCompilerRunnerTest() {
     override val scopeExpansionMode = CompileScopeExpansionMode.ALWAYS
 }
+
+abstract class AbstractIncrementalJsFirKlibCompilerWithScopeExpansionRunnerTest : AbstractIncrementalJsKlibCompilerWithScopeExpansionRunnerTest() {
+    override fun createCompilerArguments(destinationDir: File, testDir: File): K2JSCompilerArguments {
+        return super.createCompilerArguments(destinationDir, testDir).apply {
+            useK2 = true
+            languageVersion = "2.0"
+        }
+    }
+
+    override val buildLogFinder: BuildLogFinder
+        get() = super.buildLogFinder.copy(isFirEnabled = true)
+}

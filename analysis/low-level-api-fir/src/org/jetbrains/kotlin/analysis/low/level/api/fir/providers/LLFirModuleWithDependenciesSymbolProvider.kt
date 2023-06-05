@@ -5,47 +5,67 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.providers
 
+import org.jetbrains.kotlin.analysis.low.level.api.fir.stubBased.deserialization.JvmStubBasedFirDeserializedSymbolProvider
 import org.jetbrains.kotlin.analysis.utils.collections.buildSmartList
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.resolve.providers.FirNullSymbolNamesProvider
+import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolNamesProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
-import org.jetbrains.kotlin.load.kotlin.JvmPackagePartSource
+import org.jetbrains.kotlin.load.kotlin.FacadeClassSource
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.psi.KtCallableDeclaration
+import org.jetbrains.kotlin.psi.KtClassLikeDeclaration
 import org.jetbrains.kotlin.resolve.jvm.JvmClassName
 import org.jetbrains.kotlin.utils.SmartSet
+import org.jetbrains.kotlin.utils.addIfNotNull
 
 internal class LLFirModuleWithDependenciesSymbolProvider(
     session: FirSession,
     val providers: List<FirSymbolProvider>,
     val dependencyProvider: LLFirDependenciesSymbolProvider,
 ) : FirSymbolProvider(session) {
+    override val symbolNamesProvider: FirSymbolNamesProvider = FirNullSymbolNamesProvider
+
     override fun getClassLikeSymbolByClassId(classId: ClassId): FirClassLikeSymbol<*>? =
-        getClassLikeSymbolByFqNameWithoutDependencies(classId)
+        getClassLikeSymbolByClassIdWithoutDependencies(classId)
             ?: dependencyProvider.getClassLikeSymbolByClassId(classId)
 
-    fun getClassLikeSymbolByFqNameWithoutDependencies(classId: ClassId): FirClassLikeSymbol<*>? =
+    fun getClassLikeSymbolByClassIdWithoutDependencies(classId: ClassId): FirClassLikeSymbol<*>? =
         providers.firstNotNullOfOrNull { it.getClassLikeSymbolByClassId(classId) }
+
+    @OptIn(FirSymbolProviderInternals::class)
+    fun getDeserializedClassLikeSymbolByClassIdWithoutDependencies(
+        classId: ClassId,
+        classLikeDeclaration: KtClassLikeDeclaration,
+    ): FirClassLikeSymbol<*>? = providers.firstNotNullOfOrNull { provider ->
+        if (provider !is JvmStubBasedFirDeserializedSymbolProvider) return@firstNotNullOfOrNull null
+        provider.getClassLikeSymbolByClassId(classId, classLikeDeclaration)
+    }
 
     @FirSymbolProviderInternals
     override fun getTopLevelCallableSymbolsTo(destination: MutableList<FirCallableSymbol<*>>, packageFqName: FqName, name: Name) {
-        getTopLevelCallableSymbolsToWithoutDependencies(destination, packageFqName, name)
+        providers.forEach { it.getTopLevelCallableSymbolsTo(destination, packageFqName, name) }
         dependencyProvider.getTopLevelCallableSymbolsTo(destination, packageFqName, name)
     }
 
     @FirSymbolProviderInternals
-    fun getTopLevelCallableSymbolsWithoutDependencies(packageFqName: FqName, name: Name): List<FirCallableSymbol<*>> {
-        return buildList { getTopLevelCallableSymbolsToWithoutDependencies(this, packageFqName, name) }
-    }
-
-    @FirSymbolProviderInternals
-    fun getTopLevelCallableSymbolsToWithoutDependencies(destination: MutableList<FirCallableSymbol<*>>, packageFqName: FqName, name: Name) {
-        providers.forEach { it.getTopLevelCallableSymbolsTo(destination, packageFqName, name) }
+    fun getTopLevelDeserializedCallableSymbolsToWithoutDependencies(
+        destination: MutableList<FirCallableSymbol<*>>,
+        packageFqName: FqName,
+        shortName: Name,
+        callableDeclaration: KtCallableDeclaration,
+    ) {
+        providers.forEach { provider ->
+            if (provider !is JvmStubBasedFirDeserializedSymbolProvider) return@forEach
+            destination.addIfNotNull(provider.getTopLevelCallableSymbol(packageFqName, shortName, callableDeclaration))
+        }
     }
 
     @FirSymbolProviderInternals
@@ -80,10 +100,6 @@ internal class LLFirModuleWithDependenciesSymbolProvider(
 
     fun getPackageWithoutDependencies(fqName: FqName): FqName? =
         providers.firstNotNullOfOrNull { it.getPackage(fqName) }
-
-    override fun computePackageSetWithTopLevelCallables(): Set<String>? = null
-    override fun knownTopLevelClassifiersInPackage(packageFqName: FqName): Set<String>? = null
-    override fun computeCallableNamesInPackage(packageFqName: FqName): Set<Name>? = null
 }
 
 internal class LLFirDependenciesSymbolProvider(
@@ -96,6 +112,8 @@ internal class LLFirDependenciesSymbolProvider(
                     " dependency providers must be flattened during session creation."
         }
     }
+
+    override val symbolNamesProvider: FirSymbolNamesProvider = FirNullSymbolNamesProvider
 
     override fun getClassLikeSymbolByClassId(classId: ClassId): FirClassLikeSymbol<*>? =
         providers.firstNotNullOfOrNull { it.getClassLikeSymbolByClassId(classId) }
@@ -135,10 +153,6 @@ internal class LLFirDependenciesSymbolProvider(
 
     override fun getPackage(fqName: FqName): FqName? = providers.firstNotNullOfOrNull { it.getPackage(fqName) }
 
-    override fun computePackageSetWithTopLevelCallables(): Set<String>? = null
-    override fun knownTopLevelClassifiersInPackage(packageFqName: FqName): Set<String>? = null
-    override fun computeCallableNamesInPackage(packageFqName: FqName): Set<Name>? = null
-
     private fun <S : FirCallableSymbol<*>> addNewSymbolsConsideringJvmFacades(
         destination: MutableList<S>,
         newSymbols: List<S>,
@@ -161,7 +175,7 @@ internal class LLFirDependenciesSymbolProvider(
     }
 
     private fun FirCallableSymbol<*>.jvmClassName(): JvmClassName? {
-        val jvmPackagePartSource = fir.containerSource as? JvmPackagePartSource ?: return null
+        val jvmPackagePartSource = fir.containerSource as? FacadeClassSource ?: return null
         return jvmPackagePartSource.facadeClassName ?: jvmPackagePartSource.className
     }
 }

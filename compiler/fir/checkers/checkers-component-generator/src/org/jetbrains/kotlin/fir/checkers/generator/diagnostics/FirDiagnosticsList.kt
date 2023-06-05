@@ -666,6 +666,7 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
         val REIFIED_TYPE_FORBIDDEN_SUBSTITUTION by error<PsiElement> {
             parameter<ConeKotlinType>("type")
         }
+        val DEFINITELY_NON_NULLABLE_AS_REIFIED by error<PsiElement>()
 
         val FINAL_UPPER_BOUND by warning<KtTypeReference> {
             parameter<ConeKotlinType>("type")
@@ -860,6 +861,10 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
             parameter<FirClassSymbol<*>>("classOrObject")
             parameter<FirCallableSymbol<*>>("missingDeclaration")
         }
+        val ABSTRACT_MEMBER_NOT_IMPLEMENTED_BY_ENUM_ENTRY by error<KtEnumEntry>(PositioningStrategy.DECLARATION_NAME) {
+            parameter<FirEnumEntrySymbol>("enumEntry")
+            parameter<List<FirCallableSymbol<*>>>("missingDeclarations")
+        }
         val ABSTRACT_CLASS_MEMBER_NOT_IMPLEMENTED by error<KtClassOrObject>(PositioningStrategy.DECLARATION_NAME) {
             parameter<FirClassSymbol<*>>("classOrObject")
             parameter<FirCallableSymbol<*>>("missingDeclaration")
@@ -904,6 +909,14 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
             parameter<FirCallableSymbol<*>>("superVariable")
         }
         val VAR_OVERRIDDEN_BY_VAL by error<KtNamedDeclaration>(PositioningStrategy.VAL_OR_VAR_NODE) {
+            parameter<FirCallableSymbol<*>>("overridingDeclaration")
+            parameter<FirCallableSymbol<*>>("overriddenDeclaration")
+        }
+        val VAR_IMPLEMENTED_BY_INHERITED_VAL by deprecationError<KtNamedDeclaration>(
+            LanguageFeature.ProhibitImplementingVarByInheritedVal,
+            PositioningStrategy.DECLARATION_NAME,
+        ) {
+            parameter<FirClassSymbol<*>>("classOrObject")
             parameter<FirCallableSymbol<*>>("overridingDeclaration")
             parameter<FirCallableSymbol<*>>("overriddenDeclaration")
         }
@@ -1000,7 +1013,14 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
         val PROPERTY_WITH_NO_TYPE_NO_INITIALIZER by error<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
 
         val MUST_BE_INITIALIZED by error<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
+        val MUST_BE_INITIALIZED_WARNING by warning<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
+        val MUST_BE_INITIALIZED_OR_BE_FINAL by error<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
+        val MUST_BE_INITIALIZED_OR_BE_FINAL_WARNING by warning<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
         val MUST_BE_INITIALIZED_OR_BE_ABSTRACT by error<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
+        val MUST_BE_INITIALIZED_OR_BE_ABSTRACT_WARNING by warning<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
+        val MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT by error<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
+        val MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT_WARNING by warning<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
+
         val EXTENSION_PROPERTY_MUST_HAVE_ACCESSORS_OR_BE_ABSTRACT by error<KtProperty>(PositioningStrategy.DECLARATION_SIGNATURE)
         val UNNECESSARY_LATEINIT by warning<KtProperty>(PositioningStrategy.LATEINIT_MODIFIER)
 
@@ -1088,6 +1108,8 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
         val EXPECTED_LATEINIT_PROPERTY by error<KtModifierListOwner>(PositioningStrategy.LATEINIT_MODIFIER)
         val SUPERTYPE_INITIALIZED_IN_EXPECTED_CLASS by error<PsiElement>()
         val EXPECTED_PRIVATE_DECLARATION by error<KtModifierListOwner>(PositioningStrategy.VISIBILITY_MODIFIER)
+        val EXPECTED_EXTERNAL_DECLARATION by error<KtModifierListOwner>(PositioningStrategy.EXTERNAL_MODIFIER)
+        val EXPECTED_TAILREC_FUNCTION by error<KtModifierListOwner>(PositioningStrategy.TAILREC_MODIFIER)
         val IMPLEMENTATION_BY_DELEGATION_IN_EXPECT_CLASS by error<KtDelegatedSuperTypeEntry>()
 
         val ACTUAL_TYPE_ALIAS_NOT_TO_CLASS by error<KtTypeAlias>(PositioningStrategy.DECLARATION_SIGNATURE)
@@ -1095,6 +1117,10 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
         val ACTUAL_TYPE_ALIAS_WITH_USE_SITE_VARIANCE by error<KtTypeAlias>(PositioningStrategy.DECLARATION_SIGNATURE)
         val ACTUAL_TYPE_ALIAS_WITH_COMPLEX_SUBSTITUTION by error<KtTypeAlias>(PositioningStrategy.DECLARATION_SIGNATURE)
         val ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS by error<PsiElement>()
+        val DEFAULT_ARGUMENTS_IN_EXPECT_WITH_ACTUAL_TYPEALIAS by error<KtTypeAlias> {
+            parameter<FirClassSymbol<*>>("expectClassSymbol")
+            parameter<Collection<FirCallableSymbol<*>>>("members")
+        }
         val ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE by error<PsiElement> {
             parameter<FirVariableSymbol<*>>("parameter")
         }
@@ -1283,7 +1309,7 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
             parameter<FirTypeParameterSymbol>("typeParameter")
         }
         val NO_COMPANION_OBJECT by error<KtExpression>(PositioningStrategy.SELECTOR_BY_QUALIFIED) {
-            parameter<FirRegularClassSymbol>("klass")
+            parameter<FirClassLikeSymbol<*>>("klass")
         }
         val EXPRESSION_EXPECTED_PACKAGE_FOUND by error<KtExpression>(PositioningStrategy.SELECTOR_BY_QUALIFIED)
     }
@@ -1492,8 +1518,6 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
         val ILLEGAL_INLINE_PARAMETER_MODIFIER by error<KtElement>(PositioningStrategy.INLINE_PARAMETER_MODIFIER)
 
         val INLINE_SUSPEND_FUNCTION_TYPE_UNSUPPORTED by error<KtParameter>()
-
-        val REDUNDANT_INLINE_SUSPEND_FUNCTION_TYPE by warning<KtElement>(PositioningStrategy.SUSPEND_MODIFIER)
 
         val INEFFICIENT_EQUALS_OVERRIDING_IN_VALUE_CLASS by warning<KtNamedFunction>(PositioningStrategy.DECLARATION_NAME) {
             parameter<ConeKotlinType>("type")

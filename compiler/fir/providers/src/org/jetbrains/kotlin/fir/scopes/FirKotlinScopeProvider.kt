@@ -39,23 +39,32 @@ class FirKotlinScopeProvider(
         scopeSession: ScopeSession,
         memberRequiredPhase: FirResolvePhase?,
     ): FirTypeScope {
-        return scopeSession.getOrBuild(klass.symbol, USE_SITE) {
-            val declaredScope = useSiteSession.declaredMemberScope(klass)
+        memberRequiredPhase?.let {
+            klass.lazyResolveToPhaseWithCallableMembers(it)
+        }
 
-            val decoratedDeclaredMemberScope =
-                declaredMemberScopeDecorator(klass, declaredScope, useSiteSession, scopeSession, memberRequiredPhase).let {
-                    val delegateFields = klass.delegateFields
-                    if (delegateFields.isEmpty())
-                        it
-                    else
-                        FirDelegatedMemberScope(useSiteSession, scopeSession, klass, it, delegateFields)
-                }
+        return scopeSession.getOrBuild(klass.symbol, USE_SITE) {
+            val declaredScope = useSiteSession.declaredMemberScope(klass, memberRequiredPhase)
+            val decoratedDeclaredMemberScope = declaredMemberScopeDecorator(
+                klass,
+                declaredScope,
+                useSiteSession,
+                scopeSession,
+                memberRequiredPhase
+            ).let {
+                val delegateFields = klass.delegateFields
+                if (delegateFields.isEmpty())
+                    it
+                else
+                    FirDelegatedMemberScope(useSiteSession, scopeSession, klass, it, delegateFields)
+            }
 
             val scopes = lookupSuperTypes(
                 klass, lookupInterfaces = true, deep = false, useSiteSession = useSiteSession, substituteTypes = true
             ).mapNotNull { useSiteSuperType ->
                 useSiteSuperType.scopeForSupertype(useSiteSession, scopeSession, klass, memberRequiredPhase = memberRequiredPhase)
             }
+
             FirClassUseSiteMemberScope(
                 klass,
                 useSiteSession,
@@ -71,7 +80,14 @@ class FirKotlinScopeProvider(
         scopeSession: ScopeSession
     ): FirContainingNamesAwareScope? {
         return when (klass.classKind) {
-            ClassKind.ENUM_CLASS -> FirNameAwareOnlyCallablesScope(FirStaticScope(useSiteSession.declaredMemberScope(klass)))
+            ClassKind.ENUM_CLASS -> FirNameAwareOnlyCallablesScope(
+                FirStaticScope(
+                    useSiteSession.declaredMemberScope(
+                        klass,
+                        memberRequiredPhase = null,
+                    )
+                )
+            )
             else -> null
         }
     }
@@ -173,10 +189,6 @@ private fun FirClass.scopeForClassImpl(
     memberOwnerLookupTag: ConeClassLikeLookupTag?,
     memberRequiredPhase: FirResolvePhase?,
 ): FirTypeScope {
-    memberRequiredPhase?.let {
-        lazyResolveToPhaseWithCallableMembers(it)
-    }
-
     val basicScope = unsubstitutedScope(useSiteSession, scopeSession, withForcedTypeCalculator = false, memberRequiredPhase)
     if (substitutor == ConeSubstitutor.Empty) return basicScope
 

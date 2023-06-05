@@ -27,7 +27,6 @@ internal class ExternalKotlinTargetImpl internal constructor(
     override val targetName: String,
     override val platformType: KotlinPlatformType,
     override val publishable: Boolean,
-    val defaultConfiguration: Configuration,
     val apiElementsConfiguration: Configuration,
     val runtimeElementsConfiguration: Configuration,
     val sourcesElementsConfiguration: Configuration,
@@ -67,9 +66,6 @@ internal class ExternalKotlinTargetImpl internal constructor(
     override val artifactsTaskName: String
         get() = artifactsTask.name
 
-    override val defaultConfigurationName: String
-        get() = defaultConfiguration.name
-
     override val apiElementsConfigurationName: String
         get() = apiElementsConfiguration.name
 
@@ -87,8 +83,8 @@ internal class ExternalKotlinTargetImpl internal constructor(
         setOf(ExternalKotlinTargetSoftwareComponent(this))
     }
 
-    override val compilations: NamedDomainObjectContainer<ExternalDecoratedKotlinCompilation> by lazy {
-        project.container(ExternalDecoratedKotlinCompilation::class.java)
+    override val compilations: NamedDomainObjectContainer<DecoratedExternalKotlinCompilation> by lazy {
+        project.container(DecoratedExternalKotlinCompilation::class.java)
     }
 
     @Suppress("unchecked_cast")

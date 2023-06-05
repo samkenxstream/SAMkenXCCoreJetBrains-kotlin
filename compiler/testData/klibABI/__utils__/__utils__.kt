@@ -24,15 +24,16 @@ sealed interface FailurePattern
 
 private typealias Block<T> = () -> T
 
-enum class TestMode(val isJs: Boolean = false, val isNative: Boolean = false) {
+enum class TestMode(val isJs: Boolean = false, val isNative: Boolean = false, val hasCachesEnabled: Boolean = false) {
     JS_NO_IC(isJs = true),
     JS_WITH_IC(isJs = true),
     NATIVE_CACHE_NO(isNative = true),
-    NATIVE_CACHE_STATIC_ONLY_DIST(isNative = true),
-    NATIVE_CACHE_STATIC_EVERYWHERE(isNative = true);
+    NATIVE_CACHE_STATIC_ONLY_DIST(isNative = true, hasCachesEnabled = true),
+    NATIVE_CACHE_STATIC_EVERYWHERE(isNative = true, hasCachesEnabled = true);
 
     init {
         check(isJs xor isNative)
+        check(isNative || !hasCachesEnabled)
     }
 }
 
@@ -113,11 +114,15 @@ private sealed interface AbstractFailurePattern : FailurePattern {
 private sealed class AbstractIrLinkageErrorPattern : AbstractFailurePattern {
     final override fun validateFailure(t: Throwable) =
         if (t.isLinkageError)
-            checkIrLinkageErrorMessage(t.message) // OK, this is IR linkage error. Validate the message.
+            checkIrLinkageErrorMessage(t.message?.skipLocationPrefix()) // OK, this is IR linkage error. Validate the message.
         else
             TestFailedWithException(t) // Unexpected type of exception.
 
     abstract fun checkIrLinkageErrorMessage(errorMessage: String?): TestFailureDetails?
+
+    companion object {
+        private fun String.skipLocationPrefix() = if (startsWith('<')) substringAfter(": ") else this
+    }
 }
 
 private class GeneralIrLinkageError(private val expectedMessageWithoutHashes: String) : AbstractIrLinkageErrorPattern() {

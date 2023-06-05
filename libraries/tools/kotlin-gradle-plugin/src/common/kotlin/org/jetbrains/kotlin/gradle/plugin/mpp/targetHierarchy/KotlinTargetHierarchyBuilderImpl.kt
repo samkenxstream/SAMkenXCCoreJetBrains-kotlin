@@ -56,22 +56,22 @@ private class KotlinTargetHierarchyBuilderImplContext(private val compilation: K
 }
 
 private class KotlinTargetHierarchyBuilderRootImpl(
-    private val builder: KotlinTargetHierarchyBuilderImpl
+    private val builder: KotlinTargetHierarchyBuilderImpl,
 ) : KotlinTargetHierarchyBuilder.Root, KotlinTargetHierarchyBuilder by builder {
 
 
-    override fun modules(vararg module: KotlinTargetHierarchy.ModuleName) {
-        builder.modules = module.toHashSet()
+    override fun sourceSetTrees(vararg tree: KotlinTargetHierarchy.SourceSetTree) {
+        builder.sourceSetTrees = tree.toHashSet()
     }
 
-    override fun withModule(vararg module: KotlinTargetHierarchy.ModuleName) {
-        builder.modules = builder.modules.orEmpty().plus(module)
+    override fun withSourceSetTree(vararg tree: KotlinTargetHierarchy.SourceSetTree) {
+        builder.sourceSetTrees = builder.sourceSetTrees.orEmpty().plus(tree)
     }
 
-    override fun excludeModule(vararg module: KotlinTargetHierarchy.ModuleName) {
-        val modules = module.toHashSet()
+    override fun excludeSourceSetTree(vararg tree: KotlinTargetHierarchy.SourceSetTree) {
+        val modules = tree.toHashSet()
         if (modules.isEmpty()) return
-        builder.modules = builder.modules.orEmpty() - modules
+        builder.sourceSetTrees = builder.sourceSetTrees.orEmpty() - modules
     }
 }
 
@@ -84,7 +84,7 @@ private class KotlinTargetHierarchyBuilderImpl(
     val children = mutableSetOf<KotlinTargetHierarchyBuilderImpl>()
     val childrenClosure get() = closure { it.children }
 
-    var modules: Set<KotlinTargetHierarchy.ModuleName>? = null
+    var sourceSetTrees: Set<KotlinTargetHierarchy.SourceSetTree>? = null
     private var includePredicate: ((KotlinCompilation<*>) -> Boolean) = { false }
     private var excludePredicate: ((KotlinCompilation<*>) -> Boolean) = { false }
 
@@ -104,9 +104,9 @@ private class KotlinTargetHierarchyBuilderImpl(
     }
 
     suspend fun contains(compilation: KotlinCompilation<*>): Boolean {
-        modules?.let { modules ->
-            val module = KotlinTargetHierarchy.ModuleName.orNull(compilation) ?: return false
-            if (module !in modules) return false
+        sourceSetTrees?.let { sourceSetTrees ->
+            val sourceSetTree = KotlinTargetHierarchy.SourceSetTree.orNull(compilation) ?: return false
+            if (sourceSetTree !in sourceSetTrees) return false
         }
 
         /* Return eagerly, when compilation is explicitly excluded */
@@ -161,7 +161,10 @@ private class KotlinTargetHierarchyBuilderImpl(
                 (it is KotlinWithJavaTarget<*, *> && it.platformType == KotlinPlatformType.jvm)
     }
 
-    override fun withAndroid() = withTargets { it is KotlinAndroidTarget }
+    @Suppress("OVERRIDE_DEPRECATION")
+    override fun withAndroid() = withAndroidTarget()
+
+    override fun withAndroidTarget() = withTargets { it is KotlinAndroidTarget }
 
     override fun withAndroidNativeX64() = withTargets {
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.ANDROID_X64
@@ -247,32 +250,32 @@ private class KotlinTargetHierarchyBuilderImpl(
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.LINUX_ARM64
     }
 
-    @Deprecated(DEPRECATED_TARGET_MESSAGE)
+    @Deprecated(DEPRECATED_TARGET_MESSAGE, level = DeprecationLevel.ERROR)
     override fun withWatchosX86() = withTargets {
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.WATCHOS_X86
     }
 
-    @Deprecated(DEPRECATED_TARGET_MESSAGE)
+    @Deprecated(DEPRECATED_TARGET_MESSAGE, level = DeprecationLevel.ERROR)
     override fun withMingwX86() = withTargets {
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.MINGW_X86
     }
 
-    @Deprecated(DEPRECATED_TARGET_MESSAGE)
+    @Deprecated(DEPRECATED_TARGET_MESSAGE, level = DeprecationLevel.ERROR)
     override fun withLinuxArm32Hfp() = withTargets {
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.LINUX_ARM32_HFP
     }
 
-    @Deprecated(DEPRECATED_TARGET_MESSAGE)
+    @Deprecated(DEPRECATED_TARGET_MESSAGE, level = DeprecationLevel.ERROR)
     override fun withLinuxMips32() = withTargets {
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.LINUX_MIPS32
     }
 
-    @Deprecated(DEPRECATED_TARGET_MESSAGE)
+    @Deprecated(DEPRECATED_TARGET_MESSAGE, level = DeprecationLevel.ERROR)
     override fun withLinuxMipsel32() = withTargets {
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.LINUX_MIPSEL32
     }
 
-    @Deprecated(DEPRECATED_TARGET_MESSAGE)
+    @Deprecated(DEPRECATED_TARGET_MESSAGE, level = DeprecationLevel.ERROR)
     override fun withWasm32() = withTargets {
         it is KotlinNativeTarget && it.konanTarget == KonanTarget.WASM32
     }

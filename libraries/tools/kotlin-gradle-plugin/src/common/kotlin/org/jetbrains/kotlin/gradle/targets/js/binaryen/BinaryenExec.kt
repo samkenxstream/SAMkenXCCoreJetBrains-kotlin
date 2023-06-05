@@ -28,16 +28,37 @@ constructor() : AbstractExecTask<BinaryenExec>(BinaryenExec::class.java) {
 
     @Input
     var binaryenArgs: MutableList<String> = mutableListOf(
-        "--enable-nontrapping-float-to-int",
+        // Proposals
         "--enable-gc",
         "--enable-reference-types",
         "--enable-exception-handling",
         "--enable-bulk-memory",  // For array initialization from data sections
-        "--hybrid",
-        "-O3",
+
+        // Other options
+        "--enable-nontrapping-float-to-int",
+        "--nominal",
+        // It's turned out that it's not safe
+        // "--closed-world",
+
+        // Optimizations:
+        // Note the order and repetition of the next options matter.
+        // 
+        // About Binaryen optimizations:
+        // GC Optimization Guidebook -- https://github.com/WebAssembly/binaryen/wiki/GC-Optimization-Guidebook
+        // Optimizer Cookbook -- https://github.com/WebAssembly/binaryen/wiki/Optimizer-Cookbook
+        //
         "--inline-functions-with-loops",
         "--traps-never-happen",
         "--fast-math",
+        "--type-ssa",
+        "-O3",
+        "-O3",
+        "--gufa",
+        "-O3",
+        // requires --closed-world
+        // "--type-merging",
+        "-O3",
+        "-Oz",
     )
 
     @InputFile

@@ -23,22 +23,22 @@ fun createPartialLinkageSupportForLowerings(
     builtIns: IrBuiltIns,
     messageLogger: IrMessageLogger
 ): PartialLinkageSupportForLowerings = if (partialLinkageConfig.isEnabled)
-    PartialLinkageSupportForLoweringsImpl(builtIns, partialLinkageConfig.logLevel, messageLogger)
+    PartialLinkageSupportForLoweringsImpl(builtIns, PartialLinkageLogger(messageLogger, partialLinkageConfig.logLevel))
 else
     PartialLinkageSupportForLowerings.DISABLED
 
 internal class PartialLinkageSupportForLoweringsImpl(
     private val builtIns: IrBuiltIns,
-    logLevel: PartialLinkageLogLevel,
-    private val messageLogger: IrMessageLogger
+    private val logger: PartialLinkageLogger
 ) : PartialLinkageSupportForLowerings {
     override val isEnabled get() = true
 
-    private val irLoggerSeverity = when (logLevel) {
-        PartialLinkageLogLevel.INFO -> IrMessageLogger.Severity.INFO
-        PartialLinkageLogLevel.WARNING -> IrMessageLogger.Severity.WARNING
-        PartialLinkageLogLevel.ERROR -> IrMessageLogger.Severity.ERROR
-    }
+    // N.B. errorMessagesRendered is always >= than throwExpressionsGenerated.
+    var throwExpressionsGenerated = 0 // Track each generate `throw` expression.
+        private set
+
+    var errorMessagesRendered = 0 // Track each rendered error message.
+        private set
 
     override fun throwLinkageError(
         partialLinkageCase: PartialLinkageCase,
@@ -47,9 +47,11 @@ internal class PartialLinkageSupportForLoweringsImpl(
         doNotLog: Boolean
     ): IrCall {
         val errorMessage = if (doNotLog)
-            partialLinkageCase.renderLinkageError() // Just render a message.
+            renderLinkageError(partialLinkageCase) // Just render a message.
         else
             renderAndLogLinkageError(partialLinkageCase, element, file) // Render + log with the appropriate severity.
+
+        throwExpressionsGenerated++ // Track each generate `throw` expression.
 
         return IrCallImpl(
             startOffset = element.startOffset,
@@ -65,12 +67,17 @@ internal class PartialLinkageSupportForLoweringsImpl(
     }
 
     fun renderAndLogLinkageError(partialLinkageCase: PartialLinkageCase, element: IrElement, file: PLFile): String {
-        val errorMessage = partialLinkageCase.renderLinkageError()
+        val errorMessage = renderLinkageError(partialLinkageCase)
         val locationInSourceCode = file.computeLocationForOffset(element.startOffsetOfFirstDenotableIrElement())
 
-        messageLogger.report(irLoggerSeverity, errorMessage, locationInSourceCode) // It's OK. We log it as a warning.
+        logger.log(errorMessage, locationInSourceCode)
 
         return errorMessage
+    }
+
+    private fun renderLinkageError(partialLinkageCase: PartialLinkageCase): String {
+        errorMessagesRendered++ // Track each rendered error message.
+        return partialLinkageCase.renderLinkageError()
     }
 
     companion object {

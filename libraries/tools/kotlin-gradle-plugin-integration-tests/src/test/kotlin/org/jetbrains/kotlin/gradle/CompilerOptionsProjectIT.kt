@@ -74,7 +74,7 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
                 |         apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0
                 |         progressiveMode = true
                 |         optIn.add("my.custom.OptInAnnotation")
-                |         freeCompilerArgs.add("-Xuse-ir")
+                |         freeCompilerArgs.add("-Xdebug")
                 |    }
                 |}
                 """.trimMargin()
@@ -105,9 +105,9 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
                     "Compiler arguments does not contain '-opt-in my.custom.OptInAnnotation': $compilationArgs"
                 }
 
-                assert(compilationArgs.contains("-Xuse-ir")) {
+                assert(compilationArgs.contains("-Xdebug")) {
                     printBuildOutput()
-                    "Compiler arguments does not contain '-Xuse-ir': $compilationArgs"
+                    "Compiler arguments does not contain '-Xdebug': $compilationArgs"
                 }
             }
         }
@@ -132,7 +132,7 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
                 |         apiVersion = org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_2_0
                 |         progressiveMode = true
                 |         optIn.add("my.custom.OptInAnnotation")
-                |         freeCompilerArgs.add("-Xuse-ir")
+                |         freeCompilerArgs.add("-Xdebug")
                 |    }
                 |    
                 |    sourceSets.all {
@@ -306,6 +306,44 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
                     printBuildOutput()
                     "Compiler arguments does not contain '-module-name otherCustomModuleName': $compilationArgs"
                 }
+            }
+        }
+    }
+
+    @DisplayName("KT-57959: should be possible to configure module name in MPP/android")
+    @GradleAndroidTest
+    @GradleTestVersions(minVersion = TestVersions.Gradle.G_7_0)
+    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_70)
+    @AndroidGradlePluginTests
+    fun mppAndroidModuleName(
+        gradleVersion: GradleVersion,
+        agpVersion: String,
+        jdk: JdkVersions.ProvidedJdk
+    ) {
+        project(
+            "multiplatformAndroidSourceSetLayout2",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion, logLevel = LogLevel.DEBUG),
+            buildJdk = jdk.location
+        ) {
+            buildGradleKts.appendText(
+                //language=kotlin
+                """
+                |
+                |kotlin {
+                |    android {
+                |        compilations.all {
+                |            compilerOptions.options.moduleName.set("last-chance")
+                |        }
+                |    }
+                |}
+                """.trimMargin()
+            )
+
+            build(":compileGermanFreeDebugKotlinAndroid") {
+                assertTasksExecuted(":compileGermanFreeDebugKotlinAndroid")
+
+                assertCompilerArgument(":compileGermanFreeDebugKotlinAndroid", "-module-name last-chance")
             }
         }
     }

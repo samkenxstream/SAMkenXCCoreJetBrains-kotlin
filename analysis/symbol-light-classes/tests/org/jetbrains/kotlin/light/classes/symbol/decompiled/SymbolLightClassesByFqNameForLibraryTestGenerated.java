@@ -283,6 +283,12 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
     }
 
     @Test
+    @TestMetadata("SubstitutionOverride.kt")
+    public void testSubstitutionOverride() throws Exception {
+        runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/SubstitutionOverride.kt");
+    }
+
+    @Test
     @TestMetadata("Throws.kt")
     public void testThrows() throws Exception {
         runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/Throws.kt");
@@ -319,6 +325,12 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
         @TestMetadata("Property.kt")
         public void testProperty() throws Exception {
             runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/delegation/Property.kt");
+        }
+
+        @Test
+        @TestMetadata("WithImplicitType.kt")
+        public void testWithImplicitType() throws Exception {
+            runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/delegation/WithImplicitType.kt");
         }
     }
 
@@ -557,6 +569,22 @@ public class SymbolLightClassesByFqNameForLibraryTestGenerated extends AbstractS
         @Test
         public void testAllFilesPresentInScript() throws Exception {
             KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/asJava/lightClasses/lightClassByFqName/script"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+        }
+    }
+
+    @Nested
+    @TestMetadata("compiler/testData/asJava/lightClasses/lightClassByFqName/withTestCompilerPluginEnabled")
+    @TestDataPath("$PROJECT_ROOT")
+    public class WithTestCompilerPluginEnabled {
+        @Test
+        public void testAllFilesPresentInWithTestCompilerPluginEnabled() throws Exception {
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/asJava/lightClasses/lightClassByFqName/withTestCompilerPluginEnabled"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("allOpen.kt")
+        public void testAllOpen() throws Exception {
+            runTest("compiler/testData/asJava/lightClasses/lightClassByFqName/withTestCompilerPluginEnabled/allOpen.kt");
         }
     }
 }

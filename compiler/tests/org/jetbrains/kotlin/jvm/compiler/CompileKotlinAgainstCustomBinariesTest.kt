@@ -179,11 +179,7 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
     }
 
     fun testMissingEnumReferencedInAnnotationArgument() {
-        doTestWithTxt(copyJarFileWithoutEntry(compileLibrary("library"), "test/E.class"))
-    }
-
-    fun testMissingEnumReferencedInAnnotationArgumentIr() {
-        doTestBrokenLibrary("library", "a/E.class", additionalOptions = listOf("-Xuse-ir"))
+        doTestBrokenLibrary("library", "a/E.class")
     }
 
     fun testNoWarningsOnJavaKotlinInheritance() {
@@ -264,10 +260,6 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
 
     fun testMissingDependencyNestedAnnotation() {
         doTestBrokenLibrary("library", "a/A\$Anno.class")
-    }
-
-    fun testMissingDependencyNestedAnnotationIr() {
-        doTestBrokenLibrary("library", "a/A\$Anno.class", additionalOptions = listOf("-Xuse-ir"))
     }
 
     fun testMissingDependencyConflictingLibraries() {
@@ -656,11 +648,6 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         compileKotlin("source.kt", tmpdir, listOf(library), additionalOptions = listOf("-language-version", "2.0"))
     }
 
-    fun testFirAgainstOldJvm() {
-        val library = compileLibrary("library")
-        compileKotlin("source.kt", tmpdir, listOf(library), additionalOptions = listOf("-language-version", "2.0"))
-    }
-
     fun testFirIncorrectJavaSignature() {
         compileKotlin(
             "source.kt", tmpdir,
@@ -679,15 +666,15 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         )
     }
 
-    fun testOldJvmAgainstJvmIr() {
-        val library = compileLibrary("library", additionalOptions = listOf("-Xuse-ir"))
+    fun testAgainstStable() {
+        val library = compileLibrary("library")
         compileKotlin("source.kt", tmpdir, listOf(library))
 
-        val library2 = compileLibrary("library", additionalOptions = listOf("-Xuse-ir", "-Xabi-stability=stable"))
+        val library2 = compileLibrary("library", additionalOptions = listOf("-Xabi-stability=stable"))
         compileKotlin("source.kt", tmpdir, listOf(library2))
     }
 
-    fun testOldJvmAgainstFir() {
+    fun testAgainstFir() {
         val library = compileLibrary("library", additionalOptions = listOf("-language-version", "2.0"))
         compileKotlin("source.kt", tmpdir, listOf(library))
 
@@ -695,22 +682,22 @@ class CompileKotlinAgainstCustomBinariesTest : AbstractKotlinCompilerIntegration
         compileKotlin("source.kt", tmpdir, listOf(library2))
     }
 
-    fun testOldJvmAgainstJvmIrWithUnstableAbi() {
-        val library = compileLibrary("library", additionalOptions = listOf("-Xuse-ir", "-Xabi-stability=unstable"))
+    fun testAgainstUnstable() {
+        val library = compileLibrary("library", additionalOptions = listOf("-Xabi-stability=unstable"))
         compileKotlin("source.kt", tmpdir, listOf(library))
     }
 
-    fun testOldJvmAgainstFirWithStableAbi() {
+    fun testAgainstFirWithStableAbi() {
         val library = compileLibrary("library", additionalOptions = listOf("-language-version", "2.0", "-Xabi-stability=stable"))
         compileKotlin("source.kt", tmpdir, listOf(library))
     }
 
-    fun testOldJvmAgainstFirWithStableAbiAndNoPrereleaseCheck() {
+    fun testAgainstFirWithStableAbiAndNoPrereleaseCheck() {
         val library = compileLibrary("library", additionalOptions = listOf("-language-version", "2.0", "-Xabi-stability=stable"))
         compileKotlin("source.kt", tmpdir, listOf(library), additionalOptions = listOf("-Xskip-prerelease-check"))
     }
 
-    fun testOldJvmAgainstFirWithAllowUnstableDependencies() {
+    fun testAgainstFirWithAllowUnstableDependencies() {
         val library = compileLibrary("library", additionalOptions = listOf("-language-version", "2.0"))
         compileKotlin("source.kt", tmpdir, listOf(library), additionalOptions = listOf("-Xallow-unstable-dependencies", "-Xskip-metadata-version-check"))
     }

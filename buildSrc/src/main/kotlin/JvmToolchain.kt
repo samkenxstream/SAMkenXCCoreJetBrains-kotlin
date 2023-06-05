@@ -1,4 +1,5 @@
 @file:JvmName("JvmToolchain")
+
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaPluginExtension
 import org.gradle.api.provider.Provider
@@ -22,7 +23,8 @@ enum class JdkMajorVersion(
     JDK_10_0(10, mandatory = false, overrideMajorVersion = 11),
     JDK_11_0(11, mandatory = false),
     JDK_16_0(16, mandatory = false),
-    JDK_17_0(17, mandatory = false);
+    JDK_17_0(17, mandatory = false),
+    JDK_21_0(21, mandatory = false);
 
     fun isMandatory(): Boolean = mandatory
 
@@ -192,6 +194,12 @@ fun Project.getToolchainLauncherFor(
     val jdkVersionWithOverride = project.getJdkVersionWithOverride(jdkVersion)
     return service.launcherFor {
         this.languageVersion.set(JavaLanguageVersion.of(jdkVersionWithOverride.majorVersion))
+    }
+}
+
+fun Project.getToolchainJdkHomeFor(jdkVersion: JdkMajorVersion): Provider<String> {
+    return getToolchainLauncherFor(jdkVersion).map {
+        it.metadata.installationPath.asFile.absolutePath
     }
 }
 

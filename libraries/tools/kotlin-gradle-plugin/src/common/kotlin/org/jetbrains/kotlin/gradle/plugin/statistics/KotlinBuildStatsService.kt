@@ -5,24 +5,25 @@
 
 package org.jetbrains.kotlin.gradle.plugin.statistics
 
-import org.gradle.BuildAdapter
-import org.gradle.BuildResult
 import org.gradle.api.Project
 import org.gradle.api.invocation.Gradle
 import org.gradle.api.logging.Logger
 import org.gradle.api.logging.Logging
 import org.gradle.initialization.BuildRequestMetaData
 import org.gradle.invocation.DefaultGradle
+import org.gradle.tooling.events.OperationCompletionListener
+import org.gradle.tooling.events.task.TaskFinishEvent
+import org.jetbrains.kotlin.gradle.plugin.BuildEventsListenerRegistryHolder
 import org.jetbrains.kotlin.gradle.plugin.statistics.KotlinBuildStatHandler.Companion.runSafe
 import org.jetbrains.kotlin.gradle.plugin.statistics.old.Pre232IdeaKotlinBuildStatsMXBean
 import org.jetbrains.kotlin.gradle.plugin.statistics.old.Pre232IdeaKotlinBuildStatsService
-import org.jetbrains.kotlin.gradle.utils.isConfigurationCacheAvailable
 import org.jetbrains.kotlin.statistics.BuildSessionLogger
 import org.jetbrains.kotlin.statistics.BuildSessionLogger.Companion.STATISTICS_FOLDER_NAME
 import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
 import org.jetbrains.kotlin.statistics.metrics.IStatisticsValuesConsumer
 import org.jetbrains.kotlin.statistics.metrics.NumericalMetrics
 import org.jetbrains.kotlin.statistics.metrics.StringMetrics
+import java.io.Closeable
 import java.io.File
 import java.lang.management.ManagementFactory
 import javax.management.MBeanServer
@@ -45,7 +46,7 @@ interface KotlinBuildStatsMXBean {
 }
 
 
-internal abstract class KotlinBuildStatsService internal constructor() : BuildAdapter(), IStatisticsValuesConsumer {
+internal abstract class KotlinBuildStatsService internal constructor() : IStatisticsValuesConsumer, Closeable {
     companion object {
         // Do not rename this bean otherwise compatibility with the older Kotlin Gradle Plugins would be lost
         private const val JMX_BEAN_NAME_BEFORE_232_IDEA = "org.jetbrains.kotlin.gradle.plugin.statistics:type=StatsService"
@@ -74,7 +75,7 @@ internal abstract class KotlinBuildStatsService internal constructor() : BuildAd
          */
         @JvmStatic
         @Synchronized
-        fun getInstance(): IStatisticsValuesConsumer? {
+        fun getInstance(): KotlinBuildStatsService? {
             if (statisticsIsEnabled != true) {
                 return null
             }
@@ -98,7 +99,7 @@ internal abstract class KotlinBuildStatsService internal constructor() : BuildAd
          */
         @JvmStatic
         @Synchronized
-        internal fun getOrCreateInstance(project: Project): IStatisticsValuesConsumer? {
+        internal fun getOrCreateInstance(project: Project): KotlinBuildStatsService? {
 
             return runSafe("${KotlinBuildStatsService::class.java}.getOrCreateInstance") {
                 val gradle = project.gradle
@@ -128,9 +129,13 @@ internal abstract class KotlinBuildStatsService internal constructor() : BuildAd
                             registerPre232IdeaStatsBean(mbs, gradle, log)
                         }
 
-                        if (!isConfigurationCacheAvailable(gradle)) {
-                            gradle.addBuildListener(instance!!)
-                        }
+                       BuildEventsListenerRegistryHolder.getInstance(project).listenerRegistry.onTaskCompletion(project.provider {
+                            OperationCompletionListener { event ->
+                                if (event is TaskFinishEvent) {
+                                    reportTaskIfNeed(event.descriptor.name)
+                                }
+                            }
+                        })
                     }
                     instance
                 }
@@ -147,12 +152,30 @@ internal abstract class KotlinBuildStatsService internal constructor() : BuildAd
             }
         }
 
+        protected fun reportTaskIfNeed(task: String) {
+            val metric = when (task.substringAfterLast(":")) {
+                "dokkaHtml" -> BooleanMetrics.ENABLED_DOKKA_HTML
+                "dokkaGfm" -> BooleanMetrics.ENABLED_DOKKA_GFM
+                "dokkaJavadoc" -> BooleanMetrics.ENABLED_DOKKA_JAVADOC
+                "dokkaJekyll" -> BooleanMetrics.ENABLED_DOKKA_JEKYLL
+                "dokkaHtmlMultiModule" -> BooleanMetrics.ENABLED_DOKKA_HTML_MULTI_MODULE
+                "dokkaGfmMultiModule" -> BooleanMetrics.ENABLED_DOKKA_GFM_MULTI_MODULE
+                "dokkaJekyllMultiModule" -> BooleanMetrics.ENABLED_DOKKA_JEKYLL_MULTI_MODULE
+                "dokkaHtmlCollector" -> BooleanMetrics.ENABLED_DOKKA_HTML_COLLECTOR
+                "dokkaGfmCollector" -> BooleanMetrics.ENABLED_DOKKA_GFM_COLLECTOR
+                "dokkaJavadocCollector" -> BooleanMetrics.ENABLED_DOKKA_JAVADOC_COLLECTOR
+                "dokkaJekyllCollector" -> BooleanMetrics.ENABLED_DOKKA_JEKYLL_COLLECTOR
+                else -> null
+            }
+            metric?.also { getInstance()?.report(it, true) }
+        }
+
 
         /**
          * Invokes provided collector if the reporting service is initialised.
          * The duration of collector's wall time is reported into overall overhead metric.
          */
-        fun applyIfInitialised(collector: (IStatisticsValuesConsumer) -> Unit) {
+        fun applyIfInitialised(collector: (KotlinBuildStatsService) -> Unit) {
             getInstance()?.apply {
                 try {
                     val duration = measureTimeMillis {
@@ -184,6 +207,22 @@ internal abstract class KotlinBuildStatsService internal constructor() : BuildAd
             }
         }
     }
+
+    override fun close() {
+        instance = null
+    }
+
+    /**
+     * Collects metrics at the end of a build
+     */
+    open fun recordBuildFinish(action: String?, buildFailed: Boolean, configurationTimeMetrics: MetricContainer) {}
+
+    /**
+     * Collect project general and configuration metrics at the start of a build
+     */
+    open fun collectStartMetrics(project: Project): MetricContainer = MetricContainer()
+
+    open fun recordProjectsEvaluated(gradle: Gradle) {}
 }
 
 internal class JMXKotlinBuildStatsService(private val mbs: MBeanServer, private val beanName: ObjectName) :
@@ -213,27 +252,46 @@ internal class JMXKotlinBuildStatsService(private val mbs: MBeanServer, private 
             callJmx("reportString", "java.lang.String", metric.name, value, subprojectName, weight)
         } as? Boolean ?: false
 
-    override fun buildFinished(result: BuildResult) {
-        instance = null
-    }
 }
 
 internal abstract class AbstractKotlinBuildStatsService(
     gradle: Gradle,
-    protected val beanName: ObjectName
+    private val beanName: ObjectName,
 ) : KotlinBuildStatsService() {
+    companion object {
+        //test only
+        const val CUSTOM_LOGGER_ROOT_PATH = "kotlin.session.logger.root.path"
+
+        private val logger = Logging.getLogger(AbstractKotlinBuildStatsService::class.java)
+    }
+
     private val forcePropertiesValidation = if (gradle.rootProject.hasProperty(FORCE_VALUES_VALIDATION)) {
         gradle.rootProject.property(FORCE_VALUES_VALIDATION).toString().toBoolean()
     } else {
         false
     }
-    protected val sessionLogger = BuildSessionLogger(gradle.gradleUserHomeDir, forceValuesValidation = forcePropertiesValidation)
+
+    private val customSessionLoggerRootPath: String? = if (gradle.rootProject.hasProperty(CUSTOM_LOGGER_ROOT_PATH)) {
+        logger.warn("$CUSTOM_LOGGER_ROOT_PATH property for test purpose only")
+        gradle.rootProject.property(CUSTOM_LOGGER_ROOT_PATH) as String
+    } else {
+        null
+    }
+
+
+    private val sessionLoggerRootPath =
+        customSessionLoggerRootPath?.let { File(it) } ?: gradle.gradleUserHomeDir
+
+    protected val sessionLogger = BuildSessionLogger(
+        sessionLoggerRootPath,
+        forceValuesValidation = forcePropertiesValidation,
+    )
 
     private fun gradleBuildStartTime(gradle: Gradle): Long? {
         return (gradle as? DefaultGradle)?.services?.get(BuildRequestMetaData::class.java)?.startTime
     }
 
-    override fun projectsEvaluated(gradle: Gradle) {
+    override fun recordProjectsEvaluated(gradle: Gradle) {
         runSafe("${DefaultKotlinBuildStatsService::class.java}.projectEvaluated") {
             if (!sessionLogger.isBuildSessionStarted()) {
                 sessionLogger.startBuildSession(
@@ -245,15 +303,15 @@ internal abstract class AbstractKotlinBuildStatsService(
     }
 
     @Synchronized
-    override fun buildFinished(result: BuildResult) {
+    override fun close() {
         KotlinBuildStatHandler().buildFinished(beanName)
-        instance = null
+        super.close()
     }
 }
 
 internal class DefaultKotlinBuildStatsService internal constructor(
     gradle: Gradle,
-    beanName: ObjectName
+    beanName: ObjectName,
 ) : AbstractKotlinBuildStatsService(gradle, beanName), KotlinBuildStatsMXBean {
 
     override fun report(metric: BooleanMetrics, value: Boolean, subprojectName: String?, weight: Long?): Boolean =
@@ -275,9 +333,11 @@ internal class DefaultKotlinBuildStatsService internal constructor(
         report(StringMetrics.valueOf(name), value, subprojectName, weight)
 
     //only one jmx bean service should report global metrics
-    @Synchronized
-    override fun buildFinished(result: BuildResult) {
-        KotlinBuildStatHandler().reportGlobalMetricsAndBuildFinished(result.gradle, beanName, sessionLogger, result.action, result.failure)
-        instance = null
+    override fun recordBuildFinish(action: String?, buildFailed: Boolean, configurationTimeMetrics: MetricContainer) {
+        KotlinBuildStatHandler().reportGlobalMetrics(sessionLogger)
+        KotlinBuildStatHandler().reportBuildFinished(sessionLogger, action, buildFailed, configurationTimeMetrics)
     }
+
+    override fun collectStartMetrics(project: Project) = KotlinBuildStatHandler().collectConfigurationTimeMetrics(project, sessionLogger)
+
 }

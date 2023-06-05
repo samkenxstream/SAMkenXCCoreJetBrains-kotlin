@@ -55,8 +55,8 @@ class StdlibTest : AbstractNativeBlackBoxTest() {
     fun worker() = dynamicTestCase(TestCaseId.Named("worker"))
 }
 
-@Tag("stdlibK2")
-@Tag("firStdlib")
+@Tag("stdlib")
+@Tag("frontend-fir")
 @PredefinedTestCases(
     TC(
         name = "default",

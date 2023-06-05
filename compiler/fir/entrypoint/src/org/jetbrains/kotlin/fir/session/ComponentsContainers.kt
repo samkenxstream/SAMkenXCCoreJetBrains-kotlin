@@ -11,8 +11,10 @@ import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.analysis.CheckersComponent
 import org.jetbrains.kotlin.fir.analysis.FirOverridesBackwardCompatibilityHelper
+import org.jetbrains.kotlin.fir.analysis.checkers.FirInlineCheckerPlatformSpecificComponent
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirNameConflictsTracker
 import org.jetbrains.kotlin.fir.analysis.jvm.FirJvmOverridesBackwardCompatibilityHelper
+import org.jetbrains.kotlin.fir.analysis.jvm.checkers.FirJvmInlineCheckerComponent
 import org.jetbrains.kotlin.fir.caches.FirCachesFactory
 import org.jetbrains.kotlin.fir.caches.FirThreadUnsafeCachesFactory
 import org.jetbrains.kotlin.fir.declarations.SealedClassInheritorsProvider
@@ -27,6 +29,7 @@ import org.jetbrains.kotlin.fir.java.enhancement.FirAnnotationTypeQualifierResol
 import org.jetbrains.kotlin.fir.java.enhancement.FirEnhancedSymbolsStorage
 import org.jetbrains.kotlin.fir.java.scopes.JavaOverridabilityRules
 import org.jetbrains.kotlin.fir.java.FirSyntheticPropertiesStorage
+import org.jetbrains.kotlin.fir.java.enhancement.JavaCompilerRequiredAnnotationEnhancementProvider
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.ConeCallConflictResolverFactory
 import org.jetbrains.kotlin.fir.resolve.calls.FirSyntheticNamesProvider
@@ -42,6 +45,7 @@ import org.jetbrains.kotlin.fir.scopes.FirOverrideService
 import org.jetbrains.kotlin.fir.scopes.FirPlatformClassMapper
 import org.jetbrains.kotlin.fir.scopes.PlatformSpecificOverridabilityRules
 import org.jetbrains.kotlin.fir.scopes.impl.*
+import org.jetbrains.kotlin.fir.serialization.FirProvidedDeclarationsForMetadataService
 import org.jetbrains.kotlin.fir.symbols.FirLazyDeclarationResolver
 import org.jetbrains.kotlin.fir.types.FirCorrespondingSupertypesCache
 import org.jetbrains.kotlin.fir.types.FirFunctionTypeKindService
@@ -50,6 +54,7 @@ import org.jetbrains.kotlin.fir.types.TypeComponents
 import org.jetbrains.kotlin.incremental.components.EnumWhenTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.resolve.jvm.modules.JavaModuleResolver
+import org.jetbrains.kotlin.fir.resolve.transformers.plugin.CompilerRequiredAnnotationEnhancementProvider
 
 // -------------------------- Required components --------------------------
 
@@ -68,6 +73,7 @@ fun FirSession.registerCommonComponents(languageVersionSettings: LanguageVersion
 
     register(FirSubstitutionOverrideStorage::class, FirSubstitutionOverrideStorage(this))
     register(FirIntersectionOverrideStorage::class, FirIntersectionOverrideStorage(this))
+    register(FirGeneratedMemberDeclarationsStorage::class, FirGeneratedMemberDeclarationsStorage(this))
     register(FirSamConstructorStorage::class, FirSamConstructorStorage(this))
     register(FirOverrideService::class, FirOverrideService(this))
     register(FirDynamicMembersStorage::class, FirDynamicMembersStorage(this))
@@ -78,6 +84,7 @@ fun FirSession.registerCommonComponents(languageVersionSettings: LanguageVersion
 @OptIn(SessionConfiguration::class)
 fun FirSession.registerCommonComponentsAfterExtensionsAreConfigured() {
     register(FirFunctionTypeKindService::class, FirFunctionTypeKindServiceImpl(this))
+    register(FirProvidedDeclarationsForMetadataService::class, FirProvidedDeclarationsForMetadataService.create(this))
 }
 
 @OptIn(SessionConfiguration::class)
@@ -105,6 +112,7 @@ fun FirSession.registerCommonJavaComponents(javaModuleResolver: JavaModuleResolv
     register(PlatformSpecificOverridabilityRules::class, JavaOverridabilityRules(this))
     register(DeserializedClassConfigurator::class, JvmDeserializedClassConfigurator(this))
     register(FirEnumEntriesSupport::class, FirJvmEnumEntriesSupport(this))
+    register(CompilerRequiredAnnotationEnhancementProvider::class, JavaCompilerRequiredAnnotationEnhancementProvider)
 }
 
 // -------------------------- Resolve components --------------------------
@@ -147,6 +155,7 @@ fun FirSession.registerJavaSpecificResolveComponents() {
     register(FirPlatformClassMapper::class, FirJavaClassMapper(this))
     register(FirSyntheticNamesProvider::class, FirJavaSyntheticNamesProvider)
     register(FirOverridesBackwardCompatibilityHelper::class, FirJvmOverridesBackwardCompatibilityHelper)
+    register(FirInlineCheckerPlatformSpecificComponent::class, FirJvmInlineCheckerComponent())
 }
 
 @OptIn(SessionConfiguration::class)

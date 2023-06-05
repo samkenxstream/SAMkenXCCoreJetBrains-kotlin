@@ -59,15 +59,31 @@ interface KotlinDependencyHandler {
 
     fun project(notation: Map<String, Any?>): ProjectDependency
 
+    @Deprecated(
+        "Scheduled for removal in Kotlin 2.0. Check KT-58759",
+        replaceWith = ReplaceWith("project.dependencies.enforcedPlatform(notation)")
+    )
     fun enforcedPlatform(notation: Any): Dependency =
         project.dependencies.enforcedPlatform(notation)
 
+    @Deprecated(
+        "Scheduled for removal in Kotlin 2.0. Check KT-58759",
+        replaceWith = ReplaceWith("project.dependencies.enforcedPlatform(notation, configureAction)")
+    )
     fun enforcedPlatform(notation: Any, configureAction: Action<in Dependency>): Dependency =
         project.dependencies.enforcedPlatform(notation, configureAction)
 
+    @Deprecated(
+        "Scheduled for removal in Kotlin 2.0. Check KT-58759",
+        replaceWith = ReplaceWith("project.dependencies.platform(notation)")
+    )
     fun platform(notation: Any): Dependency =
         project.dependencies.platform(notation)
 
+    @Deprecated(
+        "Scheduled for removal in Kotlin 2.0. Check KT-58759",
+        replaceWith = ReplaceWith("project.dependencies.platform(notation, configureAction)")
+    )
     fun platform(notation: Any, configureAction: Action<in Dependency>): Dependency =
         project.dependencies.platform(notation, configureAction)
 
@@ -181,6 +197,7 @@ interface HasKotlinDependencies {
     val compileOnlyConfigurationName: String
     val runtimeOnlyConfigurationName: String
 
+    @Deprecated("Scheduled for removal with Kotlin 2.0")
     val relatedConfigurationNames: List<String>
         get() = listOf(apiConfigurationName, implementationConfigurationName, compileOnlyConfigurationName, runtimeOnlyConfigurationName)
 }

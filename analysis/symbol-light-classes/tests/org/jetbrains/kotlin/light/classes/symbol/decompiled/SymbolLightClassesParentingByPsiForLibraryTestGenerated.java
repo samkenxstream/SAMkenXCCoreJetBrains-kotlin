@@ -25,6 +25,12 @@ public class SymbolLightClassesParentingByPsiForLibraryTestGenerated extends Abs
     }
 
     @Test
+    @TestMetadata("allowedTargets.kt")
+    public void testAllowedTargets() throws Exception {
+        runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/allowedTargets.kt");
+    }
+
+    @Test
     @TestMetadata("annotationWithSetParamPropertyModifier.kt")
     public void testAnnotationWithSetParamPropertyModifier() throws Exception {
         runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/annotationWithSetParamPropertyModifier.kt");
@@ -112,6 +118,12 @@ public class SymbolLightClassesParentingByPsiForLibraryTestGenerated extends Abs
     @TestMetadata("dollarsInNameLocal.kt")
     public void testDollarsInNameLocal() throws Exception {
         runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/dollarsInNameLocal.kt");
+    }
+
+    @Test
+    @TestMetadata("enumMembers.kt")
+    public void testEnumMembers() throws Exception {
+        runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/enumMembers.kt");
     }
 
     @Test
@@ -256,6 +268,12 @@ public class SymbolLightClassesParentingByPsiForLibraryTestGenerated extends Abs
     @TestMetadata("properties.kt")
     public void testProperties() throws Exception {
         runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/properties.kt");
+    }
+
+    @Test
+    @TestMetadata("propertyAnnotations.kt")
+    public void testPropertyAnnotations() throws Exception {
+        runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/propertyAnnotations.kt");
     }
 
     @Test

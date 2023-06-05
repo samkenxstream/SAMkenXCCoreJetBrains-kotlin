@@ -9,7 +9,8 @@ import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.checkDeclarationParents
 import org.jetbrains.kotlin.backend.common.lower.*
-import org.jetbrains.kotlin.backend.common.lower.inline.*
+import org.jetbrains.kotlin.backend.common.lower.inline.FunctionInlining
+import org.jetbrains.kotlin.backend.common.lower.inline.InlineFunctionResolver
 import org.jetbrains.kotlin.backend.common.lower.loops.forLoopsPhase
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.backend.jvm.ir.constantValue
@@ -316,7 +317,7 @@ internal val functionInliningPhase = makeIrModulePhase(
     )
 )
 
-val constEvaluationPhase = makeIrModulePhase<JvmBackendContext>(
+private val constEvaluationPhase = makeIrModulePhase<JvmBackendContext>(
     {
         ConstEvaluationLowering(
             it,
@@ -341,7 +342,6 @@ private val jvmFilePhases = listOf(
     jvmOverloadsAnnotationPhase,
     mainMethodGenerationPhase,
 
-    kCallableNamePropertyPhase,
     annotationPhase,
     annotationImplementationPhase,
     polymorphicSignaturePhase,

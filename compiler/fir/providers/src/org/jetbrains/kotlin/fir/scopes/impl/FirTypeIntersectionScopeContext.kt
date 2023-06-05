@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.caches.*
-import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
 import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirVariable
@@ -39,6 +38,8 @@ class FirTypeIntersectionScopeContext(
     private val forClassUseSiteScope: Boolean,
 ) {
     private val overrideService = session.overrideService
+
+    private val isReceiverClassExpect = dispatchReceiverType.toRegularClassSymbol(session)?.isExpect == true
 
     val intersectionOverrides: FirCache<FirCallableSymbol<*>, MemberWithBaseScope<FirCallableSymbol<*>>, ResultOfIntersection.NonTrivial<*>> =
         session.intersectionOverrideStorage.cacheByScope.getValue(dispatchReceiverType)
@@ -310,10 +311,12 @@ class FirTypeIntersectionScopeContext(
         symbol: D,
         scope: FirTypeScope,
         result: MutableCollection<MemberWithBaseScope<D>>,
-        visited: MutableSet<D>,
+        // There's no guarantee that directOverridden(symbol) is strictly different
+        // It might be the same instance that when being requested with a different/new scope would return next level of overridden
+        visited: MutableSet<Pair<FirTypeScope, D>>,
         processDirectOverridden: FirTypeScope.(D, (D, FirTypeScope) -> ProcessorAction) -> ProcessorAction,
     ) {
-        if (!visited.add(symbol)) return
+        if (!visited.add(scope to symbol)) return
         if (!symbol.fir.origin.fromSupertypes) {
             result.add(MemberWithBaseScope(symbol, scope))
             return
@@ -356,7 +359,8 @@ class FirTypeIntersectionScopeContext(
         val newSymbol = FirIntersectionOverrideFunctionSymbol(callableId, overrides)
         FirFakeOverrideGenerator.createCopyForFirFunction(
             newSymbol, keyFir, derivedClassLookupTag = null, session,
-            FirDeclarationOrigin.IntersectionOverride, keyFir.isExpect,
+            FirDeclarationOrigin.IntersectionOverride,
+            isExpect = isReceiverClassExpect || keyFir.isExpect,
             newModality = newModality,
             newVisibility = newVisibility,
             newDispatchReceiverType = dispatchReceiverType,
@@ -381,6 +385,7 @@ class FirTypeIntersectionScopeContext(
             FirFakeOverrideGenerator.createCopyForFirProperty(
                 symbol, fir, derivedClassLookupTag = null, session,
                 FirDeclarationOrigin.IntersectionOverride,
+                isExpect = isReceiverClassExpect || fir.isExpect,
                 newModality = newModality,
                 newVisibility = newVisibility,
                 newDispatchReceiverType = dispatchReceiverType,
@@ -405,6 +410,7 @@ class FirTypeIntersectionScopeContext(
             FirFakeOverrideGenerator.createCopyForFirField(
                 symbol, fir, derivedClassLookupTag = null, session,
                 FirDeclarationOrigin.IntersectionOverride,
+                isExpect = isReceiverClassExpect || fir.isExpect,
                 newModality = newModality,
                 newVisibility = newVisibility,
                 newDispatchReceiverType = dispatchReceiverType,

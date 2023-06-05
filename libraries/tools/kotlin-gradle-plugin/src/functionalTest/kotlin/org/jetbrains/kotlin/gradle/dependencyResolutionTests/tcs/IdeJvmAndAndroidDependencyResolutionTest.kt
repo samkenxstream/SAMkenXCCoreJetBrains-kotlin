@@ -24,7 +24,7 @@ class IdeJvmAndAndroidDependencyResolutionTest {
 
     @BeforeTest
     fun checkEnvironment() {
-        assumeAndroidSdkAvailable()
+        assertAndroidSdkAvailable()
     }
 
     private fun Project.configureAndroidAndMultiplatform(enableDefaultStdlib: Boolean = false) {
@@ -41,13 +41,13 @@ class IdeJvmAndAndroidDependencyResolutionTest {
             common {
                 group("jvmAndAndroid") {
                     withJvm()
-                    withAndroid()
+                    withAndroidTarget()
                 }
             }
         }
 
         project.multiplatformExtension.jvm()
-        project.multiplatformExtension.android()
+        project.multiplatformExtension.androidTarget()
 
     }
 

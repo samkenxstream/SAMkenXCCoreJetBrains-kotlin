@@ -123,6 +123,11 @@ object SourceElementPositioningStrategies {
         PositioningStrategies.DATA_MODIFIER
     )
 
+    val EXPECT_ACTUAL_MODIFIER = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.EXPECT_ACTUAL_MODIFIER,
+        PositioningStrategies.EXPECT_ACTUAL_MODIFIER
+    )
+
     val OBJECT_KEYWORD = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.OBJECT_KEYWORD,
         PositioningStrategies.OBJECT_KEYWORD
@@ -338,6 +343,11 @@ object SourceElementPositioningStrategies {
     val TAILREC_MODIFIER = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.TAILREC_MODIFIER,
         PositioningStrategies.TAILREC_MODIFIER
+    )
+
+    val EXTERNAL_MODIFIER = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.EXTERNAL_MODIFIER,
+        PositioningStrategies.EXTERNAL_MODIFIER
     )
 
     val PROPERTY_DELEGATE = SourceElementPositioningStrategy(

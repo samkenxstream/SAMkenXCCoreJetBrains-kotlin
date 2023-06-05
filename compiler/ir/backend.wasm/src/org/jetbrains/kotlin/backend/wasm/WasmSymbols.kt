@@ -189,10 +189,22 @@ class WasmSymbols(
     val refEq = getInternalFunction("wasm_ref_eq")
     val refIsNull = getInternalFunction("wasm_ref_is_null")
     val externRefIsNull = getInternalFunction("wasm_externref_is_null")
-    val refTest = getInternalFunction("wasm_ref_test_deprecated")
-    val refCastNull = getInternalFunction("wasm_ref_cast_deprecated")
+    val refTest = getInternalFunction("wasm_ref_test")
+    val refCastNull = getInternalFunction("wasm_ref_cast_null")
     val wasmArrayCopy = getInternalFunction("wasm_array_copy")
     val wasmArrayNewData0 = getInternalFunction("array_new_data0")
+
+    val primitiveTypeToCreateTypedArray = mapOf(
+        context.irBuiltIns.arrayClass to getFunction("createAnyArray", kotlinTopLevelPackage),
+        context.irBuiltIns.booleanArray to getFunction("createBooleanArray", kotlinTopLevelPackage),
+        context.irBuiltIns.byteArray to getFunction("createByteArray", kotlinTopLevelPackage),
+        context.irBuiltIns.shortArray to getFunction("createShortArray", kotlinTopLevelPackage),
+        context.irBuiltIns.charArray to getFunction("createCharArray", kotlinTopLevelPackage),
+        context.irBuiltIns.intArray to getFunction("createIntArray", kotlinTopLevelPackage),
+        context.irBuiltIns.longArray to getFunction("createLongArray", kotlinTopLevelPackage),
+        context.irBuiltIns.floatArray to getFunction("createFloatArray", kotlinTopLevelPackage),
+        context.irBuiltIns.doubleArray to getFunction("createDoubleArray", kotlinTopLevelPackage),
+    )
 
     val intToLong = getInternalFunction("wasm_i64_extend_i32_s")
 
@@ -289,8 +301,8 @@ class WasmSymbols(
         }
     }
 
-    private val wasmDataRefClass = getIrClass(FqName("kotlin.wasm.internal.reftypes.dataref"))
-    val wasmDataRefType by lazy { wasmDataRefClass.defaultType }
+    private val wasmStructRefClass = getIrClass(FqName("kotlin.wasm.internal.reftypes.structref"))
+    val wasmStructRefType by lazy { wasmStructRefClass.defaultType }
 
     val wasmAnyRefClass = getIrClass(FqName("kotlin.wasm.internal.reftypes.anyref"))
 

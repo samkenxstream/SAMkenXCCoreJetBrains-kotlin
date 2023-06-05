@@ -227,7 +227,9 @@ public class DefaultErrorMessages {
         MAP.put(REDUNDANT_MODIFIER_IN_GETTER, "Visibility modifiers are redundant in getter");
         MAP.put(TYPE_PARAMETERS_IN_ENUM, "Enum class cannot have type parameters");
         MAP.put(TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM,
-                "Type checking has run into a recursive problem. Easiest workaround: specify types of your declarations explicitly"); // TODO: message
+                "Type checking has run into a recursive problem. Easiest workaround: specify types of your declarations explicitly");
+        MAP.put(TYPECHECKER_HAS_RUN_INTO_RECURSIVE_PROBLEM_IN_AUGMENTED_ASSIGNMENT,
+                "Type checking has run into a recursive problem. Easiest workaround: specify types of your declarations explicitly");
         MAP.put(RETURN_NOT_ALLOWED, "'return' is not allowed here");
         MAP.put(PROJECTION_IN_IMMEDIATE_ARGUMENT_TO_SUPERTYPE, "Projections are not allowed for immediate arguments of a supertype");
         MAP.put(LABEL_NAME_CLASH, "There is more than one label with such a name in this scope");
@@ -279,7 +281,7 @@ public class DefaultErrorMessages {
         MAP.put(COMPONENT_FUNCTION_RETURN_TYPE_MISMATCH, "''{0}()'' function returns ''{1}'', but ''{2}'' is expected",
                                                                                     TO_STRING, RENDER_TYPE, RENDER_TYPE);
 
-        MAP.put(ABSTRACT_PROPERTY_IN_PRIMARY_CONSTRUCTOR_PARAMETERS, "This property cannot be declared abstract");
+        MAP.put(ABSTRACT_PROPERTY_IN_PRIMARY_CONSTRUCTOR_PARAMETERS, "Property in primary constructor cannot be declared abstract");
         MAP.put(ABSTRACT_PROPERTY_WITH_INITIALIZER, "Property with initializer cannot be abstract");
         MAP.put(ABSTRACT_PROPERTY_WITH_GETTER, "Property with getter implementation cannot be abstract");
         MAP.put(ABSTRACT_PROPERTY_WITH_SETTER, "Property with setter implementation cannot be abstract");
@@ -303,8 +305,16 @@ public class DefaultErrorMessages {
         MAP.put(PRIVATE_SETTER_FOR_ABSTRACT_PROPERTY, "Private setters are not allowed for abstract properties");
         MAP.put(PRIVATE_SETTER_FOR_OPEN_PROPERTY, "Private setters are not allowed for open properties");
         MAP.put(BACKING_FIELD_IN_INTERFACE, "Property in an interface cannot have a backing field");
+
         MAP.put(MUST_BE_INITIALIZED, "Property must be initialized");
+        MAP.put(MUST_BE_INITIALIZED_WARNING, "Property must be initialized. This warning will become an error in future releases.");
+        MAP.put(MUST_BE_INITIALIZED_OR_BE_FINAL, "Property must be initialized or be final");
+        MAP.put(MUST_BE_INITIALIZED_OR_BE_FINAL_WARNING, "Property must be initialized or be final. This warning will become an error in future releases.");
         MAP.put(MUST_BE_INITIALIZED_OR_BE_ABSTRACT, "Property must be initialized or be abstract");
+        MAP.put(MUST_BE_INITIALIZED_OR_BE_ABSTRACT_WARNING, "Property must be initialized or be abstract. This warning will become an error in future releases.");
+        MAP.put(MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT, "Property must be initialized, be final, or be abstract");
+        MAP.put(MUST_BE_INITIALIZED_OR_FINAL_OR_ABSTRACT_WARNING, "Property must be initialized, be final, or be abstract. This warning will become an error in future releases.");
+
         MAP.put(EXTENSION_PROPERTY_MUST_HAVE_ACCESSORS_OR_BE_ABSTRACT, "Extension property must have accessors or be abstract");
         MAP.put(UNNECESSARY_LATEINIT, "Lateinit is unnecessary: definitely initialized in constructors");
         MAP.put(PROPERTY_INITIALIZER_IN_INTERFACE, "Property initializers are not allowed in interfaces");
@@ -342,6 +352,8 @@ public class DefaultErrorMessages {
         MAP.put(EXPECTED_LATEINIT_PROPERTY, "Expected property cannot be lateinit");
         MAP.put(SUPERTYPE_INITIALIZED_IN_EXPECTED_CLASS, "Expected classes cannot initialize supertypes");
         MAP.put(EXPECTED_PRIVATE_DECLARATION, "Expected declaration cannot be private");
+        MAP.put(EXPECTED_EXTERNAL_DECLARATION, "Expected declaration cannot be external");
+        MAP.put(EXPECTED_TAILREC_FUNCTION, "Expected function cannot have 'tailrec' modifier");
 
         MAP.put(IMPLEMENTATION_BY_DELEGATION_IN_EXPECT_CLASS, "Implementation by delegation in expected classes is prohibited");
 
@@ -351,6 +363,10 @@ public class DefaultErrorMessages {
         MAP.put(ACTUAL_TYPE_ALIAS_WITH_COMPLEX_SUBSTITUTION, "Type arguments in the right-hand side of actual type alias should be its type parameters in the same order, e.g. 'actual typealias Foo<A, B> = Bar<A, B>'");
         MAP.put(ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS, "Actual function cannot have default argument values, they should be declared in the expected function");
         MAP.put(ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE, "Parameter ''{0}'' has conflicting values in the expected and actual annotation", NAME);
+        MAP.put(DEFAULT_ARGUMENTS_IN_EXPECT_WITH_ACTUAL_TYPEALIAS,
+                "Default argument values inside expect declaration ''{0}'' are not allowed if it is actualized via typealias. " +
+                "Possible fix is to remove default argument values in members:{1}",
+                NAME, DESCRIPTORS_ON_NEWLINE_WITH_INDENT);
 
         MAP.put(EXPECTED_FUNCTION_SOURCE_WITH_DEFAULT_ARGUMENTS_NOT_FOUND,
                 "Expected function source is not found, therefore it's impossible to generate default argument values declared there. " +
@@ -413,6 +429,8 @@ public class DefaultErrorMessages {
         MAP.put(CAPTURED_MEMBER_VAL_INITIALIZATION, "Captured member values initialization is forbidden due to possible reassignment", NAME);
         MAP.put(SETTER_PROJECTED_OUT, "Setter for ''{0}'' is removed by type projection", NAME);
         MAP.put(INVISIBLE_SETTER, "Cannot assign to ''{0}'': the setter is {1} in {2}", NAME, VISIBILITY,
+                NAME_OF_CONTAINING_DECLARATION_OR_FILE);
+        MAP.put(INVISIBLE_SETTER_FROM_DERIVED, "Cannot assign to ''{0}'': the setter is {1} in {2}. This warning will be an error soon. See https://youtrack.jetbrains.com/issue/KT-56662 for details", NAME, VISIBILITY,
                 NAME_OF_CONTAINING_DECLARATION_OR_FILE);
         MAP.put(INITIALIZATION_BEFORE_DECLARATION, "Variable cannot be initialized before declaration", NAME);
         MAP.put(VARIABLE_EXPECTED, "Variable expected");
@@ -523,6 +541,11 @@ public class DefaultErrorMessages {
                 RECEIVER_TYPE_MISMATCH,
                 "Constraint error in receiver type argument: inferred type is {1} but {0} was expected",
                 RENDER_TYPE, RENDER_TYPE
+        );
+        MAP.put(
+                TYPE_MISMATCH_IN_CONSTRAINT,
+                "Type mismatch in constraint system: actual type is {1} but {0} was expected. Constraint position is {2}",
+                RENDER_TYPE, RENDER_TYPE, TO_STRING
         );
         MAP.put(LOCAL_EXTENSION_PROPERTY, "Local extension properties are not allowed");
         MAP.put(LOCAL_VARIABLE_WITH_GETTER, "Local variables are not allowed to have getters");
@@ -732,6 +755,7 @@ public class DefaultErrorMessages {
         MAP.put(MANY_CLASSES_IN_SUPERTYPE_LIST, "Only one class may appear in a supertype list");
         MAP.put(SUPERTYPE_NOT_A_CLASS_OR_INTERFACE, "Only classes and interfaces may serve as supertypes");
         MAP.put(SUPERTYPE_IS_EXTENSION_FUNCTION_TYPE, "Extension function type is not allowed as supertypes");
+        MAP.put(SUPERTYPE_IS_SUSPEND_EXTENSION_FUNCTION_TYPE, "Suspend extension function type is not allowed as supertypes. Such code will become error in future releases.");
         MAP.put(SUPERTYPE_INITIALIZED_IN_INTERFACE, "Interfaces cannot initialize supertypes");
         MAP.put(SUPERTYPE_IS_SUSPEND_FUNCTION_TYPE, "Suspend function type is allowed as a supertype only since version 1.6");
         MAP.put(SUPERTYPE_IS_KSUSPEND_FUNCTION_TYPE, "KSuspendFunctionN interfaces are not allowed as supertypes");
@@ -793,6 +817,7 @@ public class DefaultErrorMessages {
         MAP.put(UNSUPPORTED_WARNING, "Unsupported [{0}]. This warning will be an error in future releases", STRING);
         MAP.put(NEW_INFERENCE_ERROR, "New inference error [{0}]", STRING);
         MAP.put(NEW_INFERENCE_DIAGNOSTIC, "New inference [{0}]", STRING);
+        MAP.put(NEW_INFERENCE_UNKNOWN_ERROR, "Unknown error in new inference with applicability ''{0}'' and target ''{1}'', please report to https://youtrack.jetbrains.com/newIssue?project=KT", TO_STRING, STRING);
         MAP.put(NON_APPLICABLE_CALL_FOR_BUILDER_INFERENCE, "Non-applicable call for builder inference");
 
         MAP.put(UNSUPPORTED_FEATURE, "{0}", new LanguageFeatureMessageRenderer(LanguageFeatureMessageRenderer.Type.UNSUPPORTED));

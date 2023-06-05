@@ -10,6 +10,7 @@ import org.gradle.api.logging.configuration.WarningMode
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.cli.common.CompilerSystemProperties.COMPILE_INCREMENTAL_WITH_ARTIFACT_TRANSFORM
 import org.jetbrains.kotlin.gradle.BaseGradleIT
+import org.jetbrains.kotlin.gradle.dsl.NativeCacheKind
 import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
 import org.jetbrains.kotlin.gradle.report.BuildReportType
 import org.junit.jupiter.api.condition.OS
@@ -42,6 +43,8 @@ data class BuildOptions(
     val usePreciseOutputsBackup: Boolean? = null,
     val keepIncrementalCompilationCachesInMemory: Boolean? = null,
     val useDaemonFallbackStrategy: Boolean = false,
+    val verboseDiagnostics: Boolean = true,
+    val nativeOptions: NativeOptions = NativeOptions(),
 ) {
     val safeAndroidVersion: String
         get() = androidVersion ?: error("AGP version is expected to be set")
@@ -59,7 +62,18 @@ data class BuildOptions(
         val incrementalJs: Boolean? = null,
         val incrementalJsKlib: Boolean? = null,
         val incrementalJsIr: Boolean? = null,
-        val compileNoWarn: Boolean = true
+        val compileNoWarn: Boolean = true,
+    )
+
+    data class NativeOptions(
+        val cacheKind: NativeCacheKind = NativeCacheKind.NONE,
+        val cocoapodsGenerateWrapper: Boolean? = null,
+        val distributionType: String? = null,
+        val distributionDownloadFromMaven: Boolean? = null,
+        val platformLibrariesMode: String? = null,
+        val reinstall: Boolean? = null,
+        val restrictedDistribution: Boolean? = null,
+        val version: String? = null,
     )
 
     fun toArguments(
@@ -108,6 +122,8 @@ data class BuildOptions(
         }
 
         arguments.add(if (buildCacheEnabled) "--build-cache" else "--no-build-cache")
+
+        addNativeOptionsToArguments(arguments)
 
         if (kaptOptions != null) {
             arguments.add("-Pkapt.verbose=${kaptOptions.verbose}")
@@ -165,9 +181,44 @@ data class BuildOptions(
 
         arguments.add("-Pkotlin.daemon.useFallbackStrategy=$useDaemonFallbackStrategy")
 
+        if (verboseDiagnostics) {
+            arguments.add("-Pkotlin.internal.verboseDiagnostics=$verboseDiagnostics")
+        }
+
         arguments.addAll(freeArgs)
 
         return arguments.toList()
+    }
+
+    private fun addNativeOptionsToArguments(
+        arguments: MutableList<String>,
+    ) {
+
+        arguments.add("-Pkotlin.native.cacheKind=${nativeOptions.cacheKind.name.lowercase()}")
+
+        nativeOptions.cocoapodsGenerateWrapper?.let {
+            arguments.add("-Pkotlin.native.cocoapods.generate.wrapper=${it}")
+        }
+
+        nativeOptions.distributionDownloadFromMaven?.let {
+            arguments.add("-Pkotlin.native.distribution.downloadFromMaven=${it}")
+        }
+        nativeOptions.distributionType?.let {
+            arguments.add("-Pkotlin.native.distribution.type=${it}")
+        }
+        nativeOptions.platformLibrariesMode?.let {
+            arguments.add("-Pkotlin.native.platform.libraries.mode=${it}")
+        }
+        nativeOptions.reinstall?.let {
+            arguments.add("-Pkotlin.native.reinstall=${it}")
+        }
+        nativeOptions.restrictedDistribution?.let {
+            arguments.add("-Pkotlin.native.restrictedDistribution=${it}")
+        }
+        nativeOptions.version?.let {
+            arguments.add("-Pkotlin.native.version=${it}")
+        }
+
     }
 }
 
@@ -187,4 +238,3 @@ fun BuildOptions.suppressDeprecationWarningsSinceGradleVersion(
 ) = suppressDeprecationWarningsOn(reason) {
     currentGradleVersion >= GradleVersion.version(gradleVersion)
 }
-

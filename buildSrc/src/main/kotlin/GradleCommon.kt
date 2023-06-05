@@ -13,7 +13,6 @@ import org.gradle.api.attributes.*
 import org.gradle.api.attributes.java.TargetJvmEnvironment
 import org.gradle.api.attributes.java.TargetJvmVersion
 import org.gradle.api.attributes.plugin.GradlePluginApiVersion
-import org.gradle.api.file.FileCollection
 import org.gradle.api.component.AdhocComponentWithVariants
 import org.gradle.api.plugins.JavaLibraryPlugin
 import org.gradle.api.plugins.JavaPlugin
@@ -30,16 +29,15 @@ import org.jetbrains.dokka.DokkaVersion
 import org.jetbrains.dokka.gradle.DokkaTask
 import org.jetbrains.dokka.gradle.GradleExternalDocumentationLinkBuilder
 import org.jetbrains.kotlin.gradle.dsl.KotlinSingleJavaTargetExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
-import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import plugins.configureDefaultPublishing
 import plugins.configureKotlinPomAttributes
 import java.net.URL
-import java.util.*
 
 /**
- * Gradle plugins common variants.
+ * Gradle's plugins common variants.
  *
  * [minimalSupportedGradleVersion] - minimal Gradle version that is supported in this variant
  * [gradleApiVersion] - Gradle API dependency version. Usually should be the same as [minimalSupportedGradleVersion].
@@ -55,7 +53,9 @@ enum class GradlePluginVariant(
     GRADLE_71("gradle71", "7.1", "7.1", "https://docs.gradle.org/7.1.1/javadoc/"),
     GRADLE_74("gradle74", "7.4", "7.4", "https://docs.gradle.org/7.4.2/javadoc/"),
     GRADLE_75("gradle75", "7.5", "7.5", "https://docs.gradle.org/7.5.1/javadoc/"),
-    GRADLE_76("gradle76", "7.6", "7.6", "https://docs.gradle.org/7.6/javadoc/"),
+    GRADLE_76("gradle76", "7.6", "7.6", "https://docs.gradle.org/7.6.1/javadoc/"),
+    GRADLE_80("gradle80", "8.0", "8.0", "https://docs.gradle.org/8.0.2/javadoc/"),
+    GRADLE_81("gradle81", "8.1", "8.1", "https://docs.gradle.org/8.1.1/javadoc/"),
 }
 
 val commonSourceSetName = "common"
@@ -104,7 +104,13 @@ fun Project.excludeGradleCommonDependencies(sourceSet: SourceSet) {
     configurations[sourceSet.runtimeOnlyConfigurationName].excludeGradleCommonDependencies()
 }
 
-private val testPlugins = setOf("kotlin-gradle-plugin-api", "android-test-fixes", "gradle-warnings-detector", "kotlin-compiler-args-properties")
+private val testPlugins = setOf(
+    "kotlin-gradle-plugin-api",
+    "android-test-fixes",
+    "gradle-warnings-detector",
+    "kotlin-compiler-args-properties",
+    "kotlin-gradle-plugin",
+)
 
 /**
  * Common sources for all variants.
@@ -124,7 +130,7 @@ fun Project.createGradleCommonSourceSet(): SourceSet {
 
         dependencies {
             compileOnlyConfigurationName(kotlinStdlib())
-            "commonGradleApiCompileOnly"("dev.gradleplugins:gradle-api:7.6")
+            "commonGradleApiCompileOnly"("dev.gradleplugins:gradle-api:8.1")
             if (this@createGradleCommonSourceSet.name !in testPlugins) {
                 compileOnlyConfigurationName(project(":kotlin-gradle-plugin-api")) {
                     capabilities {
@@ -250,6 +256,7 @@ fun Project.wireGradleVariantToCommonGradleVariant(
             from(wireSourceSet.output, commonSourceSet.output)
             setupPublicJar(archiveBaseName.get())
             addEmbeddedRuntime()
+            addEmbeddedRuntime(wireSourceSet.embeddedConfigurationName)
         } else if (name == wireSourceSet.sourcesJarTaskName) {
             from(wireSourceSet.allSource, commonSourceSet.allSource)
         }
@@ -301,6 +308,15 @@ fun Project.reconfigureMainSourcesSetForGradlePlugin(
                         withJavadocJar()
                     }
                 }
+
+            configurations.create(sourceSets.getByName("main").embeddedConfigurationName) {
+                isCanBeConsumed = false
+                isCanBeResolved = true
+                attributes {
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+                    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+                }
+            }
         }
 
         // Workaround for https://youtrack.jetbrains.com/issue/KT-52987
@@ -422,10 +438,20 @@ fun Project.createGradlePluginVariant(
 
             configurations.named(variantSourceSet.apiElementsConfigurationName, commonVariantAttributes())
             configurations.named(variantSourceSet.runtimeElementsConfigurationName, commonVariantAttributes())
+
+            configurations.create(variantSourceSet.embeddedConfigurationName) {
+                isCanBeConsumed = false
+                isCanBeResolved = true
+                attributes {
+                    attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.JAVA_RUNTIME))
+                    attribute(LibraryElements.LIBRARY_ELEMENTS_ATTRIBUTE, objects.named(LibraryElements.JAR))
+                }
+            }
         }
 
         tasks.named<Jar>(variantSourceSet.sourcesJarTaskName) {
             addEmbeddedSources()
+            addEmbeddedSources(variantSourceSet.embeddedConfigurationName)
         }
     }
 
@@ -438,7 +464,7 @@ fun Project.createGradlePluginVariant(
     }
 
     configurations.configureEach {
-        if (isCanBeConsumed && this@configureEach.name.startsWith(variantSourceSet.name)) {
+        if (this@configureEach.name.startsWith(variantSourceSet.name)) {
             attributes {
                 attribute(
                     GradlePluginApiVersion.GRADLE_PLUGIN_API_VERSION_ATTRIBUTE,
@@ -485,15 +511,25 @@ private fun Project.commonVariantAttributes(): Action<Configuration> = Action<Co
 }
 
 fun Project.configureKotlinCompileTasksGradleCompatibility() {
-    @Suppress("DEPRECATION")
     tasks.withType<KotlinCompile>().configureEach {
-        kotlinOptions.languageVersion = "1.4"
-        kotlinOptions.apiVersion = "1.4"
-        kotlinOptions.freeCompilerArgs += listOf(
-            "-Xskip-prerelease-check",
-            "-Xsuppress-version-warnings",
-            "-Xuse-ir" // Needed as long as languageVersion is less than 1.5.
-        )
+        compilerOptions {
+            // check https://docs.gradle.org/current/userguide/compatibility.html#kotlin for Kotlin-Gradle versions matrix
+            @Suppress("DEPRECATION") // we can't use language version greater than 1.5 as minimal supported Gradle embeds Kotlin 1.4
+            languageVersion.set(KotlinVersion.KOTLIN_1_5)
+            @Suppress("DEPRECATION") // we can't use api version greater than 1.4 as minimal supported Gradle version uses kotlin-stdlib 1.4
+            apiVersion.set(KotlinVersion.KOTLIN_1_4)
+            freeCompilerArgs.addAll(
+                listOf(
+                    "-Xskip-prerelease-check",
+                    "-Xsuppress-version-warnings",
+                    // We have to override the default value for `-Xsam-conversions` to `class`
+                    // otherwise the compiler would compile lambdas using invokedynamic,
+                    // such lambdas are not serializable so are not compatible with Gradle configuration cache.
+                    // It doesn't lead to a significant difference in binaries sizes, and previously (before LV 1.5) the `class` value was set by default.
+                    "-Xsam-conversions=class",
+                )
+            )
+        }
     }
 }
 
@@ -512,6 +548,7 @@ fun Project.publishShadowedJar(
             jarTask.flatMap { it.archiveClassifier }
         )
         addEmbeddedRuntime()
+        addEmbeddedRuntime(sourceSet.embeddedConfigurationName)
         from(sourceSet.output)
         from(commonSourceSet.output)
 
@@ -694,7 +731,12 @@ fun Project.configureDokkaPublication(
 // Workaround for https://github.com/Kotlin/dokka/issues/2097
 // Gradle 7.6 javadoc does not have published 'package-list' file
 private fun GradleExternalDocumentationLinkBuilder.addWorkaroundForElementList(pluginVariant: GradlePluginVariant) {
-    if (pluginVariant == GradlePluginVariant.GRADLE_76) {
+    if (pluginVariant == GradlePluginVariant.GRADLE_76 ||
+        pluginVariant == GradlePluginVariant.GRADLE_80 ||
+        pluginVariant == GradlePluginVariant.GRADLE_81
+    ) {
         packageListUrl.set(URL("${pluginVariant.gradleApiJavadocUrl}element-list"))
     }
 }
+
+private val SourceSet.embeddedConfigurationName get() = "${name}Embedded"

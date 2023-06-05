@@ -9,9 +9,14 @@ package org.jetbrains.kotlin.gradle.unitTests.compilerArgumetns
 
 import org.jetbrains.kotlin.compilerRunner.ArgumentUtils
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
+import org.jetbrains.kotlin.gradle.plugin.CreateCompilerArgumentsContext
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.ArgumentType.PluginClasspath
+import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.ArgumentType.Primitive
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.default
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext.Companion.lenient
 import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
+import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType.IR
 import org.jetbrains.kotlin.gradle.util.buildProjectWithMPP
 import org.jetbrains.kotlin.gradle.util.main
 import kotlin.test.Test
@@ -26,12 +31,17 @@ class Kotlin2JsCompileArgumentsTest {
         project.repositories.mavenLocal()
 
         val kotlin = project.multiplatformExtension
-        val jsTarget = kotlin.js(KotlinJsCompilerType.IR)
+        val jsTarget = kotlin.js(IR)
         val jsMainCompilation = jsTarget.compilations.main
         project.evaluate()
 
         val jsMainCompileTask = jsMainCompilation.compileTaskProvider.get()
-        val argumentsFromCompilerArgumentsProducer = jsMainCompileTask.createCompilerArguments(lenient)
+        val argumentsFromCompilerArgumentsProducer = jsMainCompileTask.createCompilerArguments(
+            CreateCompilerArgumentsContext(
+                includeArgumentTypes = setOf(Primitive, PluginClasspath),
+                isLenient = true
+            )
+        )
 
         @Suppress("DEPRECATION_ERROR")
         assertEquals(
@@ -52,5 +62,27 @@ class Kotlin2JsCompileArgumentsTest {
         assertNull(jsMainCompileTask.createCompilerArguments(lenient).libraries)
 
         assertFails { jsMainCompileTask.createCompilerArguments(default) }
+    }
+
+    @Test
+    fun `test - setting languagesVersion and apiVersion in languageSettings`() {
+        val project = buildProjectWithMPP()
+        val kotlin = project.multiplatformExtension
+        kotlin.jvm()
+        kotlin.linuxX64()
+        val jsTarget = kotlin.js(IR) { nodejs() }
+
+        kotlin.sourceSets.configureEach { sourceSet ->
+            sourceSet.languageSettings.apiVersion = "1.7"
+            sourceSet.languageSettings.languageVersion = "1.8"
+        }
+
+        project.evaluate()
+
+        val arguments = jsTarget.compilations.main.compileTaskProvider.get()
+            .createCompilerArguments(lenient)
+
+        assertEquals("1.7", arguments.apiVersion)
+        assertEquals("1.8", arguments.languageVersion)
     }
 }

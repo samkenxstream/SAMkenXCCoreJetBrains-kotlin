@@ -125,7 +125,17 @@
     <!-- Compiler plugins. They can be added to the JPS process via KOTLIN_BUNDLED Path Variable -->
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>kotlin-serialization-compiler-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>kotlin-maven-serialization</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>kotlin-sam-with-receiver-compiler-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -135,7 +145,17 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>kotlin-allopen-compiler-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>kotlin-maven-allopen</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>kotlin-lombok-compiler-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -145,7 +165,17 @@
     </dependency>
     <dependency>
       <groupId>${project.groupId}</groupId>
+      <artifactId>kotlin-noarg-compiler-plugin</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
       <artifactId>kotlin-maven-noarg</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>kotlin-assignment-compiler-plugin</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

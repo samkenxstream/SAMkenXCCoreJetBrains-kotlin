@@ -1,7 +1,6 @@
-
 RAW_FIR:
 FILE: [ResolvedTo(RAW_FIR)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
@@ -31,7 +30,7 @@ FILE: [ResolvedTo(RAW_FIR)] delegates.kt
 
 IMPORTS:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
@@ -61,7 +60,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 COMPILER_REQUIRED_ANNOTATIONS:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(COMPILER_REQUIRED_ANNOTATIONS)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
@@ -91,7 +90,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 COMPANION_GENERATION:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(COMPANION_GENERATION)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
@@ -121,7 +120,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 SUPER_TYPES:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(SUPER_TYPES)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
@@ -151,7 +150,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 TYPES:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(TYPES)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
@@ -181,7 +180,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 STATUS:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(STATUS)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
@@ -211,13 +210,8 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 EXPECT_ACTUAL_MATCHING:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
-    public final [ResolvedTo(EXPECT_ACTUAL_MATCHING)] fun resolveMe(): R|kotlin/Unit| {
-        receive#(valueWithExplicitType#)
-        receive#(valueWithImplicitType#)
-        variableWithExplicitType# = IntegerLiteral(10)
-        variableWithImplicitType# = IntegerLiteral(10)
-    }
+    [ResolvedTo(BODY_RESOLVE)] annotations container
+    public final [ResolvedTo(EXPECT_ACTUAL_MATCHING)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
         public? [ResolvedTo(RAW_FIR)] get(): <implicit>
@@ -246,13 +240,8 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 ARGUMENTS_OF_ANNOTATIONS:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
-    public final [ResolvedTo(ARGUMENTS_OF_ANNOTATIONS)] fun resolveMe(): R|kotlin/Unit| {
-        receive#(valueWithExplicitType#)
-        receive#(valueWithImplicitType#)
-        variableWithExplicitType# = IntegerLiteral(10)
-        variableWithImplicitType# = IntegerLiteral(10)
-    }
+    [ResolvedTo(BODY_RESOLVE)] annotations container
+    public final [ResolvedTo(ARGUMENTS_OF_ANNOTATIONS)] fun resolveMe(): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] fun receive([ResolvedTo(RAW_FIR)] value: Int): R|kotlin/Unit| { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] val delegate: <implicit> = LAZY_EXPRESSION
         public? [ResolvedTo(RAW_FIR)] get(): <implicit>
@@ -281,7 +270,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 CONTRACTS:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(CONTRACTS)] fun resolveMe(): R|kotlin/Unit| {
         receive#(valueWithExplicitType#)
         receive#(valueWithImplicitType#)
@@ -316,7 +305,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 IMPLICIT_TYPES_BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] fun resolveMe(): R|kotlin/Unit| {
         receive#(valueWithExplicitType#)
         receive#(valueWithImplicitType#)
@@ -351,7 +340,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 ANNOTATIONS_ARGUMENTS_MAPPING:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] fun resolveMe(): R|kotlin/Unit| {
         receive#(valueWithExplicitType#)
         receive#(valueWithImplicitType#)
@@ -386,7 +375,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
 BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] delegates.kt
-    [ResolvedTo(RAW_FIR)] annotations container
+    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(BODY_RESOLVE)] fun resolveMe(): R|kotlin/Unit| {
         R|/receive|(R|/valueWithExplicitType|)
         R|/receive|(R|/valueWithImplicitType|)
@@ -395,7 +384,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
     }
     public final [ResolvedTo(CONTRACTS)] fun receive([ResolvedTo(CONTRACTS)] value: R|kotlin/Int|): R|kotlin/Unit| {
     }
-    public final [ResolvedTo(CONTRACTS)] val delegate: R|kotlin/properties/ReadWriteProperty<kotlin/Any?, kotlin/Int>| = object : R|kotlin/properties/ReadWriteProperty<kotlin/Any?, kotlin/Int>| {
+    public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] val delegate: R|kotlin/properties/ReadWriteProperty<kotlin/Any?, kotlin/Int>| = object : R|kotlin/properties/ReadWriteProperty<kotlin/Any?, kotlin/Int>| {
         private [ResolvedTo(RAW_FIR)] [ContainingClassKey=<anonymous>] constructor(): R|<anonymous>| {
             super<R|kotlin/Any|>()
         }
@@ -409,7 +398,7 @@ FILE: [ResolvedTo(IMPORTS)] delegates.kt
 
     }
 
-        public [ResolvedTo(CONTRACTS)] get(): R|kotlin/properties/ReadWriteProperty<kotlin/Any?, kotlin/Int>|
+        public [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] get(): R|kotlin/properties/ReadWriteProperty<kotlin/Any?, kotlin/Int>|
     public final [ResolvedTo(CONTRACTS)] val valueWithExplicitType: R|kotlin/Int|by delegate#
         public [ResolvedTo(CONTRACTS)] get(): R|kotlin/Int| {
             ^ D|/valueWithExplicitType|.getValue#(Null(null), ::R|/valueWithExplicitType|)

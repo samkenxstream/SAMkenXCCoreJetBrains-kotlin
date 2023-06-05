@@ -15,10 +15,8 @@ import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.jvm.JvmIrDeserializerImpl
 import org.jetbrains.kotlin.build.DEFAULT_KOTLIN_SOURCE_FILES_EXTENSIONS
 import org.jetbrains.kotlin.build.report.BuildReporter
-import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
-import org.jetbrains.kotlin.cli.common.ExitCode
+import org.jetbrains.kotlin.cli.common.*
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
-import org.jetbrains.kotlin.cli.common.computeKotlinPaths
 import org.jetbrains.kotlin.cli.common.config.addKotlinSourceRoot
 import org.jetbrains.kotlin.cli.common.config.kotlinSourceRoots
 import org.jetbrains.kotlin.cli.common.environment.setIdeaIoUseFallback
@@ -28,7 +26,6 @@ import org.jetbrains.kotlin.cli.common.messages.GroupingMessageCollector
 import org.jetbrains.kotlin.cli.common.messages.IrMessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.modules.ModuleBuilder
-import org.jetbrains.kotlin.cli.common.setupCommonArguments
 import org.jetbrains.kotlin.cli.jvm.*
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.VfsBasedProjectEnvironment
@@ -38,7 +35,9 @@ import org.jetbrains.kotlin.cli.jvm.compiler.pipeline.*
 import org.jetbrains.kotlin.cli.jvm.config.*
 import org.jetbrains.kotlin.cli.jvm.plugins.PluginCliParser
 import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.constant.EvaluatedConstTracker
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
+import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
 import org.jetbrains.kotlin.fir.backend.jvm.JvmFir2IrExtensions
 import org.jetbrains.kotlin.fir.pipeline.FirResult
 import org.jetbrains.kotlin.fir.pipeline.convertToIrAndActualizeForJvm
@@ -60,7 +59,7 @@ import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.progress.CompilationCanceledException
 import java.io.File
 
-class IncrementalFirJvmCompilerRunner(
+open class IncrementalFirJvmCompilerRunner(
     workingDir: File,
     reporter: BuildReporter,
     buildHistoryFile: File,
@@ -273,14 +272,16 @@ class IncrementalFirJvmCompilerRunner(
             performanceManager?.notifyIRTranslationStarted()
 
             val extensions = JvmFir2IrExtensions(configuration, JvmIrDeserializerImpl(), JvmIrMangler)
+            val fir2IrConfiguration = Fir2IrConfiguration(
+                languageVersionSettings = configuration.languageVersionSettings,
+                linkViaSignatures = false,
+                evaluatedConstTracker = configuration
+                    .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+            )
             val irGenerationExtensions =
                 (projectEnvironment as? VfsBasedProjectEnvironment)?.project?.let { IrGenerationExtension.getInstances(it) }.orEmpty()
-            val (irModuleFragment, components, pluginContext, irActualizationResult) = cycleResult.convertToIrAndActualizeForJvm(
-                extensions,
-                irGenerationExtensions,
-                linkViaSignatures = false,
-                compilerEnvironment.diagnosticsReporter,
-                configuration.languageVersionSettings
+            val (irModuleFragment, components, pluginContext, irActualizedResult) = cycleResult.convertToIrAndActualizeForJvm(
+                extensions, fir2IrConfiguration, irGenerationExtensions, compilerEnvironment.diagnosticsReporter,
             )
 
             performanceManager?.notifyIRTranslationFinished()
@@ -292,7 +293,7 @@ class IncrementalFirJvmCompilerRunner(
                 irModuleFragment,
                 components,
                 pluginContext,
-                irActualizationResult
+                irActualizedResult
             )
 
             val codegenOutput = generateCodeFromIr(irInput, compilerEnvironment, performanceManager)
@@ -342,7 +343,7 @@ fun CompilerConfiguration.configureBaseRoots(args: K2JVMCompilerArguments) {
         }
     }
 
-    args.classpath?.forEach { classpathRoot ->
+    args.classpath?.split(File.pathSeparator)?.forEach { classpathRoot ->
         add(
             CLIConfigurationKeys.CONTENT_ROOTS,
             if (isJava9Module) JvmModulePathRoot(File(classpathRoot)) else JvmClasspathRoot(File(classpathRoot))

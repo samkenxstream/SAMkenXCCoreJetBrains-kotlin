@@ -1,9 +1,13 @@
-@file:OptIn(FreezingIsDeprecated::class, kotlin.experimental.ExperimentalNativeApi::class, kotlin.native.runtime.NativeRuntimeApi::class)
+@file:OptIn(FreezingIsDeprecated::class, kotlin.experimental.ExperimentalNativeApi::class, kotlin.native.runtime.NativeRuntimeApi::class, ObsoleteWorkersApi::class, kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package runtime.workers.worker10
 
 import kotlin.test.*
 
 import kotlin.native.concurrent.*
+import kotlin.concurrent.*
+import kotlin.concurrent.AtomicInt
+import kotlin.concurrent.AtomicReference
 import kotlin.native.ref.WeakReference
 import kotlinx.cinterop.StableRef
 
@@ -93,14 +97,14 @@ val semaphore = AtomicInt(0)
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { null }) {
         val value = atomicRef.value
-        semaphore.increment()
+        semaphore.incrementAndGet()
         while (semaphore.value != 2) {}
         println(value.toString() != "")
     }
     while (semaphore.value != 1) {}
     atomicRef.value = null
     kotlin.native.runtime.GC.collect()
-    semaphore.increment()
+    semaphore.incrementAndGet()
     future.result
     worker.requestTermination().result
 }
@@ -110,14 +114,14 @@ val semaphore = AtomicInt(0)
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { null }) {
         val value = stableRef.get()
-        semaphore.increment()
+        semaphore.incrementAndGet()
         while (semaphore.value != 2) {}
         println(value.toString() != "")
     }
     while (semaphore.value != 1) {}
     stableRef.dispose()
     kotlin.native.runtime.GC.collect()
-    semaphore.increment()
+    semaphore.incrementAndGet()
     future.result
     worker.requestTermination().result
 }
@@ -133,7 +137,7 @@ val stableHolder1 = StableRef.create(("hello" to "world").freeze())
     semaphore.value = 0
     val future = worker.execute(TransferMode.SAFE, { WeakReference(stableHolder1.get()) }) {
         ensureWeakIs(it, "hello" to "world")
-        semaphore.increment()
+        semaphore.incrementAndGet()
         while (semaphore.value != 2) {}
         kotlin.native.runtime.GC.collect()
         ensureWeakIs(it, null)
@@ -141,7 +145,7 @@ val stableHolder1 = StableRef.create(("hello" to "world").freeze())
     while (semaphore.value != 1) {}
     stableHolder1.dispose()
     kotlin.native.runtime.GC.collect()
-    semaphore.increment()
+    semaphore.incrementAndGet()
     future.result
     worker.requestTermination().result
 }
@@ -153,7 +157,7 @@ val stableHolder2 = StableRef.create(("hello" to "world").freeze())
     semaphore.value = 0
     val future = worker.execute(TransferMode.SAFE, { WeakReference(stableHolder2.get()) }) {
         val value = it.get()
-        semaphore.increment()
+        semaphore.incrementAndGet()
         while (semaphore.value != 2) {}
         kotlin.native.runtime.GC.collect()
         assertEquals("hello" to "world", value)
@@ -161,7 +165,7 @@ val stableHolder2 = StableRef.create(("hello" to "world").freeze())
     while (semaphore.value != 1) {}
     stableHolder2.dispose()
     kotlin.native.runtime.GC.collect()
-    semaphore.increment()
+    semaphore.incrementAndGet()
     future.result
     worker.requestTermination().result
 }
@@ -171,15 +175,15 @@ val atomicRef2 = AtomicReference<Any?>(Any().freeze())
     semaphore.value = 0
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { null }) {
-        val value = atomicRef2.compareAndSwap(null, null)
-        semaphore.increment()
+        val value = atomicRef2.compareAndExchange(null, null)
+        semaphore.incrementAndGet()
         while (semaphore.value != 2) {}
         assertEquals(true, value.toString() != "")
     }
     while (semaphore.value != 1) {}
     atomicRef2.value = null
     kotlin.native.runtime.GC.collect()
-    semaphore.increment()
+    semaphore.incrementAndGet()
     future.result
     worker.requestTermination().result
 }

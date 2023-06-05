@@ -13,7 +13,7 @@ import org.gradle.testkit.runner.BuildResult
  */
 fun BuildResult.assertOutputContains(
     expectedSubString: String,
-    message: String = "Build output does not contain \"$expectedSubString\""
+    message: String = "Build output does not contain \"$expectedSubString\"",
 ) {
     assert(output.contains(expectedSubString)) {
         printBuildOutput()
@@ -25,7 +25,7 @@ fun BuildResult.assertOutputContains(
  * Asserts Gradle output contains any of [expectedSubString] strings.
  */
 fun BuildResult.assertOutputContainsAny(
-    vararg expectedSubStrings: String
+    vararg expectedSubStrings: String,
 ) {
     assert(expectedSubStrings.any { output.contains(it) }) {
         printBuildOutput()
@@ -38,7 +38,7 @@ fun BuildResult.assertOutputContainsAny(
  */
 fun BuildResult.assertOutputContainsExactTimes(
     expectedSubString: String,
-    expectedRepetitionTimes: Int = 1
+    expectedRepetitionTimes: Int = 1,
 ) {
     var currentOffset = 0
     var count = 0
@@ -102,7 +102,7 @@ fun BuildResult.assertOutputDoesNotContain(
  * Assert build output contains one or more strings matching [expected] regex.
  */
 fun BuildResult.assertOutputContains(
-    expected: Regex
+    expected: Regex,
 ) {
     assert(output.contains(expected)) {
         printBuildOutput()
@@ -115,7 +115,7 @@ fun BuildResult.assertOutputContains(
  * Asserts build output does not contain any lines matching [regexToCheck] regex.
  */
 fun BuildResult.assertOutputDoesNotContain(
-    regexToCheck: Regex
+    regexToCheck: Regex,
 ) {
     assert(!output.contains(regexToCheck)) {
         printBuildOutput()
@@ -133,9 +133,16 @@ fun BuildResult.assertOutputDoesNotContain(
  */
 fun BuildResult.assertOutputContainsExactlyTimes(
     expected: String,
-    expectedCount: Int = 1
+    expectedCount: Int = 1,
 ) {
-    val occurrenceCount = expected.toRegex(RegexOption.LITERAL).findAll(output).count()
+    assertOutputContainsExactlyTimes(expected.toRegex(RegexOption.LITERAL), expectedCount)
+}
+
+fun BuildResult.assertOutputContainsExactlyTimes(
+    expected: Regex,
+    expectedCount: Int = 1,
+) {
+    val occurrenceCount = expected.findAll(output).count()
     assert(occurrenceCount == expectedCount) {
         printBuildOutput()
 
@@ -147,7 +154,7 @@ fun BuildResult.assertOutputContainsExactlyTimes(
  * Assert build contains no warnings.
  */
 fun BuildResult.assertNoBuildWarnings(
-    expectedWarnings: Set<String> = emptySet()
+    expectedWarnings: Set<String> = emptySet(),
 ) {
     val cleanedOutput = expectedWarnings.fold(output) { acc, s ->
         acc.replace(s, "")
@@ -168,7 +175,7 @@ fun BuildResult.assertNoBuildWarnings(
  * Asserts compilation is running via Kotlin daemon with given jvm arguments.
  */
 fun BuildResult.assertKotlinDaemonJvmOptions(
-    expectedJvmArgs: List<String>
+    expectedJvmArgs: List<String>,
 ) {
     val jvmArgsCommonMessage = "Kotlin compile daemon JVM options: "
     assertOutputContains(jvmArgsCommonMessage)
@@ -214,4 +221,84 @@ fun BuildResult.assertDeprecationWarningsArePresent(warningMode: WarningMode) {
         "[GradleWarningsDetectorPlugin] Some deprecation warnings were found during this build.",
         getWarningModeChangeAdvice(warningMode)
     )
+}
+
+/**
+ * This function searches for a given parameter in a multi-line output string and returns its value.
+ *
+ * The output string is assumed to be in the form of key-value pairs separated by an equal sign (‘=’) on each line.
+ *
+ * If the specified parameter name is found at the end of a key, the corresponding value is returned.
+ * If the parameter is not found, the function returns null.
+ */
+fun findParameterInOutput(name: String, output: String): String? =
+    output.lineSequence().mapNotNull { line ->
+        val (key, value) = line.split('=', limit = 2).takeIf { it.size == 2 } ?: return@mapNotNull null
+        if (key.endsWith(name)) value else null
+    }.firstOrNull()
+
+fun BuildResult.assertCompilerArgument(
+    taskPath: String,
+    expectedArgument: String,
+) {
+    val taskOutput = getOutputForTask(taskPath)
+    val compilerArguments = taskOutput.lines().first {
+        it.contains("Kotlin compiler args:")
+    }.substringAfter("Kotlin compiler args:")
+
+    assert(compilerArguments.contains(expectedArgument)) {
+        printBuildOutput()
+
+        "$taskPath task compiler arguments don't contain $expectedArgument. Actual content: $compilerArguments"
+    }
+}
+
+fun BuildResult.assertNoCompilerArgument(
+    taskPath: String,
+    notExpectedArgument: String,
+) {
+    val taskOutput = getOutputForTask(taskPath)
+    val compilerArguments = taskOutput.lines().first {
+        it.contains("Kotlin compiler args:")
+    }.substringAfter("Kotlin compiler args:")
+
+    assert(!compilerArguments.contains(notExpectedArgument)) {
+        printBuildOutput()
+
+        "$taskPath task compiler arguments contains $notExpectedArgument. Actual content: $compilerArguments"
+    }
+}
+
+/**
+ * Asserts that the given list of command line arguments does not contain any of the expected arguments.
+ *
+ * @param expectedArgs the list of expected arguments
+ * @throws AssertionError if any of the expected arguments are found in the actual arguments list
+ */
+fun CommandLineArguments.assertCommandLineArgumentsDoNotContain(
+    vararg expectedArgs: String,
+) {
+    expectedArgs.forEach {
+        assert(!args.contains(it)) {
+            this.buildResult.printBuildOutput()
+            "There is unexpected ${it} in actual command line arguments are: ${args}"
+        }
+    }
+}
+
+/**
+ * Asserts that the given list of command line arguments contains all the expected arguments.
+ *
+ * @param expectedArgs the list of expected arguments
+ * @throws AssertionError if any of the expected arguments are missing from the actual arguments list
+ */
+fun CommandLineArguments.assertCommandLineArgumentsContain(
+    vararg expectedArgs: String,
+) {
+    expectedArgs.forEach {
+        assert(args.contains(it)) {
+            this.buildResult.printBuildOutput()
+            "There is no ${it} in actual command line arguments are: ${args}"
+        }
+    }
 }

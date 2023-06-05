@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.analysis.api.base.KtContextReceiver
 import org.jetbrains.kotlin.analysis.api.fir.KtFirAnalysisSession
 import org.jetbrains.kotlin.analysis.api.fir.annotations.KtFirAnnotationListForDeclaration
 import org.jetbrains.kotlin.analysis.api.fir.utils.cached
+import org.jetbrains.kotlin.analysis.api.getModule
 import org.jetbrains.kotlin.analysis.api.impl.base.annotations.KtEmptyAnnotationsList
 import org.jetbrains.kotlin.analysis.api.impl.base.symbols.toKtClassKind
 import org.jetbrains.kotlin.analysis.api.lifetime.withValidityAssertion
@@ -21,7 +22,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KtSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.KtTypeParameterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolKind
 import org.jetbrains.kotlin.analysis.low.level.api.fir.providers.firClassByPsiClassProvider
-import org.jetbrains.kotlin.analysis.project.structure.getKtModule
 import org.jetbrains.kotlin.analysis.utils.classIdIfNonLocal
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibility
@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.fir.java.modality
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.load.java.structure.JavaClass
 import org.jetbrains.kotlin.load.java.structure.impl.JavaClassImpl
+import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 
@@ -46,7 +47,7 @@ internal class KtFirPsiJavaClassSymbol(
     /**
      * [javaClass] is used to defer some properties to the compiler's view of a Java class.
      */
-    private val javaClass: JavaClass = JavaClassImpl(psi)
+    private val javaClass: JavaClass = JavaClassImpl(JavaElementSourceFactory.getInstance(analysisSession.project).createPsiSource(psi))
 
     override val name: Name = withValidityAssertion { javaClass.name }
 
@@ -116,7 +117,7 @@ internal class KtFirPsiJavaClassSymbol(
     override val hasLazyFirSymbol: Boolean get() = true
 
     override val firSymbol: FirRegularClassSymbol by cached {
-        val module = psi.getKtModule(analysisSession.project)
+        val module = analysisSession.getModule(psi)
         val provider = analysisSession.firResolveSession.getSessionFor(module).firClassByPsiClassProvider
         val firClassSymbol = provider.getFirClass(psi)
 

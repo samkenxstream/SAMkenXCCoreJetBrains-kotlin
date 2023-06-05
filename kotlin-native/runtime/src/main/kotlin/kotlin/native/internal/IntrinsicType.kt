@@ -52,6 +52,7 @@ internal class IntrinsicType {
         const val IDENTITY                      = "IDENTITY"
         const val IMMUTABLE_BLOB                = "IMMUTABLE_BLOB"
         const val INIT_INSTANCE                 = "INIT_INSTANCE"
+        const val IS_SUBTYPE                    = "IS_SUBTYPE"
         const val IS_EXPERIMENTAL_MM            = "IS_EXPERIMENTAL_MM"
         const val THE_UNIT_INSTANCE             = "THE_UNIT_INSTANCE"
 
@@ -83,11 +84,11 @@ internal class IntrinsicType {
 
         // Atomic
         const val COMPARE_AND_SET_FIELD         = "COMPARE_AND_SET_FIELD"
-        const val COMPARE_AND_SWAP_FIELD        = "COMPARE_AND_SWAP_FIELD"
+        const val COMPARE_AND_EXCHANGE_FIELD    = "COMPARE_AND_EXCHANGE_FIELD"
         const val GET_AND_SET_FIELD             = "GET_AND_SET_FIELD"
         const val GET_AND_ADD_FIELD             = "GET_AND_ADD_FIELD"
         const val COMPARE_AND_SET               = "COMPARE_AND_SET"
-        const val COMPARE_AND_SWAP              = "COMPARE_AND_SWAP"
+        const val COMPARE_AND_EXCHANGE          = "COMPARE_AND_EXCHANGE"
         const val GET_AND_SET                   = "GET_AND_SET"
         const val GET_AND_ADD                   = "GET_AND_ADD"
     }

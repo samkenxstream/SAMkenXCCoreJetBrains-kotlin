@@ -8,16 +8,17 @@ package org.jetbrains.kotlin.analysis.api.impl.base.test.configurators
 import com.intellij.mock.MockApplication
 import com.intellij.mock.MockProject
 import org.jetbrains.kotlin.analysis.api.KtAnalysisApiInternals
-import org.jetbrains.kotlin.analysis.api.impl.base.references.HLApiReferenceProviderService
 import org.jetbrains.kotlin.analysis.api.lifetime.KtDefaultLifetimeTokenProvider
 import org.jetbrains.kotlin.analysis.api.lifetime.KtReadActionConfinementDefaultLifetimeTokenProvider
+import org.jetbrains.kotlin.analysis.api.standalone.base.project.structure.StandaloneProjectFactory
+import org.jetbrains.kotlin.analysis.decompiler.psi.BuiltInDefinitionFile
 import org.jetbrains.kotlin.analysis.project.structure.KtModuleScopeProvider
 import org.jetbrains.kotlin.analysis.project.structure.KtModuleScopeProviderImpl
 import org.jetbrains.kotlin.analysis.providers.*
 import org.jetbrains.kotlin.analysis.providers.impl.*
 import org.jetbrains.kotlin.analysis.test.framework.project.structure.ktModuleProvider
+import org.jetbrains.kotlin.analysis.test.framework.services.environmentManager
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestServiceRegistrar
-import org.jetbrains.kotlin.psi.KotlinReferenceProvidersService
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.test.services.TestServices
 
@@ -33,17 +34,35 @@ object AnalysisApiBaseTestServiceRegistrar: AnalysisApiTestServiceRegistrar()  {
     }
 
     override fun registerProjectModelServices(project: MockProject, testServices: TestServices) {
-        val allKtFiles = testServices.ktModuleProvider.getModuleStructure().mainModules.flatMap { it.files.filterIsInstance<KtFile>() }
-
+        val moduleStructure = testServices.ktModuleProvider.getModuleStructure()
+        val allKtFiles = moduleStructure.mainModules.flatMap { it.files.filterIsInstance<KtFile>() }
+        val roots = StandaloneProjectFactory.getVirtualFilesForLibraryRoots(
+            moduleStructure.binaryModules.flatMap { binary -> binary.getBinaryRoots() },
+            testServices.environmentManager.getProjectEnvironment()
+        )
         project.apply {
             registerService(KtModuleScopeProvider::class.java, KtModuleScopeProviderImpl())
             registerService(KotlinAnnotationsResolverFactory::class.java, KotlinStaticAnnotationsResolverFactory(allKtFiles))
-            registerService(KotlinDeclarationProviderFactory::class.java, KotlinStaticDeclarationProviderFactory(project, allKtFiles))
+
+            val filter = BuiltInDefinitionFile.FILTER_OUT_CLASSES_EXISTING_AS_JVM_CLASS_FILES
+            try {
+                BuiltInDefinitionFile.FILTER_OUT_CLASSES_EXISTING_AS_JVM_CLASS_FILES = false
+                registerService(
+                    KotlinDeclarationProviderFactory::class.java, KotlinStaticDeclarationProviderFactory(
+                        project,
+                        allKtFiles,
+                        additionalRoots = roots
+                    )
+                )
+            } finally {
+                BuiltInDefinitionFile.FILTER_OUT_CLASSES_EXISTING_AS_JVM_CLASS_FILES = filter
+            }
+            registerService(KotlinDeclarationProviderMerger::class.java, KotlinStaticDeclarationProviderMerger(project))
             registerService(KotlinPackageProviderFactory::class.java, KotlinStaticPackageProviderFactory(project, allKtFiles))
-            registerService(KotlinReferenceProvidersService::class.java, HLApiReferenceProviderService::class.java)
             registerService(KotlinResolutionScopeProvider::class.java, KotlinByModulesResolutionScopeProvider::class.java)
         }
     }
 
-    override fun registerApplicationServices(application: MockApplication, testServices: TestServices) {}
+    override fun registerApplicationServices(application: MockApplication, testServices: TestServices) {
+    }
 }

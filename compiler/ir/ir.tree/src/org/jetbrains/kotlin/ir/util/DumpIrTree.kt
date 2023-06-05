@@ -21,70 +21,92 @@ import org.jetbrains.kotlin.ir.IrFileEntry
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
+import org.jetbrains.kotlin.ir.types.IrErrorType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.utils.Printer
 
-fun IrElement.dump(normalizeNames: Boolean = false, stableOrder: Boolean = false): String =
+fun IrElement.dump(options: DumpIrTreeOptions = DumpIrTreeOptions()): String =
     try {
         StringBuilder().also { sb ->
-            accept(DumpIrTreeVisitor(sb, normalizeNames, stableOrder), "")
+            accept(DumpIrTreeVisitor(sb, options), "")
         }.toString()
     } catch (e: Exception) {
-        "(Full dump is not available: ${e.message})\n" + render()
+        "(Full dump is not available: ${e.message})\n" + render(options)
     }
 
-fun IrFile.dumpTreesFromLineNumber(lineNumber: Int, normalizeNames: Boolean = false): String {
+fun IrFile.dumpTreesFromLineNumber(lineNumber: Int, options: DumpIrTreeOptions = DumpIrTreeOptions()): String {
     if (shouldSkipDump()) return ""
     val sb = StringBuilder()
-    accept(DumpTreeFromSourceLineVisitor(fileEntry, lineNumber, sb, normalizeNames), null)
+    accept(DumpTreeFromSourceLineVisitor(fileEntry, lineNumber, sb, options), null)
     return sb.toString()
 }
+
+/**
+ * @property normalizeNames Rename temporary local variables using a stable naming scheme
+ * @property stableOrder Print declarations in a sorted order
+ * @property verboseErrorTypes Whether to dump the value of [IrErrorType.kotlinType] for [IrErrorType] nodes
+ * @property printFacadeClassInFqNames Whether printed fully-qualified names of top-level declarations should include the name of
+ * the file facade class (see [IrDeclarationOrigin.FILE_CLASS])
+ * @property printFlagsInDeclarationReferences If `false`, flags like `fake_override`, `inline` etc. are not printed in rendered declaration
+ * references.
+ */
+data class DumpIrTreeOptions(
+    val normalizeNames: Boolean = false,
+    val stableOrder: Boolean = false,
+    val verboseErrorTypes: Boolean = true,
+    val printFacadeClassInFqNames: Boolean = true,
+    val printFlagsInDeclarationReferences: Boolean = true,
+)
 
 private fun IrFile.shouldSkipDump(): Boolean {
     val entry = fileEntry as? NaiveSourceBasedFileEntryImpl ?: return false
     return entry.lineStartOffsetsAreEmpty
 }
 
+/**
+ * Sorts the declarations in the list using the result of [IrDeclaration.render] as the sorting key.
+ *
+ * The exception is properties with backing fields and [IrAnonymousInitializer]s: their relative order is preserved.
+ */
+internal fun List<IrDeclaration>.stableOrdered(): List<IrDeclaration> {
+    val strictOrder = hashMapOf<IrDeclaration, Int>()
+
+    var idx = 0
+
+    forEach {
+        if (it is IrProperty && it.backingField != null && !it.isConst) {
+            strictOrder[it] = idx++
+        }
+        if (it is IrAnonymousInitializer) {
+            strictOrder[it] = idx++
+        }
+    }
+
+    return sortedWith { a, b ->
+        val strictA = strictOrder[a] ?: Int.MAX_VALUE
+        val strictB = strictOrder[b] ?: Int.MAX_VALUE
+
+        if (strictA == strictB) {
+            val rA = a.render()
+            val rB = b.render()
+            rA.compareTo(rB)
+        } else strictA - strictB
+    }
+}
+
 class DumpIrTreeVisitor(
     out: Appendable,
-    normalizeNames: Boolean = false,
-    private val stableOrder: Boolean = false
+    private val options: DumpIrTreeOptions = DumpIrTreeOptions(),
 ) : IrElementVisitor<Unit, String> {
 
     private val printer = Printer(out, "  ")
-    private val elementRenderer = RenderIrElementVisitor(normalizeNames, !stableOrder)
+    private val elementRenderer = RenderIrElementVisitor(options)
     private fun IrType.render() = elementRenderer.renderType(this)
 
-    private fun List<IrDeclaration>.ordered(): List<IrDeclaration> {
-        if (!stableOrder) return this
-
-        val strictOrder = mutableMapOf<IrDeclaration, Int>()
-
-        var idx = 0
-
-        forEach {
-            if (it is IrProperty && it.backingField != null && !it.isConst) {
-                strictOrder[it] = idx++
-            }
-            if (it is IrAnonymousInitializer) {
-                strictOrder[it] = idx++
-            }
-        }
-
-        return sortedWith { a, b ->
-            val strictA = strictOrder[a] ?: Int.MAX_VALUE
-            val strictB = strictOrder[b] ?: Int.MAX_VALUE
-
-            if (strictA == strictB) {
-                val rA = a.render()
-                val rB = b.render()
-                rA.compareTo(rB)
-            } else strictA - strictB
-        }
-    }
+    private fun List<IrDeclaration>.ordered(): List<IrDeclaration> = if (options.stableOrder) stableOrdered() else this
 
     override fun visitElement(element: IrElement, data: String) {
         element.dumpLabeledElementWith(data) {
@@ -297,7 +319,7 @@ class DumpIrTreeVisitor(
         if (expression !is IrInlinedFunctionBlock) return super.visitBlock(expression, data)
         expression.dumpLabeledElementWith(data) {
             expression.inlinedElement.dumpInternal("inlinedElement")
-            super.visitBlock(expression, data)
+            expression.acceptChildren(this, "")
         }
     }
 
@@ -429,9 +451,9 @@ class DumpTreeFromSourceLineVisitor(
     val fileEntry: IrFileEntry,
     private val lineNumber: Int,
     out: Appendable,
-    normalizeNames: Boolean = false
+    options: DumpIrTreeOptions,
 ) : IrElementVisitorVoid {
-    private val dumper = DumpIrTreeVisitor(out, normalizeNames)
+    private val dumper = DumpIrTreeVisitor(out, options)
 
     override fun visitElement(element: IrElement) {
         if (fileEntry.getLineNumber(element.startOffset) == lineNumber) {

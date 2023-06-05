@@ -165,10 +165,9 @@ internal open class CInteropCommonizerTask
 
     @Suppress("unused") // Used for UP-TO-DATE check
     @get:Classpath
-    protected val commonizerDependenciesClasspath: FileCollection
-        get() = project.files(
-            groupedCommonizerDependencies.getOrThrow().values.flatten().map { it.dependencies }
-        )
+    protected val commonizerDependenciesClasspath: FileCollection = project.filesProvider {
+        groupedCommonizerDependencies.getOrThrow().values.flatten().map { it.dependencies }
+    }
 
     @get:Nested
     internal var cinterops = setOf<CInteropGist>()
@@ -276,11 +275,11 @@ internal open class CInteropCommonizerTask
             .mapNotNull { compilation -> CInteropCommonizerDependent.from(compilation) }
             .toSet()
 
-        val fromSourceSets = multiplatformExtension.sourceSets
+        val fromSourceSets = multiplatformExtension.awaitSourceSets()
             .mapNotNull { sourceSet -> CInteropCommonizerDependent.from(sourceSet) }
             .toSet()
 
-        val fromSourceSetsAssociateCompilations = multiplatformExtension.sourceSets
+        val fromSourceSetsAssociateCompilations = multiplatformExtension.awaitSourceSets()
             .mapNotNull { sourceSet -> CInteropCommonizerDependent.fromAssociateCompilations(sourceSet) }
             .toSet()
 

@@ -18,11 +18,13 @@ SingleObjectPage* SingleObjectPage::Create(uint64_t cellCount) noexcept {
     CustomAllocInfo("SingleObjectPage::Create(%" PRIu64 ")", cellCount);
     RuntimeAssert(cellCount > NEXT_FIT_PAGE_MAX_BLOCK_SIZE, "blockSize too small for SingleObjectPage");
     uint64_t size = sizeof(SingleObjectPage) + cellCount * sizeof(uint64_t);
-    return new (SafeAlloc(size)) SingleObjectPage();
+    return new (SafeAlloc(size)) SingleObjectPage(size);
 }
 
+SingleObjectPage::SingleObjectPage(size_t size) noexcept : size_(size) {}
+
 void SingleObjectPage::Destroy() noexcept {
-    std_support::free(this);
+    Free(this, size_);
 }
 
 uint8_t* SingleObjectPage::Data() noexcept {
@@ -35,13 +37,13 @@ uint8_t* SingleObjectPage::TryAllocate() noexcept {
     return Data();
 }
 
-bool SingleObjectPage::Sweep() noexcept {
+bool SingleObjectPage::Sweep(GCSweepScope& sweepHandle, FinalizerQueue& finalizerQueue) noexcept {
     CustomAllocDebug("SingleObjectPage@%p::Sweep()", this);
-    if (!TryResetMark(Data())) {
-        isAllocated_ = false;
-        return false;
+    if (SweepObject(Data(), finalizerQueue, sweepHandle)) {
+        return true;
     }
-    return true;
+    isAllocated_ = false;
+    return false;
 }
 
 } // namespace kotlin::alloc

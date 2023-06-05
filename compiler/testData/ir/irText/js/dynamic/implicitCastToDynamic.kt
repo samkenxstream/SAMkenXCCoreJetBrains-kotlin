@@ -1,4 +1,5 @@
 // TARGET_BACKEND: JS_IR
+
 val d1: dynamic = 1
 
 val p: Int = 1

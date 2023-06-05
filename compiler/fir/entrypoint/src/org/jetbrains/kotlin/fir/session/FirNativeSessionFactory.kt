@@ -14,8 +14,7 @@ import org.jetbrains.kotlin.fir.deserialization.ModuleDataProvider
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.java.FirProjectSessionProvider
 import org.jetbrains.kotlin.fir.resolve.calls.ConeCallConflictResolverFactory
-import org.jetbrains.kotlin.fir.resolve.providers.impl.FirBuiltinSymbolProvider
-import org.jetbrains.kotlin.fir.resolve.providers.impl.FirCloneableSymbolProvider
+import org.jetbrains.kotlin.fir.resolve.providers.impl.FirBuiltinSyntheticFunctionInterfaceProvider
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirExtensionSyntheticFunctionInterfaceProvider
 import org.jetbrains.kotlin.fir.scopes.FirKotlinScopeProvider
 import org.jetbrains.kotlin.fir.scopes.FirPlatformClassMapper
@@ -41,7 +40,7 @@ object FirNativeSessionFactory : FirAbstractSessionFactory() {
             registerExtraComponents = { session ->
                 registerExtraComponents(session)
             },
-            createKotlinScopeProvider = { FirKotlinScopeProvider { _, declaredMemberScope, _, _, _ -> declaredMemberScope } },
+            createKotlinScopeProvider = { FirKotlinScopeProvider() },
             createProviders = { session, builtinsModuleData, kotlinScopeProvider ->
                 val forwardDeclarationsModuleData = BinaryModuleData.createDependencyModuleData(
                     Name.special("<forward declarations>"),
@@ -50,12 +49,12 @@ object FirNativeSessionFactory : FirAbstractSessionFactory() {
                 ).apply {
                     bindSession(session)
                 }
+                val kotlinLibraries = resolvedLibraries.map { it.library }
                 listOfNotNull(
-                    KlibBasedSymbolProvider(session, moduleDataProvider, kotlinScopeProvider, resolvedLibraries.map { it.library }),
-                    NativeForwardDeclarationsSymbolProvider(session, forwardDeclarationsModuleData, kotlinScopeProvider, resolvedLibraries),
-                    FirBuiltinSymbolProvider(session, builtinsModuleData, kotlinScopeProvider),
+                    KlibBasedSymbolProvider(session, moduleDataProvider, kotlinScopeProvider, kotlinLibraries),
+                    NativeForwardDeclarationsSymbolProvider(session, forwardDeclarationsModuleData, kotlinScopeProvider, kotlinLibraries),
+                    FirBuiltinSyntheticFunctionInterfaceProvider(session, builtinsModuleData, kotlinScopeProvider),
                     FirExtensionSyntheticFunctionInterfaceProvider.createIfNeeded(session, builtinsModuleData, kotlinScopeProvider),
-                    FirCloneableSymbolProvider(session, builtinsModuleData, kotlinScopeProvider),
                 )
             })
     }
@@ -85,7 +84,7 @@ object FirNativeSessionFactory : FirAbstractSessionFactory() {
                 registerExtraComponents(it)
             },
             registerExtraCheckers = { it.registerNativeCheckers() },
-            createKotlinScopeProvider = { FirKotlinScopeProvider { _, declaredMemberScope, _, _, _ -> declaredMemberScope } },
+            createKotlinScopeProvider = { FirKotlinScopeProvider() },
             createProviders = { _, _, symbolProvider, generatedSymbolsProvider, syntheticFunctionInterfaceProvider, dependencies ->
                 listOfNotNull(
                     symbolProvider,

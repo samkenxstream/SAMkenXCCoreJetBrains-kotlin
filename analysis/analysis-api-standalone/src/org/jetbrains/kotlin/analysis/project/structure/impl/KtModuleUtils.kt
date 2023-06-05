@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.idea.KotlinFileType
 import org.jetbrains.kotlin.js.resolve.JsPlatformAnalyzerServices
+import org.jetbrains.kotlin.parsing.KotlinParserDefinition
 import org.jetbrains.kotlin.wasm.resolve.WasmPlatformAnalyzerServices
 import org.jetbrains.kotlin.platform.TargetPlatform
 import org.jetbrains.kotlin.platform.isCommon
@@ -86,7 +87,7 @@ internal fun getSourceFilePaths(
  * Collect source file path from the given [root] store them in [result].
  *
  * E.g., for `project/app/src` as a [root], this will walk the file tree and
- * collect all `.kt` and `.java` files under that folder.
+ * collect all `.kt`, `.kts`, and `.java` files under that folder.
  *
  * Note that this util gracefully skips [IOException] during file tree traversal.
  */
@@ -110,7 +111,10 @@ private fun collectSourceFilePaths(
                 if (!Files.isRegularFile(file) || !Files.isReadable(file))
                     return FileVisitResult.CONTINUE
                 val ext = getFileExtension(file.fileName.toString())
-                if (ext == KotlinFileType.EXTENSION || ext == JavaFileType.DEFAULT_EXTENSION) {
+                if (ext == KotlinFileType.EXTENSION ||
+                    ext == KotlinParserDefinition.STD_SCRIPT_SUFFIX ||
+                    ext == JavaFileType.DEFAULT_EXTENSION
+                ) {
                     result.add(file.toString())
                 }
                 return FileVisitResult.CONTINUE
@@ -184,8 +188,11 @@ internal fun buildKtModuleProviderByCompilerConfiguration(
         }
     }
 
+    val configLanguageVersionSettings = compilerConfig[CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS]
+
     for (scriptFile in scriptFiles) {
         buildKtScriptModule {
+            configLanguageVersionSettings?.let { this.languageVersionSettings = it }
             this.project = project
             this.platform = platform
             this.file = scriptFile
@@ -195,6 +202,7 @@ internal fun buildKtModuleProviderByCompilerConfiguration(
     }
 
     buildKtSourceModule {
+        configLanguageVersionSettings?.let { this.languageVersionSettings = it }
         this.project = project
         this.platform = platform
         this.moduleName = compilerConfig.get(CommonConfigurationKeys.MODULE_NAME) ?: "<no module name provided>"

@@ -83,7 +83,11 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-no-default-libs", deprecatedName = "-nodefaultlibs", description = "Don't link the libraries from dist/klib automatically")
     var nodefaultlibs: Boolean = false
 
-    @Argument(value = "-no-endorsed-libs", description = "Don't link the endorsed libraries from dist automatically")
+    @Argument(
+        value = "-no-endorsed-libs",
+        description = "Don't link the endorsed libraries from dist automatically. " +
+                "Deprecated option: the dist has no endorsed libraries anymore."
+    )
     var noendorsedlibs: Boolean = false
 
     @Argument(value = "-nomain", description = "Assume 'main' entry point to be provided by external libraries")
@@ -166,6 +170,14 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
         delimiter = Argument.Delimiters.none
     )
     var autoCacheDir: String? = null
+
+    @Argument(
+        value = INCREMENTAL_CACHE_DIR,
+        valueDescription = "<path>",
+        description = "Path to the directory where to put incremental build caches",
+        delimiter = ""
+    )
+    var incrementalCacheDir: String? = null
 
     @Argument(value="-Xcheck-dependencies", deprecatedName = "--check_dependencies", description = "Check dependencies and download the missing ones")
     var checkDependencies: Boolean = false
@@ -381,7 +393,7 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     var overrideKonanProperties: Array<String>? = null
 
     @Argument(value="-Xdestroy-runtime-mode", valueDescription = "<mode>", description = "When to destroy runtime. 'legacy' and 'on-shutdown' are currently supported. NOTE: 'legacy' mode is deprecated and will be removed.")
-    var destroyRuntimeMode: String? = "on-shutdown"
+    var destroyRuntimeMode: String? = null
 
     @Argument(value="-Xgc", valueDescription = "<gc>", description = "GC to use, 'noop', 'stms' and 'cms' are currently supported. Works only with -memory-model experimental")
     var gc: String? = null
@@ -485,6 +497,7 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
         const val INCLUDE_ARG = "-Xinclude"
         const val CACHED_LIBRARY = "-Xcached-library"
         const val ADD_CACHE = "-Xadd-cache"
+        const val INCREMENTAL_CACHE_DIR = "-Xic-cache-dir"
         const val SHORT_MODULE_NAME_ARG = "-Xshort-module-name"
     }
 }

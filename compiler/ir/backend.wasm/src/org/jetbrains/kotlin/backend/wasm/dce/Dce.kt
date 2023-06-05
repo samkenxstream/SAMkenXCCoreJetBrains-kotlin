@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrBody
+import org.jetbrains.kotlin.ir.util.primaryConstructor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -20,12 +21,17 @@ fun eliminateDeadDeclarations(modules: List<IrModuleFragment>, context: WasmBack
         context.configuration.getBoolean(JSConfigurationKeys.PRINT_REACHABILITY_INFO) ||
                 java.lang.Boolean.getBoolean("kotlin.wasm.dce.print.reachability.info")
 
+    val dumpReachabilityInfoToFile: String? =
+        context.configuration.get(JSConfigurationKeys.DUMP_REACHABILITY_INFO_TO_FILE)
+            ?: System.getProperty("kotlin.wasm.dce.dump.reachability.info.to.file")
+
     val usefulDeclarations = WasmUsefulDeclarationProcessor(
         context = context,
-        printReachabilityInfo = printReachabilityInfo
+        printReachabilityInfo = printReachabilityInfo,
+        dumpReachabilityInfoToFile
     ).collectDeclarations(rootDeclarations = buildRoots(modules, context))
 
-    val remover = WasmUselessDeclarationsRemover(usefulDeclarations)
+    val remover = WasmUselessDeclarationsRemover(context, usefulDeclarations)
     modules.onAllFiles {
         acceptVoid(remover)
     }
@@ -53,6 +59,11 @@ private fun buildRoots(modules: List<IrModuleFragment>, context: WasmBackendCont
     add(context.irBuiltIns.throwableClass.owner)
     add(context.mainCallsWrapperFunction)
     add(context.fieldInitFunction)
+    add(context.findUnitInstanceField())
+    add(context.irBuiltIns.unitClass.owner.primaryConstructor!!)
+
+    // Remove all functions used to call a kotlin closure from JS side, reachable ones will be added back later.
+    removeAll(context.closureCallExports.values)
 }
 
 private inline fun List<IrModuleFragment>.onAllFiles(body: IrFile.() -> Unit) {

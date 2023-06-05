@@ -32,7 +32,7 @@ import org.jetbrains.kotlin.test.TestJdkKind
 
 class AdditionalBuiltInsMembersSignatureListsTest : KotlinTestWithEnvironment() {
     override fun createEnvironment(): KotlinCoreEnvironment {
-        return createEnvironmentWithJdk(ConfigurationKind.JDK_ONLY, TestJdkKind.FULL_JDK)
+        return createEnvironmentWithJdk(ConfigurationKind.JDK_ONLY, TestJdkKind.FULL_JDK_17)
     }
 
     fun testAllListedSignaturesExistInJdk() {
@@ -75,8 +75,17 @@ class AdditionalBuiltInsMembersSignatureListsTest : KotlinTestWithEnvironment() 
         }
     }
 
+    // TODO: Get rid of it once JDK 21 is released (KT-58765 for tracking)
     private val LATE_JDK_SIGNATURES = mapOf(
-        "java/lang/String" to setOf("isBlank()Z", "lines()Ljava/util/stream/Stream;", "repeat(I)Ljava/lang/String;"),
-        "java/lang/CharSequence" to setOf("isEmpty()Z"),
+        "java/util/List" to setOf(
+            // From JDK 21
+            "addFirst(Ljava/lang/Object;)V",
+            "addLast(Ljava/lang/Object;)V",
+            "getFirst()Ljava/lang/Object;",
+            "getLast()Ljava/lang/Object;",
+            "removeFirst()Ljava/lang/Object;",
+            "removeLast()Ljava/lang/Object;",
+            "reversed()Ljava/util/List;",
+        )
     )
 }

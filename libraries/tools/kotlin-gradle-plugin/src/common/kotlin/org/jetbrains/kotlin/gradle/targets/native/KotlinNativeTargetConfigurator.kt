@@ -20,7 +20,9 @@ import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.Exec
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinNativeCompilerOptions
+import org.jetbrains.kotlin.gradle.dsl.topLevelExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation.Companion.TEST_COMPILATION_NAME
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilationInfo.KPM
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle.Stage.ReadyForExecution
@@ -73,6 +75,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
             it.usesService(konanPropertiesBuildService)
             it.toolOptions.freeCompilerArgs.value(compilationCompilerOptions.options.freeCompilerArgs)
             it.toolOptions.freeCompilerArgs.addAll(providers.provider { PropertiesProvider(project).nativeLinkArgs })
+            it.runViaBuildToolsApi.value(false).disallowChanges() // K/N is not yet supported
         }
 
 
@@ -90,9 +93,9 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
         tasks.named(binary.linkTaskName, KotlinNativeLink::class.java).configure {
             // We propagate compilation free args to the link task for now (see KT-33717).
             val defaultLanguageSettings = binary.compilation.defaultSourceSet.languageSettings as? DefaultLanguageSettingsBuilder
-            if (defaultLanguageSettings != null && defaultLanguageSettings.freeCompilerArgs.isNotEmpty()) {
+            if (defaultLanguageSettings != null && defaultLanguageSettings.freeCompilerArgsForNonImport.isNotEmpty()) {
                 it.toolOptions.freeCompilerArgs.addAll(
-                    defaultLanguageSettings.freeCompilerArgs
+                    defaultLanguageSettings.freeCompilerArgsForNonImport
                 )
             }
         }
@@ -379,6 +382,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
             konanTarget: KonanTarget
         ): TaskProvider<KotlinNativeCompile> {
             val project = compilationInfo.project
+            val ext = project.topLevelExtension
             val compileTaskProvider = project.registerTask<KotlinNativeCompile>(
                 compilationInfo.compileKotlinTaskName,
                 listOf(
@@ -398,6 +402,21 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
                     it.compilerOptions.useK2.set(true)
                 }
                 it.compilerOptions.useK2.disallowChanges()
+                it.runViaBuildToolsApi.value(false).disallowChanges() // K/N is not yet supported
+
+                it.explicitApiMode
+                    .value(
+                        project.providers.provider {
+                            // Plugin explicitly does not configures 'explicitApi' mode for test sources
+                            // compilation, as test sources are not published
+                            if (compilationInfo.isMain) {
+                                ext.explicitApi
+                            } else {
+                                ExplicitApiMode.Disabled
+                            }
+                        }
+                    )
+                    .finalizeValueOnRead()
             }
 
             compilationInfo.classesDirs.from(compileTaskProvider.map { it.outputFile })

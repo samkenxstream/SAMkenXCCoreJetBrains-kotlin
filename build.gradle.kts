@@ -35,7 +35,7 @@ plugins {
     id("jps-compatible")
     id("org.jetbrains.gradle.plugin.idea-ext")
     id("org.gradle.crypto.checksum") version "1.4.0"
-    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.13.0" apply false
+    id("org.jetbrains.kotlinx.binary-compatibility-validator") version "0.13.1" apply false
     signing
     id("org.jetbrains.kotlin.jvm") apply false
     id("org.jetbrains.kotlin.plugin.serialization") apply false
@@ -101,7 +101,7 @@ IdeVersionConfigurator.setCurrentIde(project)
 
 if (!project.hasProperty("versions.kotlin-native")) {
     // BEWARE! Bumping this version doesn't take an immediate effect on TeamCity: KTI-1107
-    extra["versions.kotlin-native"] = "1.9.0-dev-4844"
+    extra["versions.kotlin-native"] = "1.9.20-dev-2332"
 }
 
 val irCompilerModules = arrayOf(
@@ -143,6 +143,7 @@ val commonCompilerModules = arrayOf(
     ":analysis:project-structure",
     ":analysis:kt-references",
     ":kotlin-build-common",
+    ":compiler:build-tools:kotlin-build-statistics",
 ).also { extra["commonCompilerModules"] = it }
 
 val firCompilerCoreModules = arrayOf(
@@ -230,6 +231,7 @@ extra["compilerModules"] =
 // They are embedded just because we don't publish those dependencies as separate Maven artifacts (yet)
 extra["kotlinJpsPluginEmbeddedDependencies"] = listOf(
     ":compiler:cli-common",
+    ":kotlin-build-tools-enum-compat",
     ":kotlin-compiler-runner-unshaded",
     ":daemon-common",
     ":core:compiler.common",
@@ -251,8 +253,10 @@ extra["kotlinJpsPluginEmbeddedDependencies"] = listOf(
     ":compiler:config",
     ":compiler:config.jvm",
     ":js:js.config",
+    ":wasm:wasm.config",
     ":core:util.runtime",
-    ":compiler:compiler.version"
+    ":compiler:compiler.version",
+    ":compiler:build-tools:kotlin-build-statistics",
 )
 
 extra["kotlinJpsPluginMavenDependencies"] = listOf(
@@ -261,7 +265,7 @@ extra["kotlinJpsPluginMavenDependencies"] = listOf(
     ":kotlin-util-io",
     ":kotlin-util-klib",
     ":kotlin-util-klib-metadata",
-    ":native:kotlin-native-utils"
+    ":native:kotlin-native-utils",
 )
 
 extra["kotlinJpsPluginMavenDependenciesNonTransitiveLibs"] = listOf(
@@ -271,6 +275,7 @@ extra["kotlinJpsPluginMavenDependenciesNonTransitiveLibs"] = listOf(
 extra["compilerArtifactsForIde"] = listOfNotNull(
     ":prepare:ide-plugin-dependencies:android-extensions-compiler-plugin-for-ide",
     ":prepare:ide-plugin-dependencies:allopen-compiler-plugin-for-ide",
+    ":prepare:ide-plugin-dependencies:scripting-compiler-plugin-for-ide",
     ":prepare:ide-plugin-dependencies:incremental-compilation-impl-tests-for-ide",
     ":prepare:ide-plugin-dependencies:js-ir-runtime-for-ide",
     ":prepare:ide-plugin-dependencies:kotlin-build-common-tests-for-ide",
@@ -310,7 +315,6 @@ extra["compilerArtifactsForIde"] = listOfNotNull(
     ":prepare:ide-plugin-dependencies:kotlin-compiler-fir-for-ide",
     ":prepare:kotlin-jps-plugin",
     ":kotlin-script-runtime",
-    ":kotlin-script-util",
     ":kotlin-scripting-common",
     ":kotlin-scripting-jvm",
     ":kotlin-scripting-compiler",
@@ -320,6 +324,7 @@ extra["compilerArtifactsForIde"] = listOfNotNull(
     ":kotlin-stdlib-common",
     ":kotlin-stdlib",
     ":kotlin-stdlib-js",
+    ":kotlin-stdlib-wasm",
     ":kotlin-test",
     ":kotlin-daemon",
     ":kotlin-compiler",
@@ -327,7 +332,8 @@ extra["compilerArtifactsForIde"] = listOfNotNull(
     ":kotlin-stdlib-jdk7",
     ":kotlin-stdlib-jdk8",
     ":kotlin-reflect",
-    ":kotlin-main-kts"
+    ":kotlin-main-kts",
+    ":kotlin-dom-api-compat"
 )
 
 val coreLibProjects by extra {
@@ -352,6 +358,7 @@ val coreLibProjects by extra {
 val projectsWithEnabledContextReceivers by extra {
     listOf(
         ":core:descriptors.jvm",
+        ":compiler:resolution.common",
         ":compiler:frontend.common",
         ":compiler:fir:resolve",
         ":compiler:fir:plugin-utils",
@@ -390,7 +397,6 @@ val gradlePluginProjects = listOf(
     ":kotlin-gradle-plugin-kpm-android",
     ":kotlin-gradle-plugin-tcs-android",
     ":kotlin-allopen",
-    ":kotlin-annotation-processing-gradle",
     ":kotlin-noarg",
     ":kotlin-sam-with-receiver",
     ":kotlin-parcelize-compiler",
@@ -692,20 +698,16 @@ tasks {
 
     register("scriptingJvmTest") {
         dependsOn("dist")
-        dependsOn(":kotlin-script-util:test")
         dependsOn(":kotlin-scripting-compiler:test")
-        dependsOn(":kotlin-scripting-compiler:testWithIr")
         dependsOn(":kotlin-scripting-common:test")
         dependsOn(":kotlin-scripting-jvm:test")
         dependsOn(":kotlin-scripting-jvm-host-test:test")
-        dependsOn(":kotlin-scripting-jvm-host-test:testWithIr")
         dependsOn(":kotlin-scripting-dependencies:test")
         dependsOn(":kotlin-scripting-dependencies-maven:test")
         dependsOn(":kotlin-scripting-jsr223-test:test")
         // see comments on the task in kotlin-scripting-jvm-host-test
 //        dependsOn(":kotlin-scripting-jvm-host-test:embeddableTest")
         dependsOn(":kotlin-scripting-jsr223-test:embeddableTest")
-        dependsOn(":kotlin-main-kts-test:test")
         dependsOn(":kotlin-scripting-ide-services-test:test")
         dependsOn(":kotlin-scripting-ide-services-test:embeddableTest")
     }
@@ -754,7 +756,7 @@ tasks {
     register("compilerPluginTest") {
         dependsOn(":kotlin-allopen-compiler-plugin:test")
         dependsOn(":kotlin-assignment-compiler-plugin:test")
-        dependsOn(":kotlinx-atomicfu-compiler-plugin:test")
+        dependsOn(":kotlin-atomicfu-compiler-plugin:test")
         dependsOn(":plugins:fir-plugin-prototype:test")
         dependsOn(":plugins:fir-plugin-prototype:fir-plugin-ic-test:test")
         dependsOn(":kotlin-imports-dumper-compiler-plugin:test")
@@ -771,6 +773,7 @@ tasks {
         dependsOn(":native:kotlin-klib-commonizer-api:test")
         dependsOn(":kotlin-tooling-core:check")
         dependsOn(":kotlin-tooling-metadata:check")
+        dependsOn(":compiler:build-tools:kotlin-build-tools-api:check")
     }
 
     register("examplesTest") {

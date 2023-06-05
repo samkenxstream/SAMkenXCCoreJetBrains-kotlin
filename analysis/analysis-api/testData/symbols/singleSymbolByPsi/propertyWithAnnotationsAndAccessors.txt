@@ -2,16 +2,34 @@ KtKotlinPropertySymbol:
   annotationsList: [
     PropertyAnnotation()
       psi: KtAnnotationEntry
-    FieldAnnotation()
-      psi: KtAnnotationEntry
   ]
+  backingFieldSymbol: KtBackingFieldSymbol:
+    annotationsList: [
+      FieldAnnotation()
+        psi: KtAnnotationEntry
+    ]
+    callableIdIfNonLocal: null
+    contextReceivers: []
+    isExtension: false
+    name: field
+    origin: PROPERTY_BACKING_FIELD
+    owningProperty: KtKotlinPropertySymbol(/x)
+    receiverParameter: null
+    returnType: KtUsualClassType:
+      annotationsList: []
+      ownTypeArguments: []
+      type: kotlin/Int
+    symbolKind: LOCAL
+    typeParameters: []
+    getContainingModule: KtSourceModule "Sources of main"
+    deprecationStatus: null
   callableIdIfNonLocal: /x
   contextReceivers: []
   getter: KtPropertyGetterSymbol:
     annotationsList: [
-      ExplicitGetAnnotation()
-        psi: KtAnnotationEntry
       GetAnnotation()
+        psi: KtAnnotationEntry
+      ExplicitGetAnnotation()
         psi: KtAnnotationEntry
     ]
     callableIdIfNonLocal: null
@@ -57,9 +75,9 @@ KtKotlinPropertySymbol:
     type: kotlin/Int
   setter: KtPropertySetterSymbol:
     annotationsList: [
-      ExplicitSetAnnotation()
-        psi: KtAnnotationEntry
       SetAnnotation()
+        psi: KtAnnotationEntry
+      ExplicitSetAnnotation()
         psi: KtAnnotationEntry
     ]
     callableIdIfNonLocal: null

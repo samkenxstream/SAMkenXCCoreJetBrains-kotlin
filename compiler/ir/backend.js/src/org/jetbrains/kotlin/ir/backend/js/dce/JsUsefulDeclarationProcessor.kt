@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.ir.backend.js.lower.isEs6ConstructorReplacement
 import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.*
@@ -200,7 +199,7 @@ internal class JsUsefulDeclarationProcessor(
         !isExternal && !isExpect && !isBuiltInClass(this)
 
     override fun processConstructedClassDeclaration(declaration: IrDeclaration) {
-        if (declaration in result) return
+        if (declaration.isReachable()) return
 
         super.processConstructedClassDeclaration(declaration)
 

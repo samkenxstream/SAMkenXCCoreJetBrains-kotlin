@@ -43,11 +43,27 @@ void* ObjHeader::GetAssociatedObject() const {
 }
 
 void ObjHeader::SetAssociatedObject(void* obj) {
-    return mm::ExtraObjectData::FromMetaObjHeader(meta_object()).AssociatedObject().store(obj, std::memory_order_release);
+    auto& extraObject = mm::ExtraObjectData::FromMetaObjHeader(meta_object());
+    // TODO: Consider additional filtering based on types:
+    //       * have some kind of an allowlist that can be populated by the user
+    //         to specify that objects of these types must be finalized only on
+    //         the main thread.
+    //       * prepopulate it for the system frameworks.
+    //       * if that were to be done at runtime, library authors could register
+    //         their types in a library initialization code.
+    if (pthread_main_np() == 1) {
+        extraObject.setFlag(mm::ExtraObjectData::FLAGS_RELEASE_ON_MAIN_QUEUE);
+    }
+    return extraObject.AssociatedObject().store(obj, std::memory_order_release);
 }
 
 void* ObjHeader::CasAssociatedObject(void* expectedObj, void* obj) {
-    mm::ExtraObjectData::FromMetaObjHeader(meta_object()).AssociatedObject().compare_exchange_strong(expectedObj, obj);
+    auto& extraObject = mm::ExtraObjectData::FromMetaObjHeader(meta_object());
+    bool success = extraObject.AssociatedObject().compare_exchange_strong(expectedObj, obj);
+    // TODO: Consider additional filtering outlined above.
+    if (success && pthread_main_np() == 1) {
+        extraObject.setFlag(mm::ExtraObjectData::FLAGS_RELEASE_ON_MAIN_QUEUE);
+    }
     return expectedObj;
 }
 
@@ -63,7 +79,9 @@ void ObjHeader::destroyMetaObject(ObjHeader* object) {
     RuntimeAssert(object->has_meta_object(), "Object must have a meta object set");
     auto &extraObject = *mm::ExtraObjectData::Get(object);
     extraObject.Uninstall();
-#ifndef CUSTOM_ALLOCATOR
+#ifdef CUSTOM_ALLOCATOR
+    extraObject.setFlag(mm::ExtraObjectData::FLAGS_SWEEPABLE);
+#else
     auto *threadData = mm::ThreadRegistry::Instance().CurrentThreadData();
     mm::ExtraObjectDataFactory::Instance().DestroyExtraObjectData(threadData, extraObject);
 #endif
@@ -590,7 +608,7 @@ RUNTIME_NOTHROW extern "C" OBJ_GETTER(Konan_getWeakReferenceImpl, ObjHeader* ref
         RETURN_RESULT_OF(makePermanentWeakReferenceImpl, referred);
     }
 #if KONAN_OBJC_INTEROP
-    if (IsInstance(referred, theObjCObjectWrapperTypeInfo)) {
+    if (IsInstanceInternal(referred, theObjCObjectWrapperTypeInfo)) {
         RETURN_RESULT_OF(makeObjCWeakReferenceImpl, referred->GetAssociatedObject());
     }
 #endif // KONAN_OBJC_INTEROP

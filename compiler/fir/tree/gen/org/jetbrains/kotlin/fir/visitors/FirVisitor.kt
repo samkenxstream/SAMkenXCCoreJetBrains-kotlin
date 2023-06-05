@@ -128,6 +128,7 @@ import org.jetbrains.kotlin.fir.expressions.FirVariableAssignment
 import org.jetbrains.kotlin.fir.expressions.FirWhenSubjectExpression
 import org.jetbrains.kotlin.fir.expressions.FirDesugaredAssignmentValueReferenceExpression
 import org.jetbrains.kotlin.fir.expressions.FirWrappedDelegateExpression
+import org.jetbrains.kotlin.fir.expressions.FirEnumEntryDeserializedAccessExpression
 import org.jetbrains.kotlin.fir.references.FirNamedReference
 import org.jetbrains.kotlin.fir.references.FirNamedReferenceWithCandidateBase
 import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
@@ -148,6 +149,7 @@ import org.jetbrains.kotlin.fir.types.FirDynamicTypeRef
 import org.jetbrains.kotlin.fir.types.FirFunctionTypeRef
 import org.jetbrains.kotlin.fir.types.FirIntersectionTypeRef
 import org.jetbrains.kotlin.fir.types.FirImplicitTypeRef
+import org.jetbrains.kotlin.fir.contracts.FirContractElementDeclaration
 import org.jetbrains.kotlin.fir.contracts.FirEffectDeclaration
 import org.jetbrains.kotlin.fir.contracts.FirContractDescription
 import org.jetbrains.kotlin.fir.contracts.FirLegacyRawContractDescription
@@ -406,6 +408,8 @@ abstract class FirVisitor<out R, in D> {
 
     open fun visitWrappedDelegateExpression(wrappedDelegateExpression: FirWrappedDelegateExpression, data: D): R  = visitElement(wrappedDelegateExpression, data)
 
+    open fun visitEnumEntryDeserializedAccessExpression(enumEntryDeserializedAccessExpression: FirEnumEntryDeserializedAccessExpression, data: D): R  = visitElement(enumEntryDeserializedAccessExpression, data)
+
     open fun visitNamedReference(namedReference: FirNamedReference, data: D): R  = visitElement(namedReference, data)
 
     open fun visitNamedReferenceWithCandidateBase(namedReferenceWithCandidateBase: FirNamedReferenceWithCandidateBase, data: D): R  = visitElement(namedReferenceWithCandidateBase, data)
@@ -445,6 +449,8 @@ abstract class FirVisitor<out R, in D> {
     open fun visitIntersectionTypeRef(intersectionTypeRef: FirIntersectionTypeRef, data: D): R  = visitElement(intersectionTypeRef, data)
 
     open fun visitImplicitTypeRef(implicitTypeRef: FirImplicitTypeRef, data: D): R  = visitElement(implicitTypeRef, data)
+
+    open fun visitContractElementDeclaration(contractElementDeclaration: FirContractElementDeclaration, data: D): R  = visitElement(contractElementDeclaration, data)
 
     open fun visitEffectDeclaration(effectDeclaration: FirEffectDeclaration, data: D): R  = visitElement(effectDeclaration, data)
 

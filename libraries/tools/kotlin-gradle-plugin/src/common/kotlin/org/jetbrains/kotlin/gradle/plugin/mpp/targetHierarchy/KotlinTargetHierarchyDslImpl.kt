@@ -15,7 +15,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinTargetHierarchyDescriptor
 
 internal class KotlinTargetHierarchyDslImpl(
     private val targets: DomainObjectCollection<KotlinTarget>,
-    private val sourceSets: NamedDomainObjectContainer<KotlinSourceSet>
+    private val sourceSets: NamedDomainObjectContainer<KotlinSourceSet>,
 ) : KotlinTargetHierarchyDsl {
 
     private val _appliedDescriptors = mutableListOf<KotlinTargetHierarchyDescriptor>()
@@ -23,7 +23,7 @@ internal class KotlinTargetHierarchyDslImpl(
 
     override fun apply(
         hierarchyDescriptor: KotlinTargetHierarchyDescriptor,
-        describeExtension: (KotlinTargetHierarchyBuilder.Root.() -> Unit)?
+        describeExtension: (KotlinTargetHierarchyBuilder.Root.() -> Unit)?,
     ) {
         val descriptor = hierarchyDescriptor.extendIfNotNull(describeExtension)
         _appliedDescriptors.add(descriptor)
@@ -41,3 +41,4 @@ internal class KotlinTargetHierarchyDslImpl(
 
 private fun KotlinTargetHierarchyDescriptor.extendIfNotNull(describe: (KotlinTargetHierarchyBuilder.Root.() -> Unit)?) =
     if (describe == null) this else extend(describe)
+

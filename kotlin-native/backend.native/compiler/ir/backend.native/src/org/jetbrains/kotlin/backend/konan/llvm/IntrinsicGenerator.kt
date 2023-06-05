@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
+import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.findAnnotation
 
@@ -65,6 +66,7 @@ internal enum class IntrinsicType {
     IDENTITY,
     IMMUTABLE_BLOB,
     INIT_INSTANCE,
+    IS_SUBTYPE,
     IS_EXPERIMENTAL_MM,
     THE_UNIT_INSTANCE,
     // Enums
@@ -94,11 +96,11 @@ internal enum class IntrinsicType {
     WORKER_EXECUTE,
     // Atomics
     COMPARE_AND_SET_FIELD,
-    COMPARE_AND_SWAP_FIELD,
+    COMPARE_AND_EXCHANGE_FIELD,
     GET_AND_SET_FIELD,
     GET_AND_ADD_FIELD,
     COMPARE_AND_SET,
-    COMPARE_AND_SWAP,
+    COMPARE_AND_EXCHANGE,
     GET_AND_SET,
     GET_AND_ADD,
 }
@@ -247,6 +249,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.INTEROP_WRITE_PRIMITIVE -> emitWritePrimitive(callSite, args)
                 IntrinsicType.INTEROP_GET_POINTER_SIZE -> emitGetPointerSize()
                 IntrinsicType.CREATE_UNINITIALIZED_INSTANCE -> emitCreateUninitializedInstance(callSite, resultSlot)
+                IntrinsicType.IS_SUBTYPE -> emitIsSubtype(callSite, args)
                 IntrinsicType.INTEROP_NATIVE_PTR_TO_LONG -> emitNativePtrToLong(callSite, args)
                 IntrinsicType.INTEROP_NATIVE_PTR_PLUS_LONG -> emitNativePtrPlusLong(args)
                 IntrinsicType.INTEROP_GET_NATIVE_NULL_PTR -> emitGetNativeNullPtr()
@@ -255,7 +258,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.IS_EXPERIMENTAL_MM -> emitIsExperimentalMM()
                 IntrinsicType.THE_UNIT_INSTANCE -> theUnitInstanceRef.llvm
                 IntrinsicType.COMPARE_AND_SET -> emitCompareAndSet(callSite, args)
-                IntrinsicType.COMPARE_AND_SWAP -> emitCompareAndSwap(callSite, args, resultSlot)
+                IntrinsicType.COMPARE_AND_EXCHANGE -> emitCompareAndSwap(callSite, args, resultSlot)
                 IntrinsicType.GET_AND_SET -> emitGetAndSet(callSite, args, resultSlot)
                 IntrinsicType.GET_AND_ADD -> emitGetAndAdd(callSite, args)
                 IntrinsicType.GET_CONTINUATION,
@@ -271,7 +274,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.ENUM_VALUE_OF,
                 IntrinsicType.WORKER_EXECUTE,
                 IntrinsicType.COMPARE_AND_SET_FIELD,
-                IntrinsicType.COMPARE_AND_SWAP_FIELD,
+                IntrinsicType.COMPARE_AND_EXCHANGE_FIELD,
                 IntrinsicType.GET_AND_SET_FIELD,
                 IntrinsicType.GET_AND_ADD_FIELD ->
                     reportNonLoweredIntrinsic(intrinsicType)
@@ -418,6 +421,14 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         val enumIrClass = enumClass.getClass()!!
         return allocInstance(enumIrClass, environment.calculateLifetime(callSite), resultSlot)
     }
+
+    private fun FunctionGenerationContext.emitIsSubtype(callSite: IrCall, args: List<LLVMValueRef>) =
+            with(VirtualTablesLookup) {
+                checkIsSubtype(
+                        objTypeInfo = bitcast(pointerType(llvm.kTypeInfo), args.single()),
+                        dstClass = callSite.getTypeArgument(0)!!.classOrNull!!.owner
+                )
+            }
 
     private fun FunctionGenerationContext.emitGetPointerSize(): LLVMValueRef =
             llvm.int32(LLVMPointerSize(codegen.llvmTargetData))

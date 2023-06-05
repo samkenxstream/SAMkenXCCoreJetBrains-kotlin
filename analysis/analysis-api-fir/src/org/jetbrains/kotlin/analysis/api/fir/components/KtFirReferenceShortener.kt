@@ -74,8 +74,10 @@ internal class KtFirReferenceShortener(
         classShortenOption: (KtClassLikeSymbol) -> ShortenOption,
         callableShortenOption: (KtCallableSymbol) -> ShortenOption
     ): ShortenCommand {
+        require(!file.isCompiled) { "No sense to collect references for shortening in compiled file $file" }
+
         val declarationToVisit = file.findSmallestDeclarationContainingSelection(selection)
-            ?: file.withDeclarationsResolvedToBodyResolve()
+            ?: file
 
         val firDeclaration = declarationToVisit.getOrBuildFir(firResolveSession) as? FirDeclaration ?: return ShortenCommandImpl(
             file.createSmartPointer(),
@@ -85,9 +87,14 @@ internal class KtFirReferenceShortener(
             qualifiersToShorten = emptyList(),
         )
 
-        val towerContext =
-            LowLevelFirApiFacadeForResolveOnAir.onAirGetTowerContextProvider(firResolveSession, declarationToVisit)
-
+        val towerContext = when (declarationToVisit) {
+            is KtFile -> {
+                LowLevelFirApiFacadeForResolveOnAir.getOnAirTowerDataContextProviderForTheWholeFile(firResolveSession, declarationToVisit)
+            }
+            else -> {
+                LowLevelFirApiFacadeForResolveOnAir.getOnAirGetTowerContextProvider(firResolveSession, declarationToVisit)
+            }
+        }
         //TODO: collect all usages of available symbols in the file and prevent importing symbols that could introduce name clashes, which
         // may alter the meaning of existing code.
         val collector = ElementsToShortenCollector(
@@ -107,14 +114,6 @@ internal class KtFirReferenceShortener(
             collector.typesToShorten.map { it.element }.distinct().map { it.createSmartPointer() },
             collector.qualifiersToShorten.map { it.element }.distinct().map { it.createSmartPointer() }
         )
-    }
-
-    private fun KtFile.withDeclarationsResolvedToBodyResolve(): KtFile {
-        for (declaration in declarations) {
-            declaration.getOrBuildFir(firResolveSession) // temporary hack, resolves declaration to BODY_RESOLVE stage
-        }
-
-        return this
     }
 }
 

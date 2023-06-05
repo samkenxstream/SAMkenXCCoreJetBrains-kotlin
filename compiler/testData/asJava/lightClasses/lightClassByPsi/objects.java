@@ -1,13 +1,12 @@
 public final class C /* C*/ {
-  @kotlin.jvm.JvmStatic()
-  @org.jetbrains.annotations.NotNull()
-  private static java.lang.String x = "" /* initializer type: java.lang.String */;
-
   @org.jetbrains.annotations.NotNull()
   private static java.lang.String c1;
 
   @org.jetbrains.annotations.NotNull()
   private static java.lang.String c;
+
+  @org.jetbrains.annotations.NotNull()
+  private static java.lang.String x = "" /* initializer type: java.lang.String */;
 
   @org.jetbrains.annotations.NotNull()
   public static final C.Companion Companion;
@@ -78,6 +77,10 @@ public final class ClassWithConstContainer /* ClassWithConstContainer*/ {
 }
 
 public static final class Companion /* C.Companion*/ {
+  @java.lang.Deprecated()
+  @kotlin.jvm.JvmStatic()
+  public static void getX$annotations();//  getX$annotations()
+
   @kotlin.jvm.JvmStatic()
   @org.jetbrains.annotations.NotNull()
   public final java.lang.String getC(@org.jetbrains.annotations.NotNull() I);//  getC(I)
@@ -150,12 +153,15 @@ public abstract interface I /* I*/ {
 }
 
 public final class Obj /* Obj*/ implements java.lang.Runnable {
-  @kotlin.jvm.JvmStatic()
   @org.jetbrains.annotations.NotNull()
   private static java.lang.String x = "" /* initializer type: java.lang.String */;
 
   @org.jetbrains.annotations.NotNull()
   public static final Obj INSTANCE;
+
+  @java.lang.Deprecated()
+  @kotlin.jvm.JvmStatic()
+  public static void getX$annotations();//  getX$annotations()
 
   @java.lang.Override()
   public void run();//  run()

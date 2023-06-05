@@ -623,9 +623,24 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/ir/irText/declarations/contextReceivers"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JS_IR, true);
             }
 
+            @TestMetadata("arrayAccessCompositeOperators.kt")
+            public void testArrayAccessCompositeOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/arrayAccessCompositeOperators.kt");
+            }
+
+            @TestMetadata("arrayAccessOperators.kt")
+            public void testArrayAccessOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/arrayAccessOperators.kt");
+            }
+
             @TestMetadata("class.kt")
             public void testClass() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/class.kt");
+            }
+
+            @TestMetadata("compoundAssignmentOperators.kt")
+            public void testCompoundAssignmentOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/compoundAssignmentOperators.kt");
             }
 
             @TestMetadata("contextReceiverMethod.kt")
@@ -633,9 +648,24 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/contextReceiverMethod.kt");
             }
 
+            @TestMetadata("contextualFunctionConversion.kt")
+            public void testContextualFunctionConversion() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/contextualFunctionConversion.kt");
+            }
+
+            @TestMetadata("contextualInlineCall.kt")
+            public void testContextualInlineCall() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/contextualInlineCall.kt");
+            }
+
             @TestMetadata("contextualPrimaryConstructorWithParams.kt")
             public void testContextualPrimaryConstructorWithParams() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/contextualPrimaryConstructorWithParams.kt");
+            }
+
+            @TestMetadata("delegatedPropertiesOperators.kt")
+            public void testDelegatedPropertiesOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/delegatedPropertiesOperators.kt");
             }
 
             @TestMetadata("function.kt")
@@ -653,6 +683,16 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/genericOuterClass.kt");
             }
 
+            @TestMetadata("iteratorOperator.kt")
+            public void testIteratorOperator() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/iteratorOperator.kt");
+            }
+
+            @TestMetadata("kt52791.kt")
+            public void testKt52791() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/kt52791.kt");
+            }
+
             @TestMetadata("lazy.kt")
             public void testLazy() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/lazy.kt");
@@ -666,6 +706,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             @TestMetadata("overloading.kt")
             public void testOverloading() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/overloading.kt");
+            }
+
+            @TestMetadata("passingLambdaToContextualParam.kt")
+            public void testPassingLambdaToContextualParam() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/passingLambdaToContextualParam.kt");
             }
 
             @TestMetadata("plusMatrix.kt")
@@ -688,6 +733,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/typeParameterAsContextReceiver.kt");
             }
 
+            @TestMetadata("unaryOperators.kt")
+            public void testUnaryOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/unaryOperators.kt");
+            }
+
             @TestMetadata("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP")
             @TestDataPath("$PROJECT_ROOT")
             @RunWith(JUnit3RunnerWithInners.class)
@@ -698,6 +748,31 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
 
                 public void testAllFilesPresentInFromKEEP() throws Exception {
                     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JS_IR, true);
+                }
+
+                @TestMetadata("canvas.kt")
+                public void testCanvas() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/canvas.kt");
+                }
+
+                @TestMetadata("compareTo.kt")
+                public void testCompareTo() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/compareTo.kt");
+                }
+
+                @TestMetadata("dp.kt")
+                public void testDp() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/dp.kt");
+                }
+
+                @TestMetadata("functionalType.kt")
+                public void testFunctionalType() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/functionalType.kt");
+                }
+
+                @TestMetadata("monoidSum.kt")
+                public void testMonoidSum() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/monoidSum.kt");
                 }
             }
         }
@@ -730,6 +805,21 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             @TestMetadata("expectClassInherited.kt")
             public void testExpectClassInherited() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/multiplatform/expectClassInherited.kt");
+            }
+
+            @TestMetadata("expectIntersectionOverride.kt")
+            public void testExpectIntersectionOverride() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/multiplatform/expectIntersectionOverride.kt");
+            }
+
+            @TestMetadata("expectMemberInNotExpectClass.kt")
+            public void testExpectMemberInNotExpectClass() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/multiplatform/expectMemberInNotExpectClass.kt");
+            }
+
+            @TestMetadata("expectMemberInNotExpectClassFir.kt")
+            public void testExpectMemberInNotExpectClassFir() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/multiplatform/expectMemberInNotExpectClassFir.kt");
             }
 
             @TestMetadata("expectedEnumClass.kt")
@@ -1885,6 +1975,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             runTest("compiler/testData/ir/irText/firProblems/cannotCastToFunction.kt");
         }
 
+        @TestMetadata("dataObject.kt")
+        public void testDataObject() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/dataObject.kt");
+        }
+
         @TestMetadata("DeepCopyIrTree.kt")
         public void testDeepCopyIrTree() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/DeepCopyIrTree.kt");
@@ -1965,6 +2060,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             runTest("compiler/testData/ir/irText/firProblems/localCompanion.kt");
         }
 
+        @TestMetadata("LocalSuspendFun.kt")
+        public void testLocalSuspendFun() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/LocalSuspendFun.kt");
+        }
+
         @TestMetadata("readWriteProperty.kt")
         public void testReadWriteProperty() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/readWriteProperty.kt");
@@ -1990,11 +2090,6 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             runTest("compiler/testData/ir/irText/firProblems/SignatureClash.kt");
         }
 
-        @TestMetadata("SignatureComputationComplexJavaGeneric.kt")
-        public void testSignatureComputationComplexJavaGeneric() throws Exception {
-            runTest("compiler/testData/ir/irText/firProblems/SignatureComputationComplexJavaGeneric.kt");
-        }
-
         @TestMetadata("SimpleTypeMarker.kt")
         public void testSimpleTypeMarker() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/SimpleTypeMarker.kt");
@@ -2005,9 +2100,19 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             runTest("compiler/testData/ir/irText/firProblems/thisInEnumConstructor.kt");
         }
 
+        @TestMetadata("timesInBuilder.kt")
+        public void testTimesInBuilder() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/timesInBuilder.kt");
+        }
+
         @TestMetadata("TypeParameterBounds.kt")
         public void testTypeParameterBounds() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/TypeParameterBounds.kt");
+        }
+
+        @TestMetadata("TypeParameterInNestedClass.kt")
+        public void testTypeParameterInNestedClass() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/TypeParameterInNestedClass.kt");
         }
 
         @TestMetadata("typeVariableAfterBuildMap.kt")
@@ -2015,9 +2120,19 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             runTest("compiler/testData/ir/irText/firProblems/typeVariableAfterBuildMap.kt");
         }
 
+        @TestMetadata("valueClassEquals.kt")
+        public void testValueClassEquals() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/valueClassEquals.kt");
+        }
+
         @TestMetadata("VarInInit.kt")
         public void testVarInInit() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/VarInInit.kt");
+        }
+
+        @TestMetadata("VarargIntegerLiteral.kt")
+        public void testVarargIntegerLiteral() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/VarargIntegerLiteral.kt");
         }
     }
 

@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.gradle.internal
 
+import org.gradle.api.Project
 import org.gradle.api.file.*
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.file.ConfigurableFileCollection
@@ -25,7 +26,6 @@ import org.gradle.work.Incremental
 import org.gradle.work.NormalizeLineEndings
 import org.gradle.workers.WorkerExecutor
 import org.jetbrains.kotlin.cli.common.arguments.K2JVMCompilerArguments
-import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptionsDefault
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompilerOptionsHelper
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilerArgumentsProducer.CreateCompilerArgumentsContext
@@ -34,6 +34,7 @@ import org.jetbrains.kotlin.gradle.report.BuildReportMode
 import org.jetbrains.kotlin.gradle.tasks.KaptGenerateStubs
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.toSingleCompilerPluginOptions
+import org.jetbrains.kotlin.gradle.utils.configureExperimentalTryK2
 import org.jetbrains.kotlin.gradle.utils.toPathsArray
 import org.jetbrains.kotlin.incremental.classpathAsList
 import org.jetbrains.kotlin.incremental.destinationAsFile
@@ -41,10 +42,13 @@ import javax.inject.Inject
 
 @CacheableTask
 abstract class KaptGenerateStubsTask @Inject constructor(
+    project: Project,
     workerExecutor: WorkerExecutor,
-    objectFactory: ObjectFactory
+    objectFactory: ObjectFactory,
 ) : KotlinCompile(
-    objectFactory.newInstance(KotlinJvmCompilerOptionsDefault::class.java),
+    objectFactory
+        .newInstance(KotlinJvmCompilerOptionsDefault::class.java)
+        .configureExperimentalTryK2(project),
     workerExecutor,
     objectFactory
 ), KaptGenerateStubs {
@@ -88,6 +92,9 @@ abstract class KaptGenerateStubsTask @Inject constructor(
     @get:Internal
     override val androidLayoutResources: FileCollection = objectFactory.fileCollection()
 
+    @get:Internal
+    abstract val kotlinCompileDestinationDirectory: DirectoryProperty
+
     override val incrementalProps: List<FileCollection>
         get() = listOf(
             sources,
@@ -97,18 +104,10 @@ abstract class KaptGenerateStubsTask @Inject constructor(
             classpathSnapshotProperties.classpathSnapshot
         )
 
-    @get:Internal
-    internal abstract val compileTaskCompilerOptions: Property<KotlinJvmCompilerOptions>
-
     override fun createCompilerArguments(context: CreateCompilerArgumentsContext) = context.create<K2JVMCompilerArguments> {
         primitive { args ->
             args.allowNoSourceFiles = true
-            KotlinJvmCompilerOptionsHelper.fillCompilerArguments(compileTaskCompilerOptions.get(), args)
 
-            // Workaround for freeCompiler args duplication when they were configured for both this task
-            // and linked KotlinCompile task with the same values. For now linked KotlinCompile task
-            // freeCompilerArgs is used as convention for this task freeCompilerArgs
-            args.freeArgs = emptyList()
             KotlinJvmCompilerOptionsHelper.fillCompilerArguments(compilerOptions, args)
 
             overrideArgsUsingTaskModuleNameWithWarning(args)

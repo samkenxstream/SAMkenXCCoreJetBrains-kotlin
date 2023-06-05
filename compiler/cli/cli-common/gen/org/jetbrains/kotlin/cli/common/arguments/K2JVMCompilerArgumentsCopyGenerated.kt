@@ -17,7 +17,7 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.assertionsMode = from.assertionsMode
     to.backendThreads = from.backendThreads
     to.buildFile = from.buildFile
-    to.classpath = from.classpath?.copyOf()
+    to.classpath = from.classpath
     to.compileJava = from.compileJava
     to.declarationsOutputPath = from.declarationsOutputPath
     to.defaultScriptExtension = from.defaultScriptExtension
@@ -33,7 +33,7 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.friendPaths = from.friendPaths?.copyOf()
     to.includeRuntime = from.includeRuntime
     to.inheritMultifileParts = from.inheritMultifileParts
-    to.javaModulePath = from.javaModulePath?.copyOf()
+    to.javaModulePath = from.javaModulePath
     to.javaPackagePrefix = from.javaPackagePrefix
     to.javaParameters = from.javaParameters
     to.javaSourceRoots = from.javaSourceRoots?.copyOf()
@@ -77,7 +77,6 @@ fun copyK2JVMCompilerArguments(from: K2JVMCompilerArguments, to: K2JVMCompilerAr
     to.suppressMissingBuiltinsError = from.suppressMissingBuiltinsError
     to.typeEnhancementImprovementsInStrictMode = from.typeEnhancementImprovementsInStrictMode
     to.useFastJarFileSystem = from.useFastJarFileSystem
-    to.useIR = from.useIR
     to.useJavac = from.useJavac
     to.useOldBackend = from.useOldBackend
     to.useOldClassFilesReading = from.useOldClassFilesReading

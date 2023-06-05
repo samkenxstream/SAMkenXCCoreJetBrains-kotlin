@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.backend.generators.*
 import org.jetbrains.kotlin.fir.declarations.*
@@ -33,7 +32,7 @@ import org.jetbrains.kotlin.ir.interpreter.IrInterpreter
 import org.jetbrains.kotlin.ir.interpreter.IrInterpreterConfiguration
 import org.jetbrains.kotlin.ir.interpreter.IrInterpreterEnvironment
 import org.jetbrains.kotlin.ir.interpreter.checker.EvaluationMode
-import org.jetbrains.kotlin.ir.interpreter.checker.IrConstTransformer
+import org.jetbrains.kotlin.ir.interpreter.transformer.transformConst
 import org.jetbrains.kotlin.ir.util.KotlinMangler
 import org.jetbrains.kotlin.ir.util.NaiveSourceBasedFileEntryImpl
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -50,7 +49,7 @@ class Fir2IrConverter(
     private var wereSourcesFakeOverridesBound = false
     private val postponedDeclarationsForFakeOverridesBinding = mutableListOf<IrDeclaration>()
 
-    fun runSourcesConversion(
+    private fun runSourcesConversion(
         allFirFiles: List<FirFile>,
         irModuleFragment: IrModuleFragmentImpl,
         irGenerationExtensions: Collection<IrGenerationExtension>,
@@ -98,7 +97,7 @@ class Fir2IrConverter(
             }
         }
 
-        evaluateConstants(irModuleFragment)
+        evaluateConstants(irModuleFragment, configuration)
 
         if (irGenerationExtensions.isNotEmpty()) {
             val pluginContext = Fir2IrPluginContext(components, irModuleFragment.descriptor)
@@ -419,20 +418,20 @@ class Fir2IrConverter(
     }
 
     companion object {
-        private fun evaluateConstants(irModuleFragment: IrModuleFragment) {
+        private fun evaluateConstants(irModuleFragment: IrModuleFragment, fir2IrConfiguration: Fir2IrConfiguration) {
             val firModuleDescriptor = irModuleFragment.descriptor as? FirModuleDescriptor
             val targetPlatform = firModuleDescriptor?.platform
             val languageVersionSettings = firModuleDescriptor?.session?.languageVersionSettings
             val intrinsicConstEvaluation = languageVersionSettings?.supportsFeature(LanguageFeature.IntrinsicConstEvaluation) == true
 
             val configuration = IrInterpreterConfiguration(
+                platform = targetPlatform,
                 printOnlyExceptionMessage = true,
-                treatFloatInSpecialWay = targetPlatform.isJs()
             )
             val interpreter = IrInterpreter(IrInterpreterEnvironment(irModuleFragment.irBuiltins, configuration))
             val mode = if (intrinsicConstEvaluation) EvaluationMode.ONLY_INTRINSIC_CONST else EvaluationMode.ONLY_BUILTINS
             irModuleFragment.files.forEach {
-                it.transformChildren(IrConstTransformer(interpreter, it, mode = mode), null)
+                it.transformConst(interpreter, mode = mode, evaluatedConstTracker = fir2IrConfiguration.evaluatedConstTracker)
             }
         }
 
@@ -440,14 +439,13 @@ class Fir2IrConverter(
             session: FirSession,
             scopeSession: ScopeSession,
             firFiles: List<FirFile>,
-            languageVersionSettings: LanguageVersionSettings,
             fir2IrExtensions: Fir2IrExtensions,
+            fir2IrConfiguration: Fir2IrConfiguration,
             irMangler: KotlinMangler.IrMangler,
             irFactory: IrFactory,
             visibilityConverter: Fir2IrVisibilityConverter,
             specialSymbolProvider: Fir2IrSpecialSymbolProvider,
             irGenerationExtensions: Collection<IrGenerationExtension>,
-            generateSignatures: Boolean,
             kotlinBuiltIns: KotlinBuiltIns,
             commonMemberStorage: Fir2IrCommonMemberStorage,
             initializedIrBuiltIns: IrBuiltInsOverFir?
@@ -458,9 +456,9 @@ class Fir2IrConverter(
                 scopeSession,
                 commonMemberStorage.symbolTable,
                 irFactory,
-                commonMemberStorage.signatureComposer,
+                commonMemberStorage.firSignatureComposer,
                 fir2IrExtensions,
-                generateSignatures
+                fir2IrConfiguration,
             )
             val converter = Fir2IrConverter(moduleDescriptor, components)
 
@@ -471,8 +469,8 @@ class Fir2IrConverter(
             components.visibilityConverter = visibilityConverter
             components.typeConverter = Fir2IrTypeConverter(components)
             val irBuiltIns = initializedIrBuiltIns ?: IrBuiltInsOverFir(
-                components, languageVersionSettings, moduleDescriptor, irMangler,
-                languageVersionSettings.getFlag(AnalysisFlags.builtInsFromSources) || kotlinBuiltIns !== DefaultBuiltIns.Instance
+                components, fir2IrConfiguration.languageVersionSettings, moduleDescriptor, irMangler,
+                fir2IrConfiguration.languageVersionSettings.getFlag(AnalysisFlags.builtInsFromSources) || kotlinBuiltIns !== DefaultBuiltIns.Instance
             )
             components.irBuiltIns = irBuiltIns
             val conversionScope = Fir2IrConversionScope()

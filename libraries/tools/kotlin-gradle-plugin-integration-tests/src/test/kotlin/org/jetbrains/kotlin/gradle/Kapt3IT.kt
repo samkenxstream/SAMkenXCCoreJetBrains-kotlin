@@ -27,7 +27,6 @@ import org.jetbrains.kotlin.gradle.util.checkedReplace
 import org.jetbrains.kotlin.gradle.util.testResolveAllConfigurations
 import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
-import org.junit.jupiter.api.condition.EnabledOnOs
 import org.junit.jupiter.api.condition.OS
 import java.nio.file.Files
 import java.util.zip.ZipFile
@@ -65,6 +64,15 @@ abstract class Kapt3BaseIT : KGPBaseTest() {
     protected val String.withPrefix get() = "kapt2/$this"
 }
 
+/**
+ * Note that some tests are disabled because kapt class loader cache holds a file descriptor open, which leads to problems on Windows.
+ * If you get a failed test on the build server with the message:
+ *
+ *     java.io.IOException: Failed to delete temp directory Z:\BuildAgent\temp\buildTmp\[...].
+ *     The following paths could not be deleted (see suppressed exceptions for details): [...]
+ *
+ * then override and disable the test here via `@Disabled`.
+ */
 @DisplayName("Kapt with classloaders cache")
 class Kapt3ClassLoadersCacheIT : Kapt3IT() {
     override fun kaptOptions(): BuildOptions.KaptOptions = super.kaptOptions().copy(
@@ -98,6 +106,14 @@ class Kapt3ClassLoadersCacheIT : Kapt3IT() {
 
     @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
     override fun testRepeatableAnnotationsWithOldJvmBackend(gradleVersion: GradleVersion) {
+    }
+
+    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
+    override fun useGeneratedKotlinSource(gradleVersion: GradleVersion) {
+    }
+
+    @Disabled("classloaders cache is leaking file descriptors that prevents cleaning test project")
+    override fun useGeneratedKotlinSourceK2(gradleVersion: GradleVersion) {
     }
 
     override fun testAnnotationProcessorAsFqName(gradleVersion: GradleVersion) {
@@ -1012,7 +1028,7 @@ open class Kapt3IT : Kapt3BaseIT() {
 
     @DisplayName("KT-52392: Setup with different windows disks does not fail configuration")
     @GradleTest
-    @EnabledOnOs(OS.WINDOWS)
+    @OsCondition(supportedOn = [OS.WINDOWS], enabledOnCI = [OS.WINDOWS])
     fun testDifferentDisksSetupDoesNotFailConfiguration(gradleVersion: GradleVersion) {
         project("simple".withPrefix, gradleVersion) {
             fun findAnotherRoot() = ('A'..'Z').first { !projectPath.root.startsWith(it.toString()) }
@@ -1037,7 +1053,7 @@ open class Kapt3IT : Kapt3BaseIT() {
         }
     }
 
-    @DisplayName("KT-52761: generated sources attached to compile task are also used by generate stubs task")
+    @DisplayName("Generated sources attached to KotlinSourceSet are also used by generate stubs task")
     @GradleTest
     fun testGeneratedSourcesUsedInGenerateStubsTask(gradleVersion: GradleVersion) {
         project("generatedSources".withPrefix, gradleVersion) {
@@ -1118,6 +1134,138 @@ open class Kapt3IT : Kapt3BaseIT() {
                     "KaptGenerateStubs task compiler arguments contains $composeSuppressOption times option to suppress compose warning:" +
                             " ${compilerArguments.joinToString("\n")}"
                 }
+            }
+        }
+    }
+
+    @DisplayName("Kapt runs in fallback mode with useK2 = true")
+    @GradleTest
+    internal fun fallBackModeWithUseK2(gradleVersion: GradleVersion) {
+        project("simple".withPrefix, gradleVersion) {
+            buildGradle.appendText(
+                """
+                |tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                |    compilerOptions {
+                |        freeCompilerArgs.addAll([
+                |            "-Xuse-fir-ic",
+                |            "-Xuse-fir-lt"
+                |        ])
+                |    }
+                |    kotlinOptions {
+                |      useK2 = true
+                |    }
+                |}
+                |
+                |compileKotlin.kotlinOptions.allWarningsAsErrors = false
+                """.trimMargin()
+            )
+            build("build") {
+                assertKaptSuccessful()
+                assertTasksExecuted(":kaptGenerateStubsKotlin", ":kaptKotlin", ":compileKotlin")
+                assertOutputContains("Falling back to 1.9.")
+            }
+        }
+    }
+
+    @DisplayName("Kapt runs in fallback mode with languageVersion = 2.0")
+    @GradleTest
+    internal fun fallBackModeWithLanguageVersion2_0(gradleVersion: GradleVersion) {
+        project("simple".withPrefix, gradleVersion) {
+            buildGradle.appendText(
+                """
+                |tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                |    compilerOptions {
+                |        freeCompilerArgs.addAll([
+                |            "-Xuse-fir-ic",
+                |            "-Xuse-fir-lt"
+                |        ])
+                |    }
+                |    kotlinOptions {
+                |      languageVersion = "2.0"
+                |    }
+                |}
+                |
+                |compileKotlin.kotlinOptions.allWarningsAsErrors = false
+                """.trimMargin()
+            )
+            build("build") {
+                assertKaptSuccessful()
+                assertTasksExecuted(":kaptGenerateStubsKotlin", ":kaptKotlin", ":compileKotlin")
+                assertOutputContains("Falling back to 1.9.")
+            }
+        }
+    }
+
+    @DisplayName("Kapt-generated Kotlin sources can be used in Kotlin")
+    @GradleTest
+    open fun useGeneratedKotlinSource(gradleVersion: GradleVersion) {
+        project("useGeneratedKotlinSource".withPrefix, gradleVersion) {
+            build("build") {
+                assertKaptSuccessful()
+                assertTasksExecuted(":kaptGenerateStubsKotlin", ":kaptKotlin", ":compileKotlin")
+            }
+        }
+    }
+
+    @DisplayName("Kapt-generated Kotlin sources can be used in Kotlin with languageVersion = 2.0")
+    @GradleTest
+    open fun useGeneratedKotlinSourceK2(gradleVersion: GradleVersion) {
+        project("useGeneratedKotlinSource".withPrefix, gradleVersion) {
+            buildGradle.appendText(
+                """
+                |tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                |    compilerOptions {
+                |        freeCompilerArgs.addAll([
+                |            "-Xuse-fir-ic",
+                |            "-Xuse-fir-lt"
+                |        ])
+                |    }
+                |    kotlinOptions {
+                |      languageVersion = "2.0"
+                |    }
+                |}
+                |
+                |compileKotlin.kotlinOptions.allWarningsAsErrors = false
+                """.trimMargin()
+            )
+            build("build") {
+                assertKaptSuccessful()
+                assertTasksExecuted(":kaptGenerateStubsKotlin", ":kaptKotlin", ":compileKotlin")
+                assertOutputContains("Falling back to 1.9.")
+            }
+        }
+    }
+
+    @DisplayName("KT-58745: compiler plugin options should be passed to KaptGenerateStubs task")
+    @GradleTest
+    fun kaptGenerateStubsConfiguredWithCompilerPluginOptions(gradleVersion: GradleVersion) {
+        project(
+            "simple".withPrefix,
+            gradleVersion,
+            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
+        ) {
+
+            buildGradle.modify {
+                //language=groovy
+                """
+                |${it.substringBefore("plugins {")}
+                |plugins {
+                |   id "org.jetbrains.kotlin.plugin.noarg"
+                |${it.substringAfter("plugins {")}
+                |
+                |noArg {
+                |    annotation("my.custom.Annotation")
+                |}
+                """.trimMargin()
+            }
+
+            build(":kaptGenerateStubsKotlin") {
+                assertTasksExecuted(":kaptGenerateStubsKotlin")
+
+                assertCompilerArgument(
+                    ":kaptGenerateStubsKotlin",
+                    "plugin:org.jetbrains.kotlin.noarg:annotation=my.custom.Annotation"
+                )
             }
         }
     }

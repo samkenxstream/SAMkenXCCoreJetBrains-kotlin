@@ -75,7 +75,7 @@ internal sealed class MetadataDependencyResolution(
             abstract class ProjectMetadataProvider : MetadataProvider() {
                 enum class MetadataConsumer { Ide, Cli }
 
-                abstract fun getSourceSetCompiledMetadata(sourceSetName: String): FileCollection
+                abstract fun getSourceSetCompiledMetadata(sourceSetName: String): FileCollection?
                 abstract fun getSourceSetCInteropMetadata(sourceSetName: String, consumer: MetadataConsumer): FileCollection?
             }
         }
@@ -315,15 +315,6 @@ internal class GranularMetadataTransformation(
     }
 
 }
-
-internal val ResolvedComponentResult.currentBuildProjectIdOrNull
-    get(): ProjectComponentIdentifier? {
-        val identifier = id
-        return when {
-            identifier is ProjectComponentIdentifier && identifier.build.isCurrentBuild -> identifier
-            else -> null
-        }
-    }
 
 private val Project.allProjectsData: Map<String, GranularMetadataTransformation.ProjectData>
     get() = rootProject

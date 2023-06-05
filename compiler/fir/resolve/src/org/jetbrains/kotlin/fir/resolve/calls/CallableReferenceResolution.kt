@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2022 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.fir.resolve.DoubleColonLHS
 import org.jetbrains.kotlin.fir.resolve.createFunctionType
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnsupportedCallableReferenceTarget
 import org.jetbrains.kotlin.fir.resolve.inference.extractInputOutputTypesFromCallableReferenceExpectedType
+import org.jetbrains.kotlin.fir.resolve.inference.model.ConeArgumentConstraintPosition
 import org.jetbrains.kotlin.fir.resolve.scope
 import org.jetbrains.kotlin.fir.scopes.FakeOverrideTypeCalculator
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
@@ -30,7 +31,6 @@ import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirVisitor
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.resolve.calls.inference.ConstraintSystemOperation
-import org.jetbrains.kotlin.resolve.calls.inference.model.SimpleConstraintSystemConstraintPosition
 import org.jetbrains.kotlin.resolve.calls.inference.runTransaction
 import org.jetbrains.kotlin.resolve.calls.tower.isSuccess
 import org.jetbrains.kotlin.types.expressions.CoercionStrategy
@@ -64,7 +64,8 @@ internal object CheckCallableReferenceExpectedType : CheckerStage() {
         candidate.outerConstraintBuilderEffect = fun ConstraintSystemOperation.() {
             addOtherSystem(candidate.system.currentStorage())
 
-            val position = SimpleConstraintSystemConstraintPosition //TODO
+            // Callable references are either arguments to a call or are wrapped in a synthetic call for resolution.
+            val position = ConeArgumentConstraintPosition(callInfo.callSite)
 
             if (expectedType != null && !resultingType.contains {
                     it is ConeTypeVariableType && it.lookupTag !in outerCsBuilder.currentStorage().allTypeVariables
@@ -175,8 +176,13 @@ private fun BodyResolveComponents.getCallableReferenceAdaptation(
     if (expectedArgumentsCount < 0) return null
 
     val fakeArguments = createFakeArgumentsForReference(function, expectedArgumentsCount, inputTypes, unboundReceiverCount)
-    val originScope = function.dispatchReceiverType
-        ?.scope(session, scopeSession, FakeOverrideTypeCalculator.DoNothing, requiredPhase = FirResolvePhase.STATUS)
+    val originScope = function.dispatchReceiverType?.scope(
+        useSiteSession = session,
+        scopeSession = scopeSession,
+        fakeOverrideTypeCalculator = FakeOverrideTypeCalculator.DoNothing,
+        requiredMembersPhase = FirResolvePhase.STATUS,
+    )
+
     val argumentMapping = mapArguments(fakeArguments, function, originScope = originScope, callSiteIsOperatorCall = false)
     if (argumentMapping.diagnostics.any { !it.applicability.isSuccess }) return null
 

@@ -17,12 +17,10 @@ import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtClassifierSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtConstructorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPackageSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.markers.KtPossiblyNamedSymbol
 import org.jetbrains.kotlin.descriptors.ConstructorDescriptor
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
-import org.jetbrains.kotlin.resolve.scopes.LexicalScope
-import org.jetbrains.kotlin.resolve.scopes.MemberScope
-import org.jetbrains.kotlin.resolve.scopes.ResolutionScope
+import org.jetbrains.kotlin.resolve.scopes.*
 
 internal abstract class KtFe10ScopeResolution : KtScope, KtLifetimeOwner {
     abstract val analysisContext: Fe10AnalysisContext
@@ -36,12 +34,24 @@ internal abstract class KtFe10ScopeResolution : KtScope, KtLifetimeOwner {
             .mapNotNull { it.toKtSymbol(analysisContext) as? KtCallableSymbol }
     }
 
+    override fun getCallableSymbols(names: Collection<Name>): Sequence<KtCallableSymbol> = withValidityAssertion {
+        if (names.isEmpty()) return emptySequence()
+        val namesSet = names.toSet()
+        return getCallableSymbols { it in namesSet }
+    }
+
     override fun getClassifierSymbols(nameFilter: KtScopeNameFilter): Sequence<KtClassifierSymbol> = withValidityAssertion {
         return scope
             .getContributedDescriptors(kindFilter = DescriptorKindFilter.CLASSIFIERS, nameFilter)
             .asSequence()
             .filter { nameFilter(it.name) }
             .mapNotNull { it.toKtSymbol(analysisContext) as? KtClassifierSymbol }
+    }
+
+    override fun getClassifierSymbols(names: Collection<Name>): Sequence<KtClassifierSymbol> = withValidityAssertion {
+        if (names.isEmpty()) return emptySequence()
+        val namesSet = names.toSet()
+        return getClassifierSymbols { it in namesSet }
     }
 
     override fun getPackageSymbols(nameFilter: KtScopeNameFilter): Sequence<KtPackageSymbol> = withValidityAssertion {
@@ -90,4 +100,19 @@ internal open class KtFe10ScopeMember(
     override fun getConstructors(): Sequence<KtConstructorSymbol> = sequence {
         constructors.forEach { yield(it.toKtConstructorSymbol(analysisContext)) }
     }
+}
+
+internal class KtFe10ScopeImporting(
+    override val scope: ImportingScope,
+    override val analysisContext: Fe10AnalysisContext
+) : KtFe10ScopeResolution() {
+    override fun getPossibleCallableNames(): Set<Name> = withValidityAssertion {
+        return getCallableSymbols().mapNotNullTo(mutableSetOf()) { (it as? KtPossiblyNamedSymbol)?.name }
+    }
+
+    override fun getPossibleClassifierNames(): Set<Name> = withValidityAssertion {
+        return getClassifierSymbols().mapNotNullTo(mutableSetOf()) { (it as? KtPossiblyNamedSymbol)?.name }
+    }
+
+    override fun getConstructors(): Sequence<KtConstructorSymbol> = withValidityAssertion { emptySequence() }
 }

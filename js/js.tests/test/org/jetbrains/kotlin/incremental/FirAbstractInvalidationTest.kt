@@ -7,12 +7,10 @@ package org.jetbrains.kotlin.incremental
 
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.cli.common.messages.PrintingMessageCollector
-import org.jetbrains.kotlin.cli.js.klib.compileModuleToAnalyzedFir
+import org.jetbrains.kotlin.cli.js.klib.compileModuleToAnalyzedFirWithPsi
 import org.jetbrains.kotlin.cli.js.klib.serializeFirKlib
 import org.jetbrains.kotlin.cli.js.klib.transformFirToIr
-import org.jetbrains.kotlin.codegen.ProjectInfo
 import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.ir.backend.js.MainModule
 import org.jetbrains.kotlin.ir.backend.js.ModulesStructure
@@ -28,10 +26,18 @@ abstract class FirAbstractInvalidationTest(
     targetBackend: TargetBackend,
     workingDirPath: String
 ) : AbstractInvalidationTest(targetBackend, workingDirPath) {
-    private val mutedTests = setOf("constVals", "enum", "jsCodeWithConstString")
+    private fun getFirInfoFile(defaultInfoFile: File): File {
+        val firInfoFileName = "${defaultInfoFile.nameWithoutExtension}.fir.${defaultInfoFile.extension}"
+        val firInfoFile = defaultInfoFile.parentFile.resolve(firInfoFileName)
+        return firInfoFile.takeIf { it.exists() } ?: defaultInfoFile
+    }
 
-    override fun isIgnoredTest(projectInfo: ProjectInfo): Boolean {
-        return super.isIgnoredTest(projectInfo) || projectInfo.name in mutedTests
+    override fun getModuleInfoFile(directory: File): File {
+        return getFirInfoFile(super.getModuleInfoFile(directory))
+    }
+
+    override fun getProjectInfoFile(directory: File): File {
+        return getFirInfoFile(super.getProjectInfoFile(directory))
     }
 
     override fun buildKlib(
@@ -57,32 +63,36 @@ abstract class FirAbstractInvalidationTest(
             friendDependenciesPaths = friendLibraries
         )
 
-        val outputs = compileModuleToAnalyzedFir(
+        val analyzedOutput = compileModuleToAnalyzedFirWithPsi(
             moduleStructure = moduleStructure,
             ktFiles = sourceFiles,
             libraries = libraries,
             friendLibraries = friendLibraries,
-            messageCollector = messageCollector,
-            diagnosticsReporter = diagnosticsReporter
+            diagnosticsReporter = diagnosticsReporter,
+            incrementalDataProvider = null,
+            lookupTracker = null,
         )
 
-        if (outputs != null) {
-            val fir2IrActualizedResult = transformFirToIr(moduleStructure, outputs, diagnosticsReporter)
+        val fir2IrActualizedResult = transformFirToIr(moduleStructure, analyzedOutput.output, diagnosticsReporter)
 
-            serializeFirKlib(
-                moduleStructure = moduleStructure,
-                firOutputs = outputs,
-                fir2IrActualizedResult = fir2IrActualizedResult,
-                outputKlibPath = outputKlibFile.absolutePath,
-                messageCollector = messageCollector,
-                diagnosticsReporter = diagnosticsReporter,
-                jsOutputName = moduleName
-            )
+        if (analyzedOutput.reportCompilationErrors(moduleStructure, diagnosticsReporter, messageCollector)) {
+            val messages = outputStream.toByteArray().toString(Charset.forName("UTF-8"))
+            throw AssertionError("The following errors occurred compiling test:\n$messages")
         }
+
+        serializeFirKlib(
+            moduleStructure = moduleStructure,
+            firOutputs = analyzedOutput.output,
+            fir2IrActualizedResult = fir2IrActualizedResult,
+            outputKlibPath = outputKlibFile.absolutePath,
+            messageCollector = messageCollector,
+            diagnosticsReporter = diagnosticsReporter,
+            jsOutputName = moduleName
+        )
 
         if (messageCollector.hasErrors()) {
             val messages = outputStream.toByteArray().toString(Charset.forName("UTF-8"))
-            throw AssertionError("The following errors occurred compiling test:\n$messages")
+            throw AssertionError("The following errors occurred serializing test klib:\n$messages")
         }
     }
 }

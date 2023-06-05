@@ -455,6 +455,12 @@ object LightTreePositioningStrategies {
     val TAILREC_MODIFIER: LightTreePositioningStrategy =
         ModifierSetBasedLightTreePositioningStrategy(KtTokens.TAILREC_KEYWORD)
 
+    val EXTERNAL_MODIFIER: LightTreePositioningStrategy =
+        ModifierSetBasedLightTreePositioningStrategy(KtTokens.EXTERNAL_KEYWORD)
+
+    val EXPECT_ACTUAL_MODIFIER: LightTreePositioningStrategy =
+        ModifierSetBasedLightTreePositioningStrategy(KtTokens.EXPECT_KEYWORD, KtTokens.ACTUAL_KEYWORD)
+
     val OBJECT_KEYWORD: LightTreePositioningStrategy = keywordStrategy { objectKeyword(it) }
 
     val FIELD_KEYWORD: LightTreePositioningStrategy = keywordStrategy { fieldKeyword(it) }

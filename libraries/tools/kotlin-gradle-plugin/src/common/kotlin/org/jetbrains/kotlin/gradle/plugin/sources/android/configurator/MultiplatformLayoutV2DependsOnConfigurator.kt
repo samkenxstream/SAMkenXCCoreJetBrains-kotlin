@@ -11,10 +11,9 @@ import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtensionOrNull
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
-import org.jetbrains.kotlin.gradle.plugin.KotlinTargetHierarchy
+import org.jetbrains.kotlin.gradle.plugin.awaitFinalValue
 import org.jetbrains.kotlin.gradle.plugin.launchInStage
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinAndroidTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.targetHierarchy.orNull
 import org.jetbrains.kotlin.gradle.plugin.sources.android.AndroidBaseSourceSetName
 import org.jetbrains.kotlin.gradle.plugin.sources.android.AndroidVariantType
 import org.jetbrains.kotlin.gradle.plugin.sources.android.type
@@ -38,8 +37,14 @@ internal object MultiplatformLayoutV2DependsOnConfigurator : KotlinAndroidSource
                 return@launchInStage
             }
 
-            val module = KotlinTargetHierarchy.ModuleName.orNull(target, variantType) ?: return@launchInStage
-            val commonSourceSetName = lowerCamelCaseName("common", module.name)
+            val sourceSetTree = when (variantType) {
+                AndroidVariantType.Main -> target.mainVariant.sourceSetTree.awaitFinalValue()
+                AndroidVariantType.UnitTest -> target.unitTestVariant.sourceSetTree.awaitFinalValue()
+                AndroidVariantType.InstrumentedTest -> target.instrumentedTestVariant.sourceSetTree.awaitFinalValue()
+                AndroidVariantType.Unknown -> null
+            } ?: return@launchInStage
+
+            val commonSourceSetName = lowerCamelCaseName("common", sourceSetTree.name)
             val commonSourceSet = target.project.kotlinExtension.sourceSets.findByName(commonSourceSetName) ?: return@launchInStage
             kotlinSourceSet.dependsOn(commonSourceSet)
         }

@@ -12,14 +12,25 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.DefaultKotlinCompi
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.KotlinCompilationAssociator
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.KotlinCompilationSourceSetsContainer
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.factory.*
-import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.factory.KotlinCompilationImplFactory.KotlinCompilationTaskNamesContainerFactory
 import org.jetbrains.kotlin.gradle.plugin.mpp.decoratedInstance
-import org.jetbrains.kotlin.gradle.plugin.mpp.external.ExternalDecoratedKotlinCompilation.Delegate
+import org.jetbrains.kotlin.gradle.plugin.mpp.external.DecoratedExternalKotlinCompilation.Delegate
+import org.jetbrains.kotlin.gradle.plugin.mpp.targetHierarchy.sourceSetTreeClassifier
 import org.jetbrains.kotlin.gradle.tasks.KotlinTasksProvider
 
+/**
+ *  Creates a compilation for External Kotlin Targets adhering to the configuration provided in the [descriptor]
+ *  - The _kind_ of compilation will be chosen automatically by the specified [DecoratedExternalKotlinTarget.platformType]
+ *  - The compilation will use the [ExternalKotlinCompilationDescriptor.defaultSourceSet] as its (default) source set
+ *  - The compilation wil reference the compile task using the [ExternalKotlinCompilationDescriptor.compileTaskName] if specified
+ *  - The compilation will reference the compile all task name using the[ExternalKotlinCompilationDescriptor.compileAllTaskName] if specified
+ *  - Compilations .associateWith calls will be handled by the [ExternalKotlinCompilationDescriptor.compilationAssociator] if specified
+ *  - An additional friendArtifactResolver will be respected if the [ExternalKotlinCompilationDescriptor.friendArtifactResolver] is specified
+ *  - The [ExternalKotlinCompilationDescriptor.configure] method will be called before the compilation is available in [KotlinTarget.compilations]
+ *  container
+ */
 @ExternalKotlinTargetApi
-fun <T : ExternalDecoratedKotlinCompilation> DecoratedExternalKotlinTarget.createCompilation(
-    descriptor: ExternalKotlinCompilationDescriptor<T>
+fun <T : DecoratedExternalKotlinCompilation> DecoratedExternalKotlinTarget.createCompilation(
+    descriptor: ExternalKotlinCompilationDescriptor<T>,
 ): T {
     val compilationImplFactory = KotlinCompilationImplFactory(
         compilerOptionsFactory = when (platformType) {
@@ -31,7 +42,7 @@ fun <T : ExternalDecoratedKotlinCompilation> DecoratedExternalKotlinTarget.creat
             KotlinPlatformType.wasm -> KotlinMultiplatformCommonCompilerOptionsFactory
         },
         compilationSourceSetsContainerFactory = { _, _ -> KotlinCompilationSourceSetsContainer(descriptor.defaultSourceSet) },
-        compilationTaskNamesContainerFactory = KotlinCompilationTaskNamesContainerFactory { target, compilationName ->
+        compilationTaskNamesContainerFactory = { target, compilationName ->
             val default = DefaultKotlinCompilationTaskNamesContainerFactory.create(target, compilationName)
             default.copy(
                 compileTaskName = descriptor.compileTaskName ?: default.compileTaskName,
@@ -41,7 +52,7 @@ fun <T : ExternalDecoratedKotlinCompilation> DecoratedExternalKotlinTarget.creat
         compilationAssociator = descriptor.compilationAssociator?.let { declaredAssociator ->
             @Suppress("unchecked_cast")
             KotlinCompilationAssociator { _, first, second ->
-                declaredAssociator.associate(first.decoratedInstance as T, second.decoratedInstance as ExternalDecoratedKotlinCompilation)
+                declaredAssociator.associate(first.decoratedInstance as T, second.decoratedInstance as DecoratedExternalKotlinCompilation)
             }
         } ?: DefaultKotlinCompilationAssociator,
         compilationFriendPathsResolver = DefaultKotlinCompilationFriendPathsResolver(
@@ -58,7 +69,8 @@ fun <T : ExternalDecoratedKotlinCompilation> DecoratedExternalKotlinTarget.creat
     )
 
     val compilationImpl = compilationImplFactory.create(this, descriptor.compilationName)
-    val decoratedCompilation = descriptor.decoratedKotlinCompilationFactory.create(Delegate(compilationImpl))
+    val decoratedCompilation = descriptor.compilationFactory.create(Delegate(compilationImpl))
+    decoratedCompilation.sourceSetTreeClassifier = descriptor.sourceSetTreeClassifier
     descriptor.configure?.invoke(decoratedCompilation)
     this.delegate.compilations.add(decoratedCompilation)
 
@@ -67,17 +79,18 @@ fun <T : ExternalDecoratedKotlinCompilation> DecoratedExternalKotlinTarget.creat
     return decoratedCompilation
 }
 
+/**
+ * @see createCompilation
+ */
 @ExternalKotlinTargetApi
-fun <T : ExternalDecoratedKotlinCompilation> DecoratedExternalKotlinTarget.createCompilation(
-    descriptor: ExternalKotlinCompilationDescriptorBuilder<T>.() -> Unit
+fun <T : DecoratedExternalKotlinCompilation> DecoratedExternalKotlinTarget.createCompilation(
+    descriptor: ExternalKotlinCompilationDescriptorBuilder<T>.() -> Unit,
 ): T {
     return createCompilation(ExternalKotlinCompilationDescriptor(descriptor))
 }
 
-
-@OptIn(ExternalKotlinTargetApi::class)
 private fun DecoratedExternalKotlinTarget.setupCompileTask(
-    compilation: ExternalDecoratedKotlinCompilation
+    compilation: DecoratedExternalKotlinCompilation,
 ) {
     val tasksProvider = KotlinTasksProvider()
     val compilationInfo = KotlinCompilationInfo(compilation)

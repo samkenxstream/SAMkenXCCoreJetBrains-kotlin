@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.fir.expressions.builder.buildErrorExpression
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.expectedConeType
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.createArrayType
+import org.jetbrains.kotlin.load.java.JvmAnnotationNames
 import org.jetbrains.kotlin.load.java.RXJAVA3_ANNOTATIONS
 import org.jetbrains.kotlin.load.java.structure.JavaAnnotation
 import org.jetbrains.kotlin.load.java.structure.JavaClass
@@ -51,18 +52,21 @@ val JavaClass.classKind: ClassKind
         else -> ClassKind.CLASS
     }
 
+fun JavaClass.hasMetadataAnnotation(): Boolean =
+    annotations.any { it.isResolvedTo(JvmAnnotationNames.METADATA_FQ_NAME) }
+
 internal fun Any?.createConstantOrError(session: FirSession): FirExpression {
     return createConstantIfAny(session) ?: buildErrorExpression {
         diagnostic = ConeSimpleDiagnostic("Unknown value in JavaLiteralAnnotationArgument: $this", DiagnosticKind.Java)
     }
 }
 
-internal fun Any?.createConstantIfAny(session: FirSession): FirExpression? {
+internal fun Any?.createConstantIfAny(session: FirSession, unsigned: Boolean = false): FirExpression? {
     return when (this) {
-        is Byte -> buildConstExpression(null, ConstantValueKind.Byte, this).setProperType(session)
-        is Short -> buildConstExpression(null, ConstantValueKind.Short, this).setProperType(session)
-        is Int -> buildConstExpression(null, ConstantValueKind.Int, this).setProperType(session)
-        is Long -> buildConstExpression(null, ConstantValueKind.Long, this).setProperType(session)
+        is Byte -> buildConstExpression(null, if (unsigned) ConstantValueKind.UnsignedByte else ConstantValueKind.Byte, this).setProperType(session)
+        is Short -> buildConstExpression(null, if (unsigned) ConstantValueKind.UnsignedShort else ConstantValueKind.Short, this).setProperType(session)
+        is Int -> buildConstExpression(null, if (unsigned) ConstantValueKind.UnsignedInt else ConstantValueKind.Int, this).setProperType(session)
+        is Long -> buildConstExpression(null, if (unsigned) ConstantValueKind.UnsignedLong else ConstantValueKind.Long, this).setProperType(session)
         is Char -> buildConstExpression(null, ConstantValueKind.Char, this).setProperType(session)
         is Float -> buildConstExpression(null, ConstantValueKind.Float, this).setProperType(session)
         is Double -> buildConstExpression(null, ConstantValueKind.Double, this).setProperType(session)

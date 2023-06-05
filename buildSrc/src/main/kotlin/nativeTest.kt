@@ -18,13 +18,13 @@ private enum class TestProperty(shortName: String) {
     FORCE_STANDALONE("forceStandalone"),
     COMPILE_ONLY("compileOnly"),
     OPTIMIZATION_MODE("optimizationMode"),
-    MEMORY_MODEL("memoryModel"),
     USE_THREAD_STATE_CHECKER("useThreadStateChecker"),
     GC_TYPE("gcType"),
     GC_SCHEDULER("gcScheduler"),
     CACHE_MODE("cacheMode"),
     EXECUTION_TIMEOUT("executionTimeout"),
-    SANITIZER("sanitizer");
+    SANITIZER("sanitizer"),
+    TEAMCITY("teamcity");
 
     val fullName = "kotlin.internal.native.test.$shortName"
 }
@@ -53,6 +53,11 @@ private class ComputedTestProperties(private val task: Test) {
             ComputedTestProperty.Normal(property.fullName, gradleValue)
         else
             ComputedTestProperty.Lazy(property.fullName, defaultLazyValue())
+    }
+
+    // Do not attempt to read the property from Gradle. Instead, set it based on the lambda return value.
+    fun computePrivate(property: TestProperty, value: () -> String) {
+        computedProperties += ComputedTestProperty.Normal(property.fullName, value())
     }
 
     fun lazyClassPath(builder: MutableList<File>.() -> Unit): Lazy<String?> = lazy(LazyThreadSafetyMode.NONE) {
@@ -160,13 +165,15 @@ fun Project.nativeTest(
             compute(FORCE_STANDALONE)
             compute(COMPILE_ONLY)
             compute(OPTIMIZATION_MODE)
-            compute(MEMORY_MODEL)
             compute(USE_THREAD_STATE_CHECKER)
             compute(GC_TYPE)
             compute(GC_SCHEDULER)
             compute(CACHE_MODE)
             compute(EXECUTION_TIMEOUT)
             compute(SANITIZER)
+
+            // Pass whether tests are running at TeamCity.
+            computePrivate(TEAMCITY) { kotlinBuildProperties.isTeamcityBuild.toString() }
         }
 
         // Pass the current Gradle task name so test can use it in logging.

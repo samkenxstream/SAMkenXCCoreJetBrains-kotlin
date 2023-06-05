@@ -8,10 +8,12 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.api
 import org.jetbrains.kotlin.analysis.low.level.api.fir.providers.nullableJavaSymbolProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirLibraryOrLibrarySourceResolvableModuleSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.FirElementFinder
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.containingClass
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.getContainingFile
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.withFirEntry
 import org.jetbrains.kotlin.analysis.utils.errors.buildErrorWithAttachment
 import org.jetbrains.kotlin.analysis.utils.errors.checkWithAttachmentBuilder
+import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
 import org.jetbrains.kotlin.analysis.utils.errors.unexpectedElementError
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -45,9 +47,6 @@ open class FirDesignation(
     val path: List<FirRegularClass>,
     val target: FirElementWithResolveState,
 ) {
-    val firstNonFileDeclaration: FirElementWithResolveState
-        get() = path.firstOrNull() ?: target
-
     fun toSequence(includeTarget: Boolean): Sequence<FirElementWithResolveState> = sequence {
         yieldAll(path)
         if (includeTarget) yield(target)
@@ -61,10 +60,11 @@ private fun collectDesignationPath(target: FirElementWithResolveState): List<Fir
         is FirField,
         is FirConstructor,
         is FirEnumEntry,
-        is FirPropertyAccessor -> {
-            require(target is FirCallableDeclaration)
+        is FirPropertyAccessor,
+        -> {
+            requireIsInstance<FirCallableDeclaration>(target)
 
-            if ((target !is FirConstructor && target.symbol.callableId.isLocal) || target.status.visibility == Visibilities.Local) {
+            if (target.symbol.callableId.isLocal || target.status.visibility == Visibilities.Local) {
                 return null
             }
 
@@ -96,6 +96,12 @@ private fun collectDesignationPath(target: FirElementWithResolveState): List<Fir
             return collectDesignationPathWithContainingClass(target, containingClassId)
         }
 
+        is FirAnonymousInitializer -> {
+            val containingClassId = target.containingClass().symbol.classId
+            if (containingClassId.isLocal) return null
+            return collectDesignationPathWithContainingClass(target, containingClassId)
+        }
+
         is FirErrorProperty -> {
             return if (target.diagnostic == ConeDestructuringDeclarationsOnTopLevel) emptyList() else null
         }
@@ -110,9 +116,28 @@ private fun collectDesignationPath(target: FirElementWithResolveState): List<Fir
     }
 }
 
+private fun collectDesignationPathWithContainingClassByFirFile(
+    firFile: FirFile,
+    containingClassId: ClassId,
+    target: FirDeclaration,
+): List<FirRegularClass>? = FirElementFinder.findClassPathToDeclaration(
+    firFile = firFile,
+    declarationContainerClassId = containingClassId,
+    targetMemberDeclaration = target,
+)
+
 private fun collectDesignationPathWithContainingClass(target: FirDeclaration, containingClassId: ClassId): List<FirRegularClass>? {
     if (containingClassId.isLocal) {
         return null
+    }
+
+    val firFile = target.getContainingFile()
+    if (firFile != null && firFile.packageFqName == containingClassId.packageFqName) {
+        // We should do fallback to the heavy implementation if something goes wrong.
+        // For example, we can't be able to find an on-air declaration by this way
+        collectDesignationPathWithContainingClassByFirFile(firFile, containingClassId, target)?.let {
+            return it
+        }
     }
 
     val useSiteSession = getTargetSession(target)

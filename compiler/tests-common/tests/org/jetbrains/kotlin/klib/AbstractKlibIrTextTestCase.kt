@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.klib
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiElement
 import junit.framework.TestCase
-import org.jetbrains.kotlin.backend.common.CommonJsKLibResolver
+import org.jetbrains.kotlin.backend.common.CommonKLibResolver
 import org.jetbrains.kotlin.backend.common.linkage.issues.checkNoUnboundSymbols
 import org.jetbrains.kotlin.backend.common.linkage.partial.PartialLinkageSupportForLinker
 import org.jetbrains.kotlin.backend.common.serialization.CompatibilityMode
@@ -96,14 +96,14 @@ abstract class AbstractKlibIrTextTestCase : CodegenTestCase() {
         val ignoreErrors = AbstractIrGeneratorTestCase.shouldIgnoreErrors(wholeFile)
         val stdlib = loadKlibFromPath(listOf(runtimeKlibPath)).single()
         val (irModule, bindingContext) = buildFragmentAndLinkIt(stdlib, ignoreErrors, expectActualSymbols)
-        val expected = irModule.dump(stableOrder = true)
+        val expected = irModule.dump(DumpIrTreeOptions(stableOrder = true, verboseErrorTypes = false))
         val mppProject =
             myEnvironment.configuration.languageVersionSettings.getFeatureSupport(LanguageFeature.MultiPlatformProjects) == LanguageFeature.State.ENABLED
         val klibPath = serializeModule(irModule, bindingContext, stdlib, ignoreErrors, expectActualSymbols, !mppProject)
         val libs = loadKlibFromPath(listOf(runtimeKlibPath, klibPath))
         val (stdlib2, klib) = libs
         val deserializedIrModule = deserializeModule(stdlib2, klib)
-        val actual = deserializedIrModule.dump(stableOrder = true)
+        val actual = deserializedIrModule.dump(DumpIrTreeOptions(stableOrder = true, verboseErrorTypes = false))
 
         try {
             TestCase.assertEquals(wholeFile.name, expected, actual)
@@ -230,12 +230,13 @@ abstract class AbstractKlibIrTextTestCase : CodegenTestCase() {
         val testModule = irLinker.deserializeIrModuleHeader(testDescriptor, klib, { DeserializationStrategy.ALL })
         irLinker.init(null, emptyList())
         ExternalDependenciesGenerator(symbolTable, listOf(irLinker)).generateUnboundSymbolsAsDependencies()
-        irLinker.postProcess()
+        irLinker.postProcess(inOrAfterLinkageStep = true)
+        irLinker.clear()
         return testModule
     }
 
     private fun loadKlibFromPath(paths: List<String>): List<KotlinLibrary> {
-        val result = CommonJsKLibResolver.resolve(paths, DummyLogger)
+        val result = CommonKLibResolver.resolve(paths, DummyLogger)
         return result.getFullList(TopologicalLibraryOrder)
     }
 

@@ -19,11 +19,13 @@ import org.jetbrains.kotlin.assignment.plugin.AbstractFirLightTreeBlackBoxCodege
 import org.jetbrains.kotlin.assignment.plugin.AbstractFirPsiAssignmentPluginDiagnosticTest
 import org.jetbrains.kotlin.assignment.plugin.AbstractIrBlackBoxCodegenTestAssignmentPlugin
 import org.jetbrains.kotlin.fir.plugin.runners.AbstractFirLightTreePluginBlackBoxCodegenTest
+import org.jetbrains.kotlin.fir.plugin.runners.AbstractFirLoadK2CompiledKotlinWithPluginTest
 import org.jetbrains.kotlin.fir.plugin.runners.AbstractFirPsiPluginDiagnosticTest
 import org.jetbrains.kotlin.generators.generateTestGroupSuiteWithJUnit5
 import org.jetbrains.kotlin.generators.impl.generateTestGroupSuite
 import org.jetbrains.kotlin.generators.model.annotation
 import org.jetbrains.kotlin.generators.tests.IncrementalTestsGeneratorUtil.Companion.IcTestTypes.PURE_KOTLIN
+import org.jetbrains.kotlin.generators.tests.IncrementalTestsGeneratorUtil.Companion.IcTestTypes.WITH_JAVA
 import org.jetbrains.kotlin.generators.tests.IncrementalTestsGeneratorUtil.Companion.incrementalJvmTestData
 import org.jetbrains.kotlin.incremental.*
 import org.jetbrains.kotlin.jvm.abi.AbstractCompareJvmAbiTest
@@ -51,26 +53,44 @@ fun main(args: Array<String>) {
             testClass<AbstractIncrementalJvmCompilerRunnerTest>(
                 init = incrementalJvmTestData(
                     targetBackend = TargetBackend.JVM_IR,
-                    folderToExcludePatternMap = mapOf(PURE_KOTLIN to ".*SinceK2")
+                    folderToExcludePatternMap = mapOf(
+                        PURE_KOTLIN to ".*SinceK2",
+                        WITH_JAVA to "(^javaToKotlin)|(^javaToKotlinAndBack)|(^kotlinToJava)|(^packageFileAdded)|(^changeNotUsedSignature)" // KT-56681
+                    )
                 )
             )
 
+            // K2
             testClass<AbstractIncrementalFirJvmCompilerRunnerTest>(
                 init = incrementalJvmTestData(
                     TargetBackend.JVM_IR,
-                    folderToExcludePatternMap = mapOf(PURE_KOTLIN to "^.*Expect.*")
+                    folderToExcludePatternMap = mapOf(
+                        PURE_KOTLIN to "(^.*Expect.*)"
+                                + "|(^removeMemberTypeAlias)|(^addMemberTypeAlias)" //KT-55195
+                                + "|(^companionConstantChanged)" //KT-56242
+                    )
                 )
             )
+
             testClass<AbstractIncrementalFirICLightTreeJvmCompilerRunnerTest>(
                 init = incrementalJvmTestData(
                     TargetBackend.JVM_IR,
-                    folderToExcludePatternMap = mapOf(PURE_KOTLIN to "^.*Expect.*")
+                    folderToExcludePatternMap = mapOf(
+                        PURE_KOTLIN to "(^.*Expect.*)"
+                                + "|(^removeMemberTypeAlias)|(^addMemberTypeAlias)" //KT-55195
+                                + "|(^companionConstantChanged)", //KT-56242
+                        WITH_JAVA to "^classToPackageFacade" // KT-56698
+                    )
                 )
             )
             testClass<AbstractIncrementalFirLightTreeJvmCompilerRunnerTest>(
                 init = incrementalJvmTestData(
                     TargetBackend.JVM_IR,
-                    folderToExcludePatternMap = mapOf(PURE_KOTLIN to "^.*Expect.*")
+                    folderToExcludePatternMap = mapOf(
+                        PURE_KOTLIN to "(^.*Expect.*)"
+                                + "|(^removeMemberTypeAlias)|(^addMemberTypeAlias)" //KT-55195
+                                + "|(^companionConstantChanged)" //KT-56242
+                    )
                 )
             )
 
@@ -104,6 +124,16 @@ fun main(args: Array<String>) {
             testClass<AbstractIncrementalJsKlibCompilerWithScopeExpansionRunnerTest> {
                 // IC of sealed interfaces are not supported in JS
                 model("incremental/pureKotlin", extension = null, recursive = false, excludedPattern = "^sealed.*")
+                model("incremental/classHierarchyAffected", extension = null, recursive = false)
+                model("incremental/js", extension = null, excludeParentDirs = true)
+                model("incremental/scopeExpansion", extension = null, excludeParentDirs = true)
+            }
+
+            testClass<AbstractIncrementalJsFirKlibCompilerWithScopeExpansionRunnerTest> {
+                // IC of sealed interfaces are not supported in JS
+                model("incremental/pureKotlin", extension = null, recursive = false,
+                    // TODO: 'fileWithConstantRemoved' should be fixed in https://youtrack.jetbrains.com/issue/KT-58824
+                    excludedPattern = "^(sealed|fileWithConstantRemoved).*")
                 model("incremental/classHierarchyAffected", extension = null, recursive = false)
                 model("incremental/js", extension = null, excludeParentDirs = true)
                 model("incremental/scopeExpansion", extension = null, excludeParentDirs = true)
@@ -230,6 +260,10 @@ fun main(args: Array<String>) {
 
             testClass<AbstractFirLightTreePluginBlackBoxCodegenTest> {
                 model("box")
+            }
+
+            testClass<AbstractFirLoadK2CompiledKotlinWithPluginTest> {
+                model("firLoadK2Compiled")
             }
         }
 

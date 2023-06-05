@@ -12,12 +12,12 @@ import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.cgen.CBridgeOrigin
 import org.jetbrains.kotlin.backend.konan.descriptors.ClassGlobalHierarchyInfo
 import org.jetbrains.kotlin.backend.konan.ir.*
+import org.jetbrains.kotlin.backend.konan.llvm.KonanBinaryInterface.symbolName
 import org.jetbrains.kotlin.backend.konan.llvm.ThreadState.Native
 import org.jetbrains.kotlin.backend.konan.llvm.ThreadState.Runnable
 import org.jetbrains.kotlin.backend.konan.llvm.objc.*
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.ForeignExceptionMode
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
@@ -29,7 +29,7 @@ internal class CodeGenerator(override val generationState: NativeGenerationState
 
     fun llvmFunction(function: IrFunction): LlvmCallable =
             llvmFunctionOrNull(function)
-                    ?: error("no function ${function.name} in ${function.file.fqName}")
+                    ?: error("no function ${function.name} in ${function.file.packageFqName}")
 
     fun llvmFunctionOrNull(function: IrFunction): LlvmCallable? =
             function.llvmFunctionOrNull
@@ -116,6 +116,7 @@ internal inline fun generateFunction(
             startLocation,
             endLocation,
             switchToRunnable = isCToKotlinBridge,
+            needSafePoint = true,
             function)
 
     if (isCToKotlinBridge) {
@@ -147,6 +148,7 @@ internal inline fun generateFunction(
         startLocation: LocationInfo? = null,
         endLocation: LocationInfo? = null,
         switchToRunnable: Boolean = false,
+        needSafePoint: Boolean = true,
         code: FunctionGenerationContext.() -> Unit
 ) : LlvmCallable {
     val function = codegen.addFunction(functionProto)
@@ -155,7 +157,8 @@ internal inline fun generateFunction(
             codegen,
             startLocation,
             endLocation,
-            switchToRunnable = switchToRunnable
+            switchToRunnable = switchToRunnable,
+            needSafePoint = needSafePoint
     )
     try {
         generateFunctionBody(functionGenerationContext, code)
@@ -172,7 +175,8 @@ internal inline fun generateFunctionNoRuntime(
         code: FunctionGenerationContext.() -> Unit,
 ) : LlvmCallable {
     val function = codegen.addFunction(functionProto)
-    val functionGenerationContext = DefaultFunctionGenerationContext(function, codegen, null, null, switchToRunnable = false)
+    val functionGenerationContext = DefaultFunctionGenerationContext(function, codegen, null, null,
+            switchToRunnable = false, needSafePoint = true)
     try {
         functionGenerationContext.forbidRuntime = true
         require(!functionGenerationContext.isObjectType(functionGenerationContext.returnType!!)) {
@@ -196,6 +200,149 @@ private inline fun <T : FunctionGenerationContext> generateFunctionBody(
     functionGenerationContext.epilogue()
     functionGenerationContext.resetDebugLocation()
 }
+
+private fun IrSimpleFunction.findOverriddenMethodOfAny(): IrSimpleFunction? {
+    if (modality == Modality.ABSTRACT) return null
+    val resolved = resolveFakeOverride()!!
+    if ((resolved.parent as IrClass).isAny()) {
+        return resolved
+    }
+
+    return null
+}
+
+internal object VirtualTablesLookup {
+    private fun FunctionGenerationContext.getInterfaceTableRecord(typeInfo: LLVMValueRef, interfaceId: Int): LLVMValueRef {
+        val interfaceTableSize = load(structGep(typeInfo, 9 /* interfaceTableSize_ */))
+        val interfaceTable = load(structGep(typeInfo, 10 /* interfaceTable_ */))
+
+        fun fastPath(): LLVMValueRef {
+            // The fastest optimistic version.
+            val interfaceTableIndex = and(interfaceTableSize, llvm.int32(interfaceId))
+            return gep(interfaceTable, interfaceTableIndex)
+        }
+
+        // See details in ClassLayoutBuilder.
+        return if (context.ghaEnabled()
+                && context.globalHierarchyAnalysisResult.bitsPerColor <= ClassGlobalHierarchyInfo.MAX_BITS_PER_COLOR
+                && context.config.produce != CompilerOutputKind.FRAMEWORK
+        ) {
+            // All interface tables are small and no unknown interface inheritance.
+            fastPath()
+        } else {
+            val startLocationInfo = position()?.start
+            val fastPathBB = basicBlock("fast_path", startLocationInfo)
+            val slowPathBB = basicBlock("slow_path", startLocationInfo)
+            val takeResBB = basicBlock("take_res", startLocationInfo)
+            condBr(icmpGe(interfaceTableSize, llvm.kImmInt32Zero), fastPathBB, slowPathBB)
+            positionAtEnd(takeResBB)
+            val resultPhi = phi(pointerType(runtime.interfaceTableRecordType))
+            appendingTo(fastPathBB) {
+                val fastValue = fastPath()
+                br(takeResBB)
+                addPhiIncoming(resultPhi, currentBlock to fastValue)
+            }
+            appendingTo(slowPathBB) {
+                val actualInterfaceTableSize = sub(llvm.kImmInt32Zero, interfaceTableSize) // -interfaceTableSize
+                val slowValue = call(llvm.lookupInterfaceTableRecord,
+                        listOf(interfaceTable, actualInterfaceTableSize, llvm.int32(interfaceId)))
+                br(takeResBB)
+                addPhiIncoming(resultPhi, currentBlock to slowValue)
+            }
+            resultPhi
+        }
+    }
+
+    fun FunctionGenerationContext.checkIsSubtype(objTypeInfo: LLVMValueRef, dstClass: IrClass) = if (!context.ghaEnabled()) {
+        call(llvm.isSubtypeFunction, listOf(objTypeInfo, codegen.typeInfoValue(dstClass)))
+    } else {
+        val dstHierarchyInfo = context.getLayoutBuilder(dstClass).hierarchyInfo
+        if (!dstClass.isInterface) {
+            call(llvm.isSubclassFastFunction,
+                    listOf(objTypeInfo, llvm.int32(dstHierarchyInfo.classIdLo), llvm.int32(dstHierarchyInfo.classIdHi)))
+        } else {
+            // Essentially: typeInfo.itable[place(interfaceId)].id == interfaceId
+            val interfaceId = dstHierarchyInfo.interfaceId
+            val interfaceTableRecord = getInterfaceTableRecord(objTypeInfo, interfaceId)
+            icmpEq(load(structGep(interfaceTableRecord, 0 /* id */)), llvm.int32(interfaceId))
+        }
+    }
+
+    fun FunctionGenerationContext.getVirtualImpl(receiver: LLVMValueRef, irFunction: IrSimpleFunction): LlvmCallable {
+        assert(LLVMTypeOf(receiver) == codegen.kObjHeaderPtr)
+
+        val typeInfoPtr: LLVMValueRef = if (irFunction.getObjCMethodInfo() != null)
+            call(llvm.getObjCKotlinTypeInfo, listOf(receiver))
+        else
+            loadTypeInfo(receiver)
+
+        assert(typeInfoPtr.type == codegen.kTypeInfoPtr) { llvmtype2string(typeInfoPtr.type) }
+
+        val owner = irFunction.parentAsClass
+        val canCallViaVtable = !owner.isInterface
+        val layoutBuilder = generationState.context.getLayoutBuilder(owner)
+
+        val llvmMethod = when {
+            canCallViaVtable -> {
+                val index = layoutBuilder.vtableIndex(irFunction)
+                val vtablePlace = gep(typeInfoPtr, llvm.int32(1)) // typeInfoPtr + 1
+                val vtable = bitcast(llvm.int8PtrPtrType, vtablePlace)
+                val slot = gep(vtable, llvm.int32(index))
+                load(slot)
+            }
+
+            else -> {
+                // Essentially: typeInfo.itable[place(interfaceId)].vtable[method]
+                val itablePlace = layoutBuilder.itablePlace(irFunction)
+                val interfaceTableRecord = getInterfaceTableRecord(typeInfoPtr, itablePlace.interfaceId)
+                load(gep(load(structGep(interfaceTableRecord, 2 /* vtable */)), llvm.int32(itablePlace.methodIndex)))
+            }
+        }
+        val functionPtrType = pointerType(codegen.getLlvmFunctionType(irFunction))
+        return LlvmCallable(
+                bitcast(functionPtrType, llvmMethod),
+                LlvmFunctionSignature(irFunction, this)
+        )
+    }
+}
+
+/*
+ * Special trampoline function to call actual virtual implementation. This helps with reducing
+ * dependence between klibs/files (if vtable/itable of some class has changed, the call sites
+ * would be the same and wouldn't need recompiling).
+ */
+internal fun CodeGenerator.getVirtualFunctionTrampoline(irFunction: IrSimpleFunction): LlvmCallable {
+    /*
+     * Resolve owner of the call with special handling of Any methods:
+     * if toString/eq/hc is invoked on an interface instance, we resolve
+     * owner as Any and dispatch it via vtable.
+     */
+    val anyMethod = irFunction.findOverriddenMethodOfAny()
+    return getVirtualFunctionTrampolineImpl(anyMethod ?: irFunction)
+}
+
+private fun CodeGenerator.getVirtualFunctionTrampolineImpl(irFunction: IrSimpleFunction) =
+        generationState.virtualFunctionTrampolines.getOrPut(irFunction) {
+            val targetName = if (irFunction.isExported())
+                irFunction.symbolName
+            else
+                irFunction.computePrivateSymbolName(irFunction.parentAsClass.fqNameForIrSerialization.asString())
+            val proto = LlvmFunctionProto(
+                    name = "$targetName-trampoline",
+                    signature = LlvmFunctionSignature(irFunction, this),
+                    origin = null,
+                    linkage = linkageOf(irFunction)
+            )
+            if (isExternal(irFunction))
+                llvm.externalFunction(proto)
+            else generateFunction(this, proto, needSafePoint = false) {
+                val args = proto.signature.parameterTypes.indices.map { param(it) }
+                val receiver = param(0)
+                val callee = with(VirtualTablesLookup) { getVirtualImpl(receiver, irFunction) }
+                val result = call(callee, args, exceptionHandler = ExceptionHandler.Caller, verbatim = true)
+                ret(result)
+            }
+        }
 
 /**
  * There're cases when we don't need end position or it is meaningless.
@@ -390,6 +537,7 @@ internal abstract class FunctionGenerationContextBuilder<T : FunctionGenerationC
     var startLocation: LocationInfo? = null
     var endLocation: LocationInfo? = null
     var switchToRunnable = false
+    var needSafePoint = true
     var irFunction: IrFunction? = null
 
     abstract fun build(): T
@@ -401,6 +549,7 @@ internal abstract class FunctionGenerationContext(
         private val startLocation: LocationInfo?,
         protected val endLocation: LocationInfo?,
         switchToRunnable: Boolean,
+        needSafePoint: Boolean,
         internal val irFunction: IrFunction? = null
 ) : ContextUtils {
 
@@ -410,6 +559,7 @@ internal abstract class FunctionGenerationContext(
             startLocation = builder.startLocation,
             endLocation = builder.endLocation,
             switchToRunnable = builder.switchToRunnable,
+            needSafePoint = builder.needSafePoint,
             irFunction = builder.irFunction
     )
 
@@ -454,6 +604,9 @@ internal abstract class FunctionGenerationContext(
 
     private val switchToRunnable: Boolean =
             context.memoryModel == MemoryModel.EXPERIMENTAL && switchToRunnable
+
+    private val needSafePoint: Boolean =
+            context.memoryModel == MemoryModel.EXPERIMENTAL && needSafePoint
 
     val stackLocalsManager = StackLocalsManagerImpl(this, stackLocalsInitBb)
 
@@ -1112,98 +1265,6 @@ internal abstract class FunctionGenerationContext(
         return load(typeInfoPtrPtr, memoryOrder = LLVMAtomicOrdering.LLVMAtomicOrderingMonotonic)
     }
 
-    fun lookupInterfaceTableRecord(typeInfo: LLVMValueRef, interfaceId: Int): LLVMValueRef {
-        val interfaceTableSize = load(structGep(typeInfo, 9 /* interfaceTableSize_ */))
-        val interfaceTable = load(structGep(typeInfo, 10 /* interfaceTable_ */))
-
-        fun fastPath(): LLVMValueRef {
-            // The fastest optimistic version.
-            val interfaceTableIndex = and(interfaceTableSize, llvm.int32(interfaceId))
-            return gep(interfaceTable, interfaceTableIndex)
-        }
-
-        // See details in ClassLayoutBuilder.
-        return if (context.ghaEnabled()
-                && context.globalHierarchyAnalysisResult.bitsPerColor <= ClassGlobalHierarchyInfo.MAX_BITS_PER_COLOR
-                && context.config.produce != CompilerOutputKind.FRAMEWORK) {
-            // All interface tables are small and no unknown interface inheritance.
-            fastPath()
-        } else {
-            val startLocationInfo = position()?.start
-            val fastPathBB = basicBlock("fast_path", startLocationInfo)
-            val slowPathBB = basicBlock("slow_path", startLocationInfo)
-            val takeResBB = basicBlock("take_res", startLocationInfo)
-            condBr(icmpGe(interfaceTableSize, llvm.kImmInt32Zero), fastPathBB, slowPathBB)
-            positionAtEnd(takeResBB)
-            val resultPhi = phi(pointerType(runtime.interfaceTableRecordType))
-            appendingTo(fastPathBB) {
-                val fastValue = fastPath()
-                br(takeResBB)
-                addPhiIncoming(resultPhi, currentBlock to fastValue)
-            }
-            appendingTo(slowPathBB) {
-                val actualInterfaceTableSize = sub(llvm.kImmInt32Zero, interfaceTableSize) // -interfaceTableSize
-                val slowValue = call(llvm.lookupInterfaceTableRecord,
-                        listOf(interfaceTable, actualInterfaceTableSize, llvm.int32(interfaceId)))
-                br(takeResBB)
-                addPhiIncoming(resultPhi, currentBlock to slowValue)
-            }
-            resultPhi
-        }
-    }
-
-    fun lookupVirtualImpl(receiver: LLVMValueRef, irFunction: IrFunction): LlvmCallable {
-        assert(LLVMTypeOf(receiver) == codegen.kObjHeaderPtr)
-
-        val typeInfoPtr: LLVMValueRef = if (irFunction.getObjCMethodInfo() != null)
-            call(llvm.getObjCKotlinTypeInfo, listOf(receiver))
-        else
-            loadTypeInfo(receiver)
-
-        assert(typeInfoPtr.type == codegen.kTypeInfoPtr) { LLVMPrintTypeToString(typeInfoPtr.type)!!.toKString() }
-
-        /*
-         * Resolve owner of the call with special handling of Any methods:
-         * if toString/eq/hc is invoked on an interface instance, we resolve
-         * owner as Any and dispatch it via vtable.
-         */
-        val anyMethod = (irFunction as IrSimpleFunction).findOverriddenMethodOfAny()
-        val owner = (anyMethod ?: irFunction).parentAsClass
-
-        val llvmMethod = when {
-            !owner.isInterface -> {
-                // If this is a virtual method of the class - we can call via vtable.
-                val index = context.getLayoutBuilder(owner).vtableIndex(anyMethod ?: irFunction)
-                val vtablePlace = gep(typeInfoPtr, llvm.int32(1)) // typeInfoPtr + 1
-                val vtable = bitcast(llvm.int8PtrPtrType, vtablePlace)
-                val slot = gep(vtable, llvm.int32(index))
-                load(slot)
-            }
-
-            else -> {
-                // Essentially: typeInfo.itable[place(interfaceId)].vtable[method]
-                val itablePlace = context.getLayoutBuilder(owner).itablePlace(irFunction)
-                val interfaceTableRecord = lookupInterfaceTableRecord(typeInfoPtr, itablePlace.interfaceId)
-                load(gep(load(structGep(interfaceTableRecord, 2 /* vtable */)), llvm.int32(itablePlace.methodIndex)))
-            }
-        }
-        val functionPtrType = pointerType(codegen.getLlvmFunctionType(irFunction))
-        return LlvmCallable(
-                bitcast(functionPtrType, llvmMethod),
-                LlvmFunctionSignature(irFunction, this)
-        )
-    }
-
-    private fun IrSimpleFunction.findOverriddenMethodOfAny(): IrSimpleFunction? {
-        if (modality == Modality.ABSTRACT) return null
-        val resolved = resolveFakeOverride()!!
-        if ((resolved.parent as IrClass).isAny()) {
-            return resolved
-        }
-
-        return null
-    }
-
     @Suppress("UNUSED_PARAMETER")
     fun getObjectValue(irClass: IrClass, exceptionHandler: ExceptionHandler,
                        startLocationInfo: LocationInfo?, endLocationInfo: LocationInfo? = null,
@@ -1279,7 +1340,7 @@ internal abstract class FunctionGenerationContext(
         currentPositionHolder.resetBuilderDebugLocation()
     }
 
-    private fun position() = basicBlockToLastLocation[currentBlock]
+    fun position() = basicBlockToLastLocation[currentBlock]
 
     internal fun mapParameterForDebug(index: Int, value: LLVMValueRef) {
         appendingTo(localsInitBb) {
@@ -1366,7 +1427,7 @@ internal abstract class FunctionGenerationContext(
             } else {
                 check(!setCurrentFrameIsCalled)
             }
-            if (context.memoryModel == MemoryModel.EXPERIMENTAL && !forbidRuntime) {
+            if (context.memoryModel == MemoryModel.EXPERIMENTAL && !forbidRuntime && needSafePoint) {
                 call(llvm.Kotlin_mm_safePointFunctionPrologue, emptyList())
             }
             resetDebugLocation()
@@ -1572,6 +1633,7 @@ internal class DefaultFunctionGenerationContext(
         startLocation: LocationInfo?,
         endLocation: LocationInfo?,
         switchToRunnable: Boolean,
+        needSafePoint: Boolean,
         irFunction: IrFunction? = null
 ) : FunctionGenerationContext(
         function,
@@ -1579,6 +1641,7 @@ internal class DefaultFunctionGenerationContext(
         startLocation,
         endLocation,
         switchToRunnable,
+        needSafePoint,
         irFunction
 ) {
     // Note: return handling can be extracted to a separate class.

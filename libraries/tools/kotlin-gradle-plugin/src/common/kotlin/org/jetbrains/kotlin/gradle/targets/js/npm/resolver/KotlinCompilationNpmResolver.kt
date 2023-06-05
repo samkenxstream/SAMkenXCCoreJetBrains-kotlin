@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.categoryByName
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
-import org.jetbrains.kotlin.gradle.plugin.mpp.disambiguateName
 import org.jetbrains.kotlin.gradle.plugin.mpp.isMain
 import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope
 import org.jetbrains.kotlin.gradle.plugin.sources.compilationDependencyConfigurationByScope
@@ -28,6 +27,7 @@ import org.jetbrains.kotlin.gradle.plugin.sources.sourceSetDependencyConfigurati
 import org.jetbrains.kotlin.gradle.plugin.usesPlatformOf
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrCompilation
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
+import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNodeJsExtension
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin.Companion.kotlinNpmResolutionManager
 import org.jetbrains.kotlin.gradle.targets.js.npm.*
 import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinPackageJsonTask
@@ -42,7 +42,7 @@ import java.io.Serializable
  */
 class KotlinCompilationNpmResolver(
     val projectResolver: KotlinProjectNpmResolver,
-    val compilation: KotlinJsCompilation
+    val compilation: KotlinJsCompilation,
 ) : Serializable {
     var rootResolver = projectResolver.resolver
 
@@ -65,6 +65,7 @@ class KotlinCompilationNpmResolver(
 
     val publicPackageJsonTaskHolder: TaskProvider<PublicPackageJsonTask> = run {
         val npmResolutionManager = project.kotlinNpmResolutionManager
+        val nodeJsTaskProviders = project.rootProject.kotlinNodeJsExtension
         project.registerTask<PublicPackageJsonTask>(
             npmProject.publicPackageJsonTaskName
         ) {
@@ -82,6 +83,11 @@ class KotlinCompilationNpmResolver(
             project.dependencies.attributesSchema {
                 it.attribute(publicPackageJsonAttribute)
             }
+
+            nodeJsTaskProviders.packageJsonUmbrellaTaskProvider.configure {
+                it.dependsOn(packageJsonTask)
+            }
+
             if (compilation.isMain()) {
                 project.tasks
                     .withType(Zip::class.java)
@@ -96,14 +102,12 @@ class KotlinCompilationNpmResolver(
                     it.builtBy(packageJsonTask)
                 }
             }
-
-
         }
     }
 
     override fun toString(): String = "KotlinCompilationNpmResolver(${npmProject.name})"
 
-    val aggregatedConfiguration: Configuration by lazy {
+    val aggregatedConfiguration: Configuration = run {
         createAggregatedConfiguration()
     }
 
@@ -126,7 +130,7 @@ class KotlinCompilationNpmResolver(
     }
 
     private fun createAggregatedConfiguration(): Configuration {
-        val all = project.configurations.create(compilation.disambiguateName("npm"))
+        val all = project.configurations.create(compilation.npmConfigurationName)
 
         all.usesPlatformOf(target)
         all.attributes.attribute(Usage.USAGE_ATTRIBUTE, KotlinUsages.consumerRuntimeUsage(target))
@@ -156,7 +160,7 @@ class KotlinCompilationNpmResolver(
     }
 
     private fun createPublicPackageJsonConfiguration(): Configuration {
-        val all = project.configurations.create(compilation.disambiguateName("publicPackageJsonConfiguration"))
+        val all = project.configurations.create(compilation.publicPackageJsonConfigurationName)
 
         all.usesPlatformOf(target)
         all.attributes.attribute(Usage.USAGE_ATTRIBUTE, KotlinUsages.consumerRuntimeUsage(target))
@@ -231,14 +235,14 @@ class KotlinCompilationNpmResolver(
 
         private fun visitArtifacts(
             dependency: ResolvedDependency,
-            artifacts: MutableSet<ResolvedArtifact>
+            artifacts: MutableSet<ResolvedArtifact>,
         ) {
             artifacts.forEach { visitArtifact(dependency, it) }
         }
 
         private fun visitArtifact(
             dependency: ResolvedDependency,
-            artifact: ResolvedArtifact
+            artifact: ResolvedArtifact,
         ) {
             val artifactId = artifact.id
             val componentIdentifier = artifactId.componentIdentifier
@@ -257,7 +261,7 @@ class KotlinCompilationNpmResolver(
 
         private fun visitCompositeProjectDependency(
             dependency: ResolvedDependency,
-            componentIdentifier: ProjectComponentIdentifier
+            componentIdentifier: ProjectComponentIdentifier,
         ) {
             check(target is KotlinJsIrTarget) {
                 """
@@ -278,7 +282,7 @@ class KotlinCompilationNpmResolver(
         }
 
         private fun visitProjectDependency(
-            componentIdentifier: ProjectComponentIdentifier
+            componentIdentifier: ProjectComponentIdentifier,
         ) {
             val dependentProject = project.findProject(componentIdentifier.projectPath)
                 ?: error("Cannot find project ${componentIdentifier.projectPath}")

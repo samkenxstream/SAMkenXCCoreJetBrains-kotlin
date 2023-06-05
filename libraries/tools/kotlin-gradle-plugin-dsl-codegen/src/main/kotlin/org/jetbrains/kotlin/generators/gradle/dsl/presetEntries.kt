@@ -36,18 +36,6 @@ internal object NativeFQNames {
     }
 }
 
-internal val jvmPresetEntry = KotlinPresetEntry(
-    "jvm",
-    typeName("$MPP_PACKAGE.KotlinJvmTargetPreset"),
-    typeName("org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget")
-)
-
-internal val androidPresetEntry = KotlinPresetEntry(
-    "android",
-    typeName("$MPP_PACKAGE.KotlinAndroidTargetPreset"),
-    typeName("$MPP_PACKAGE.KotlinAndroidTarget")
-)
-
 // Note: modifying these sets should also be reflected in the MPP plugin code, see 'setupDefaultPresets'
 private val nativeTargetsWithHostTests =
     setOf(KonanTarget.LINUX_X64, KonanTarget.MACOS_X64, KonanTarget.MACOS_ARM64, KonanTarget.MINGW_X64)
@@ -75,12 +63,7 @@ internal val nativePresetEntries = HostManager().targets
             else ->
                 Presets.simple to Targets.base
         }
-        val deprecation = "@Deprecated(DEPRECATED_TARGET_MESSAGE)".takeIf { target in KonanTarget.deprecatedTargets }
+        val deprecation = "@Deprecated(DEPRECATED_TARGET_MESSAGE, level = DeprecationLevel.ERROR)".takeIf { target in KonanTarget.deprecatedTargets }
 
         KotlinPresetEntry(target.presetName, typeName(presetType), typeName(targetType), deprecation)
     }
-
-internal val allPresetEntries = listOf(
-    jvmPresetEntry,
-    androidPresetEntry
-) + nativePresetEntries

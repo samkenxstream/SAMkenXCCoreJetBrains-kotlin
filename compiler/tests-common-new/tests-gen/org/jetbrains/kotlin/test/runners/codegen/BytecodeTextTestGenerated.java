@@ -3099,12 +3099,6 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         }
 
         @Test
-        @TestMetadata("hashCode_1_6.kt")
-        public void testHashCode_1_6() throws Exception {
-            runTest("compiler/testData/codegen/bytecodeText/hashCode/hashCode_1_6.kt");
-        }
-
-        @Test
         @TestMetadata("interfaceHashCode.kt")
         public void testInterfaceHashCode() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/hashCode/interfaceHashCode.kt");
@@ -3584,12 +3578,6 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         @TestMetadata("interfaceDefaultImplStubs.kt")
         public void testInterfaceDefaultImplStubs() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/inlineClasses/interfaceDefaultImplStubs.kt");
-        }
-
-        @Test
-        @TestMetadata("interfaceJvmDefaultImplStubs.kt")
-        public void testInterfaceJvmDefaultImplStubs() throws Exception {
-            runTest("compiler/testData/codegen/bytecodeText/inlineClasses/interfaceJvmDefaultImplStubs.kt");
         }
 
         @Test
@@ -4110,46 +4098,6 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
                     runTest("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/allCompatibility/simpleProperty.kt");
                 }
             }
-
-            @Nested
-            @TestMetadata("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/compatibility")
-            @TestDataPath("$PROJECT_ROOT")
-            public class Compatibility {
-                @Test
-                public void testAllFilesPresentInCompatibility() throws Exception {
-                    KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/compatibility"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM, true);
-                }
-
-                @Test
-                @TestMetadata("defaultArgs.kt")
-                public void testDefaultArgs() throws Exception {
-                    runTest("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/compatibility/defaultArgs.kt");
-                }
-
-                @Test
-                @TestMetadata("simpleDiamond.kt")
-                public void testSimpleDiamond() throws Exception {
-                    runTest("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/compatibility/simpleDiamond.kt");
-                }
-
-                @Test
-                @TestMetadata("simpleFunction.kt")
-                public void testSimpleFunction() throws Exception {
-                    runTest("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/compatibility/simpleFunction.kt");
-                }
-
-                @Test
-                @TestMetadata("simpleFunctionWithAbstractOverride.kt")
-                public void testSimpleFunctionWithAbstractOverride() throws Exception {
-                    runTest("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/compatibility/simpleFunctionWithAbstractOverride.kt");
-                }
-
-                @Test
-                @TestMetadata("simpleProperty.kt")
-                public void testSimpleProperty() throws Exception {
-                    runTest("compiler/testData/codegen/bytecodeText/jvm8/jvmDefault/compatibility/simpleProperty.kt");
-                }
-            }
         }
     }
 
@@ -4206,6 +4154,12 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         @Test
         public void testAllFilesPresentInLineNumbers() throws Exception {
             KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/bytecodeText/lineNumbers"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JVM, true);
+        }
+
+        @Test
+        @TestMetadata("delegationToList.kt")
+        public void testDelegationToList() throws Exception {
+            runTest("compiler/testData/codegen/bytecodeText/lineNumbers/delegationToList.kt");
         }
 
         @Test
@@ -4586,12 +4540,6 @@ public class BytecodeTextTestGenerated extends AbstractBytecodeTextTest {
         @TestMetadata("expressionValueIsNotNullAfterExclExcl.kt")
         public void testExpressionValueIsNotNullAfterExclExcl() throws Exception {
             runTest("compiler/testData/codegen/bytecodeText/nullCheckOptimization/expressionValueIsNotNullAfterExclExcl.kt");
-        }
-
-        @Test
-        @TestMetadata("expressionValueIsNotNullTwice.kt")
-        public void testExpressionValueIsNotNullTwice() throws Exception {
-            runTest("compiler/testData/codegen/bytecodeText/nullCheckOptimization/expressionValueIsNotNullTwice.kt");
         }
 
         @Test

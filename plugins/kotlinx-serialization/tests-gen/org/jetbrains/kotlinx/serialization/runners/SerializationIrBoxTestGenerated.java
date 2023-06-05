@@ -32,6 +32,12 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     }
 
     @Test
+    @TestMetadata("caching.kt")
+    public void testCaching() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/caching.kt");
+    }
+
+    @Test
     @TestMetadata("classSerializerAsObject.kt")
     public void testClassSerializerAsObject() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/classSerializerAsObject.kt");
@@ -56,9 +62,21 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     }
 
     @Test
+    @TestMetadata("contextualWithTypeParameters.kt")
+    public void testContextualWithTypeParameters() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/contextualWithTypeParameters.kt");
+    }
+
+    @Test
     @TestMetadata("delegatedInterface.kt")
     public void testDelegatedInterface() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/delegatedInterface.kt");
+    }
+
+    @Test
+    @TestMetadata("delegatedProperty.kt")
+    public void testDelegatedProperty() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/delegatedProperty.kt");
     }
 
     @Test
@@ -77,6 +95,12 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     @TestMetadata("externalSerialierJava.kt")
     public void testExternalSerialierJava() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/externalSerialierJava.kt");
+    }
+
+    @Test
+    @TestMetadata("externalSerializerForClassWithNonSerializableType.kt")
+    public void testExternalSerializerForClassWithNonSerializableType() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/externalSerializerForClassWithNonSerializableType.kt");
     }
 
     @Test
@@ -119,6 +143,12 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     @TestMetadata("intrinsicsBox.kt")
     public void testIntrinsicsBox() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/intrinsicsBox.kt");
+    }
+
+    @Test
+    @TestMetadata("intrinsicsNullable.kt")
+    public void testIntrinsicsNullable() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/intrinsicsNullable.kt");
     }
 
     @Test
@@ -179,6 +209,12 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     @TestMetadata("serializableFromAnotherModule.kt")
     public void testSerializableFromAnotherModule() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/serializableFromAnotherModule.kt");
+    }
+
+    @Test
+    @TestMetadata("serializableFromAnotherModule_multipleFields.kt")
+    public void testSerializableFromAnotherModule_multipleFields() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/serializableFromAnotherModule_multipleFields.kt");
     }
 
     @Test

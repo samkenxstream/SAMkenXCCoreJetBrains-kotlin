@@ -394,6 +394,14 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
             }
         }
 
+        impl(enumEntryDeserializedAccessExpression) {
+            noSource()
+            default("typeRef") {
+                value = "buildResolvedTypeRef { type = enumClassId.toLookupTag().constructClassType(emptyArray(), false) }"
+                useTypes(buildResolvedTypeRefImport, toLookupTagImport, constructClassTypeImport)
+            }
+        }
+
         impl(smartCastExpression) {
             default("isStable") {
                 value = "smartcastStability == SmartcastStability.STABLE_VALUE"
@@ -562,8 +570,9 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
         noImpl(argumentList)
         noImpl(annotationArgumentMapping)
 
+        impl(contractElementDeclaration)
+
         val implementationsWithoutStatusAndTypeParameters = listOf(
-            "FirAnonymousFunctionImpl",
             "FirValueParameterImpl",
             "FirDefaultSetterValueParameter",
             "FirErrorPropertyImpl",
@@ -580,7 +589,7 @@ object ImplementationConfigurator : AbstractFirTreeImplementationConfigurator() 
 
         configureFieldInAllImplementations(
             "typeParameters",
-            implementationPredicate = { it.type != "FirAnonymousFunctionImpl" && it.type in implementationsWithoutStatusAndTypeParameters }
+            implementationPredicate = { it.type in implementationsWithoutStatusAndTypeParameters }
         ) {
             defaultEmptyList(it)
             useTypes(resolvedDeclarationStatusImplType)

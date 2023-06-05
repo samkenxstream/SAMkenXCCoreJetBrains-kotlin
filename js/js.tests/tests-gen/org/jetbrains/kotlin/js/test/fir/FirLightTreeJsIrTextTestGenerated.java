@@ -710,9 +710,27 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
             }
 
             @Test
+            @TestMetadata("arrayAccessCompositeOperators.kt")
+            public void testArrayAccessCompositeOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/arrayAccessCompositeOperators.kt");
+            }
+
+            @Test
+            @TestMetadata("arrayAccessOperators.kt")
+            public void testArrayAccessOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/arrayAccessOperators.kt");
+            }
+
+            @Test
             @TestMetadata("class.kt")
             public void testClass() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/class.kt");
+            }
+
+            @Test
+            @TestMetadata("compoundAssignmentOperators.kt")
+            public void testCompoundAssignmentOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/compoundAssignmentOperators.kt");
             }
 
             @Test
@@ -722,9 +740,27 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
             }
 
             @Test
+            @TestMetadata("contextualFunctionConversion.kt")
+            public void testContextualFunctionConversion() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/contextualFunctionConversion.kt");
+            }
+
+            @Test
+            @TestMetadata("contextualInlineCall.kt")
+            public void testContextualInlineCall() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/contextualInlineCall.kt");
+            }
+
+            @Test
             @TestMetadata("contextualPrimaryConstructorWithParams.kt")
             public void testContextualPrimaryConstructorWithParams() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/contextualPrimaryConstructorWithParams.kt");
+            }
+
+            @Test
+            @TestMetadata("delegatedPropertiesOperators.kt")
+            public void testDelegatedPropertiesOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/delegatedPropertiesOperators.kt");
             }
 
             @Test
@@ -746,6 +782,18 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
             }
 
             @Test
+            @TestMetadata("iteratorOperator.kt")
+            public void testIteratorOperator() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/iteratorOperator.kt");
+            }
+
+            @Test
+            @TestMetadata("kt52791.kt")
+            public void testKt52791() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/kt52791.kt");
+            }
+
+            @Test
             @TestMetadata("lazy.kt")
             public void testLazy() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/lazy.kt");
@@ -761,6 +809,12 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
             @TestMetadata("overloading.kt")
             public void testOverloading() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/overloading.kt");
+            }
+
+            @Test
+            @TestMetadata("passingLambdaToContextualParam.kt")
+            public void testPassingLambdaToContextualParam() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/passingLambdaToContextualParam.kt");
             }
 
             @Test
@@ -787,6 +841,12 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
                 runTest("compiler/testData/ir/irText/declarations/contextReceivers/typeParameterAsContextReceiver.kt");
             }
 
+            @Test
+            @TestMetadata("unaryOperators.kt")
+            public void testUnaryOperators() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/contextReceivers/unaryOperators.kt");
+            }
+
             @Nested
             @TestMetadata("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP")
             @TestDataPath("$PROJECT_ROOT")
@@ -794,6 +854,36 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
                 @Test
                 public void testAllFilesPresentInFromKEEP() throws Exception {
                     KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JS_IR, true);
+                }
+
+                @Test
+                @TestMetadata("canvas.kt")
+                public void testCanvas() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/canvas.kt");
+                }
+
+                @Test
+                @TestMetadata("compareTo.kt")
+                public void testCompareTo() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/compareTo.kt");
+                }
+
+                @Test
+                @TestMetadata("dp.kt")
+                public void testDp() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/dp.kt");
+                }
+
+                @Test
+                @TestMetadata("functionalType.kt")
+                public void testFunctionalType() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/functionalType.kt");
+                }
+
+                @Test
+                @TestMetadata("monoidSum.kt")
+                public void testMonoidSum() throws Exception {
+                    runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/monoidSum.kt");
                 }
             }
         }
@@ -821,6 +911,24 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
             @TestMetadata("expectClassInherited.kt")
             public void testExpectClassInherited() throws Exception {
                 runTest("compiler/testData/ir/irText/declarations/multiplatform/expectClassInherited.kt");
+            }
+
+            @Test
+            @TestMetadata("expectIntersectionOverride.kt")
+            public void testExpectIntersectionOverride() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/multiplatform/expectIntersectionOverride.kt");
+            }
+
+            @Test
+            @TestMetadata("expectMemberInNotExpectClass.kt")
+            public void testExpectMemberInNotExpectClass() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/multiplatform/expectMemberInNotExpectClass.kt");
+            }
+
+            @Test
+            @TestMetadata("expectMemberInNotExpectClassFir.kt")
+            public void testExpectMemberInNotExpectClassFir() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/multiplatform/expectMemberInNotExpectClassFir.kt");
             }
 
             @Test
@@ -2157,6 +2265,12 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
         }
 
         @Test
+        @TestMetadata("dataObject.kt")
+        public void testDataObject() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/dataObject.kt");
+        }
+
+        @Test
         @TestMetadata("DeepCopyIrTree.kt")
         public void testDeepCopyIrTree() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/DeepCopyIrTree.kt");
@@ -2253,6 +2367,12 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
         }
 
         @Test
+        @TestMetadata("LocalSuspendFun.kt")
+        public void testLocalSuspendFun() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/LocalSuspendFun.kt");
+        }
+
+        @Test
         @TestMetadata("readWriteProperty.kt")
         public void testReadWriteProperty() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/readWriteProperty.kt");
@@ -2283,12 +2403,6 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
         }
 
         @Test
-        @TestMetadata("SignatureComputationComplexJavaGeneric.kt")
-        public void testSignatureComputationComplexJavaGeneric() throws Exception {
-            runTest("compiler/testData/ir/irText/firProblems/SignatureComputationComplexJavaGeneric.kt");
-        }
-
-        @Test
         @TestMetadata("SimpleTypeMarker.kt")
         public void testSimpleTypeMarker() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/SimpleTypeMarker.kt");
@@ -2301,9 +2415,21 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
         }
 
         @Test
+        @TestMetadata("timesInBuilder.kt")
+        public void testTimesInBuilder() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/timesInBuilder.kt");
+        }
+
+        @Test
         @TestMetadata("TypeParameterBounds.kt")
         public void testTypeParameterBounds() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/TypeParameterBounds.kt");
+        }
+
+        @Test
+        @TestMetadata("TypeParameterInNestedClass.kt")
+        public void testTypeParameterInNestedClass() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/TypeParameterInNestedClass.kt");
         }
 
         @Test
@@ -2313,9 +2439,21 @@ public class FirLightTreeJsIrTextTestGenerated extends AbstractFirLightTreeJsIrT
         }
 
         @Test
+        @TestMetadata("valueClassEquals.kt")
+        public void testValueClassEquals() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/valueClassEquals.kt");
+        }
+
+        @Test
         @TestMetadata("VarInInit.kt")
         public void testVarInInit() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/VarInInit.kt");
+        }
+
+        @Test
+        @TestMetadata("VarargIntegerLiteral.kt")
+        public void testVarargIntegerLiteral() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/VarargIntegerLiteral.kt");
         }
     }
 

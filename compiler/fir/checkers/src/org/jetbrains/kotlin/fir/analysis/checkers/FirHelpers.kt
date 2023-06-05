@@ -12,7 +12,9 @@ import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
-import org.jetbrains.kotlin.diagnostics.*
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.isExpression
+import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.declaration.primaryConstructorSymbol
@@ -26,8 +28,11 @@ import org.jetbrains.kotlin.fir.references.FirSuperReference
 import org.jetbrains.kotlin.fir.references.toResolvedCallableSymbol
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
-import org.jetbrains.kotlin.fir.scopes.*
+import org.jetbrains.kotlin.fir.scopes.FirTypeScope
+import org.jetbrains.kotlin.fir.scopes.getDirectOverriddenFunctions
 import org.jetbrains.kotlin.fir.scopes.impl.multipleDelegatesWithTheSameSignature
+import org.jetbrains.kotlin.fir.scopes.overriddenFunctions
+import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
 import org.jetbrains.kotlin.fir.symbols.ConeTypeParameterLookupTag
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
@@ -52,7 +57,7 @@ fun FirClass.unsubstitutedScope(context: CheckerContext): FirTypeScope =
         context.sessionHolder.session,
         context.sessionHolder.scopeSession,
         withForcedTypeCalculator = false,
-        memberRequiredPhase = null,
+        memberRequiredPhase = FirResolvePhase.STATUS,
     )
 
 fun FirClassSymbol<*>.unsubstitutedScope(context: CheckerContext): FirTypeScope =
@@ -60,7 +65,7 @@ fun FirClassSymbol<*>.unsubstitutedScope(context: CheckerContext): FirTypeScope 
         context.sessionHolder.session,
         context.sessionHolder.scopeSession,
         withForcedTypeCalculator = false,
-        memberRequiredPhase = null,
+        memberRequiredPhase = FirResolvePhase.STATUS,
     )
 
 fun FirTypeRef.toClassLikeSymbol(session: FirSession): FirClassLikeSymbol<*>? {
@@ -115,7 +120,6 @@ fun ConeKotlinType.isRecursiveValueClassType(session: FirSession) =
     isRecursiveValueClassType(hashSetOf(), session, onlyInline = false)
 
 private fun ConeKotlinType.isRecursiveValueClassType(visited: HashSet<ConeKotlinType>, session: FirSession, onlyInline: Boolean): Boolean {
-
     val asRegularClass = this.toRegularClassSymbol(session)?.takeIf { it.isInlineOrValueClass() } ?: return false
     val primaryConstructor = asRegularClass.declarationSymbols
         .firstOrNull { it is FirConstructorSymbol && it.isPrimary } as FirConstructorSymbol?
@@ -192,17 +196,15 @@ fun CheckerContext.findClosestClassOrObject(): FirClass? {
 fun FirSimpleFunction.overriddenFunctions(
     containingClass: FirClassSymbol<*>,
     context: CheckerContext,
-    memberRequiredPhase: FirResolvePhase?,
 ): List<FirFunctionSymbol<*>> {
-    return symbol.overriddenFunctions(containingClass, context, memberRequiredPhase)
+    return symbol.overriddenFunctions(containingClass, context)
 }
 
 fun FirNamedFunctionSymbol.overriddenFunctions(
     containingClass: FirClassSymbol<*>,
     context: CheckerContext,
-    memberRequiredPhase: FirResolvePhase?,
 ): List<FirFunctionSymbol<*>> {
-    return overriddenFunctions(containingClass, context.session, context.scopeSession, memberRequiredPhase)
+    return overriddenFunctions(containingClass, context.session, context.scopeSession)
 }
 
 fun FirClass.collectSupertypesWithDelegates(): Map<FirTypeRef, FirFieldSymbol?> {
@@ -328,23 +330,48 @@ fun FirCallableSymbol<*>.getImplementationStatus(
         if (containingClassSymbol === parentClassSymbol && symbol.subjectToManyNotImplemented(sessionHolder)) {
             return ImplementationStatus.AMBIGUOUSLY_INHERITED
         }
+
+        var hasAbstractFromClass = false
+        var hasInterfaceDelegation = false
+        var hasAbstractVar = false
+        var hasImplementation = false
+        var hasImplementationVar = false
+
+        for (intersection in symbol.intersections) {
+            @OptIn(SymbolInternals::class)
+            val fir = intersection.fir
+            val unwrappedFir = fir.unwrapFakeOverrides()
+            val isVar = unwrappedFir is FirProperty && unwrappedFir.isVar
+            val isFromClass = unwrappedFir.getContainingClassSymbol(sessionHolder.session)?.classKind == ClassKind.CLASS
+
+            if (fir.isAbstract) {
+                if (isFromClass) {
+                    hasAbstractFromClass = true
+                }
+                if (isVar) {
+                    hasAbstractVar = true
+                }
+            } else {
+                if (fir.origin == FirDeclarationOrigin.Delegated) {
+                    hasInterfaceDelegation = true
+                }
+                if (isFromClass) {
+                    hasImplementation = true
+                    if (isVar) {
+                        hasImplementationVar = true
+                    }
+                }
+            }
+        }
+
         // In Java 8, non-abstract intersection overrides having abstract symbol from base class
         // still should be implemented in current class (even when they have default interface implementation)
-        if (symbol.intersections.any {
-                @OptIn(SymbolInternals::class)
-                val fir = it.fir.unwrapFakeOverrides()
-                fir.isAbstract && (fir.getContainingClassSymbol(sessionHolder.session) as? FirRegularClassSymbol)?.classKind == ClassKind.CLASS
-            }
-        ) {
-            // Exception from the rule above: interface implementation via delegation
-            if (symbol.intersections.none {
-                    @OptIn(SymbolInternals::class)
-                    val fir = it.fir
-                    fir.origin == FirDeclarationOrigin.Delegated && !fir.isAbstract
-                }
-            ) {
-                return ImplementationStatus.NOT_IMPLEMENTED
-            }
+        // Exception to the rule above: interface implementation via delegation
+        if (hasAbstractFromClass && !hasInterfaceDelegation) {
+            return ImplementationStatus.NOT_IMPLEMENTED
+        }
+        if (hasAbstractVar && hasImplementation && !hasImplementationVar) {
+            return ImplementationStatus.VAR_IMPLEMENTED_BY_VAL
         }
     }
 
@@ -374,7 +401,6 @@ fun FirCallableSymbol<*>.getImplementationStatus(
         else -> ImplementationStatus.INHERITED_OR_SYNTHESIZED
     }
 }
-
 
 private fun FirIntersectionCallableSymbol.subjectToManyNotImplemented(sessionHolder: SessionHolder): Boolean {
     var nonAbstractCountInClass = 0
@@ -448,71 +474,57 @@ fun checkTypeMismatch(
 
     val typeContext = context.session.typeContext
 
-    if (!isSubtypeForTypeMismatch(typeContext, subtype = rValueType, supertype = lValueType)) {
-        if (rValueType is ConeClassLikeType &&
-            rValueType.lookupTag.classId == StandardClassIds.Int &&
-            lValueType.fullyExpandedType(context.session).isIntegerTypeOrNullableIntegerTypeOfAnySize &&
-            rValueType.nullability == ConeNullability.NOT_NULL
-        ) {
-            // val p: Byte = 42 or similar situation
-            // TODO: remove after fix of KT-46047
-            return
+    // there is nothing to report if types are matching
+    if (isSubtypeForTypeMismatch(typeContext, subtype = rValueType, supertype = lValueType)) return
+
+    val resolvedSymbol = assignment?.calleeReference?.toResolvedCallableSymbol() as? FirPropertySymbol
+    when {
+        resolvedSymbol != null && lValueType is ConeCapturedType && lValueType.constructor.projection.kind.let {
+            it == ProjectionKind.STAR || it == ProjectionKind.OUT
+        } -> {
+            reporter.reportOn(assignment.source, FirErrors.SETTER_PROJECTED_OUT, resolvedSymbol, context)
         }
-        if (lValueType.isExtensionFunctionType || rValueType.isExtensionFunctionType) {
-            // TODO: remove after fix of KT-45989
-            return
+        rValue.isNullLiteral && lValueType.nullability == ConeNullability.NOT_NULL -> {
+            reporter.reportOn(rValue.source, FirErrors.NULL_FOR_NONNULL_TYPE, context)
         }
-        val resolvedSymbol = assignment?.calleeReference?.toResolvedCallableSymbol() as? FirPropertySymbol
-        when {
-            resolvedSymbol != null && lValueType is ConeCapturedType && lValueType.constructor.projection.kind.let {
-                it == ProjectionKind.STAR || it == ProjectionKind.OUT
-            } -> {
-                reporter.reportOn(assignment.source, FirErrors.SETTER_PROJECTED_OUT, resolvedSymbol, context)
+        isInitializer -> {
+            reporter.reportOn(
+                source,
+                FirErrors.INITIALIZER_TYPE_MISMATCH,
+                lValueType,
+                rValueType,
+                context.session.typeContext.isTypeMismatchDueToNullability(rValueType, lValueType),
+                context
+            )
+        }
+        source.kind is KtFakeSourceElementKind.DesugaredIncrementOrDecrement || assignment?.source?.kind is KtFakeSourceElementKind.DesugaredIncrementOrDecrement -> {
+            if (!lValueType.isNullable && rValueType.isNullable) {
+                val tempType = rValueType
+                rValueType = lValueType
+                lValueType = tempType
             }
-            rValue.isNullLiteral && lValueType.nullability == ConeNullability.NOT_NULL -> {
-                reporter.reportOn(rValue.source, FirErrors.NULL_FOR_NONNULL_TYPE, context)
+            if (rValueType.isUnit) {
+                reporter.reportOn(source, FirErrors.INC_DEC_SHOULD_NOT_RETURN_UNIT, context)
+            } else {
+                reporter.reportOn(source, FirErrors.RESULT_TYPE_MISMATCH, lValueType, rValueType, context)
             }
-            isInitializer -> {
-                reporter.reportOn(
-                    source,
-                    FirErrors.INITIALIZER_TYPE_MISMATCH,
-                    lValueType,
-                    rValueType,
-                    context.session.typeContext.isTypeMismatchDueToNullability(rValueType, lValueType),
-                    context
-                )
-            }
-            source.kind is KtFakeSourceElementKind.DesugaredIncrementOrDecrement || assignment?.source?.kind is KtFakeSourceElementKind.DesugaredIncrementOrDecrement -> {
-                if (!lValueType.isNullable && rValueType.isNullable) {
-                    val tempType = rValueType
-                    rValueType = lValueType
-                    lValueType = tempType
-                }
-                if (rValueType.isUnit) {
-                    reporter.reportOn(source, FirErrors.INC_DEC_SHOULD_NOT_RETURN_UNIT, context)
-                } else {
-                    reporter.reportOn(source, FirErrors.RESULT_TYPE_MISMATCH, lValueType, rValueType, context)
-                }
-            }
-            else -> {
-                reporter.reportOn(
-                    source,
-                    FirErrors.ASSIGNMENT_TYPE_MISMATCH,
-                    lValueType,
-                    rValueType,
-                    context.session.typeContext.isTypeMismatchDueToNullability(rValueType, lValueType),
-                    context
-                )
-            }
+        }
+        else -> {
+            reporter.reportOn(
+                source,
+                FirErrors.ASSIGNMENT_TYPE_MISMATCH,
+                lValueType,
+                rValueType,
+                context.session.typeContext.isTypeMismatchDueToNullability(rValueType, lValueType),
+                context
+            )
         }
     }
 }
 
 internal fun checkCondition(condition: FirExpression, context: CheckerContext, reporter: DiagnosticReporter) {
     val coneType = condition.typeRef.coneType.lowerBoundIfFlexible()
-    if (coneType !is ConeErrorType &&
-        !coneType.isSubtypeOf(context.session.typeContext, context.session.builtinTypes.booleanType.type)
-    ) {
+    if (coneType !is ConeErrorType && !coneType.isSubtypeOf(context.session.typeContext, context.session.builtinTypes.booleanType.type)) {
         reporter.reportOn(
             condition.source,
             FirErrors.CONDITION_TYPE_MISMATCH,
@@ -587,10 +599,14 @@ fun FirFunctionSymbol<*>.isFunctionForExpectTypeFromCastFeature(): Boolean {
     return true
 }
 
-fun getActualTargetList(annotated: FirAnnotationContainer): AnnotationTargetList {
+fun getActualTargetList(container: FirAnnotationContainer): AnnotationTargetList {
     fun CallableId.isMember(): Boolean {
         return classId != null || isLocal // TODO: Replace with .containingClass (after fixing)
     }
+
+    val annotated =
+        if (container is FirBackingField && !container.propertySymbol.hasBackingField) container.propertyIfBackingField
+        else container
 
     return when (annotated) {
         is FirRegularClass -> {

@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.utils.mapToIndex
 abstract class LLFirSelectingCombinedSymbolProvider<PROVIDER : FirSymbolProvider>(
     session: FirSession,
     project: Project,
-    private val providers: List<PROVIDER>,
+    protected val providers: List<PROVIDER>,
 ) : FirSymbolProvider(session) {
     protected val providersByKtModule: Map<KtModule, PROVIDER> =
         providers
@@ -40,42 +40,52 @@ abstract class LLFirSelectingCombinedSymbolProvider<PROVIDER : FirSymbolProvider
     /**
      * Cache [ProjectStructureProvider] to avoid service access when getting [KtModule]s.
      */
-    private val projectStructureProvider: ProjectStructureProvider = project.getService(ProjectStructureProvider::class.java)
+    private val projectStructureProvider: ProjectStructureProvider = ProjectStructureProvider.getInstance(project)
+
+    private val contextualModule = session.llFirModuleData.ktModule
+
+    protected fun getModule(element: PsiElement): KtModule {
+        return projectStructureProvider.getModule(element, contextualModule)
+    }
 
     /**
      * Selects the element with the highest module precedence in [candidates], returning the element and the provider to which resolution
      * should be delegated. This is a post-processing step that preserves classpath order when, for example, an index access with a combined
      * scope isn't guaranteed to return the first element in classpath order.
      */
-    protected fun <ELEMENT : PsiElement> selectFirstElementInClasspathOrder(candidates: Collection<ELEMENT>): Pair<ELEMENT, PROVIDER>? {
+    protected fun <CANDIDATE> selectFirstElementInClasspathOrder(
+        candidates: Collection<CANDIDATE>,
+        getElement: (CANDIDATE) -> PsiElement?,
+    ): Pair<CANDIDATE, PROVIDER>? {
         if (candidates.isEmpty()) return null
 
         // We're using a custom implementation instead of `minBy` so that `ktModule` doesn't need to be fetched twice.
-        var currentElement: ELEMENT? = null
+        var currentCandidate: CANDIDATE? = null
         var currentPrecedence: Int = Int.MAX_VALUE
         var currentKtModule: KtModule? = null
 
         for (candidate in candidates) {
-            val ktModule = projectStructureProvider.getKtModuleForKtElement(candidate)
+            val element = getElement(candidate) ?: continue
+            val ktModule = getModule(element)
 
             // If `ktModule` cannot be found in the map, `candidate` cannot be processed by any of the available providers, because none of
             // them belong to the correct module. We can skip in that case, because iterating through all providers wouldn't lead to any
             // results for `candidate`.
             val precedence = modulePrecedenceMap[ktModule] ?: continue
             if (precedence < currentPrecedence) {
-                currentElement = candidate
+                currentCandidate = candidate
                 currentPrecedence = precedence
                 currentKtModule = ktModule
             }
         }
 
-        val element = currentElement ?: return null
-        val ktModule = currentKtModule ?: error("`currentKtModule` must not be `null` when `currentElement` has been found.")
+        val candidate = currentCandidate ?: return null
+        val ktModule = currentKtModule ?: error("`currentKtModule` must not be `null` when `currentCandidate` has been found.")
 
         // The provider will always be found at this point, because `modulePrecedenceMap` contains the same keys as `providersByKtModule`
         // and a precedence for `currentKtModule` must have been found in the previous step.
         val provider = providersByKtModule.getValue(ktModule)
 
-        return Pair(element, provider)
+        return Pair(candidate, provider)
     }
 }

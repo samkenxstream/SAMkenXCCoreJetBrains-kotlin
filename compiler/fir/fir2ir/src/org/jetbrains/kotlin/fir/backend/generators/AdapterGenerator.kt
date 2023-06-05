@@ -308,8 +308,6 @@ internal class AdapterGenerator(
                     origin = null,
                     superQualifierSymbol = null
                 )
-            else ->
-                error("unknown callee kind: ${adapteeFunction.render()}")
         }
 
         var adapterParameterIndex = 0
@@ -347,7 +345,7 @@ internal class AdapterGenerator(
             return adapterFunction.valueParameters[parameterIndex + parameterShift].toIrGetValue(startOffset, endOffset)
         }
 
-        adapteeFunction.valueParameters.zip(firAdaptee.valueParameters).mapIndexed { index, (valueParameter, firParameter) ->
+        adapteeFunction.valueParameters.zip(firAdaptee.valueParameters).forEachIndexed { index, (valueParameter, firParameter) ->
             when (val mappedArgument = mappedArguments?.get(firParameter)) {
                 is ResolvedCallArgument.VarargArgument -> {
                     val valueArgument = if (mappedArgument.arguments.isEmpty()) {

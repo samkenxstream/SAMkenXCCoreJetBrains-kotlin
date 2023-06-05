@@ -6,10 +6,14 @@
 package org.jetbrains.kotlin.analysis.low.level.api.fir.providers
 
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirFileBuilder
+import org.jetbrains.kotlin.analysis.low.level.api.fir.project.structure.CompositeKotlinPackageProvider
+import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.extensions.LLFirResolveExtensionTool
+import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.extensions.llResolveExtensionTool
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.FirElementFinder
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.LLFirKotlinSymbolProviderNameCache
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.LLFirKotlinSymbolNamesProvider
 import org.jetbrains.kotlin.analysis.providers.KotlinDeclarationProvider
 import org.jetbrains.kotlin.analysis.providers.KotlinPackageProvider
+import org.jetbrains.kotlin.analysis.providers.impl.declarationProviders.CompositeKotlinDeclarationProvider
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.fir.FirSession
@@ -19,6 +23,7 @@ import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirClassLikeDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.languageVersionSettings
+import org.jetbrains.kotlin.fir.resolve.providers.FirCompositeCachedSymbolNamesProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
@@ -32,10 +37,25 @@ import org.jetbrains.kotlin.psi.KtFile
 internal class LLFirProviderHelper(
     firSession: FirSession,
     private val firFileBuilder: LLFirFileBuilder,
-    private val declarationProvider: KotlinDeclarationProvider,
-    private val packageProvider: KotlinPackageProvider,
+    mainDeclarationProvider: KotlinDeclarationProvider,
+    mainPackageProvider: KotlinPackageProvider,
     canContainKotlinPackage: Boolean,
 ) {
+    private val extensionTool: LLFirResolveExtensionTool? = firSession.llResolveExtensionTool
+
+    val declarationProvider = CompositeKotlinDeclarationProvider.create(
+        listOfNotNull(
+            mainDeclarationProvider,
+            extensionTool?.declarationProvider,
+        )
+    )
+
+    private val packageProvider = CompositeKotlinPackageProvider.create(
+        listOfNotNull(
+            mainPackageProvider,
+            extensionTool?.packageProvider,
+        )
+    )
     private val allowKotlinPackage = canContainKotlinPackage ||
             firSession.languageVersionSettings.getFlag(AnalysisFlags.allowKotlinPackage)
 
@@ -60,7 +80,16 @@ internal class LLFirProviderHelper(
             }
         }
 
-    val symbolNameCache = LLFirKotlinSymbolProviderNameCache(firSession, declarationProvider)
+    val symbolNameCache = FirCompositeCachedSymbolNamesProvider.create(
+        firSession,
+        listOfNotNull(
+            object : LLFirKotlinSymbolNamesProvider(declarationProvider) {
+                // This is a temporary workaround for KTIJ-25536.
+                override fun getPackageNamesWithTopLevelCallables(): Set<String>? = null
+            },
+            extensionTool?.symbolNamesProvider,
+        )
+    )
 
     fun getFirClassifierByFqNameAndDeclaration(
         classId: ClassId,

@@ -22,14 +22,16 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.js.backend.ast.*
 import org.jetbrains.kotlin.js.common.isValidES5Identifier
 import org.jetbrains.kotlin.utils.addIfNotNull
+import org.jetbrains.kotlin.utils.memoryOptimizedMap
+import org.jetbrains.kotlin.utils.toSmartList
 
 class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationContext) {
     private val className = context.getNameForClass(irClass)
     private val classNameRef = className.makeRef()
     private val baseClass: IrType? = irClass.superTypes.firstOrNull { !it.classifierOrFail.isInterface }
 
-    private val classPrototypeRef by lazy { prototypeOf(classNameRef, context.staticContext) }
-    private val baseClassRef by lazy { // Lazy in case was not collected by namer during JsClassGenerator construction
+    private val classPrototypeRef by lazy(LazyThreadSafetyMode.NONE) { prototypeOf(classNameRef, context.staticContext) }
+    private val baseClassRef by lazy(LazyThreadSafetyMode.NONE) { // Lazy in case was not collected by namer during JsClassGenerator construction
         if (baseClass != null && !baseClass.isAny()) baseClass.getClassRef(context) else null
     }
     private val classBlock = JsCompositeBlock()
@@ -255,7 +257,14 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
     }
 
     private fun IrClass.shouldCopyFrom(): Boolean {
-        return isInterface && !isEffectivelyExternal()
+        if (!isInterface || isEffectivelyExternal()) {
+            return false
+        }
+
+        // Do not copy an interface method if the interface is already a parent of the base class,
+        // as the method will already be copied from the interface into the base class
+        val superIrClass = baseClass?.classOrNull?.owner ?: return true
+        return !superIrClass.isSubclassOf(this)
     }
 
     private fun generateMemberFunction(declaration: IrSimpleFunction): Pair<JsName, JsFunction?> {
@@ -337,7 +346,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
             JsNameRef(context.getNameForStaticFunction(setMetadataFor)),
             listOf(ctor, name, metadataConstructor, parent, interfaces, associatedObjectKey, associatedObjects, suspendArity)
                 .dropLastWhile { it == null }
-                .map { it ?: undefined }
+                .memoryOptimizedMap { it ?: undefined }
         ).makeStmt()
 
     }
@@ -375,7 +384,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
             .takeIf { it.size > 1 || it.singleOrNull() != baseClass }
             ?.mapNotNull { it.asConstructorRef() }
             ?.takeIf { it.isNotEmpty() } ?: return null
-        return JsArrayLiteral(listRef)
+        return JsArrayLiteral(listRef.toSmartList())
     }
 
     private fun generateSuspendArity(): JsArrayLiteral? {
@@ -385,7 +394,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
             .distinct()
             .map { JsIntLiteral(it) }
 
-        return JsArrayLiteral(arity).takeIf { arity.isNotEmpty() }
+        return JsArrayLiteral(arity.toSmartList()).takeIf { arity.isNotEmpty() }
     }
 
     private fun generateAssociatedObjectKey(): JsIntLiteral? {
@@ -402,7 +411,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
                     }
                 }
             }
-        }
+        }.toSmartList()
 
         return associatedObjects
             .takeIf { it.isNotEmpty() }
@@ -466,7 +475,7 @@ private fun IrOverridableDeclaration<*>.overridesExternal(): Boolean {
 private val IrClassifierSymbol.isInterface get() = (owner as? IrClass)?.isInterface == true
 
 class JsIrClassModel(val klass: IrClass) {
-    val superClasses = klass.superTypes.map { it.classifierOrNull as IrClassSymbol }
+    val superClasses = klass.superTypes.memoryOptimizedMap { it.classifierOrNull as IrClassSymbol }
 
     val preDeclarationBlock = JsCompositeBlock()
     val postDeclarationBlock = JsCompositeBlock()

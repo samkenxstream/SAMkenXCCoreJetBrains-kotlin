@@ -31,9 +31,33 @@ public class AdditionalStubInfoTestGenerated extends AbstractAdditionalStubInfoT
     }
 
     @Test
+    @TestMetadata("AnnotationValues")
+    public void testAnnotationValues() throws Exception {
+        runTest("analysis/decompiled/decompiler-to-file-stubs/testData/additionalClsStubInfo/AnnotationValues/");
+    }
+
+    @Test
+    @TestMetadata("Contracts")
+    public void testContracts() throws Exception {
+        runTest("analysis/decompiled/decompiler-to-file-stubs/testData/additionalClsStubInfo/Contracts/");
+    }
+
+    @Test
     @TestMetadata("OuterClassesWithFlexibleArgs")
     public void testOuterClassesWithFlexibleArgs() throws Exception {
         runTest("analysis/decompiled/decompiler-to-file-stubs/testData/additionalClsStubInfo/OuterClassesWithFlexibleArgs/");
+    }
+
+    @Test
+    @TestMetadata("ParameterName")
+    public void testParameterName() throws Exception {
+        runTest("analysis/decompiled/decompiler-to-file-stubs/testData/additionalClsStubInfo/ParameterName/");
+    }
+
+    @Test
+    @TestMetadata("PropertyInitializer")
+    public void testPropertyInitializer() throws Exception {
+        runTest("analysis/decompiled/decompiler-to-file-stubs/testData/additionalClsStubInfo/PropertyInitializer/");
     }
 
     @Test

@@ -32,6 +32,12 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
     }
 
     @Test
+    @TestMetadata("expectExternal.kt")
+    public void testExpectExternal() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/expectExternal.kt");
+    }
+
+    @Test
     @TestMetadata("expectInterfaceApplicability.kt")
     public void testExpectInterfaceApplicability() throws Exception {
         runTest("compiler/testData/diagnostics/tests/multiplatform/expectInterfaceApplicability.kt");
@@ -41,6 +47,12 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
     @TestMetadata("expectObjectWithAbstractMember.kt")
     public void testExpectObjectWithAbstractMember() throws Exception {
         runTest("compiler/testData/diagnostics/tests/multiplatform/expectObjectWithAbstractMember.kt");
+    }
+
+    @Test
+    @TestMetadata("expectTailrec.kt")
+    public void testExpectTailrec() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/expectTailrec.kt");
     }
 
     @Test
@@ -86,6 +98,18 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
     }
 
     @Test
+    @TestMetadata("kt58153.kt")
+    public void testKt58153() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/kt58153.kt");
+    }
+
+    @Test
+    @TestMetadata("manyImplMemberNotImplemented.kt")
+    public void testManyImplMemberNotImplemented() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/manyImplMemberNotImplemented.kt");
+    }
+
+    @Test
     @TestMetadata("manyInterfacesMemberNotImplemented.kt")
     public void testManyInterfacesMemberNotImplemented() throws Exception {
         runTest("compiler/testData/diagnostics/tests/multiplatform/manyInterfacesMemberNotImplemented.kt");
@@ -98,6 +122,12 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
     }
 
     @Test
+    @TestMetadata("multipleExpectInterfacesImplementation.kt")
+    public void testMultipleExpectInterfacesImplementation() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/multipleExpectInterfacesImplementation.kt");
+    }
+
+    @Test
     @TestMetadata("namedArguments.kt")
     public void testNamedArguments() throws Exception {
         runTest("compiler/testData/diagnostics/tests/multiplatform/namedArguments.kt");
@@ -107,6 +137,12 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
     @TestMetadata("privateTopLevelDeclarations.kt")
     public void testPrivateTopLevelDeclarations() throws Exception {
         runTest("compiler/testData/diagnostics/tests/multiplatform/privateTopLevelDeclarations.kt");
+    }
+
+    @Test
+    @TestMetadata("sealedClassWithPrivateConstructor.kt")
+    public void testSealedClassWithPrivateConstructor() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/sealedClassWithPrivateConstructor.kt");
     }
 
     @Test
@@ -173,6 +209,12 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
         }
 
         @Test
+        @TestMetadata("constructorDefaultArgsViaActualTypealias.kt")
+        public void testConstructorDefaultArgsViaActualTypealias() throws Exception {
+            runTest("compiler/testData/diagnostics/tests/multiplatform/defaultArguments/constructorDefaultArgsViaActualTypealias.kt");
+        }
+
+        @Test
         @TestMetadata("expectedDeclaresDefaultArguments.kt")
         public void testExpectedDeclaresDefaultArguments() throws Exception {
             runTest("compiler/testData/diagnostics/tests/multiplatform/defaultArguments/expectedDeclaresDefaultArguments.kt");
@@ -188,6 +230,12 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
         @TestMetadata("expectedVsNonExpectedWithDefaults.kt")
         public void testExpectedVsNonExpectedWithDefaults() throws Exception {
             runTest("compiler/testData/diagnostics/tests/multiplatform/defaultArguments/expectedVsNonExpectedWithDefaults.kt");
+        }
+
+        @Test
+        @TestMetadata("methodDefaultArgsViaActualTypealias.kt")
+        public void testMethodDefaultArgsViaActualTypealias() throws Exception {
+            runTest("compiler/testData/diagnostics/tests/multiplatform/defaultArguments/methodDefaultArgsViaActualTypealias.kt");
         }
     }
 

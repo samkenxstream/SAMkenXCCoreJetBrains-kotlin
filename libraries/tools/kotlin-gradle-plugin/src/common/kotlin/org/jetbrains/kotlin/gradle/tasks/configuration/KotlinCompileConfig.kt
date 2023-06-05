@@ -43,7 +43,7 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
             taskProvider.configure { task ->
                 task.incremental = propertiesProvider.incrementalJvm ?: true
                 task.usePreciseJavaTracking = propertiesProvider.usePreciseJavaTracking ?: true
-                task.jvmTargetValidationMode.set(propertiesProvider.jvmTargetValidationMode)
+                task.jvmTargetValidationMode.convention(propertiesProvider.jvmTargetValidationMode).finalizeValueOnRead()
                 task.useKotlinAbiSnapshot.value(propertiesProvider.useKotlinAbiSnapshot).disallowChanges()
 
                 task.classpathSnapshotProperties.useClasspathSnapshot.value(useClasspathSnapshot).disallowChanges()
@@ -89,8 +89,7 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
 
                 // In case of 'org.jetbrains.kotlin.jvm' and 'org.jetbrains.kotlin.android' plugins module name will be pre-configured
                 if (ext !is KotlinJvmProjectExtension && ext !is KotlinAndroidProjectExtension) {
-                    @Suppress("DEPRECATION")
-                    task.moduleName.set(providers.provider { compilationInfo.moduleName })
+                    task.compilerOptions.moduleName.convention(providers.provider { compilationInfo.moduleName })
                 } else {
                     task.nagTaskModuleNameUsage.set(true)
                 }
@@ -100,7 +99,7 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
 
 
     constructor(project: Project, ext: KotlinTopLevelExtension) : super(
-        project, ext, languageSettings = getDefaultLangSetting(project, ext)
+        project, ext, languageSettings = getDefaultLangSetting(project)
     )
 
     companion object {
@@ -111,12 +110,8 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
         private const val JAR_ARTIFACT_TYPE = "jar"
         const val CLASSPATH_ENTRY_SNAPSHOT_ARTIFACT_TYPE = "classpath-entry-snapshot"
 
-        private fun getDefaultLangSetting(project: Project, ext: KotlinTopLevelExtension): Provider<LanguageSettings> {
-            return project.provider {
-                DefaultLanguageSettingsBuilder().also {
-                    it.freeCompilerArgsProvider = project.provider { listOfNotNull(ext.explicitApi?.toCompilerArg()) }
-                }
-            }
+        private fun getDefaultLangSetting(project: Project): Provider<LanguageSettings> {
+            return project.provider { DefaultLanguageSettingsBuilder() }
         }
     }
 

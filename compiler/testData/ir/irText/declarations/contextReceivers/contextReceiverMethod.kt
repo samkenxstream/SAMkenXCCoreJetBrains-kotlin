@@ -1,7 +1,5 @@
 // FIR_IDENTICAL
 // !LANGUAGE: +ContextReceivers
-// IGNORE_BACKEND_K1: JS_IR
-// IGNORE_BACKEND_K1: JS_IR_ES6
 
 class Context {
     fun foo() = 1

@@ -16,7 +16,6 @@ import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinBuiltInDecompiler
 import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinClassFileDecompiler
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.FileAttributeService
-import org.jetbrains.kotlin.analysis.decompiler.stub.files.DummyFileAttributeService
 import org.jetbrains.kotlin.analysis.test.framework.test.configurators.AnalysisApiTestServiceRegistrar
 import org.jetbrains.kotlin.test.TestInfrastructureInternals
 import org.jetbrains.kotlin.test.services.TestServices
@@ -34,11 +33,6 @@ object AnalysisApiLibraryBaseTestServiceRegistrar : AnalysisApiTestServiceRegist
     }
 
     override fun registerApplicationServices(application: MockApplication, testServices: TestServices) {
-        application.apply {
-            registerService(ClsKotlinBinaryClassCache::class.java)
-            registerService(FileAttributeService::class.java, DummyFileAttributeService)
-        }
-
         FileTypeFileViewProviders.INSTANCE.addExplicitExtension(JavaClassFileType.INSTANCE, ClassFileViewProviderFactory())
 
         ClassFileDecompilers.getInstance().EP_NAME.point.apply {

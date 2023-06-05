@@ -162,6 +162,13 @@ internal interface ContextUtils : RuntimeAware {
         return !generationState.llvmModuleSpecification.containsDeclaration(declaration)
     }
 
+    fun linkageOf(irFunction: IrFunction) = when {
+        isExternal(irFunction) -> LLVMLinkage.LLVMExternalLinkage
+        irFunction.isExported() -> LLVMLinkage.LLVMExternalLinkage
+        context.config.producePerFileCache && irFunction in generationState.calledFromExportedInlineFunctions -> LLVMLinkage.LLVMExternalLinkage
+        else -> LLVMLinkage.LLVMInternalLinkage
+    }
+
     /**
      * LLVM function generated from the Kotlin function.
      * It may be declared as external function prototype.
@@ -419,8 +426,8 @@ internal class CodegenLlvmHelpers(private val generationState: NativeGenerationS
     val setCurrentFrameFunction = importRtFunction("SetCurrentFrame")
     val checkCurrentFrameFunction = importRtFunction("CheckCurrentFrame")
     val lookupInterfaceTableRecord = importRtFunction("LookupInterfaceTableRecord")
-    val isInstanceFunction = importRtFunction("IsInstance")
-    val isInstanceOfClassFastFunction = importRtFunction("IsInstanceOfClassFast")
+    val isSubtypeFunction = importRtFunction("IsSubtype")
+    val isSubclassFastFunction = importRtFunction("IsSubclassFast")
     val throwExceptionFunction = importRtFunction("ThrowException")
     val appendToInitalizersTail = importRtFunction("AppendToInitializersTail")
     val callInitGlobalPossiblyLock = importRtFunction("CallInitGlobalPossiblyLock")

@@ -6,15 +6,14 @@
 package org.jetbrains.kotlin.analysis.low.level.api.fir.providers
 
 import com.intellij.openapi.project.Project
-import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.low.level.api.fir.caches.NullableCaffeineCache
-import org.jetbrains.kotlin.analysis.low.level.api.fir.project.structure.llFirModuleData
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.LLFirSymbolProviderNameCache
+import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSession
 import org.jetbrains.kotlin.analysis.project.structure.KtModule
-import org.jetbrains.kotlin.analysis.project.structure.getKtModule
 import org.jetbrains.kotlin.analysis.providers.KotlinDeclarationProvider
-import org.jetbrains.kotlin.analysis.providers.createDeclarationProvider
+import org.jetbrains.kotlin.analysis.providers.mergeDeclarationProviders
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.resolve.providers.FirCompositeCachedSymbolNamesProvider
+import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolNamesProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProviderInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
@@ -25,10 +24,10 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.psi.KtCallableDeclaration
 
 /**
- * [LLFirCombinedKotlinSymbolProvider] combines multiple [LLFirProvider.SymbolProvider]s with the following advantages:
+ * [LLFirCombinedKotlinSymbolProvider] combines multiple [LLFirKotlinSymbolProvider]s with the following advantages:
  *
  * - The combined symbol provider can combine the "names in package" sets built by individual providers. The name set can then be checked
  *   once instead of for each subordinate symbol provider. Because Kotlin symbol providers are ordered first in
@@ -40,26 +39,18 @@ import org.jetbrains.kotlin.psi.KtFile
  *
  * [declarationProvider] must have a scope which combines the scopes of the individual [providers].
  */
-internal class LLFirCombinedKotlinSymbolProvider(
+internal class LLFirCombinedKotlinSymbolProvider private constructor(
     session: FirSession,
-    private val project: Project,
-    private val providers: List<LLFirProvider.SymbolProvider>,
+    project: Project,
+    providers: List<LLFirKotlinSymbolProvider>,
     private val declarationProvider: KotlinDeclarationProvider,
-) : LLFirSelectingCombinedSymbolProvider<LLFirProvider.SymbolProvider>(session, project, providers) {
-    private val symbolNameCache = object : LLFirSymbolProviderNameCache(session) {
-        override fun computeClassifierNames(packageFqName: FqName): Set<String>? = buildSet {
-            providers.forEach { addAll(it.knownTopLevelClassifiersInPackage(packageFqName) ?: return null) }
-        }
-
-        override fun computeCallableNames(packageFqName: FqName): Set<Name>? = buildSet {
-            providers.forEach { addAll(it.computeCallableNamesInPackage(packageFqName) ?: return null) }
-        }
-    }
+) : LLFirSelectingCombinedSymbolProvider<LLFirKotlinSymbolProvider>(session, project, providers) {
+    override val symbolNamesProvider: FirSymbolNamesProvider = FirCompositeCachedSymbolNamesProvider.fromSymbolProviders(session, providers)
 
     private val classifierCache = NullableCaffeineCache<ClassId, FirClassLikeSymbol<*>> { it.maximumSize(500) }
 
     override fun getClassLikeSymbolByClassId(classId: ClassId): FirClassLikeSymbol<*>? {
-        if (!symbolNameCache.mayHaveTopLevelClassifier(classId, mayHaveFunctionClass = false)) return null
+        if (!symbolNamesProvider.mayHaveTopLevelClassifier(classId)) return null
 
         return classifierCache.get(classId) { computeClassLikeSymbolByClassId(it) }
     }
@@ -67,70 +58,72 @@ internal class LLFirCombinedKotlinSymbolProvider(
     @OptIn(FirSymbolProviderInternals::class)
     private fun computeClassLikeSymbolByClassId(classId: ClassId): FirClassLikeSymbol<*>? {
         val candidates = declarationProvider.getAllClassesByClassId(classId) + declarationProvider.getAllTypeAliasesByClassId(classId)
-        val (ktClass, provider) = selectFirstElementInClasspathOrder(candidates) ?: return null
+        val (ktClass, provider) = selectFirstElementInClasspathOrder(candidates) { it } ?: return null
         return provider.getClassLikeSymbolByClassId(classId, ktClass)
     }
 
     @FirSymbolProviderInternals
     override fun getTopLevelCallableSymbolsTo(destination: MutableList<FirCallableSymbol<*>>, packageFqName: FqName, name: Name) {
-        forEachCallableProvider(packageFqName, name) { callableId, callableFiles ->
-            getTopLevelCallableSymbolsTo(destination, callableId, callableFiles)
+        forEachCallableProvider(
+            packageFqName,
+            name,
+            declarationProvider::getTopLevelCallables,
+        ) { callableId, callables ->
+            getTopLevelCallableSymbolsTo(destination, callableId, callables)
         }
     }
 
     @FirSymbolProviderInternals
     override fun getTopLevelFunctionSymbolsTo(destination: MutableList<FirNamedFunctionSymbol>, packageFqName: FqName, name: Name) {
-        forEachCallableProvider(packageFqName, name) { callableId, callableFiles ->
-            getTopLevelFunctionSymbolsTo(destination, callableId, callableFiles)
+        forEachCallableProvider(packageFqName, name, declarationProvider::getTopLevelFunctions) { callableId, functions ->
+            getTopLevelFunctionSymbolsTo(destination, callableId, functions)
         }
     }
 
     @FirSymbolProviderInternals
     override fun getTopLevelPropertySymbolsTo(destination: MutableList<FirPropertySymbol>, packageFqName: FqName, name: Name) {
-        forEachCallableProvider(packageFqName, name) { callableId, callableFiles ->
-            getTopLevelPropertySymbolsTo(destination, callableId, callableFiles)
+        forEachCallableProvider(packageFqName, name, declarationProvider::getTopLevelProperties) { callableId, properties ->
+            getTopLevelPropertySymbolsTo(destination, callableId, properties)
         }
     }
 
     /**
      * Calls [provide] on those providers which can contribute a callable of the given name.
      */
-    private fun forEachCallableProvider(
+    private inline fun <A : KtCallableDeclaration> forEachCallableProvider(
         packageFqName: FqName,
         name: Name,
-        provide: LLFirProvider.SymbolProvider.(CallableId, Collection<KtFile>) -> Unit,
+        getCallables: (CallableId) -> Collection<A>,
+        provide: LLFirKotlinSymbolProvider.(CallableId, Collection<A>) -> Unit,
     ) {
-        if (!symbolNameCache.mayHaveTopLevelCallable(packageFqName, name)) return
+        if (!symbolNamesProvider.mayHaveTopLevelCallable(packageFqName, name)) return
 
         val callableId = CallableId(packageFqName, name)
 
-        declarationProvider.getTopLevelCallableFiles(callableId)
-            .groupBy { it.getKtModule(project) }
-            .forEach { (ktModule, ktFiles) ->
-                // If `ktModule` cannot be found in the map, `ktFiles` cannot be processed by any of the available providers, because none
+        getCallables(callableId)
+            .groupBy { getModule(it) }
+            .forEach { (ktModule, callables) ->
+                // If `ktModule` cannot be found in the map, `callables` cannot be processed by any of the available providers, because none
                 // of them belong to the correct module. We can skip in that case, because iterating through all providers wouldn't lead to
-                // any results for `ktFiles`.
+                // any results for `callables`.
                 val provider = providersByKtModule[ktModule] ?: return@forEach
-                provider.provide(callableId, ktFiles)
+                provider.provide(callableId, callables)
             }
     }
 
     override fun getPackage(fqName: FqName): FqName? = providers.firstNotNullOfOrNull { it.getPackage(fqName) }
 
-    override fun computePackageSetWithTopLevelCallables(): Set<String>? = null
-
-    override fun knownTopLevelClassifiersInPackage(packageFqName: FqName): Set<String>? =
-        symbolNameCache.getTopLevelClassifierNamesInPackage(packageFqName)
-
-    override fun computeCallableNamesInPackage(packageFqName: FqName): Set<Name>? =
-        symbolNameCache.getTopLevelCallableNamesInPackage(packageFqName)
-
     companion object {
-        fun merge(session: FirSession, project: Project, providers: List<LLFirProvider.SymbolProvider>): FirSymbolProvider? =
+        fun merge(session: LLFirSession, project: Project, providers: List<LLFirKotlinSymbolProvider>): FirSymbolProvider? =
             if (providers.size > 1) {
-                val combinedScope = GlobalSearchScope.union(providers.map { it.session.llFirModuleData.ktModule.contentScope })
-                val declarationProvider = project.createDeclarationProvider(combinedScope)
+                val declarationProvider = project.mergeDeclarationProviders(providers.map { it.declarationProvider })
                 LLFirCombinedKotlinSymbolProvider(session, project, providers, declarationProvider)
             } else providers.singleOrNull()
     }
 }
+
+/**
+ * Callables are provided very rarely (compared to functions/properties individually), so it's okay to hit indices twice here.
+ */
+private fun KotlinDeclarationProvider.getTopLevelCallables(callableId: CallableId): List<KtCallableDeclaration> =
+    getTopLevelFunctions(callableId) + getTopLevelProperties(callableId)

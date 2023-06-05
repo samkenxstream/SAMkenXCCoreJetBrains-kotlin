@@ -10,19 +10,30 @@
 #include <cstdint>
 
 #include "AtomicStack.hpp"
+#include "ExtraObjectPage.hpp"
+#include "GCStatistics.hpp"
 
 namespace kotlin::alloc {
+
+struct alignas(8) FixedCellRange {
+    uint32_t first;
+    uint32_t last;
+};
 
 struct alignas(8) FixedBlockCell {
     // The FixedBlockCell either contains data or a pointer to the next free cell
     union {
         uint8_t data[];
-        FixedBlockCell* nextFree;
+        FixedCellRange nextFree;
     };
 };
 
 class alignas(8) FixedBlockPage {
 public:
+    using GCSweepScope = gc::GCHandle::GCSweepScope;
+
+    static GCSweepScope currentGCSweepScope(gc::GCHandle& handle) noexcept { return handle.sweep(); }
+
     static FixedBlockPage* Create(uint32_t blockSize) noexcept;
 
     void Destroy() noexcept;
@@ -30,17 +41,18 @@ public:
     // Tries to allocate in current page, returns null if no free block in page
     uint8_t* TryAllocate() noexcept;
 
-    bool Sweep() noexcept;
+    bool Sweep(GCSweepScope& sweepHandle, FinalizerQueue& finalizerQueue) noexcept;
 
 private:
-    friend class AtomicStack<FixedBlockPage>;
-
     explicit FixedBlockPage(uint32_t blockSize) noexcept;
+
+    friend class AtomicStack<FixedBlockPage>;
 
     // Used for linking pages together in `pages` queue or in `unswept` queue.
     FixedBlockPage* next_;
+    FixedCellRange nextFree_;
     uint32_t blockSize_;
-    FixedBlockCell* nextFree_;
+    uint32_t end_;
     FixedBlockCell cells_[];
 };
 

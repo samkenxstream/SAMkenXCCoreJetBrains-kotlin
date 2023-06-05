@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.pill.PillExtension
 plugins {
     id("gradle-plugin-common-configuration")
     id("jps-compatible")
+    id("org.jetbrains.kotlinx.binary-compatibility-validator")
 }
 
 repositories {
@@ -17,58 +18,93 @@ pill {
     variant = PillExtension.Variant.FULL
 }
 
-kotlin.sourceSets.all {
-    languageSettings.optIn("kotlin.RequiresOptIn")
-    languageSettings.optIn("org.jetbrains.kotlin.gradle.plugin.mpp.pm20.AdvancedKotlinGradlePluginApi")
-    languageSettings.optIn("org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi")
-    languageSettings.optIn("org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi")
-    languageSettings.optIn("org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi")
-    languageSettings.optIn("org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi")
+kotlin {
+    compilerOptions {
+        optIn.addAll(
+            listOf(
+                "kotlin.RequiresOptIn",
+                "org.jetbrains.kotlin.gradle.plugin.mpp.pm20.AdvancedKotlinGradlePluginApi",
+                "org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi",
+                "org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi",
+                "org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi",
+                "org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi",
+            )
+        )
+    }
+}
+
+apiValidation {
+    publicMarkers.add("org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi")
+    nonPublicMarkers.add("org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi")
+    additionalSourceSets.add("common")
 }
 
 dependencies {
     commonApi(platform(project(":kotlin-gradle-plugins-bom")))
     commonApi(project(":kotlin-gradle-plugin-api"))
     commonApi(project(":kotlin-gradle-plugin-model"))
-    commonApi(project(":kotlin-tooling-core"))
 
-    commonCompileOnly(project(":compiler"))
+    // Following two dependencies is a workaround for IDEA import to pick-up them correctly
+    commonCompileOnly(project(":kotlin-gradle-plugin-api")) {
+        capabilities {
+            requireCapability("org.jetbrains.kotlin:kotlin-gradle-plugin-api-common")
+        }
+    }
+    commonCompileOnly(project(":kotlin-gradle-plugin-model")) {
+        capabilities {
+            requireCapability("org.jetbrains.kotlin:kotlin-gradle-plugin-model-common")
+        }
+    }
+
     commonCompileOnly(project(":compiler:incremental-compilation-impl"))
     commonCompileOnly(project(":daemon-common"))
+    commonCompileOnly(project(":kotlin-daemon-client"))
     commonCompileOnly(project(":kotlin-gradle-compiler-types"))
-    commonCompileOnly(project(":native:kotlin-native-utils"))
     commonCompileOnly(project(":kotlin-android-extensions"))
-    commonCompileOnly(project(":kotlin-build-common"))
-    commonCompileOnly(project(":kotlin-compiler-runner"))
+    commonCompileOnly(project(":kotlin-compiler-runner-unshaded"))
     commonCompileOnly(project(":kotlin-annotation-processing"))
-    commonCompileOnly(project(":kotlin-annotation-processing-gradle"))
     commonCompileOnly(project(":kotlin-scripting-compiler"))
     commonCompileOnly(project(":kotlin-gradle-statistics"))
     commonCompileOnly(project(":kotlin-gradle-build-metrics"))
-    commonCompileOnly("com.android.tools.build:gradle:4.2.2")
-    commonCompileOnly("com.android.tools.build:gradle-api:4.2.2")
-    commonCompileOnly("com.android.tools.build:builder:4.2.2")
-    commonCompileOnly("com.android.tools.build:builder-model:4.2.2")
-    commonCompileOnly("org.codehaus.groovy:groovy-all:2.4.12")
+    commonCompileOnly("com.android.tools.build:gradle:4.2.2") {
+        exclude("org.ow2.asm")
+        exclude("net.sf.proguard")
+        exclude("net.sf.jopt-simple")
+        exclude("com.squareup")
+        exclude("com.google.crypto.tink")
+        exclude("com.google.guava")
+        exclude("com.google.protobuf")
+        exclude("com.google.testing.platform")
+        exclude("com.android.tools.lint")
+        exclude("androidx.databinding")
+        exclude("com.android.tools.analytics-library")
+        exclude("com.android.tools.build.jetifier")
+        exclude("com.android.tools.build", "transform-api")
+        exclude("com.android.tools.build", "builder-test-api")
+        exclude("com.android.tools.build", "bundletool")
+        exclude("com.android.tools.build", "aaptcompiler")
+        exclude("com.android.tools.build", "aapt2-proto")
+    }
     commonCompileOnly(intellijCore())
     commonCompileOnly(commonDependency("org.jetbrains.teamcity:serviceMessages"))
     commonCompileOnly("com.gradle:gradle-enterprise-gradle-plugin:3.12.4")
     commonCompileOnly(commonDependency("com.google.code.gson:gson"))
-    commonCompileOnly(commonDependency("com.google.guava:guava"))
     commonCompileOnly("de.undercouch:gradle-download-task:4.1.1")
     commonCompileOnly("com.github.gundy:semver4j:0.16.4:nodeps") {
         exclude(group = "*")
     }
     commonCompileOnly(project(":kotlin-tooling-metadata"))
+    commonCompileOnly(project(":compiler:build-tools:kotlin-build-statistics"))
+
 
     commonImplementation(project(":kotlin-gradle-plugin-idea"))
     commonImplementation(project(":kotlin-gradle-plugin-idea-proto"))
     commonImplementation(project(":kotlin-util-klib"))
     commonImplementation(project(":native:kotlin-klib-commonizer-api"))
-    commonImplementation(project(":kotlin-project-model"))
+    commonImplementation(project(":compiler:build-tools:kotlin-build-tools-api"))
 
     commonRuntimeOnly(project(":kotlin-compiler-embeddable"))
-    commonRuntimeOnly(project(":kotlin-annotation-processing-gradle"))
+    commonRuntimeOnly(project(":kotlin-annotation-processing-embeddable"))
     commonRuntimeOnly(project(":kotlin-android-extensions"))
     commonRuntimeOnly(project(":kotlin-compiler-runner")) {
         // Excluding dependency with not-relocated 'com.intellij' types
@@ -89,9 +125,18 @@ dependencies {
         exclude(group = "*")
     }
 
+    if (!kotlinBuildProperties.isInJpsBuildIdeaSync) {
+        // Adding workaround KT-57317 for Gradle versions where Kotlin runtime <1.8.0
+        "mainEmbedded"(project(":kotlin-build-tools-enum-compat"))
+        "gradle70Embedded"(project(":kotlin-build-tools-enum-compat"))
+        "gradle71Embedded"(project(":kotlin-build-tools-enum-compat"))
+        "gradle74Embedded"(project(":kotlin-build-tools-enum-compat"))
+        "gradle75Embedded"(project(":kotlin-build-tools-enum-compat"))
+        "gradle76Embedded"(project(":kotlin-build-tools-enum-compat"))
+    }
+
     testCompileOnly(project(":compiler"))
     testCompileOnly(project(":kotlin-annotation-processing"))
-    testCompileOnly(project(":kotlin-annotation-processing-gradle"))
 
     testImplementation(commonDependency("org.jetbrains.teamcity:serviceMessages"))
     testImplementation(projectTests(":kotlin-build-common"))
@@ -102,6 +147,8 @@ dependencies {
     testImplementation(project(":kotlin-gradle-statistics"))
     testImplementation(project(":kotlin-tooling-metadata"))
 }
+
+configurations.commonCompileClasspath.get().exclude("org.jetbrains.kotlinx", "kotlinx-coroutines-core")
 
 if (kotlinBuildProperties.isInJpsBuildIdeaSync) {
     configurations.commonApi.get().exclude("com.android.tools.external.com-intellij", "intellij-core")
@@ -257,6 +304,9 @@ if (!kotlinBuildProperties.isInJpsBuildIdeaSync) {
             languageVersion.set(JavaLanguageVersion.of(11))
         })
         dependsOnKotlinGradlePluginInstall()
+        useAndroidSdk()
+        doFirst { acceptAndroidSdkLicenses() }
+        maxParallelForks = 8
 
         testLogging {
             events("passed", "skipped", "failed")

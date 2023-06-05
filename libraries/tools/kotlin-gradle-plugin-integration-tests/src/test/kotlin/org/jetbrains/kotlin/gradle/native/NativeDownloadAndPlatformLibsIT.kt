@@ -8,12 +8,14 @@ package org.jetbrains.kotlin.gradle.native
 import org.jetbrains.kotlin.gradle.*
 import org.jetbrains.kotlin.gradle.embedProject
 import org.jetbrains.kotlin.gradle.native.GeneralNativeIT.Companion.containsSequentially
-import org.jetbrains.kotlin.gradle.native.GeneralNativeIT.Companion.extractNativeCommandLineArguments
 import org.jetbrains.kotlin.gradle.native.GeneralNativeIT.Companion.withNativeCommandLineArguments
+import org.jetbrains.kotlin.gradle.testbase.NativeToolKind
+import org.jetbrains.kotlin.gradle.testbase.extractNativeCompilerCommandLineArguments
 import org.jetbrains.kotlin.gradle.transformProjectWithPluginsDsl
 import org.jetbrains.kotlin.gradle.util.modify
 import org.jetbrains.kotlin.gradle.utils.NativeCompilerDownloader
 import org.jetbrains.kotlin.gradle.utils.Xcode
+import org.jetbrains.kotlin.gradle.utils.XcodeVersion
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.presetName
@@ -186,7 +188,12 @@ class NativeDownloadAndPlatformLibsIT : BaseGradleIT() {
         // Check that user can change generation mode used by the cinterop tool.
         buildWithLightDist("tasks", "-Pkotlin.native.platform.libraries.mode=metadata") {
             assertSuccessful()
-            assertTrue(extractNativeCommandLineArguments(toolName = "generatePlatformLibraries").containsSequentially("-mode", "metadata"))
+            assertTrue(
+                extractNativeCompilerCommandLineArguments(
+                    taskOutput = output,
+                    toolName = NativeToolKind.GENERATE_PLATFORM_LIBRARIES
+                ).containsSequentially("-mode", "metadata")
+            )
         }
     }
 
@@ -246,15 +253,8 @@ class NativeDownloadAndPlatformLibsIT : BaseGradleIT() {
         Assume.assumeTrue(maven != MAVEN_CENTRAL)
 
         if (HostManager.hostIsMac) {
-            val xcodeVersion = Xcode!!.currentVersion
-            val versionSplit = xcodeVersion.split("(\\s+|\\.|-)".toRegex())
-            check(versionSplit.size >= 2) {
-                "Unrecognised version of Xcode $xcodeVersion was split to $versionSplit"
-            }
-            val major = versionSplit[0].toInt()
-            val minor = versionSplit[1].toInt()
             // Building platform libs require Xcode 14.1
-            Assume.assumeTrue(major >= 14 && minor >= 1)
+            Assume.assumeTrue(Xcode!!.currentVersion >= XcodeVersion(14, 1))
         }
 
         with(transformNativeTestProjectWithPluginDsl("native-download-maven")) {

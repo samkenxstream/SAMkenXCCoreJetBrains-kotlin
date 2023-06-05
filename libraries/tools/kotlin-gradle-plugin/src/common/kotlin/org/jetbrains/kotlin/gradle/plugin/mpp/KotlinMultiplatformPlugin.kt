@@ -14,6 +14,7 @@ import org.gradle.api.tasks.TaskProvider
 import org.gradle.jvm.tasks.Jar
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.dsl.explicitApiModeAsCompilerArg
 import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.internal.customizeKotlinDependencies
@@ -24,6 +25,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMultiplatformPlugin.Companio
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.addBuildListenerForXcode
 import org.jetbrains.kotlin.gradle.plugin.mpp.internal.runDeprecationDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.copyAttributes
+import org.jetbrains.kotlin.gradle.plugin.mpp.targetHierarchy.orNull
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
 import org.jetbrains.kotlin.gradle.plugin.sources.checkSourceSetVisibilityRequirements
 import org.jetbrains.kotlin.gradle.plugin.sources.internal
@@ -85,7 +87,7 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
     }
 
     private fun exportProjectStructureMetadataForOtherBuilds(
-        extension: KotlinMultiplatformExtension
+        extension: KotlinMultiplatformExtension,
     ) {
         GlobalProjectStructureMetadataStorage.registerProjectStructureMetadata(extension.project) {
             extension.kotlinProjectStructureMetadata
@@ -168,30 +170,30 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
 
 
     private fun configureSourceSets(project: Project) = with(project.multiplatformExtension) {
-        val production = sourceSets.create(KotlinSourceSet.COMMON_MAIN_SOURCE_SET_NAME)
-        val test = sourceSets.create(KotlinSourceSet.COMMON_TEST_SOURCE_SET_NAME)
+        /* Create 'commonMain' and 'commonTest' SourceSets */
+        sourceSets.create(KotlinSourceSet.COMMON_MAIN_SOURCE_SET_NAME)
+        sourceSets.create(KotlinSourceSet.COMMON_TEST_SOURCE_SET_NAME)
+
+        /* Create default 'dependsOn' to commonMain/commonTest (or even common{SourceSetTree}) */
         targets.all { target ->
             project.launchInStage(KotlinPluginLifecycle.Stage.FinaliseRefinesEdges) {
                 /* Only setup default refines edges when no KotlinTargetHierarchy was applied */
                 if (project.multiplatformExtension.internalKotlinTargetHierarchy.appliedDescriptors.isNotEmpty()) return@launchInStage
 
-                target.compilations.findByName(KotlinCompilation.MAIN_COMPILATION_NAME)?.let { mainCompilation ->
-                    mainCompilation.defaultSourceSet.takeIf { it != production }?.dependsOn(production)
-                }
-
-                target.compilations.findByName(KotlinCompilation.TEST_COMPILATION_NAME)?.let { testCompilation ->
-                    testCompilation.defaultSourceSet.takeIf { it != test }?.dependsOn(test)
+                target.compilations.forEach { compilation ->
+                    val sourceSetTree = KotlinTargetHierarchy.SourceSetTree.orNull(compilation) ?: return@forEach
+                    val commonSourceSet = sourceSets.findByName(lowerCamelCaseName("common", sourceSetTree.name)) ?: return@forEach
+                    compilation.defaultSourceSet.dependsOn(commonSourceSet)
                 }
             }
 
+            /* Report the platform to tbe build stats service */
             val targetName = if (target is KotlinNativeTarget)
                 target.konanTarget.name
             else
                 target.platformType.name
             KotlinBuildStatsService.getInstance()?.report(StringMetrics.MPP_PLATFORMS, targetName)
         }
-
-        UnusedSourceSetsChecker.checkSourceSets(project)
 
         project.launchInStage(KotlinPluginLifecycle.Stage.ReadyForExecution) {
             project.runProjectConfigurationHealthCheck {
@@ -227,10 +229,6 @@ internal fun applyUserDefinedAttributes(target: AbstractKotlinTarget) {
         }.toMutableList()
 
         val mainCompilation = target.compilations.findByName(KotlinCompilation.MAIN_COMPILATION_NAME)
-        val defaultTargetConfiguration = project.configurations.findByName(target.defaultConfigurationName)
-        if (mainCompilation != null && defaultTargetConfiguration != null) {
-            outputConfigurationsWithCompilations += defaultTargetConfiguration to mainCompilation
-        }
 
         // Add usages of android library when its variants are grouped by flavor
         outputConfigurationsWithCompilations += target.kotlinComponents
@@ -248,6 +246,7 @@ internal fun applyUserDefinedAttributes(target: AbstractKotlinTarget) {
         target.compilations.all { compilation ->
             val compilationAttributes = compilation.attributes
 
+            @Suppress("DEPRECATION")
             compilation.relatedConfigurationNames
                 .mapNotNull { configurationName -> target.project.configurations.findByName(configurationName) }
                 .forEach { configuration -> copyAttributes(compilationAttributes, configuration.attributes) }
@@ -278,7 +277,7 @@ private fun sourcesJarTask(
     project: Project,
     sourceSets: Future<Map<String, Iterable<File>>>,
     taskNamePrefix: String,
-    artifactNameAppendix: String
+    artifactNameAppendix: String,
 ): TaskProvider<Jar> =
     sourcesJarTaskNamed(lowerCamelCaseName(taskNamePrefix, "sourcesJar"), taskNamePrefix, project, sourceSets, artifactNameAppendix)
 
@@ -335,6 +334,14 @@ internal fun Project.setupGeneralKotlinExtensionParameters() {
     kotlinExtension.sourceSets.all { sourceSet ->
         (sourceSet.languageSettings as? DefaultLanguageSettingsBuilder)?.run {
 
+            explicitApi = project.providers.provider {
+                val explicitApiFlag = project.kotlinExtension.explicitApiModeAsCompilerArg()
+                if (explicitApiFlag != null && sourceSet in sourceSetsInMainCompilation) {
+                    explicitApiFlag
+                } else {
+                    null
+                }
+            }
             // Set ad-hoc free compiler args from the internal project property
             freeCompilerArgsProvider = project.provider {
                 val propertyValue = with(project.extensions.extraProperties) {
@@ -349,11 +356,6 @@ internal fun Project.setupGeneralKotlinExtensionParameters() {
                         is String -> add(propertyValue)
                         is Iterable<*> -> addAll(propertyValue.map { it.toString() })
                     }
-
-                    val explicitApiState = project.kotlinExtension.explicitApi?.toCompilerArg()
-                    // do not look into lazy set if explicitApiMode was not enabled
-                    if (explicitApiState != null && sourceSet in sourceSetsInMainCompilation)
-                        add(explicitApiState)
                 }
             }
         }

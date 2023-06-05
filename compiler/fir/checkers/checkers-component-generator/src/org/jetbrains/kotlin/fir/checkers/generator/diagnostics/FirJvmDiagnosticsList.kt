@@ -108,17 +108,11 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
     }
 
     val JVM_DEFAULT by object : DiagnosticGroup("JVM Default") {
-        val JVM_DEFAULT_NOT_IN_INTERFACE by error<PsiElement>()
-        val JVM_DEFAULT_IN_JVM6_TARGET by error<PsiElement> {
-            parameter<String>("annotation")
-        }
-        val JVM_DEFAULT_REQUIRED_FOR_OVERRIDE by error<KtDeclaration>(PositioningStrategy.DECLARATION_SIGNATURE)
         val JVM_DEFAULT_IN_DECLARATION by error<KtElement>(PositioningStrategy.DECLARATION_SIGNATURE_OR_DEFAULT) {
             parameter<String>("annotation")
         }
         val JVM_DEFAULT_WITH_COMPATIBILITY_IN_DECLARATION by error<KtElement>()
         val JVM_DEFAULT_WITH_COMPATIBILITY_NOT_ON_INTERFACE by error<KtElement>()
-        val NON_JVM_DEFAULT_OVERRIDES_JAVA_DEFAULT by warning<KtDeclaration>(PositioningStrategy.DECLARATION_SIGNATURE)
     }
 
     val EXTERNAL_DECLARATION by object : DiagnosticGroup("External Declaration") {
@@ -130,7 +124,6 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
 
     val REPEATABLE by object : DiagnosticGroup("Repeatable Annotations") {
         val NON_SOURCE_REPEATED_ANNOTATION by error<KtAnnotationEntry>()
-        val REPEATED_ANNOTATION_TARGET6 by error<KtAnnotationEntry>()
         val REPEATED_ANNOTATION_WITH_CONTAINER by error<KtAnnotationEntry> {
             parameter<ClassId>("name")
             parameter<ClassId>("explicitContainerName")
@@ -173,14 +166,6 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
             parameter<String>("message")
         }
         val JVM_SYNTHETIC_ON_DELEGATE by error<KtAnnotationEntry>()
-        val DEFAULT_METHOD_CALL_FROM_JAVA6_TARGET by deprecationError<PsiElement>(
-            DefaultMethodsCallFromJava6TargetError,
-            PositioningStrategy.REFERENCE_BY_QUALIFIED
-        )
-        val INTERFACE_STATIC_METHOD_CALL_FROM_JAVA6_TARGET by deprecationError<PsiElement>(
-            DefaultMethodsCallFromJava6TargetError,
-            PositioningStrategy.REFERENCE_BY_QUALIFIED
-        )
         val SUBCLASS_CANT_CALL_COMPANION_PROTECTED_NON_STATIC by error<PsiElement>(PositioningStrategy.REFERENCED_NAME_BY_QUALIFIED)
         val CONCURRENT_HASH_MAP_CONTAINS_OPERATOR by deprecationError<PsiElement>(ProhibitConcurrentHashMapContains)
         val SPREAD_ON_SIGNATURE_POLYMORPHIC_CALL by deprecationError<PsiElement>(
@@ -188,9 +173,5 @@ object JVM_DIAGNOSTICS_LIST : DiagnosticList("FirJvmErrors") {
             PositioningStrategy.SPREAD_OPERATOR
         )
         val JAVA_SAM_INTERFACE_CONSTRUCTOR_REFERENCE by error<PsiElement>()
-        val JAVA_SHADOWED_PROTECTED_FIELD_REFERENCE by error<PsiElement> {
-            parameter<ClassId>("containerClass")
-            parameter<ClassId>("shadowingClass")
-        }
     }
 }

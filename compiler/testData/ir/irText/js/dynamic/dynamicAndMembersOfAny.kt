@@ -1,8 +1,6 @@
 // TARGET_BACKEND: JS_IR
-
 // FIR_IDENTICAL
 // WITH_STDLIB
-
 fun test1(d: dynamic) = d.toString()
 
 fun test2(d: dynamic) = d.hashCode()

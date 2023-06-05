@@ -177,6 +177,11 @@ fun CompilerConfiguration.setupFromArguments(arguments: K2NativeCompilerArgument
     put(CACHE_DIRECTORIES, arguments.cacheDirectories.toNonNullList())
     put(AUTO_CACHEABLE_FROM, arguments.autoCacheableFrom.toNonNullList())
     arguments.autoCacheDir?.let { put(AUTO_CACHE_DIR, it) }
+    val incrementalCacheDir = arguments.incrementalCacheDir
+    if ((incrementalCacheDir != null) xor (arguments.incrementalCompilation == true))
+        report(ERROR, "For incremental compilation both flags should be supplied: " +
+                "-Xenable-incremental-compilation and ${K2NativeCompilerArguments.INCREMENTAL_CACHE_DIR}")
+    incrementalCacheDir?.let { put(INCREMENTAL_CACHE_DIR, it) }
     arguments.filesToCache?.let { put(FILES_TO_CACHE, it.toList()) }
     put(MAKE_PER_FILE_CACHE, arguments.makePerFileCache)
     val nThreadsRaw = parseBackendThreads(arguments.backendThreads)
@@ -196,12 +201,13 @@ fun CompilerConfiguration.setupFromArguments(arguments: K2NativeCompilerArgument
     put(FAKE_OVERRIDE_VALIDATOR, arguments.fakeOverrideValidator)
     putIfNotNull(PRE_LINK_CACHES, parsePreLinkCachesValue(this@setupFromArguments, arguments.preLinkCaches))
     putIfNotNull(OVERRIDE_KONAN_PROPERTIES, parseOverrideKonanProperties(arguments, this@setupFromArguments))
-    put(DESTROY_RUNTIME_MODE, when (arguments.destroyRuntimeMode) {
+    putIfNotNull(DESTROY_RUNTIME_MODE, when (arguments.destroyRuntimeMode) {
+        null -> null
         "legacy" -> DestroyRuntimeMode.LEGACY
         "on-shutdown" -> DestroyRuntimeMode.ON_SHUTDOWN
         else -> {
             report(ERROR, "Unsupported destroy runtime mode ${arguments.destroyRuntimeMode}")
-            DestroyRuntimeMode.ON_SHUTDOWN
+            null
         }
     })
     putIfNotNull(GARBAGE_COLLECTOR, when (arguments.gc) {
@@ -293,15 +299,14 @@ internal fun CompilerConfiguration.setupCommonOptionsForCaches(konanConfig: Kona
     put(DEBUG, konanConfig.debug)
     setupPartialLinkageConfig(konanConfig.partialLinkageConfig)
     putIfNotNull(EXTERNAL_DEPENDENCIES, konanConfig.externalDependenciesFile?.absolutePath)
-    put(BinaryOptions.memoryModel, konanConfig.memoryModel)
     put(PROPERTY_LAZY_INITIALIZATION, konanConfig.propertyLazyInitialization)
     put(BinaryOptions.stripDebugInfoFromNativeLibs, !konanConfig.useDebugInfoInNativeLibs)
     put(ALLOCATION_MODE, konanConfig.allocationMode)
     put(GARBAGE_COLLECTOR, konanConfig.gc)
     put(BinaryOptions.gcSchedulerType, konanConfig.gcSchedulerType)
-    put(BinaryOptions.freezing, konanConfig.freezing)
     put(BinaryOptions.runtimeAssertionsMode, konanConfig.runtimeAssertsMode)
     put(LAZY_IR_FOR_CACHES, konanConfig.lazyIrForCaches)
+    put(CommonConfigurationKeys.PARALLEL_BACKEND_THREADS, konanConfig.threadsCount)
 }
 
 private fun Array<String>?.toNonNullList() = this?.asList().orEmpty()

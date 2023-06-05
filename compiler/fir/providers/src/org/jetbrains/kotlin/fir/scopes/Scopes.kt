@@ -29,8 +29,9 @@ fun debugCollectOverrides(symbol: FirCallableSymbol<*>, session: FirSession, sco
         session,
         scopeSession,
         FakeOverrideTypeCalculator.DoNothing,
-        requiredPhase = FirResolvePhase.STATUS
+        requiredMembersPhase = FirResolvePhase.STATUS,
     ) ?: return emptyMap()
+
     return debugCollectOverrides(symbol, scope)
 }
 
@@ -59,13 +60,12 @@ fun FirNamedFunctionSymbol.overriddenFunctions(
     containingClass: FirClassSymbol<*>,
     session: FirSession,
     scopeSession: ScopeSession,
-    memberRequiredPhase: FirResolvePhase?,
 ): List<FirFunctionSymbol<*>> {
     val firTypeScope = containingClass.unsubstitutedScope(
         session,
         scopeSession,
         withForcedTypeCalculator = true,
-        memberRequiredPhase = memberRequiredPhase,
+        memberRequiredPhase = FirResolvePhase.STATUS,
     )
 
     val overriddenFunctions = mutableListOf<FirFunctionSymbol<*>>()

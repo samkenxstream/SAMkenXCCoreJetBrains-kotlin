@@ -803,7 +803,8 @@ internal object EscapeAnalysis {
                 context.log { "An external call: $callee" }
                 if (callee.name?.startsWith("kfun:kotlin.") == true
                         // TODO: Is it possible to do it in a more fine-grained fashion?
-                        && !callee.name.startsWith("kfun:kotlin.native.concurrent")) {
+                        && !callee.name.startsWith("kfun:kotlin.native.concurrent")
+                        && !callee.name.startsWith("kfun:kotlin.concurrent")) {
                     context.log { "A function from K/N runtime - can use annotations" }
                     FunctionEscapeAnalysisResult.fromBits(
                             callee.escapes ?: 0,
@@ -1811,10 +1812,7 @@ internal object EscapeAnalysis {
             val intraproceduralAnalysisResult =
                     IntraproceduralAnalysis(context, moduleDFG, externalModulesDFG, callGraph).analyze()
             InterproceduralAnalysis(context, generationState, callGraph, intraproceduralAnalysisResult, externalModulesDFG, lifetimes,
-                    // TODO: This is a bit conservative, but for more aggressive option some support from runtime is
-                    // needed (namely, determining that a pointer is from the stack; this is easy for x86 or x64,
-                    //         but what about all other platforms?).
-                    propagateExiledToHeapObjects = true
+                    propagateExiledToHeapObjects = context.config.memoryModel != MemoryModel.EXPERIMENTAL
             ).analyze()
         } catch (t: Throwable) {
             val extraUserInfo =

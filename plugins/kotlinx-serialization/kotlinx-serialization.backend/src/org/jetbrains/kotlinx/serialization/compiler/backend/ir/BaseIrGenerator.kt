@@ -398,8 +398,8 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
         val kSerializerType = kSerializerClass.typeWith(compilerContext.irBuiltIns.anyType)
         val arrayType = compilerContext.irBuiltIns.arrayClass.typeWith(kSerializerType)
 
-        return addValPropertyWithJvmField(arrayType, SerialEntityNames.CACHED_CHILD_SERIALIZERS_PROPERTY_NAME) {
-            +createArrayOfExpression(kSerializerType, cacheableSerializers.map { it ?: irNull() })
+        return addValPropertyWithJvmFieldInitializer(arrayType, SerialEntityNames.CACHED_CHILD_SERIALIZERS_PROPERTY_NAME) {
+            createArrayOfExpression(kSerializerType, cacheableSerializers.map { it ?: irNull() })
         }
     }
 
@@ -429,14 +429,29 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
     }
 
     fun IrClass.createCachedChildSerializers(
+        serializableClass: IrClass,
         serializableProperties: List<IrSerializableProperty>
     ): List<IrExpression?> {
         return DeclarationIrBuilder(compilerContext, symbol).run {
-            serializableProperties.map { cacheableChildSerializerInstance(it) }
+            serializableProperties.map { cacheableChildSerializerInstance(serializableClass, it) }
         }
     }
 
-    private fun IrBuilderWithScope.cacheableChildSerializerInstance(property: IrSerializableProperty): IrExpression? {
+    private fun IrBuilderWithScope.cacheableChildSerializerInstance(
+        serializableClass: IrClass,
+        property: IrSerializableProperty
+    ): IrExpression? {
+        // to avoid a cyclical dependency between the serializer cache and the cache of child serializers,
+        // the class  should not cache its serializer as a child
+        if (serializableClass.symbol == property.type.classifier) {
+            return null
+        }
+        // to avoid a cyclical dependency between the serializer cache and the cache of parametrized child serializers,
+        // the class should not cache its serializer as a Generic parameter of a child
+        if (property.type.checkTypeArgumentsHasSelf(serializableClass.symbol)) {
+            return null
+        }
+
         val serializer = getIrSerialTypeInfo(property, compilerContext).serializer ?: return null
         if (serializer.owner.kind == ClassKind.OBJECT) return null
 
@@ -447,6 +462,17 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
             null,
             null
         )
+    }
+
+    private fun IrSimpleType.checkTypeArgumentsHasSelf(itselfClass: IrClassSymbol): Boolean {
+        arguments.forEach { typeArgument ->
+            if (typeArgument.typeOrNull?.classifierOrNull == itselfClass) return true
+            if (typeArgument is IrSimpleType) {
+                if (typeArgument.checkTypeArgumentsHasSelf(itselfClass)) return true
+            }
+        }
+
+        return false
     }
 
     fun IrBuilderWithScope.serializerInstance(
@@ -519,7 +545,7 @@ abstract class BaseIrGenerator(private val currentClass: IrClass, final override
                                         compilerContext,
                                         it
                                     )
-                                    instantiate(argSer, it)!!
+                                    instantiate(argSer, it) ?: return null
                                 })
                         )
                     }

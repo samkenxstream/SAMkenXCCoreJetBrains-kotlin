@@ -3,13 +3,14 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
+@file:OptIn(ExperimentalForeignApi::class)
 package kotlin.native.ref
 
 import kotlin.experimental.ExperimentalNativeApi
-import kotlin.native.concurrent.isShareable
-import kotlin.native.concurrent.freeze
+import kotlin.native.concurrent.*
 import kotlin.native.internal.*
 import kotlinx.cinterop.NativePtr
+import kotlinx.cinterop.*
 
 /**
  * The marker interface for objects that have a cleanup action associated with them.
@@ -91,7 +92,7 @@ public fun <T> createCleaner(resource: T, cleanupAction: (resource: T) -> Unit):
         createCleanerImpl(resource, cleanupAction)
 
 @ExperimentalNativeApi
-@OptIn(FreezingIsDeprecated::class)
+@OptIn(FreezingIsDeprecated::class, ObsoleteWorkersApi::class)
 internal fun <T> createCleanerImpl(resource: T, cleanupAction: (T) -> Unit): Cleaner {
     if (!resource.isShareable())
         throw IllegalArgumentException("$resource must be shareable")
@@ -122,3 +123,4 @@ private class CleanerImpl(
 
 @GCUnsafeCall("CreateStablePointer")
 external private fun createStablePointer(obj: Any): NativePtr
+

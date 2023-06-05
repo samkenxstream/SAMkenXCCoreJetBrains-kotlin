@@ -8,23 +8,28 @@ package org.jetbrains.kotlin.compilerRunner
 import org.gradle.api.Project
 import org.gradle.api.invocation.Gradle
 import org.gradle.api.logging.Logger
+import org.gradle.api.provider.Property
 import org.gradle.api.tasks.bundling.AbstractArchiveTask
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.jvm.tasks.Jar
 import org.gradle.workers.WorkQueue
+import org.gradle.workers.WorkerExecutor
 import org.jetbrains.kotlin.build.report.metrics.BuildMetricsReporter
 import org.jetbrains.kotlin.build.report.metrics.BuildPerformanceMetric
 import org.jetbrains.kotlin.build.report.metrics.BuildTime
 import org.jetbrains.kotlin.build.report.metrics.measure
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
+import org.jetbrains.kotlin.compilerRunner.btapi.GradleBuildToolsApiCompilerRunner
 import org.jetbrains.kotlin.daemon.client.CompileServiceSession
 import org.jetbrains.kotlin.daemon.common.CompilerId
 import org.jetbrains.kotlin.daemon.common.configureDaemonJVMOptions
 import org.jetbrains.kotlin.daemon.common.filterExtractProps
 import org.jetbrains.kotlin.gradle.dsl.KotlinJsProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtensionOrNull
+import org.jetbrains.kotlin.gradle.internal.ClassLoadersCachingBuildService
 import org.jetbrains.kotlin.gradle.logging.kotlinDebug
 import org.jetbrains.kotlin.gradle.logging.kotlinInfo
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
@@ -42,7 +47,6 @@ import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
 import org.jetbrains.kotlin.statistics.metrics.StringMetrics
 import java.io.File
 import java.lang.ref.WeakReference
-import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 
 const val CREATED_CLIENT_FILE_PREFIX = "Created client-is-alive flag file: "
@@ -51,6 +55,35 @@ const val CREATED_SESSION_FILE_PREFIX = "Created session-is-alive flag file: "
 const val EXISTING_SESSION_FILE_PREFIX = "Existing session-is-alive flag file: "
 const val DELETED_SESSION_FILE_PREFIX = "Deleted session-is-alive flag file: "
 const val COULD_NOT_CONNECT_TO_DAEMON_MESSAGE = "Could not connect to Kotlin compile daemon"
+
+internal fun createGradleCompilerRunner(
+    taskProvider: GradleCompileTaskProvider,
+    toolsJar: File?,
+    compilerExecutionSettings: CompilerExecutionSettings,
+    buildMetricsReporter: BuildMetricsReporter,
+    workerExecutor: WorkerExecutor,
+    runViaBuildToolsApi: Boolean,
+    cachedClassLoadersService: Property<ClassLoadersCachingBuildService>
+): GradleCompilerRunner {
+    return if (runViaBuildToolsApi) {
+        GradleBuildToolsApiCompilerRunner(
+            taskProvider,
+            toolsJar,
+            compilerExecutionSettings,
+            buildMetricsReporter,
+            workerExecutor,
+            cachedClassLoadersService,
+        )
+    } else {
+        GradleCompilerRunnerWithWorkers(
+            taskProvider,
+            toolsJar,
+            compilerExecutionSettings,
+            buildMetricsReporter,
+            workerExecutor,
+        )
+    }
+}
 
 /*
 Using real taskProvider cause "field 'taskProvider' from type 'org.jetbrains.kotlin.compilerRunner.GradleCompilerRunner':
@@ -136,7 +169,6 @@ internal open class GradleCompilerRunner(
                     KotlinBuildStatsService.getInstance()?.apply {
                         val args = K2JVMCompilerArguments()
                         parseCommandLineArguments(argsArray.toList(), args)
-                        report(BooleanMetrics.JVM_COMPILER_IR_MODE, args.useIR)
                         report(StringMetrics.JVM_DEFAULTS, args.jvmDefault)
                         report(StringMetrics.USE_FIR, args.useK2.toString())
 

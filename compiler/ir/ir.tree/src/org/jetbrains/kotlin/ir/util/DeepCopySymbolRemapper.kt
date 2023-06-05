@@ -213,14 +213,12 @@ open class DeepCopySymbolRemapper(
         when (symbol) {
             is IrValueParameterSymbol -> valueParameters.getReferenced(symbol)
             is IrVariableSymbol -> variables.getReferenced(symbol)
-            else -> throw IllegalArgumentException("Unexpected symbol $symbol")
         }
 
     override fun getReferencedFunction(symbol: IrFunctionSymbol): IrFunctionSymbol =
         when (symbol) {
             is IrSimpleFunctionSymbol -> functions.getReferenced(symbol)
             is IrConstructorSymbol -> constructors.getReferenced(symbol)
-            else -> throw IllegalArgumentException("Unexpected symbol $symbol")
         }
 
     override fun getReferencedReturnableBlock(symbol: IrReturnableBlockSymbol): IrReturnableBlockSymbol =
@@ -231,7 +229,6 @@ open class DeepCopySymbolRemapper(
             is IrClassSymbol -> classes.getReferenced(symbol)
             is IrScriptSymbol -> scripts.getReferenced(symbol)
             is IrTypeParameterSymbol -> typeParameters.getReferenced(symbol)
-            else -> throw IllegalArgumentException("Unexpected symbol $symbol")
         }
 
     override fun getReferencedTypeAlias(symbol: IrTypeAliasSymbol): IrTypeAliasSymbol = typeAliases.getReferenced(symbol)

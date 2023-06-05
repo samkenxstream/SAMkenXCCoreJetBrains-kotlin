@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirDeprecationChecker
-import org.jetbrains.kotlin.fir.declarations.fullyExpandedClass
 import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.getSourceForImportSegment
@@ -103,25 +102,33 @@ object FirImportsChecker : FirFileChecker() {
             return
         }
 
-        val resolvedClassSymbol = ClassId.topLevel(importedFqName).resolveToClass(context)
+        var resolvedDeclaration: FirMemberDeclaration? = null
 
-        if (resolvedClassSymbol != null) {
-            if (!resolvedClassSymbol.fir.isVisible(context)) {
-                reporter.reportOn(import.getSourceForImportSegment(0), FirErrors.INVISIBLE_REFERENCE, resolvedClassSymbol, context)
+        ClassId.topLevel(importedFqName).resolveToClass(context)?.let {
+            resolvedDeclaration = it.fir
+
+            if (it.fir.isVisible(context)) {
+                return
             }
-
-            return
         }
 
         // Note: two checks below are both heavyweight, so we should do them lazily!
 
         val topLevelCallableSymbol = symbolProvider.getTopLevelCallableSymbols(importedFqName.parent(), importedName)
-        if (topLevelCallableSymbol.isNotEmpty()) {
-            if (topLevelCallableSymbol.none { it.fir.isVisible(context) }) {
-                val source = import.getSourceForImportSegment(0)
-                reporter.reportOn(source, FirErrors.INVISIBLE_REFERENCE, topLevelCallableSymbol.first(), context)
+
+        for (it in topLevelCallableSymbol) {
+            if (it.fir.isVisible(context)) {
+                return
             }
 
+            if (resolvedDeclaration == null) {
+                resolvedDeclaration = it.fir
+            }
+        }
+
+        resolvedDeclaration?.let {
+            val source = import.getSourceForImportSegment(0) ?: import.source
+            reporter.reportOn(source, FirErrors.INVISIBLE_REFERENCE, it.symbol, context)
             return
         }
 
@@ -219,7 +226,7 @@ object FirImportsChecker : FirFileChecker() {
         predicate: (FirNamedFunctionSymbol) -> Boolean
     ): Boolean {
         var result = false
-        context.session.declaredMemberScope(this).processFunctionsByName(name) { sym ->
+        context.session.declaredMemberScope(this, memberRequiredPhase = null).processFunctionsByName(name) { sym ->
             if (!result) {
                 result = predicate(sym)
             }
@@ -237,13 +244,13 @@ object FirImportsChecker : FirFileChecker() {
     private fun FirRegularClassSymbol.getImportStatusOfCallableMembers(context: CheckerContext, name: Name): ImportStatus {
         return if (classKind.isSingleton) {
             // Use declaredMemberScope first because it's faster, and it's relatively rare to import members declared from super types.
-            val scopes = listOf(context.session.declaredMemberScope(this), unsubstitutedScope(context))
+            val scopes = listOf(context.session.declaredMemberScope(this, memberRequiredPhase = null), unsubstitutedScope(context))
             getImportStatus(scopes, context, name) { true }
         } else {
             val scopes = listOfNotNull(
                 // We first try resolution with declaredMemberScope because it's faster and typically imported members are not from
                 // super types.
-                context.session.declaredMemberScope(this),
+                context.session.declaredMemberScope(this, memberRequiredPhase = null),
 
                 // Next, we try static scope, which can provide static (Java) members from super classes. Note that it's not available
                 // for pure Kotlin classes.

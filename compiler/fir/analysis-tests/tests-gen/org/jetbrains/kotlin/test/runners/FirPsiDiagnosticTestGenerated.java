@@ -4771,6 +4771,12 @@ public class FirPsiDiagnosticTestGenerated extends AbstractFirPsiDiagnosticTest 
                 public void testSmartcastAfterReassignment() throws Exception {
                     runTest("compiler/fir/analysis-tests/testData/resolve/smartcasts/variables/smartcastAfterReassignment.kt");
                 }
+
+                @Test
+                @TestMetadata("smartcastStoredInLocalVar.kt")
+                public void testSmartcastStoredInLocalVar() throws Exception {
+                    runTest("compiler/fir/analysis-tests/testData/resolve/smartcasts/variables/smartcastStoredInLocalVar.kt");
+                }
             }
         }
 
@@ -4933,6 +4939,12 @@ public class FirPsiDiagnosticTestGenerated extends AbstractFirPsiDiagnosticTest 
             @TestMetadata("correctJava.kt")
             public void testCorrectJava() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolve/unqualifiedEnum/correctJava.kt");
+            }
+
+            @Test
+            @TestMetadata("enumWithTheSameNameAsEntry.kt")
+            public void testEnumWithTheSameNameAsEntry() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/unqualifiedEnum/enumWithTheSameNameAsEntry.kt");
             }
 
             @Test
@@ -6745,6 +6757,12 @@ public class FirPsiDiagnosticTestGenerated extends AbstractFirPsiDiagnosticTest 
             @TestMetadata("falseSamConversion.kt")
             public void testFalseSamConversion() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/problems/falseSamConversion.kt");
+            }
+
+            @Test
+            @TestMetadata("FieldAnnotationWithClasses.kt")
+            public void testFieldAnnotationWithClasses() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/problems/FieldAnnotationWithClasses.kt");
             }
 
             @Test

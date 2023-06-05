@@ -14,10 +14,7 @@ import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.backend.js.lower.PrimaryConstructorLowering
-import org.jetbrains.kotlin.ir.backend.js.utils.erasedUpperBound
-import org.jetbrains.kotlin.ir.backend.js.utils.findUnitGetInstanceFunction
-import org.jetbrains.kotlin.ir.backend.js.utils.isDispatchReceiver
-import org.jetbrains.kotlin.ir.backend.js.utils.realOverrideTarget
+import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
@@ -34,7 +31,6 @@ class BodyGenerator(
     val context: WasmModuleCodegenContext,
     val functionContext: WasmFunctionCodegenContext,
     private val hierarchyDisjointUnions: DisjointUnions<IrClassSymbol>,
-    private val isGetUnitFunction: Boolean,
 ) : IrElementVisitorVoid {
     val body: WasmExpressionBuilder = functionContext.bodyGen
 
@@ -44,16 +40,13 @@ class BodyGenerator(
     private val irBuiltIns: IrBuiltIns = backendContext.irBuiltIns
 
     private val unitGetInstance by lazy { backendContext.findUnitGetInstanceFunction() }
-    fun WasmExpressionBuilder.buildGetUnit() {
-        buildInstr(
-            WasmOp.GET_UNIT,
-            SourceLocation.NoLocation("GET_UNIT"),
-            WasmImmediate.FuncIdx(context.referenceFunction(unitGetInstance.symbol))
-        )
-    }
+    private val unitInstanceField by lazy { backendContext.findUnitInstanceField() }
 
-    private val anyConstructor by lazy {
-        wasmSymbols.any.constructors.first { it.owner.valueParameters.isEmpty() }
+    fun WasmExpressionBuilder.buildGetUnit() {
+        buildGetGlobal(
+            context.referenceGlobalField(unitInstanceField.symbol),
+            SourceLocation.NoLocation("GET_UNIT")
+        )
     }
 
     // Generates code for the given IR element. Leaves something on the stack unless expression was of the type Void.
@@ -184,6 +177,7 @@ class BodyGenerator(
         val field: IrField = expression.symbol.owner
         val receiver: IrExpression? = expression.receiver
         val location = expression.getSourceLocation()
+
         if (receiver != null) {
             generateExpression(receiver)
             if (backendContext.inlineClassesUtils.isClassInlineLike(field.parentAsClass)) {
@@ -303,7 +297,7 @@ class BodyGenerator(
             return
         }
 
-        body.buildRefNull(WasmHeapType.Type(wasmGcType), location) // this = null
+        body.buildRefNull(WasmHeapType.Simple.NullNone, location) // this = null
         generateCall(expression)
     }
 
@@ -314,7 +308,7 @@ class BodyGenerator(
         if (klassSymbol.owner.hasInterfaceSuperClass()) {
             body.buildGetGlobal(context.referenceGlobalClassITable(klassSymbol), location)
         } else {
-            body.buildRefNull(WasmHeapType.Simple.Data, location)
+            body.buildRefNull(WasmHeapType.Simple.Struct, location)
         }
 
         body.buildConstI32Symbol(context.referenceTypeId(klassSymbol), location)
@@ -378,12 +372,6 @@ class BodyGenerator(
             return
         }
 
-        // Get unit is a special case because it is the only function which returns the real unit instance.
-        if (call.symbol == unitGetInstance.symbol) {
-            body.buildGetUnit()
-            return
-        }
-
         // Some intrinsics are a special case because we want to remove them completely, including their arguments.
         if (!backendContext.configuration.getNotNull(JSConfigurationKeys.WASM_ENABLE_ARRAY_RANGE_CHECKS)) {
             if (call.symbol == wasmSymbols.rangeCheck) {
@@ -435,7 +423,7 @@ class BodyGenerator(
                 body.commentGroupStart { "virtual call: ${function.fqNameWhenAvailable}" }
 
                 //TODO: check why it could be needed
-                generateRefNullCast(receiver.type, klass.defaultType, location)
+                generateRefCast(receiver.type, klass.defaultType, location)
 
                 body.buildStructGet(context.referenceGcType(klass.symbol), WasmSymbol(0), location)
                 body.buildStructGet(context.referenceVTableGcType(klass.symbol), WasmSymbol(vfSlot), location)
@@ -450,7 +438,7 @@ class BodyGenerator(
                     body.buildStructGet(context.referenceGcType(irBuiltIns.anyClass), WasmSymbol(1), location)
 
                     val classITableReference = context.referenceClassITableGcType(symbol)
-                    body.buildRefCastNullStatic(classITableReference, location)
+                    body.buildRefCastStatic(classITableReference, location)
                     body.buildStructGet(classITableReference, context.referenceClassITableInterfaceSlot(symbol), location)
 
                     val vfSlot = context.getInterfaceMetadata(symbol).methods
@@ -473,13 +461,23 @@ class BodyGenerator(
         }
 
         // Unit types don't cross function boundaries
-        if (function.returnType.isUnit())
+        if (function.returnType.isUnit() && function !is IrConstructor) {
             body.buildGetUnit()
+        }
     }
 
     private fun generateRefNullCast(fromType: IrType, toType: IrType, location: SourceLocation) {
         if (!isDownCastAlwaysSuccessInRuntime(fromType, toType)) {
             body.buildRefCastNullStatic(
+                toType = context.referenceGcType(toType.getRuntimeClass(irBuiltIns).symbol),
+                location
+            )
+        }
+    }
+
+    private fun generateRefCast(fromType: IrType, toType: IrType, location: SourceLocation) {
+        if (!isDownCastAlwaysSuccessInRuntime(fromType, toType)) {
+            body.buildRefCastStatic(
                 toType = context.referenceGcType(toType.getRuntimeClass(irBuiltIns).symbol),
                 location
             )
@@ -534,10 +532,17 @@ class BodyGenerator(
                     val parameterLocal = functionContext.referenceLocal(SyntheticLocalType.IS_INTERFACE_PARAMETER)
                     body.buildSetLocal(parameterLocal, location)
                     body.buildBlock("isInterface", WasmI32) { outerLabel ->
-                        body.buildBlock("isInterface", WasmRefNullType(WasmHeapType.Simple.Data)) { innerLabel ->
+                        body.buildBlock("isInterface", WasmRefNullType(WasmHeapType.Simple.Struct)) { innerLabel ->
                             body.buildGetLocal(parameterLocal, location)
                             body.buildStructGet(context.referenceGcType(irBuiltIns.anyClass), WasmSymbol(1), location)
-                            body.buildBrInstr(WasmOp.BR_ON_CAST_FAIL_DEPRECATED, innerLabel, classITable, location)
+
+                            body.buildBrInstr(
+                                WasmOp.BR_ON_CAST_FAIL,
+                                innerLabel,
+                                classITable,
+                                location,
+                            )
+
                             body.buildStructGet(classITable, context.referenceClassITableInterfaceSlot(irInterface.symbol), location)
                             body.buildInstr(WasmOp.REF_IS_NULL, location)
                             body.buildInstr(WasmOp.I32_EQZ, location)
@@ -581,7 +586,7 @@ class BodyGenerator(
                 val klass: IrClass = backendContext.inlineClassesUtils.getInlinedClass(toType)!!
                 val field = getInlineClassBackingField(klass)
 
-                generateRefNullCast(fromType, toType, location)
+                generateRefCast(fromType, toType, location)
                 generateInstanceFieldAccess(field, location)
             }
 
@@ -593,15 +598,17 @@ class BodyGenerator(
                 body.buildBlock("returnIfAny", WasmAnyRef) { innerLabel ->
                     body.buildGetLocal(functionContext.referenceLocal(0), location)
                     body.buildInstr(WasmOp.EXTERN_INTERNALIZE, location)
-                    body.buildBrInstr(WasmOp.BR_ON_NON_DATA_DEPRECATED, innerLabel, location)
+
                     body.buildBrInstr(
-                        WasmOp.BR_ON_CAST_FAIL_DEPRECATED,
+                        WasmOp.BR_ON_CAST_FAIL,
                         innerLabel,
                         context.referenceGcType(backendContext.irBuiltIns.anyClass),
-                        location
+                        location,
                     )
+
                     body.buildInstr(WasmOp.RETURN, location)
                 }
+                body.buildDrop(location)
             }
 
             wasmSymbols.wasmArrayCopy -> {
@@ -683,14 +690,12 @@ class BodyGenerator(
 
     private fun visitFunctionReturn(expression: IrReturn) {
         val returnType = expression.returnTargetSymbol.owner.returnType(backendContext)
-        if (returnType == irBuiltIns.unitType && expression.returnTargetSymbol.owner != unitGetInstance) {
-            generateAsStatement(expression.value)
-        } else {
-            if (isGetUnitFunction) {
-                generateExpression(expression.value)
-            } else {
-                generateWithExpectedType(expression.value, returnType)
-            }
+        val isGetUnitFunction = expression.returnTargetSymbol.owner == unitGetInstance
+
+        when {
+            isGetUnitFunction -> generateExpression(expression.value)
+            returnType == irBuiltIns.unitType -> generateAsStatement(expression.value)
+            else -> generateWithExpectedType(expression.value, returnType)
         }
 
         if (functionContext.irFunction is IrConstructor) {
@@ -729,8 +734,14 @@ class BodyGenerator(
         // NOTHING -> TYPE -> TRUE
         if (actualType.isNothing()) return
 
-        // NOTHING? -> TYPE? -> TRUE
-        if (actualType.isNullableNothing() && expectedType.isNullable()) return
+        // NOTHING? -> TYPE? -> (NOTHING?)NULL
+        if (actualType.isNullableNothing() && expectedType.isNullable()) {
+            if (expectedType.getClass()?.isExternal == true) {
+                body.buildDrop(location)
+                body.buildRefNull(WasmHeapType.Simple.NullNoExtern, location)
+            }
+            return
+        }
 
         val expectedClassErased = expectedType.getRuntimeClass(irBuiltIns)
 
@@ -770,7 +781,7 @@ class BodyGenerator(
         // REF -> REF -> REF_CAST
         if (!expectedIsPrimitive) {
             if (expectedClassErased.isSubclassOf(actualClassErased)) {
-                generateRefNullCast(actualTypeErased, expectedTypeErased, location)
+                generateRefCast(actualTypeErased, expectedTypeErased, location)
             } else {
                 body.buildUnreachableForVerifier()
             }
@@ -815,11 +826,7 @@ class BodyGenerator(
         if (!seenElse && resultType != null) {
             assert(expression.type != irBuiltIns.nothingType)
             if (expression.type.isUnit()) {
-                if (isGetUnitFunction) {
-                    generateDefaultInitializerForType(resultType, body)
-                } else {
-                    body.buildGetUnit()
-                }
+                body.buildGetUnit()
             } else {
                 error("'When' without else branch and non Unit type: ${expression.type.dumpKotlinLike()}")
             }

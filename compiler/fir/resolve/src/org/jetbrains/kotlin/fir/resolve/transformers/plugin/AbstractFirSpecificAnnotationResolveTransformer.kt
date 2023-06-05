@@ -16,7 +16,6 @@ import org.jetbrains.kotlin.fir.references.builder.buildResolvedNamedReference
 import org.jetbrains.kotlin.fir.references.impl.FirSimpleNamedReference
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.resolve.transformers.DesignationState
 import org.jetbrains.kotlin.fir.resolve.transformers.FirSpecificTypeResolverTransformer
 import org.jetbrains.kotlin.fir.resolve.transformers.ScopeClassDeclaration
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirAbstractBodyResolveTransformerDispatcher
@@ -30,25 +29,28 @@ import org.jetbrains.kotlin.fir.scopes.createImportingScopes
 import org.jetbrains.kotlin.fir.scopes.getProperties
 import org.jetbrains.kotlin.fir.scopes.getSingleClassifier
 import org.jetbrains.kotlin.fir.scopes.impl.FirAbstractImportingScope
-import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirEnumEntrySymbol
 import org.jetbrains.kotlin.fir.types.*
-import org.jetbrains.kotlin.fir.types.builder.*
+import org.jetbrains.kotlin.fir.types.builder.buildPlaceholderProjection
+import org.jetbrains.kotlin.fir.types.builder.buildStarProjection
+import org.jetbrains.kotlin.fir.types.builder.buildTypeProjectionWithVariance
+import org.jetbrains.kotlin.fir.types.builder.buildUserTypeRef
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitUnitTypeRef
 import org.jetbrains.kotlin.fir.types.impl.FirQualifierPartImpl
 import org.jetbrains.kotlin.fir.types.impl.FirTypeArgumentListImpl
 import org.jetbrains.kotlin.fir.visitors.FirDefaultTransformer
-import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds.Annotations.Deprecated
 import org.jetbrains.kotlin.name.StandardClassIds.Annotations.DeprecatedSinceKotlin
+import org.jetbrains.kotlin.name.StandardClassIds.Annotations.Java
 import org.jetbrains.kotlin.name.StandardClassIds.Annotations.JvmRecord
-import org.jetbrains.kotlin.name.StandardClassIds.Annotations.WasExperimental
+import org.jetbrains.kotlin.name.StandardClassIds.Annotations.SinceKotlin
 import org.jetbrains.kotlin.name.StandardClassIds.Annotations.Target
+import org.jetbrains.kotlin.name.StandardClassIds.Annotations.WasExperimental
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
 /**
@@ -58,19 +60,23 @@ object CompilerRequiredAnnotationsHelper {
     internal val REQUIRED_ANNOTATIONS_WITH_ARGUMENTS: Set<ClassId> = setOf(
         Deprecated,
         Target,
+        Java.Target,
     )
 
     val REQUIRED_ANNOTATIONS: Set<ClassId> = REQUIRED_ANNOTATIONS_WITH_ARGUMENTS + setOf(
+        Java.Deprecated,
         DeprecatedSinceKotlin,
+        SinceKotlin,
         WasExperimental,
         JvmRecord,
     )
 }
 
-internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
-    protected val session: FirSession,
-    protected val scopeSession: ScopeSession,
-    protected val computationSession: CompilerRequiredAnnotationsComputationSession,
+@OptIn(PrivateForInline::class)
+abstract class AbstractFirSpecificAnnotationResolveTransformer(
+    @property:PrivateForInline val session: FirSession,
+    @property:PrivateForInline val scopeSession: ScopeSession,
+    @property:PrivateForInline val computationSession: CompilerRequiredAnnotationsComputationSession,
     containingDeclarations: List<FirDeclaration> = emptyList()
 ) : FirDefaultTransformer<Nothing?>() {
     companion object {
@@ -147,7 +153,10 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
                     it is FirEnumEntry && it.name == calleeReference.name
                 }?.symbol as? FirEnumEntrySymbol ?: return
 
-                updateCallee(calleeReference, calleeSymbol)
+                val enhancedCalleeSymbol = session.compilerRequiredAnnotationEnhancementProvider?.enhance(symbol, calleeSymbol, session)
+                    ?: calleeSymbol
+
+                updateCallee(calleeReference, enhancedCalleeSymbol)
 
                 replaceExplicitReceiver(resolvedReceiver)
                 replaceDispatchReceiver(resolvedReceiver)
@@ -202,8 +211,11 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
     @PrivateForInline
     val argumentsTransformer = FirEnumAnnotationArgumentsTransformerDispatcher()
 
-    private var owners: PersistentList<FirDeclaration> = persistentListOf()
-    private val classDeclarationsStack = ArrayDeque<FirClass>().apply {
+    @PrivateForInline
+    var owners: PersistentList<FirDeclaration> = persistentListOf()
+
+    @PrivateForInline
+    val classDeclarationsStack = ArrayDeque<FirClass>().apply {
         for (declaration in containingDeclarations) {
             if (declaration is FirClass) {
                 add(declaration)
@@ -211,52 +223,44 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
         }
     }
 
-    @OptIn(PrivateForInline::class)
     override fun transformAnnotationCall(annotationCall: FirAnnotationCall, data: Nothing?): FirStatement {
         val annotationTypeRef = annotationCall.annotationTypeRef
         if (annotationTypeRef !is FirUserTypeRef) return annotationCall
-        val name = annotationTypeRef.qualifier.last().name
+        if (!shouldRunAnnotationResolve(annotationTypeRef)) return annotationCall
+        transformAnnotationCall(annotationCall, annotationTypeRef)
+        return annotationCall
+    }
 
-        if (!shouldRunAnnotationResolve(name)) return annotationCall
-
+    fun transformAnnotationCall(annotationCall: FirAnnotationCall, typeRef: FirUserTypeRef) {
         val transformedAnnotationType = typeResolverTransformer.transformUserTypeRef(
-            annotationTypeRef.createDeepCopy(),
-            ScopeClassDeclaration(scopes.asReversed(), classDeclarationsStack)
-        ) as? FirResolvedTypeRef ?: return annotationCall
+            userTypeRef = createDeepCopyOfTypeRef(typeRef),
+            data = ScopeClassDeclaration(scopes.asReversed(), classDeclarationsStack),
+        ) as? FirResolvedTypeRef ?: return
 
         resolveAnnotationsOnAnnotationIfNeeded(transformedAnnotationType)
 
-        if (!transformedAnnotationType.requiredToSave()) return annotationCall
+        if (!transformedAnnotationType.requiredToSave()) return
 
         annotationCall.replaceAnnotationTypeRef(transformedAnnotationType)
         annotationCall.replaceAnnotationResolvePhase(FirAnnotationResolvePhase.CompilerRequiredAnnotations)
+
         // TODO: what if we have type alias here?
         if (transformedAnnotationType.coneTypeSafe<ConeClassLikeType>()?.lookupTag?.classId in REQUIRED_ANNOTATIONS_WITH_ARGUMENTS) {
             argumentsTransformer.transformAnnotation(annotationCall, ResolutionMode.ContextDependent)
         }
-
-        return annotationCall
     }
 
     private fun resolveAnnotationsOnAnnotationIfNeeded(annotationTypeRef: FirResolvedTypeRef) {
         val symbol = annotationTypeRef.coneType.toRegularClassSymbol(session) ?: return
-        val regularClass = symbol.fir
-        if (computationSession.annotationsAreResolved(regularClass)) return
-        val designation = DesignationState.create(symbol, emptyMap(), includeFile = true) ?: return
-        val transformer = FirDesignatedCompilerRequiredAnnotationsResolveTransformer(
-            designation.firstDeclaration.moduleData.session,
-            scopeSession,
-            computationSession,
-            designation
-        )
-        designation.firstDeclaration.transformSingle(transformer, null)
+        computationSession.resolveAnnotationsOnAnnotationIfNeeded(symbol, scopeSession)
     }
 
     override fun transformAnnotation(annotation: FirAnnotation, data: Nothing?): FirStatement {
         error("Should not be there")
     }
 
-    private fun shouldRunAnnotationResolve(name: Name): Boolean {
+    fun shouldRunAnnotationResolve(typeRef: FirUserTypeRef): Boolean {
+        val name = typeRef.qualifier.last().name
         if (metaAnnotationsFromPlugins.isNotEmpty()) return true
         return name in REQUIRED_ANNOTATION_NAMES || annotationsFromPlugins.any { it.shortName() == name }
     }
@@ -277,16 +281,41 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
 
 
     override fun transformRegularClass(regularClass: FirRegularClass, data: Nothing?): FirStatement {
-        withClassDeclarationCleanup(classDeclarationsStack, regularClass) {
-            if (!shouldTransformDeclaration(regularClass)) return regularClass
-            computationSession.recordThatAnnotationsAreResolved(regularClass)
-            return transformDeclaration(regularClass, data).also {
-                val state = beforeTransformingChildren(regularClass)
+        resolveRegularClass(
+            regularClass,
+            transformChildren = {
                 regularClass.transformDeclarations(this, data)
-                regularClass.transformSuperTypeRefs(this, data)
-                afterTransformingChildren(state)
+            },
+            afterChildrenTransform = {
                 calculateDeprecations(regularClass)
-            } as FirStatement
+            }
+        )
+        return regularClass
+    }
+
+    inline fun resolveRegularClass(
+        regularClass: FirRegularClass,
+        transformChildren: () -> Unit,
+        afterChildrenTransform: () -> Unit
+    ) {
+        withRegularClass(regularClass) {
+            if (!shouldTransformDeclaration(regularClass)) return
+            computationSession.recordThatAnnotationsAreResolved(regularClass)
+            transformDeclaration(regularClass, null).also {
+                transformChildren(regularClass) {
+                    transformChildren()
+                }
+                afterChildrenTransform()
+            }
+        }
+    }
+
+    inline fun withRegularClass(
+        regularClass: FirRegularClass,
+        action: () -> Unit
+    ) {
+        withClassDeclarationCleanup(classDeclarationsStack, regularClass) {
+            action()
         }
     }
 
@@ -309,20 +338,23 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
 
     override fun transformFile(file: FirFile, data: Nothing?): FirFile {
         if (!shouldTransformDeclaration(file)) return file
-        return withFile(file) {
+        withFileAndFileScopes(file) {
+            file.transformDeclarations(this, data)
+        }
+
+        return file
+    }
+
+    fun withFileAndFileScopes(file: FirFile, action: () -> Unit) {
+        withFile(file) {
             withFileScopes(file) {
-                scopes = createImportingScopes(file, session, scopeSession, useCaching = false)
-                val state = beforeTransformingChildren(file)
-                try {
-                    file.transformDeclarations(this, data)
-                } finally {
-                    afterTransformingChildren(state)
+                transformChildren(file) {
+                    action()
                 }
             }
         }
     }
 
-    @OptIn(PrivateForInline::class)
     inline fun <T> withFile(file: FirFile, f: () -> T): T {
         typeResolverTransformer.withFile(file) {
             argumentsTransformer.context.withFile(file, argumentsTransformer.components) {
@@ -333,28 +365,87 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
         }
     }
 
-    private fun calculateDeprecations(classLikeDeclaration: FirClassLikeDeclaration) {
+    fun calculateDeprecations(classLikeDeclaration: FirClassLikeDeclaration) {
         if (classLikeDeclaration.deprecationsProvider == UnresolvedDeprecationProvider) {
-            classLikeDeclaration.replaceDeprecationsProvider(
-                classLikeDeclaration.getDeprecationsProvider(session)
-            )
+            classLikeDeclaration.replaceDeprecationsProvider(classLikeDeclaration.getDeprecationsProvider(session))
         }
     }
 
-    protected lateinit var scopes: List<FirScope>
+    private fun calculateDeprecations(callableDeclaration: FirCallableDeclaration) {
+        if (callableDeclaration.deprecationsProvider == UnresolvedDeprecationProvider) {
+            callableDeclaration.replaceDeprecationsProvider(callableDeclaration.getDeprecationsProvider(session))
+        }
+    }
+
+    private fun <T> transformCallableDeclarationForDeprecations(
+        callableDeclaration: T,
+        data: Nothing?,
+    ): FirStatement where T : FirCallableDeclaration, T : FirStatement {
+        if (!shouldTransformDeclaration(callableDeclaration)) return callableDeclaration
+        computationSession.recordThatAnnotationsAreResolved(callableDeclaration)
+        return transformDeclaration(callableDeclaration, data).also {
+            calculateDeprecations(callableDeclaration)
+        } as FirStatement
+    }
+
+    lateinit var scopes: List<FirScope>
 
     inline fun <T> withFileScopes(file: FirFile, f: () -> T): T {
-        scopes = createImportingScopes(file, session, scopeSession, useCaching = false)
+        scopes = createImportingScopes(file, session, scopeSession, useCaching = computationSession.useCacheForImportScope)
         return f()
     }
 
-    protected abstract fun shouldTransformDeclaration(declaration: FirDeclaration): Boolean
+    abstract fun shouldTransformDeclaration(declaration: FirDeclaration): Boolean
 
-    override fun transformProperty(property: FirProperty, data: Nothing?): FirProperty {
+    override fun transformBackingField(backingField: FirBackingField, data: Nothing?): FirStatement {
+        return transformCallableDeclarationForDeprecations(backingField, data)
+    }
+
+    override fun transformPropertyAccessor(propertyAccessor: FirPropertyAccessor, data: Nothing?): FirStatement {
+        return transformCallableDeclarationForDeprecations(propertyAccessor, data)
+    }
+
+    override fun transformProperty(property: FirProperty, data: Nothing?): FirStatement {
         if (!shouldTransformDeclaration(property)) return property
         computationSession.recordThatAnnotationsAreResolved(property)
-        return transformDeclaration(property, data) as FirProperty
+        return transformDeclaration(property, data).also {
+            property.moveJavaDeprecatedAnnotationToBackingField()
+
+            transformChildren(property) {
+                property.transformSetter(this, data)
+                property.transformGetter(this, data)
+                property.transformBackingField(this, data)
+            }
+
+            calculateDeprecations(property)
+        } as FirStatement
     }
+
+    private fun FirProperty.moveJavaDeprecatedAnnotationToBackingField() {
+        val newPosition = extractBackingFieldAnnotationsFromProperty(this) ?: return
+        this.replaceAnnotations(newPosition.propertyAnnotations)
+        backingField?.replaceAnnotations(newPosition.backingFieldAnnotations)
+    }
+
+    fun extractBackingFieldAnnotationsFromProperty(
+        property: FirProperty,
+        propertyAnnotations: List<FirAnnotation> = property.annotations,
+        backingFieldAnnotations: List<FirAnnotation> = property.backingField?.annotations.orEmpty(),
+    ): AnnotationsPosition? {
+        if (propertyAnnotations.isEmpty() || property.backingField == null) return null
+
+        val (newBackingFieldAnnotations, newPropertyAnnotations) = propertyAnnotations.partition {
+            it.toAnnotationClassIdSafe(session) == Java.Deprecated
+        }
+
+        if (newBackingFieldAnnotations.isEmpty()) return null
+        return AnnotationsPosition(
+            propertyAnnotations = newPropertyAnnotations,
+            backingFieldAnnotations = backingFieldAnnotations + newBackingFieldAnnotations,
+        )
+    }
+
+    class AnnotationsPosition(val backingFieldAnnotations: List<FirAnnotation>, val propertyAnnotations: List<FirAnnotation>)
 
     override fun transformSimpleFunction(
         simpleFunction: FirSimpleFunction,
@@ -363,9 +454,11 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
         if (!shouldTransformDeclaration(simpleFunction)) return simpleFunction
         computationSession.recordThatAnnotationsAreResolved(simpleFunction)
         return transformDeclaration(simpleFunction, data).also {
-            val state = beforeTransformingChildren(simpleFunction)
-            simpleFunction.transformValueParameters(this, data)
-            afterTransformingChildren(state)
+            transformChildren(simpleFunction) {
+                simpleFunction.transformValueParameters(this, data)
+            }
+
+            calculateDeprecations(simpleFunction)
         } as FirSimpleFunction
     }
 
@@ -376,19 +469,24 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
         if (!shouldTransformDeclaration(constructor)) return constructor
         computationSession.recordThatAnnotationsAreResolved(constructor)
         return transformDeclaration(constructor, data).also {
-            val state = beforeTransformingChildren(constructor)
-            constructor.transformValueParameters(this, data)
-            afterTransformingChildren(state)
+            transformChildren(constructor) {
+                constructor.transformValueParameters(this, data)
+            }
+
+            calculateDeprecations(constructor)
         } as FirConstructor
     }
 
-    override fun transformValueParameter(
-        valueParameter: FirValueParameter,
-        data: Nothing?
-    ): FirStatement {
-        if (!shouldTransformDeclaration(valueParameter)) return valueParameter
-        computationSession.recordThatAnnotationsAreResolved(valueParameter)
-        return transformDeclaration(valueParameter, data) as FirStatement
+    override fun transformEnumEntry(enumEntry: FirEnumEntry, data: Nothing?): FirStatement {
+        return transformCallableDeclarationForDeprecations(enumEntry, data)
+    }
+
+    override fun transformField(field: FirField, data: Nothing?): FirStatement {
+        return transformCallableDeclarationForDeprecations(field, data)
+    }
+
+    override fun transformValueParameter(valueParameter: FirValueParameter, data: Nothing?): FirStatement {
+        return transformCallableDeclarationForDeprecations(valueParameter, data)
     }
 
     override fun transformTypeRef(typeRef: FirTypeRef, data: Nothing?): FirTypeRef {
@@ -413,7 +511,7 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
      * @return Some state of the transformer; when the nested declarations are transformed, this state will be
      * passed to the [afterTransformingChildren].
      */
-    private fun beforeTransformingChildren(parentDeclaration: FirDeclaration): PersistentList<FirDeclaration> {
+    fun beforeTransformingChildren(parentDeclaration: FirDeclaration): PersistentList<FirDeclaration> {
         val current = owners
         owners = owners.add(parentDeclaration)
         return current
@@ -426,25 +524,32 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
      *
      * @param state A state produced by the [beforeTransformingChildren] call before the transformation.
      */
-    private fun afterTransformingChildren(state: PersistentList<FirDeclaration>?) {
+    fun afterTransformingChildren(state: PersistentList<FirDeclaration>?) {
         requireNotNull(state)
         owners = state
     }
 
-    private fun FirUserTypeRef.createDeepCopy(): FirUserTypeRef {
-        val original = this
-        return buildUserTypeRef {
-            source = original.source
-            isMarkedNullable = original.isMarkedNullable
-            annotations.addAll(original.annotations)
-            original.qualifier.mapTo(qualifier) { it.createDeepCopy() }
+    inline fun <R> transformChildren(parentDeclaration: FirDeclaration, action: () -> R): R {
+        val state = beforeTransformingChildren(parentDeclaration)
+        try {
+            return action()
+        } finally {
+            afterTransformingChildren(state)
         }
+    }
+
+    fun createDeepCopyOfTypeRef(original: FirUserTypeRef): FirUserTypeRef = buildUserTypeRef {
+        source = original.source
+        isMarkedNullable = original.isMarkedNullable
+        annotations.addAll(original.annotations)
+        original.qualifier.mapTo(qualifier) { it.createDeepCopy() }
     }
 
     private fun FirQualifierPart.createDeepCopy(): FirQualifierPart {
         val newArgumentList = FirTypeArgumentListImpl(typeArgumentList.source).apply {
             typeArgumentList.typeArguments.mapTo(typeArguments) { it.createDeepCopy() }
         }
+
         return FirQualifierPartImpl(
             source,
             name,
@@ -457,7 +562,7 @@ internal abstract class AbstractFirSpecificAnnotationResolveTransformer(
             is FirTypeProjectionWithVariance -> buildTypeProjectionWithVariance {
                 source = original.source
                 typeRef = when (val originalTypeRef = original.typeRef) {
-                    is FirUserTypeRef -> originalTypeRef.createDeepCopy()
+                    is FirUserTypeRef -> createDeepCopyOfTypeRef(originalTypeRef)
                     else -> originalTypeRef
                 }
                 variance = original.variance

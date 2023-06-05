@@ -21,7 +21,7 @@ dependencies {
     api(project(":compiler:fir:java"))
     api(project(":compiler:fir:entrypoint"))
     api(project(":compiler:fir:fir2ir"))
-    api(project(":compiler:fir:fir2ir:jvm-backend"))
+    implementation(project(":compiler:fir:fir2ir:jvm-backend"))
     api(project(":compiler:fir:checkers"))
     api(project(":compiler:fir:checkers:checkers.jvm"))
     api(project(":compiler:fir:checkers:checkers.js"))
@@ -51,13 +51,9 @@ allprojects {
     optInToExperimentalCompilerApi()
 }
 
-tasks.withType<org.jetbrains.kotlin.gradle.dsl.KotlinCompile<*>> {
-    kotlinOptions {
-        languageVersion = "1.4"
-        apiVersion = "1.4"
-        freeCompilerArgs = freeCompilerArgs - "-progressive" + listOf(
-            "-Xskip-prerelease-check", "-Xsuppress-version-warnings", "-Xuse-mixed-named-arguments"
-        )
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinJvmCompile> {
+    compilerOptions {
+        progressiveMode.set(true)
     }
 }
 

@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.cli.js
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.util.text.StringUtil
+import org.jetbrains.kotlin.analyzer.CompilationErrorException
 import org.jetbrains.kotlin.backend.common.CompilationException
 import org.jetbrains.kotlin.backend.common.phaser.PhaseConfig
 import org.jetbrains.kotlin.backend.wasm.compileToLoweredIr
@@ -31,10 +32,7 @@ import org.jetbrains.kotlin.cli.js.klib.*
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.plugins.PluginCliParser
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
-import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.Services
-import org.jetbrains.kotlin.config.getModuleNameForSource
+import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
@@ -44,6 +42,7 @@ import org.jetbrains.kotlin.incremental.js.IncrementalNextRoundChecker
 import org.jetbrains.kotlin.incremental.js.IncrementalResultsConsumer
 import org.jetbrains.kotlin.ir.backend.js.*
 import org.jetbrains.kotlin.ir.backend.js.codegen.JsGenerationGranularity
+import org.jetbrains.kotlin.ir.backend.js.dce.dumpDeclarationIrSizesIfNeed
 import org.jetbrains.kotlin.ir.backend.js.ic.*
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.CompilationOutputsBuilt
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.IrModuleToJsTransformer
@@ -61,6 +60,7 @@ import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
 import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.progress.IncrementalNextRoundException
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.serialization.js.ModuleKind
 import org.jetbrains.kotlin.utils.KotlinPaths
@@ -173,6 +173,7 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
         configuration.put(JSConfigurationKeys.WASM_ENABLE_ARRAY_RANGE_CHECKS, arguments.wasmEnableArrayRangeChecks)
         configuration.put(JSConfigurationKeys.WASM_ENABLE_ASSERTS, arguments.wasmEnableAsserts)
         configuration.put(JSConfigurationKeys.WASM_GENERATE_WAT, arguments.wasmGenerateWat)
+        configuration.put(JSConfigurationKeys.OPTIMIZE_GENERATED_JS, arguments.optimizeGeneratedJs)
 
         val commonSourcesArray = arguments.commonSources
         val commonSources = commonSourcesArray?.toSet() ?: emptySet()
@@ -257,14 +258,6 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
             friendLibraries = friendLibraries,
             configurationJs = configurationJs,
             mainCallArguments = mainCallArguments
-        )
-
-        configuration.setupPartialLinkageConfig(
-            mode = arguments.partialLinkageMode,
-            logLevel = arguments.partialLinkageLogLevel,
-            compilerModeAllowsUsingPartialLinkage = arguments.includes != null, // Don't run PL when producing KLIB.
-            onWarning = { messageCollector.report(WARNING, it) },
-            onError = { messageCollector.report(ERROR, it) }
         )
 
         // Run analysis if main module is sources
@@ -360,6 +353,8 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                     eliminateDeadDeclarations(allModules, backendContext)
                 }
 
+                dumpDeclarationIrSizesIfNeed(arguments.irDceDumpDeclarationIrSizesToFile, allModules)
+
                 val generateSourceMaps = configuration.getBoolean(JSConfigurationKeys.SOURCE_MAP)
 
                 val res = compileWasm(
@@ -379,6 +374,13 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 )
 
                 return OK
+            } else {
+                if (arguments.irDceDumpReachabilityInfoToFile != null) {
+                    messageCollector.report(STRONG_WARNING, "Dumping the reachability info to file is supported only for Kotlin/Wasm.")
+                }
+                if (arguments.irDceDumpDeclarationIrSizesToFile != null) {
+                    messageCollector.report(STRONG_WARNING, "Dumping the size of declarations to file is supported only for Kotlin/Wasm.")
+                }
             }
 
             val start = System.currentTimeMillis()
@@ -480,7 +482,7 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
         friendLibraries: List<String>,
         arguments: K2JSCompilerArguments,
         outputKlibPath: String
-    ): ModulesStructure? {
+    ): ModulesStructure {
         val configuration = environmentForJS.configuration
         val messageCollector = configuration.getNotNull(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY)
         val diagnosticsReporter = DiagnosticReporterFactory.createPendingReporter()
@@ -488,23 +490,62 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
         val mainModule = MainModule.SourceFiles(environmentForJS.getSourceFiles())
         val moduleStructure = ModulesStructure(environmentForJS.project, mainModule, configuration, libraries, friendLibraries)
 
-        val outputs = compileModuleToAnalyzedFir(
-            moduleStructure = moduleStructure,
-            ktFiles = environmentForJS.getSourceFiles(),
-            libraries = libraries,
-            friendLibraries = friendLibraries,
-            messageCollector = messageCollector,
-            diagnosticsReporter = diagnosticsReporter
-        ) ?: return null
+        val lookupTracker = configuration.get(CommonConfigurationKeys.LOOKUP_TRACKER) ?: LookupTracker.DO_NOTHING
+
+        val analyzedOutput = if (
+            configuration.getBoolean(CommonConfigurationKeys.USE_FIR) && configuration.getBoolean(CommonConfigurationKeys.USE_LIGHT_TREE)
+        ) {
+            val groupedSources = collectSources(configuration, environmentForJS.project, messageCollector)
+
+            compileModulesToAnalyzedFirWithLightTree(
+                moduleStructure = moduleStructure,
+                groupedSources = groupedSources,
+                // TODO: Only pass groupedSources, because
+                //  we will need to have them separated again
+                //  in createSessionsForLegacyMppProject anyway
+                ktSourceFiles = groupedSources.commonSources + groupedSources.platformSources,
+                libraries = libraries,
+                friendLibraries = friendLibraries,
+                diagnosticsReporter = diagnosticsReporter,
+                incrementalDataProvider = configuration[JSConfigurationKeys.INCREMENTAL_DATA_PROVIDER],
+                lookupTracker = lookupTracker,
+            )
+        } else {
+            compileModuleToAnalyzedFirWithPsi(
+                moduleStructure = moduleStructure,
+                ktFiles = environmentForJS.getSourceFiles(),
+                libraries = libraries,
+                friendLibraries = friendLibraries,
+                diagnosticsReporter = diagnosticsReporter,
+                incrementalDataProvider = configuration[JSConfigurationKeys.INCREMENTAL_DATA_PROVIDER],
+                lookupTracker = lookupTracker,
+            )
+        }
 
         // FIR2IR
-        val fir2IrActualizedResult = transformFirToIr(moduleStructure, outputs, diagnosticsReporter)
+        val fir2IrActualizedResult = transformFirToIr(moduleStructure, analyzedOutput.output, diagnosticsReporter)
+
+        if (configuration.getBoolean(CommonConfigurationKeys.INCREMENTAL_COMPILATION)) {
+            // TODO: During checking the next round, fir serializer may throw an exception, e.g.
+            //      during annotation serialization when it cannot find the removed constant
+            //      (see ConstantValueUtils.kt:convertToConstantValues())
+            //  This happens because we check the next round before compilation errors.
+            //  Test reproducer:  testFileWithConstantRemoved
+            //  Issue: https://youtrack.jetbrains.com/issue/KT-58824/
+            if (shouldGoToNextIcRound(moduleStructure, analyzedOutput.output, fir2IrActualizedResult)) {
+                throw IncrementalNextRoundException()
+            }
+        }
+
+        if (analyzedOutput.reportCompilationErrors(moduleStructure, diagnosticsReporter, messageCollector)) {
+            throw CompilationErrorException()
+        }
 
         // Serialize klib
         if (arguments.irProduceKlibDir || arguments.irProduceKlibFile) {
             serializeFirKlib(
                 moduleStructure = moduleStructure,
-                firOutputs = outputs,
+                firOutputs = analyzedOutput.output,
                 fir2IrActualizedResult = fir2IrActualizedResult,
                 outputKlibPath = outputKlibPath,
                 messageCollector = messageCollector,
@@ -719,6 +760,16 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
 
         configuration.put(JSConfigurationKeys.PRINT_REACHABILITY_INFO, arguments.irDcePrintReachabilityInfo)
         configuration.put(JSConfigurationKeys.FAKE_OVERRIDE_VALIDATOR, arguments.fakeOverrideValidator)
+        configuration.putIfNotNull(JSConfigurationKeys.DUMP_REACHABILITY_INFO_TO_FILE, arguments.irDceDumpReachabilityInfoToFile)
+
+        configuration.setupPartialLinkageConfig(
+            mode = arguments.partialLinkageMode,
+            logLevel = arguments.partialLinkageLogLevel,
+            compilerModeAllowsUsingPartialLinkage =
+                /* disabled for WASM for now */ !arguments.wasm && /* no PL when producing KLIB */ arguments.includes != null,
+            onWarning = { messageCollector.report(WARNING, it) },
+            onError = { messageCollector.report(ERROR, it) }
+        )
     }
 
     override fun executableScriptFileName(): String {

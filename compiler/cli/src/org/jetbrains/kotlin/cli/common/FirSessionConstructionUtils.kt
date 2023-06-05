@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.cli.common
 
 import org.jetbrains.kotlin.KtSourceFile
 import org.jetbrains.kotlin.analyzer.common.CommonPlatformAnalyzerServices
-import org.jetbrains.kotlin.cli.jvm.compiler.pipeline.GroupedKtSources
 import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.checkers.registerExtendedCommonCheckers
@@ -16,6 +15,7 @@ import org.jetbrains.kotlin.fir.java.FirProjectSessionProvider
 import org.jetbrains.kotlin.fir.session.*
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectEnvironment
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectFileSearchScope
+import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.js.resolve.JsPlatformAnalyzerServices
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.metadata.resolver.KotlinResolvedLibrary
@@ -113,6 +113,8 @@ fun <F> prepareJsSessions(
     extensionRegistrars: List<FirExtensionRegistrar>,
     isCommonSource: (F) -> Boolean,
     fileBelongsToModule: (F, String) -> Boolean,
+    lookupTracker: LookupTracker?,
+    icData: KlibIcData?,
 ): List<SessionWithSources<F>> {
     return prepareSessions(
         files, configuration, rootModuleName, JsPlatforms.defaultJsPlatform, JsPlatformAnalyzerServices,
@@ -134,7 +136,8 @@ fun <F> prepareJsSessions(
             sessionProvider,
             extensionRegistrars,
             configuration.languageVersionSettings,
-            null,
+            lookupTracker,
+            icData = icData,
             registerExtraComponents = {},
             init = sessionConfigurator,
         )
@@ -155,13 +158,14 @@ fun <F> prepareNativeSessions(
     resolvedLibraries: List<KotlinResolvedLibrary>,
     libraryList: DependencyListForCliModule,
     extensionRegistrars: List<FirExtensionRegistrar>,
+    metadataCompilationMode: Boolean,
     isCommonSource: (F) -> Boolean,
     fileBelongsToModule: (F, String) -> Boolean,
     registerExtraComponents: ((FirSession) -> Unit) = {},
 ): List<SessionWithSources<F>> {
     return prepareSessions(
         files, configuration, rootModuleName, NativePlatforms.unspecifiedNativePlatform, NativePlatformAnalyzerServices,
-        metadataCompilationMode = false, libraryList, isCommonSource, fileBelongsToModule, createLibrarySession = { sessionProvider ->
+        metadataCompilationMode, libraryList, isCommonSource, fileBelongsToModule, createLibrarySession = { sessionProvider ->
             FirNativeSessionFactory.createLibrarySession(
                 rootModuleName,
                 resolvedLibraries,
