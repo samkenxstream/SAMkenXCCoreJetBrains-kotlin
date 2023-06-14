@@ -12,13 +12,32 @@ import org.jetbrains.kotlin.mpp.*
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualCompatibility
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.model.TypeSubstitutorMarker
-import org.jetbrains.kotlin.types.model.TypeSystemInferenceExtensionContext
+import org.jetbrains.kotlin.types.model.TypeSystemContext
 
-interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemInferenceExtensionContext {
+interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemContext {
     val shouldCheckReturnTypesOfCallables: Boolean
+
+    /*
+     * This flag indicates how are type parameters of inner classes stored in the specific implementation of RegularClassSymbolMarker
+     *
+     * class Outer<T> {
+     *     inner class Inner<U>
+     * }
+     *
+     * If flag is set to `true` then `typeParameters` for class `Outer.Inner` contains both parameters: [U, R]
+     * Otherwise it contains only parameters of itself: [U]
+     *
+     * This flag is needed for proper calculation of substitutions for components of inner classes
+     */
+    val innerClassesCapturesOuterTypeParameters: Boolean
+        get() = true
+
+    val enumConstructorsAreAlwaysCompatible: Boolean
+        get() = false
 
     val RegularClassSymbolMarker.classId: ClassId
     val TypeAliasSymbolMarker.classId: ClassId
@@ -100,10 +119,17 @@ interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemI
     /*
      * Determines should some declaration from expect class scope be checked
      *  - FE 1.0: skip fake overrides
-     *  - FIR: skip nothing
+     *  - FIR: skip fake overrides
      *  - IR: skip nothing
      */
     fun CallableSymbolMarker.shouldSkipMatching(containingExpectClass: RegularClassSymbolMarker): Boolean
 
     val CallableSymbolMarker.hasStableParameterNames: Boolean
+
+    fun onMatchedMembers(expectSymbol: DeclarationSymbolMarker, actualSymbol: DeclarationSymbolMarker) {}
+
+    fun onMismatchedMembersFromClassScope(
+        expectSymbol: DeclarationSymbolMarker,
+        actualSymbolsByIncompatibility: Map<ExpectActualCompatibility.Incompatible<*>, List<DeclarationSymbolMarker>>
+    ) {}
 }

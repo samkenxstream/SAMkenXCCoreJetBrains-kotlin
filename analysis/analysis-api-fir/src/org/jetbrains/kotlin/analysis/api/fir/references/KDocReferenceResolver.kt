@@ -6,55 +6,166 @@
 package org.jetbrains.kotlin.analysis.api.fir.references
 
 import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
-import org.jetbrains.kotlin.analysis.api.symbols.*
+import org.jetbrains.kotlin.analysis.api.components.KtScopeContext
+import org.jetbrains.kotlin.analysis.api.components.KtScopeKind
+import org.jetbrains.kotlin.analysis.api.scopes.KtScope
+import org.jetbrains.kotlin.analysis.api.symbols.KtDeclarationSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KtNamedClassOrObjectSymbol
+import org.jetbrains.kotlin.analysis.api.symbols.KtSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolWithMembers
-import org.jetbrains.kotlin.name.CallableId
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi.KtDeclaration
+import org.jetbrains.kotlin.analysis.utils.printer.parentsOfType
+import org.jetbrains.kotlin.name.*
+import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
+import kotlin.reflect.KClass
+import org.jetbrains.kotlin.analysis.api.symbols.KtClassOrObjectSymbol
 
 internal object KDocReferenceResolver {
 
+    /**
+     * Resolves the [selectedFqName] of KDoc
+     *
+     * To properly resolve qualifier parts in the middle,
+     * we need to resolve the whole qualifier to understand which parts of the qualifier are package or class qualifiers.
+     * And then we will be able to resolve the qualifier selected by the user to the proper class, package or callable.
+     *
+     * It's possible that the whole qualifier is invalid, in this case we still want to resolve our [selectedFqName].
+     * To do this, we are trying to resolve the whole qualifier until we succeed.
+     *
+     * @param selectedFqName the selected fully qualified name of the KDoc
+     * @param fullFqName the whole fully qualified name of the KDoc
+     * @param contextElement the context element in which the KDoc is defined
+     *
+     * @return the collection of KtSymbol(s) resolved from the fully qualified name
+     *         based on the selected FqName and context element
+     */
     context(KtAnalysisSession)
-    internal fun resolveKdocFqName(fqName: FqName, owner: KtDeclaration?): Collection<KtSymbol> = buildSet {
-        collectSymbolsByFullyQualifiedName(fqName)
+    internal fun resolveKdocFqName(selectedFqName: FqName, fullFqName: FqName, contextElement: KtElement): Collection<KtSymbol> {
+        val fullSymbolsResolved = resolveKdocFqName(fullFqName, contextElement)
+        if (selectedFqName == fullFqName) return fullSymbolsResolved
+        if (fullSymbolsResolved.isEmpty()) {
+            val parent = fullFqName.parent()
+            return resolveKdocFqName(selectedFqName = selectedFqName, fullFqName = parent, contextElement = contextElement)
+        }
+        val goBackSteps = fullFqName.pathSegments().size - selectedFqName.pathSegments().size
+        check(goBackSteps > 0) {
+            "Selected FqName ($selectedFqName) should be smaller than the whole FqName ($fullFqName)"
+        }
+        return fullSymbolsResolved.mapNotNullTo(mutableSetOf()) { findParentSymbol(it, goBackSteps, selectedFqName) }
+    }
 
-        if (owner != null) {
-            collectSymbolsFromPositionScopes(owner, fqName)
-            val ownerSymbol = owner.getSymbol()
 
-            val pathSegments = fqName.pathSegments()
-            if (pathSegments.size == 1) {
-                val singleSegment = pathSegments.single()
-                when (ownerSymbol) {
-                    is KtConstructorSymbol -> {
-                        collectConstructorParameterSymbols(ownerSymbol, singleSegment)
-                    }
+    /**
+     * Finds the parent symbol of the given KtSymbol by traversing back up the symbol hierarchy a certain number of steps,
+     * or until the containing class or object symbol is found.
+     *
+     * @param symbol The KtSymbol whose parent symbol needs to be found.
+     * @param goBackSteps The number of steps to go back up the symbol hierarchy.
+     * @param selectedFqName The fully qualified name of the selected package.
+     * @return The [goBackSteps]-th parent [KtSymbol]
+     */
+    context(KtAnalysisSession)
+    private fun findParentSymbol(symbol: KtSymbol, goBackSteps: Int, selectedFqName: FqName): KtSymbol? {
+        if (symbol !is KtDeclarationSymbol) return null
+        var currentSymbol: KtDeclarationSymbol? = symbol
+        repeat(goBackSteps) {
+            currentSymbol = currentSymbol?.getContainingSymbol() as? KtClassOrObjectSymbol
+        }
+        currentSymbol?.let { return it }
+        return getPackageSymbolIfPackageExists(selectedFqName)
+    }
 
-                    is KtNamedClassOrObjectSymbol -> {
-                        collectPrimaryConstructorParameterSymbols(ownerSymbol, singleSegment)
-                    }
+    context(KtAnalysisSession)
+    private fun resolveKdocFqName(fqName: FqName, contextElement: KtElement): Collection<KtSymbol> {
+        getSymbolsFromParentMemberScopes(fqName, contextElement).ifNotEmpty { return this }
+        val importScopeContext = contextElement.containingKtFile.getImportingScopeContext()
+        getSymbolsFromImportingScope(importScopeContext, fqName, KtScopeKind.ExplicitSimpleImportingScope::class).ifNotEmpty { return this }
+        getSymbolsFromPackageScope(fqName, contextElement).ifNotEmpty { return this }
+        getSymbolsFromImportingScope(importScopeContext, fqName, KtScopeKind.DefaultSimpleImportingScope::class).ifNotEmpty { return this }
+        getSymbolsFromImportingScope(importScopeContext, fqName, KtScopeKind.ExplicitStarImportingScope::class).ifNotEmpty { return this }
+        getSymbolsFromImportingScope(importScopeContext, fqName, KtScopeKind.DefaultStarImportingScope::class).ifNotEmpty { return this }
+        getNonImportedSymbolsByFullyQualifiedName(fqName).ifNotEmpty { return this }
+        return emptyList()
+    }
 
-                    else -> {}
+    context(KtAnalysisSession)
+    private fun getSymbolsFromDeclaration(name: Name, owner: KtDeclaration): List<KtSymbol> = buildList {
+        if (owner is KtNamedDeclaration) {
+            if (owner.nameAsName == name) {
+                add(owner.getSymbol())
+            }
+        }
+        if (owner is KtTypeParameterListOwner) {
+            for (typeParameter in owner.typeParameters) {
+                if (typeParameter.nameAsName == name) {
+                    add(typeParameter.getTypeParameterSymbol())
                 }
             }
+        }
+        if (owner is KtCallableDeclaration) {
+            for (typeParameter in owner.valueParameters) {
+                if (typeParameter.nameAsName == name) {
+                    add(typeParameter.getParameterSymbol())
+                }
+            }
+        }
+
+        if (owner is KtClassOrObject) {
+            owner.primaryConstructor?.let { addAll(getSymbolsFromDeclaration(name, it)) }
         }
     }
 
     context(KtAnalysisSession)
-    private fun MutableCollection<KtSymbol>.collectPrimaryConstructorParameterSymbols(owner: KtNamedClassOrObjectSymbol, name: Name) {
-        val primaryConstructor = owner.getDeclaredMemberScope().getConstructors().firstOrNull { it.isPrimary } ?: return
-        collectConstructorParameterSymbols(primaryConstructor, name)
+    private fun getSymbolsFromParentMemberScopes(fqName: FqName, contextElement: KtElement): Collection<KtSymbol> {
+        for (ktDeclaration in contextElement.parentsOfType<KtDeclaration>(withSelf = true)) {
+            if (fqName.pathSegments().size == 1) {
+                getSymbolsFromDeclaration(fqName.shortName(), ktDeclaration).ifNotEmpty { return this }
+            }
+            if (ktDeclaration is KtClassOrObject) {
+                val symbol = ktDeclaration.getClassOrObjectSymbol() ?: continue
+
+                val scope = listOfNotNull(
+                    symbol.getMemberScope(),
+                    getCompanionObjectMemberScope(symbol),
+                ).asCompositeScope()
+
+                val symbolsFromScope = getSymbolsFromMemberScope(fqName, scope)
+                if (symbolsFromScope.isNotEmpty()) return symbolsFromScope
+            }
+        }
+        return emptyList()
     }
 
     context(KtAnalysisSession)
-    private fun MutableCollection<KtSymbol>.collectSymbolsFromPositionScopes(owner: KtDeclaration, fqName: FqName) {
-        val initialScope = owner.containingKtFile.getScopeContextForPosition(owner).getCompositeScope()
+    private fun getCompanionObjectMemberScope(classSymbol: KtClassOrObjectSymbol): KtScope? {
+        val namedClassSymbol = classSymbol as? KtNamedClassOrObjectSymbol ?: return null
+        val companionSymbol = namedClassSymbol.companionObject ?: return null
+        return companionSymbol.getMemberScope()
+    }
 
-        val scope = fqName.pathSegments()
+    context(KtAnalysisSession)
+    private fun getSymbolsFromPackageScope(fqName: FqName, contextElement: KtElement): Collection<KtDeclarationSymbol> {
+        val packageFqName = contextElement.containingKtFile.packageFqName
+        val packageSymbol = getPackageSymbolIfPackageExists(packageFqName) ?: return emptyList()
+        val packageScope = packageSymbol.getPackageScope()
+        return getSymbolsFromMemberScope(fqName, packageScope)
+    }
+
+    context(KtAnalysisSession)
+    private fun getSymbolsFromImportingScope(
+        scopeContext: KtScopeContext,
+        fqName: FqName,
+        acceptScopeKind: KClass<out KtScopeKind>,
+    ): Collection<KtDeclarationSymbol> {
+        val importingScope = scopeContext.getCompositeScope { acceptScopeKind.java.isAssignableFrom(it::class.java) }
+        return getSymbolsFromMemberScope(fqName, importingScope)
+    }
+
+    context(KtAnalysisSession)
+    private fun getSymbolsFromMemberScope(fqName: FqName, scope: KtScope): Collection<KtDeclarationSymbol> {
+        val finalScope = fqName.pathSegments()
             .dropLast(1)
-            .fold(initialScope) { currentScope, fqNamePart ->
+            .fold(scope) { currentScope, fqNamePart ->
                 currentScope
                     .getClassifierSymbols(fqNamePart)
                     .mapNotNull { (it as? KtSymbolWithMembers)?.getDeclaredMemberScope() }
@@ -62,22 +173,19 @@ internal object KDocReferenceResolver {
                     .asCompositeScope()
             }
 
-        val shortName = fqName.shortName()
-        addAll(scope.getCallableSymbols(shortName))
-        addAll(scope.getClassifierSymbols(shortName))
+        return finalScope.getAllSymbolsFromScopeByShortName(fqName)
     }
 
-    context(KtAnalysisSession)
-    private fun MutableCollection<KtSymbol>.collectConstructorParameterSymbols(owner: KtFunctionLikeSymbol, name: Name) {
-        for (valueParameter in owner.valueParameters) {
-            if (valueParameter.name == name) {
-                add(valueParameter)
-            }
+    private fun KtScope.getAllSymbolsFromScopeByShortName(fqName: FqName): Collection<KtDeclarationSymbol> {
+        val shortName = fqName.shortName()
+        return buildSet {
+            addAll(getCallableSymbols(shortName))
+            addAll(getClassifierSymbols(shortName))
         }
     }
 
     context(KtAnalysisSession)
-    private fun MutableCollection<KtSymbol>.collectSymbolsByFullyQualifiedName(fqName: FqName) {
+    private fun getNonImportedSymbolsByFullyQualifiedName(fqName: FqName): List<KtSymbol> = buildList {
         generateNameInterpretations(fqName).forEach { interpretation ->
             collectSymbolsByFqNameInterpretation(interpretation)
         }

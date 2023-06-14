@@ -48,6 +48,7 @@ object CommonExpressionCheckers : ExpressionCheckers() {
             FirReifiedChecker,
             FirSuspendCallChecker,
             FirLateinitIntrinsicApplicabilityChecker,
+            FirAbstractClassInstantiationChecker,
         )
 
     override val callCheckers: Set<FirCallChecker>
@@ -161,5 +162,10 @@ object CommonExpressionCheckers : ExpressionCheckers() {
     override val arrayOfCallCheckers: Set<FirArrayOfCallChecker>
         get() = setOf(
             FirUnsupportedArrayLiteralChecker
+        )
+
+    override val inaccessibleReceiverCheckers: Set<FirInaccessibleReceiverChecker>
+        get() = setOf(
+            FirReceiverAccessBeforeSuperCallChecker,
         )
 }

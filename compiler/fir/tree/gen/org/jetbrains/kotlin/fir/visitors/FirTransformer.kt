@@ -105,9 +105,11 @@ import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirIntegerLiteralOperatorCall
 import org.jetbrains.kotlin.fir.expressions.FirImplicitInvokeCall
 import org.jetbrains.kotlin.fir.expressions.FirDelegatedConstructorCall
+import org.jetbrains.kotlin.fir.expressions.FirMultiDelegatedConstructorCall
 import org.jetbrains.kotlin.fir.expressions.FirComponentCall
 import org.jetbrains.kotlin.fir.expressions.FirCallableReferenceAccess
 import org.jetbrains.kotlin.fir.expressions.FirThisReceiverExpression
+import org.jetbrains.kotlin.fir.expressions.FirInaccessibleReceiverExpression
 import org.jetbrains.kotlin.fir.expressions.FirSmartCastExpression
 import org.jetbrains.kotlin.fir.expressions.FirSafeCallExpression
 import org.jetbrains.kotlin.fir.expressions.FirCheckedSafeCallSubject
@@ -561,6 +563,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
         return transformElement(delegatedConstructorCall, data)
     }
 
+    open fun transformMultiDelegatedConstructorCall(multiDelegatedConstructorCall: FirMultiDelegatedConstructorCall, data: D): FirStatement {
+        return transformElement(multiDelegatedConstructorCall, data)
+    }
+
     open fun transformComponentCall(componentCall: FirComponentCall, data: D): FirStatement {
         return transformElement(componentCall, data)
     }
@@ -571,6 +577,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     open fun transformThisReceiverExpression(thisReceiverExpression: FirThisReceiverExpression, data: D): FirStatement {
         return transformElement(thisReceiverExpression, data)
+    }
+
+    open fun transformInaccessibleReceiverExpression(inaccessibleReceiverExpression: FirInaccessibleReceiverExpression, data: D): FirStatement {
+        return transformElement(inaccessibleReceiverExpression, data)
     }
 
     open fun transformSmartCastExpression(smartCastExpression: FirSmartCastExpression, data: D): FirStatement {
@@ -1161,6 +1171,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
         return transformDelegatedConstructorCall(delegatedConstructorCall, data)
     }
 
+    final override fun visitMultiDelegatedConstructorCall(multiDelegatedConstructorCall: FirMultiDelegatedConstructorCall, data: D): FirStatement {
+        return transformMultiDelegatedConstructorCall(multiDelegatedConstructorCall, data)
+    }
+
     final override fun visitComponentCall(componentCall: FirComponentCall, data: D): FirStatement {
         return transformComponentCall(componentCall, data)
     }
@@ -1171,6 +1185,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     final override fun visitThisReceiverExpression(thisReceiverExpression: FirThisReceiverExpression, data: D): FirStatement {
         return transformThisReceiverExpression(thisReceiverExpression, data)
+    }
+
+    final override fun visitInaccessibleReceiverExpression(inaccessibleReceiverExpression: FirInaccessibleReceiverExpression, data: D): FirStatement {
+        return transformInaccessibleReceiverExpression(inaccessibleReceiverExpression, data)
     }
 
     final override fun visitSmartCastExpression(smartCastExpression: FirSmartCastExpression, data: D): FirStatement {

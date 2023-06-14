@@ -88,10 +88,8 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
             configuration.report(CompilerMessageSeverity.STRONG_WARNING, "-Xdestroy-runtime-mode switch is deprecated and will be removed in a future release.")
         }
     }.let { DestroyRuntimeMode.ON_SHUTDOWN }
-    private val defaultGC get() = GC.CONCURRENT_MARK_AND_SWEEP
-    val gc: GC by lazy {
-        configuration.get(KonanConfigKeys.GARBAGE_COLLECTOR) ?: defaultGC
-    }
+    private val defaultGC get() = GC.PARALLEL_MARK_CONCURRENT_SWEEP
+    val gc: GC get() = configuration.get(BinaryOptions.gc) ?: defaultGC
     val runtimeAssertsMode: RuntimeAssertsMode get() = configuration.get(BinaryOptions.runtimeAssertionsMode) ?: RuntimeAssertsMode.IGNORE
     private val defaultDisableMmap get() = target.family == Family.MINGW
     val disableMmap: Boolean by lazy {
@@ -130,10 +128,18 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 ?: SourceInfoType.CORESYMBOLICATION.takeIf { debug && target.supportsCoreSymbolication() }
                 ?: SourceInfoType.NOOP
 
-    val defaultGCSchedulerType get() = GCSchedulerType.WITH_TIMER
+    val defaultGCSchedulerType get() =
+        when (gc) {
+            GC.NOOP -> GCSchedulerType.MANUAL
+            else -> GCSchedulerType.ADAPTIVE
+        }
 
     val gcSchedulerType: GCSchedulerType by lazy {
-        configuration.get(BinaryOptions.gcSchedulerType) ?: defaultGCSchedulerType
+        val arg = configuration.get(BinaryOptions.gcSchedulerType) ?: defaultGCSchedulerType
+        arg.deprecatedWithReplacement?.let { replacement ->
+            configuration.report(CompilerMessageSeverity.WARNING, "Binary option gcSchedulerType=$arg is deprecated. Use gcSchedulerType=$replacement instead")
+            replacement
+        } ?: arg
     }
 
     val gcMarkSingleThreaded: Boolean
@@ -223,6 +229,9 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     private val shouldCoverLibraries = !configuration.getList(KonanConfigKeys.LIBRARIES_TO_COVER).isNullOrEmpty()
 
     private val defaultAllocationMode get() = when {
+        gc == GC.PARALLEL_MARK_CONCURRENT_SWEEP && sanitizer == null -> {
+            AllocationMode.CUSTOM
+        }
         target.supportsMimallocAllocator() && sanitizer == null -> {
             AllocationMode.MIMALLOC
         }
@@ -234,6 +243,9 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
             null -> defaultAllocationMode
             AllocationMode.STD -> AllocationMode.STD
             AllocationMode.MIMALLOC -> {
+                if (sanitizer != null) {
+                    configuration.report(CompilerMessageSeverity.STRONG_WARNING, "Sanitizers are useful only with the std allocator")
+                }
                 if (target.supportsMimallocAllocator()) {
                     AllocationMode.MIMALLOC
                 } else {
@@ -243,7 +255,10 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 }
             }
             AllocationMode.CUSTOM -> {
-                if (gc == GC.CONCURRENT_MARK_AND_SWEEP) {
+                if (sanitizer != null) {
+                    configuration.report(CompilerMessageSeverity.STRONG_WARNING, "Sanitizers are useful only with the std allocator")
+                }
+                if (gc == GC.PARALLEL_MARK_CONCURRENT_SWEEP) {
                     AllocationMode.CUSTOM
                 } else {
                     configuration.report(CompilerMessageSeverity.STRONG_WARNING,
@@ -263,13 +278,13 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         } else {
             add("experimental_memory_manager.bc")
             when (gc) {
-                GC.SAME_THREAD_MARK_AND_SWEEP -> {
+                GC.STOP_THE_WORLD_MARK_AND_SWEEP -> {
                     add("same_thread_ms_gc.bc")
                 }
                 GC.NOOP -> {
                     add("noop_gc.bc")
                 }
-                GC.CONCURRENT_MARK_AND_SWEEP -> {
+                GC.PARALLEL_MARK_CONCURRENT_SWEEP -> {
                     add("concurrent_ms_gc.bc")
                 }
             }

@@ -132,6 +132,7 @@ internal abstract class SourceBasedCompilation<A : TestCompilationArtifact>(
     private val sanitizer: Sanitizer,
     private val gcType: GCType,
     private val gcScheduler: GCScheduler,
+    private val allocator: Allocator,
     private val pipelineType: PipelineType,
     freeCompilerArgs: TestCompilerArgs,
     override val sourceModules: Collection<TestModule>,
@@ -193,6 +194,7 @@ internal class LibraryCompilation(
     sanitizer = settings.get(),
     gcType = settings.get(),
     gcScheduler = settings.get(),
+    allocator = settings.get(),
     pipelineType = settings.get(),
     freeCompilerArgs = freeCompilerArgs,
     sourceModules = sourceModules,
@@ -226,7 +228,8 @@ internal class ObjCFrameworkCompilation(
     sanitizer = settings.get(),
     gcType = settings.get(),
     gcScheduler = settings.get(),
-    pipelineType = settings.get(),
+    allocator = settings.get(),
+    pipelineType = settings.getStageDependentPipelineType(),
     freeCompilerArgs = freeCompilerArgs,
     sourceModules = sourceModules,
     dependencies = CategorizedDependencies(dependencies),
@@ -310,7 +313,8 @@ internal class ExecutableCompilation(
     sanitizer = settings.get(),
     gcType = settings.get(),
     gcScheduler = settings.get(),
-    pipelineType = settings.get(),
+    allocator = settings.get(),
+    pipelineType = settings.getStageDependentPipelineType(),
     freeCompilerArgs = freeCompilerArgs,
     sourceModules = sourceModules,
     dependencies = CategorizedDependencies(dependencies),
@@ -506,3 +510,9 @@ private object BinaryOptions {
         fun chooseFor(cacheMode: CacheMode) = if (cacheMode.useStaticCacheForDistributionLibraries) forUseWithCache else defaultForTesting
     }
 }
+
+internal fun Settings.getStageDependentPipelineType(): PipelineType =
+    when (get<TestMode>()) {
+        TestMode.ONE_STAGE_MULTI_MODULE -> get<PipelineType>()
+        TestMode.TWO_STAGE_MULTI_MODULE -> PipelineType.K1  // Don't pass "-language_version 2.0" to the second stage
+    }

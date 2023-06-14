@@ -252,6 +252,13 @@ dependencies {
 
 publish()
 
+// sbom for dist
+val distSbomTask = configureSbom(
+    target = "Dist",
+    documentName = "Kotlin Compiler Distribution",
+    setOf(configurations.runtimeClasspath.name, libraries.name, librariesStripVersion.name, compilerPlugins.name)
+)
+
 val packCompiler by task<Jar> {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     destinationDirectory.set(File(buildDir, "libs"))
@@ -430,12 +437,6 @@ val distJs = distTask<Sync>("distJs") {
     from(distJSContents)
 }
 
-val compilerZipSbomName = "kotlin-compiler-zip"
-val compilerZipSbom = configureSbom(
-    moduleName = compilerZipSbomName,
-    gradleConfigurations = setOf("runtimeClasspath", libraries.name, librariesStripVersion.name, compilerPlugins.name)
-)
-
 distTask<Copy>("dist") {
     destinationDir = File(distDir)
 
@@ -443,11 +444,12 @@ distTask<Copy>("dist") {
     dependsOn(distCommon)
     dependsOn(distMaven)
     dependsOn(distJs)
+    dependsOn(distSbomTask)
 
     from(buildNumber)
     from(distStdlibMinimalForTests)
-    from(compilerZipSbom.artifacts.files) {
-        rename("$compilerZipSbomName.spdx.json", "${project.name}-${project.version}.spdx.json")
+    from(distSbomTask.map { it.outputDirectory.file("Dist.spdx.json") }) {
+        rename(".*", "${project.name}-${project.version}.spdx.json")
     }
 }
 

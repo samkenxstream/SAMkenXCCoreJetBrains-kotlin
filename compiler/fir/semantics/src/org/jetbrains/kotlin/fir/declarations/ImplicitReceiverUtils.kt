@@ -9,6 +9,7 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.jetbrains.kotlin.fir.FirSession
+import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.labelName
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.*
@@ -276,7 +277,7 @@ class FirTowerDataElement(
     }
 
     private fun ImplicitReceiverValue<*>.getImplicitScope(): FirScope {
-        return when (expandedType) {
+        return when (type.fullyExpandedType(useSiteSession)) {
             is ConeErrorType,
             is ConeStubType -> FirTypeScope.Empty
             else -> implicitScope ?: error("Scope for type ${type::class.simpleName} is null.")

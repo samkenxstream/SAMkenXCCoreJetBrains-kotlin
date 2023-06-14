@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.analysis.api.components.ShortenCommand
 import org.jetbrains.kotlin.analysis.api.components.ShortenOption
 import org.jetbrains.kotlin.analysis.api.fir.KtFirAnalysisSession
 import org.jetbrains.kotlin.analysis.api.fir.components.ElementsToShortenCollector.PartialOrderOfScope.Companion.toPartialOrder
-import org.jetbrains.kotlin.analysis.api.fir.utils.addImportToFile
+import org.jetbrains.kotlin.analysis.api.fir.utils.FirBodyReanalyzingVisitorVoid
 import org.jetbrains.kotlin.analysis.api.fir.utils.computeImportableName
 import org.jetbrains.kotlin.analysis.api.lifetime.KtLifetimeToken
 import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
@@ -54,7 +54,6 @@ import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.*
-import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.*
@@ -313,7 +312,7 @@ private class ElementsToShortenCollector(
     private val callableShortenOption: (FirCallableSymbol<*>) -> ShortenOption,
     private val firResolveSession: LLFirResolveSession,
 ) :
-    FirVisitorVoid() {
+    FirBodyReanalyzingVisitorVoid(firResolveSession) {
     val typesToShorten: MutableList<ShortenType> = mutableListOf()
     val qualifiersToShorten: MutableList<ShortenQualifier> = mutableListOf()
     private val visitedProperty = mutableSetOf<FirProperty>()
@@ -323,11 +322,8 @@ private class ElementsToShortenCollector(
         valueParameter.correspondingProperty?.let { visitProperty(it) }
     }
 
-    override fun visitProperty(property: FirProperty) {
-        if (visitedProperty.add(property)) {
-            super.visitProperty(property)
-        }
-    }
+    override fun skipProperty(property: FirProperty): Boolean =
+        !visitedProperty.add(property)
 
     override fun visitElement(element: FirElement) {
         element.acceptChildren(this)
@@ -1060,48 +1056,12 @@ private class ElementsToShortenCollector(
 }
 
 private class ShortenCommandImpl(
-    private val targetFile: SmartPsiElementPointer<KtFile>,
-    private val importsToAdd: List<FqName>,
-    private val starImportsToAdd: List<FqName>,
-    private val typesToShorten: List<SmartPsiElementPointer<KtUserType>>,
-    private val qualifiersToShorten: List<SmartPsiElementPointer<KtDotQualifiedExpression>>,
-) : ShortenCommand {
-
-    override fun invokeShortening(): List<KtElement> {
-        // if the file has been invalidated, there's nothing we can shorten
-        val targetFile = targetFile.element ?: return emptyList()
-
-        for (nameToImport in importsToAdd) {
-            addImportToFile(targetFile.project, targetFile, nameToImport)
-        }
-
-        for (nameToImport in starImportsToAdd) {
-            addImportToFile(targetFile.project, targetFile, nameToImport, allUnder = true)
-        }
-
-        val shorteningResults = mutableListOf<KtElement>()
-//todo
-//        PostprocessReformattingAspect.getInstance(targetFile.project).disablePostprocessFormattingInside {
-        for (typePointer in typesToShorten) {
-            val type = typePointer.element ?: continue
-            type.deleteQualifier()
-            shorteningResults.add(type)
-        }
-
-        for (callPointer in qualifiersToShorten) {
-            val call = callPointer.element ?: continue
-            call.deleteQualifier()?.let { shorteningResults.add(it) }
-        }
-//        }
-        return shorteningResults
-    }
-
-    override val isEmpty: Boolean get() = typesToShorten.isEmpty() && qualifiersToShorten.isEmpty()
-
-    override fun getTypesToShorten(): List<SmartPsiElementPointer<KtUserType>> = typesToShorten
-
-    override fun getQualifiersToShorten(): List<SmartPsiElementPointer<KtDotQualifiedExpression>> = qualifiersToShorten
-}
+    override val targetFile: SmartPsiElementPointer<KtFile>,
+    override val importsToAdd: List<FqName>,
+    override val starImportsToAdd: List<FqName>,
+    override val typesToShorten: List<SmartPsiElementPointer<KtUserType>>,
+    override val qualifiersToShorten: List<SmartPsiElementPointer<KtDotQualifiedExpression>>,
+) : ShortenCommand
 
 private fun KtUserType.hasFakeRootPrefix(): Boolean =
     qualifier?.referencedName == ROOT_PREFIX_FOR_IDE_RESOLUTION_MODE
@@ -1111,11 +1071,6 @@ private fun KtDotQualifiedExpression.hasFakeRootPrefix(): Boolean =
 
 internal fun KtElement.getDotQualifiedExpressionForSelector(): KtDotQualifiedExpression? =
     getQualifiedExpressionForSelector() as? KtDotQualifiedExpression
-
-private fun KtDotQualifiedExpression.deleteQualifier(): KtExpression? {
-    val selectorExpression = selectorExpression ?: return null
-    return this.replace(selectorExpression) as KtExpression
-}
 
 private fun KtElement.getQualifier(): KtElement? = when (this) {
     is KtUserType -> qualifier

@@ -205,43 +205,58 @@ abstract class TypeCheckerStateForConstraintSystem(
      *  (Foo & Any .. Bar) <: T -- (Foo!! .. Bar) <: T
      *
      * => (Foo..Bar) <: T! -- (Foo!! .. Bar) <: T
+     *
+     * T & Any
+     *
+     * Foo? <: T & Any => ERROR (for K2 only)
+     *
+     * Foo..Bar? <: T & Any => Foo..Bar? <: T
+     * Foo <: T & Any  => Foo <: T
      */
     private fun simplifyLowerConstraint(
         typeVariable: KotlinTypeMarker,
         subType: KotlinTypeMarker,
         isFromNullabilityConstraint: Boolean = false
     ): Boolean = with(extensionTypeContext) {
+        val subTypeConstructor = subType.typeConstructor()
         val lowerConstraint = when (typeVariable) {
             is SimpleTypeMarker ->
-                /*
-                 * Foo <: T -- Foo <: T
-                 * Foo <: T? (T is contained in invariant or contravariant positions of a return type) -- Foo <: T
-                 *      Example:
-                 *          fun <T> foo(x: T?): Inv<T> {}
-                 *          fun <K> main(z: K) { val x = foo(z) }
-                 * Foo <: T? (T isn't contained there) -- Foo!! <: T
-                 *      Example:
-                 *          fun <T> foo(x: T?) {}
-                 *          fun <K> main(z: K) { foo(z) }
-                 */
-                if (typeVariable.isMarkedNullable()) {
-                    val typeVariableTypeConstructor = typeVariable.typeConstructor()
-                    val subTypeConstructor = subType.typeConstructor()
-                    val needToMakeDefNotNull = subTypeConstructor.isTypeVariable() ||
-                            typeVariableTypeConstructor !is TypeVariableTypeConstructorMarker ||
-                            !typeVariableTypeConstructor.isContainedInInvariantOrContravariantPositions()
-
-                    val resultType = if (needToMakeDefNotNull) {
-                        subType.makeDefinitelyNotNullOrNotNull()
-                    } else {
-                        if (!isInferenceCompatibilityEnabled && subType is CapturedTypeMarker) {
-                            subType.withNotNullProjection()
-                        } else {
-                            subType.withNullability(false)
-                        }
+                when {
+                    // Foo? (any type which cannot be used as dispatch receiver because of nullability) <: T & Any => ERROR (for K2 only)
+                    isK2 && typeVariable.isDefinitelyNotNullType() && !subTypeConstructor.isTypeVariable() &&
+                            !AbstractNullabilityChecker.isSubtypeOfAny(extensionTypeContext, subType) -> {
+                        return false
                     }
-                    if (isInferenceCompatibilityEnabled && resultType is CapturedTypeMarker) resultType.withNotNullProjection() else resultType
-                } else subType
+                    /*
+                     * Foo <: T? (T is contained in invariant or contravariant positions of a return type) -- Foo <: T
+                     *      Example:
+                     *          fun <T> foo(x: T?): Inv<T> {}
+                     *          fun <K> main(z: K) { val x = foo(z) }
+                     * Foo <: T? (T isn't contained there) -- Foo!! <: T
+                     *      Example:
+                     *          fun <T> foo(x: T?) {}
+                     *          fun <K> main(z: K) { foo(z) }
+                    */
+                    typeVariable.isMarkedNullable() -> {
+                        val typeVariableTypeConstructor = typeVariable.typeConstructor()
+                        val needToMakeDefNotNull = subTypeConstructor.isTypeVariable() ||
+                                typeVariableTypeConstructor !is TypeVariableTypeConstructorMarker ||
+                                !typeVariableTypeConstructor.isContainedInInvariantOrContravariantPositions()
+
+                        val resultType = if (needToMakeDefNotNull) {
+                            subType.makeDefinitelyNotNullOrNotNull()
+                        } else {
+                            if (!isInferenceCompatibilityEnabled && subType is CapturedTypeMarker) {
+                                subType.withNotNullProjection()
+                            } else {
+                                subType.withNullability(false)
+                            }
+                        }
+                        if (isInferenceCompatibilityEnabled && resultType is CapturedTypeMarker) resultType.withNotNullProjection() else resultType
+                    }
+                    // Foo <: T => Foo <: T
+                    else -> subType
+                }
 
             is FlexibleTypeMarker -> {
                 assertFlexibleTypeVariable(typeVariable)
@@ -298,6 +313,7 @@ abstract class TypeCheckerStateForConstraintSystem(
      * T! <: Foo <=> T <: Foo & Any..Foo?
      * T? <: Foo <=> T <: Foo && Nothing? <: Foo
      * T  <: Foo -- leave as is
+     * T & Any <: Foo <=> T <: Foo?
      */
     private fun simplifyUpperConstraint(typeVariable: KotlinTypeMarker, superType: KotlinTypeMarker): Boolean = with(extensionTypeContext) {
         val typeVariableLowerBound = typeVariable.lowerBoundIfFlexible()

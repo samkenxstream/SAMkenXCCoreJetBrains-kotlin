@@ -14,7 +14,25 @@ abstract class JavaElementSourceFactory {
     abstract fun <TYPE : PsiType> createVariableReturnTypeSource(psiVariableSource: JavaElementPsiSource<out PsiVariable>): JavaElementTypeSource<TYPE>
     abstract fun <TYPE : PsiType> createMethodReturnTypeSource(psiMethodSource: JavaElementPsiSource<out PsiMethod>): JavaElementTypeSource<TYPE>
 
+    abstract fun <TYPE : PsiType> createTypeParameterUpperBoundTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiTypeParameter>,
+        boundIndex: Int,
+    ): JavaElementTypeSource<TYPE>
+
+    abstract fun createSuperTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiClass>,
+        superTypeIndex: Int,
+    ): JavaElementTypeSource<PsiClassType>
+
     abstract fun <TYPE : PsiType> createExpressionTypeSource(psiExpressionSource: JavaElementPsiSource<out PsiExpression>): JavaElementTypeSource<TYPE>
+
+    /**
+     * @see com.intellij.psi.PsiClass.getPermitsListTypes
+     */
+    abstract fun createPermittedTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiClass>,
+        permittedTypeIndex: Int,
+    ): JavaElementTypeSource<PsiClassType>
 
     companion object {
         @JvmStatic
@@ -38,6 +56,27 @@ class JavaFixedElementSourceFactory : JavaElementSourceFactory() {
         return createTypeSource(psiVariableSource.psi.type as TYPE)
     }
 
+    override fun <TYPE : PsiType> createTypeParameterUpperBoundTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiTypeParameter>,
+        boundIndex: Int
+    ): JavaElementTypeSource<TYPE> {
+        @Suppress("UNCHECKED_CAST")
+        return createTypeSource(psiTypeParameterSource.psi.bounds[boundIndex] as TYPE)
+    }
+
+    override fun createSuperTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiClass>,
+        superTypeIndex: Int,
+    ): JavaElementTypeSource<PsiClassType> {
+        return createTypeSource(psiTypeParameterSource.psi.superTypes[superTypeIndex])
+    }
+
+    override fun createPermittedTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiClass>,
+        permittedTypeIndex: Int
+    ): JavaElementTypeSource<PsiClassType> {
+        return createTypeSource(psiTypeParameterSource.psi.permitsListTypes[permittedTypeIndex])
+    }
 
     override fun <TYPE : PsiType> createExpressionTypeSource(psiExpressionSource: JavaElementPsiSource<out PsiExpression>): JavaElementTypeSource<TYPE> {
         @Suppress("UNCHECKED_CAST")

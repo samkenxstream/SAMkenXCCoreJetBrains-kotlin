@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
 import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
 import org.jetbrains.kotlin.fir.diagnostics.ConeUnexpectedTypeArgumentsError
 import org.jetbrains.kotlin.fir.expressions.FirStatement
+import org.jetbrains.kotlin.fir.resolve.FirTypeResolutionResult
 import org.jetbrains.kotlin.fir.resolve.SupertypeSupplier
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnsupportedDefaultValueInFunctionType
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.resultType
@@ -22,6 +23,7 @@ import org.jetbrains.kotlin.fir.resolve.typeResolver
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildErrorTypeRef
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
+import org.jetbrains.kotlin.fir.types.builder.buildUserTypeRef
 
 class FirSpecificTypeResolverTransformer(
     override val session: FirSession,
@@ -81,16 +83,8 @@ class FirSpecificTypeResolverTransformer(
         withBareTypes(allowed = false) {
             typeRef.transformChildren(this, data)
         }
-        val (resolvedType, diagnostic) = typeResolver.resolveType(
-            typeRef,
-            data,
-            areBareTypesAllowed,
-            isOperandOfIsOperator,
-            resolveDeprecations,
-            currentFile,
-            supertypeSupplier
-        )
-        return transformType(typeRef, resolvedType, diagnostic)
+        val (resolvedType, diagnostic) = resolveType(typeRef, data)
+        return transformType(typeRef, resolvedType, diagnostic, data)
     }
 
     @OptIn(PrivateForInline::class)
@@ -101,17 +95,9 @@ class FirSpecificTypeResolverTransformer(
         functionTypeRef.transformChildren(this, data)
         val scopeOwnerLookupNames = data.scopes.flatMap { it.scopeOwnerLookupNames }
         session.lookupTracker?.recordTypeLookup(functionTypeRef, scopeOwnerLookupNames, currentFile?.source)
-        val resolvedTypeWithDiagnostic = typeResolver.resolveType(
-            functionTypeRef,
-            data,
-            areBareTypesAllowed,
-            isOperandOfIsOperator,
-            resolveDeprecations,
-            currentFile,
-            supertypeSupplier
-        )
-        val resolvedType = resolvedTypeWithDiagnostic.first.takeIfAcceptable()
-        val diagnostic = resolvedTypeWithDiagnostic.second
+        val resolvedTypeWithDiagnostic = resolveType(functionTypeRef, data)
+        val resolvedType = resolvedTypeWithDiagnostic.type.takeIfAcceptable()
+        val diagnostic = resolvedTypeWithDiagnostic.diagnostic
         return if (resolvedType != null && resolvedType !is ConeErrorType && diagnostic == null) {
             buildResolvedTypeRef {
                 source = functionTypeRef.source
@@ -131,7 +117,28 @@ class FirSpecificTypeResolverTransformer(
         }
     }
 
-    private fun transformType(typeRef: FirTypeRef, resolvedType: ConeKotlinType, diagnostic: ConeDiagnostic?): FirResolvedTypeRef {
+    @OptIn(PrivateForInline::class)
+    private fun FirSpecificTypeResolverTransformer.resolveType(
+        typeRef: FirTypeRef,
+        scopeClassDeclaration: ScopeClassDeclaration,
+    ): FirTypeResolutionResult {
+        return typeResolver.resolveType(
+            typeRef,
+            scopeClassDeclaration,
+            areBareTypesAllowed,
+            isOperandOfIsOperator,
+            resolveDeprecations,
+            currentFile,
+            supertypeSupplier
+        )
+    }
+
+    private fun transformType(
+        typeRef: FirTypeRef,
+        resolvedType: ConeKotlinType,
+        diagnostic: ConeDiagnostic?,
+        scopeClassDeclaration: ScopeClassDeclaration,
+    ): FirResolvedTypeRef {
         return when {
             resolvedType is ConeErrorType -> {
                 buildErrorTypeRef {
@@ -150,6 +157,7 @@ class FirSpecificTypeResolverTransformer(
 
                     delegatedTypeRef = typeRef
                     type = resolvedType
+                    partiallyResolvedTypeRef = tryCalculatingPartiallyResolvedTypeRef(typeRef, scopeClassDeclaration)
 
                     this.diagnostic = resolvedType.diagnostic
                 }
@@ -160,6 +168,7 @@ class FirSpecificTypeResolverTransformer(
                     this.diagnostic = diagnostic
                     type = resolvedType
                     delegatedTypeRef = typeRef
+                    partiallyResolvedTypeRef = tryCalculatingPartiallyResolvedTypeRef(typeRef, scopeClassDeclaration)
                 }
             }
             else -> {
@@ -173,12 +182,52 @@ class FirSpecificTypeResolverTransformer(
         }
     }
 
+    /**
+     * Tries to calculate a partially resolved type reference for a type reference which was resolved to an error type.
+     * It will attempt to resolve the type with a decreasing number of qualifiers until it succeeds, allowing
+     * partial resolution in case of errors in the type reference.
+     *
+     * This is useful for providing better IDE support when resolving partially incorrect types.
+     *
+     * @param typeRef The type reference for which to try to calculate a partially resolved type reference.
+     * @param data The scope class declaration containing relevant information for resolving the reference.
+     * @return A partially resolved type reference if it was resolved, or `null` otherwise.
+     */
+    private fun tryCalculatingPartiallyResolvedTypeRef(typeRef: FirTypeRef, data: ScopeClassDeclaration): FirTypeRef? {
+        if (typeRef !is FirUserTypeRef) return null
+        val qualifiers = typeRef.qualifier
+        if (qualifiers.size <= 1) {
+            return null
+        }
+        val qualifiersToTry = qualifiers.toMutableList()
+        while (qualifiersToTry.size > 1) {
+            qualifiersToTry.removeLast()
+            val typeRefToTry = buildUserTypeRef {
+                qualifier += qualifiersToTry
+                isMarkedNullable = false
+            }
+            val (resolvedType, diagnostic) = resolveType(typeRefToTry, data)
+            if (resolvedType is ConeErrorType || diagnostic != null) continue
+            return buildResolvedTypeRef {
+                source = qualifiersToTry.last().source
+                type = resolvedType
+                delegatedTypeRef = typeRefToTry
+            }
+        }
+        return null
+    }
+
     private fun ConeKotlinType.takeIfAcceptable(): ConeKotlinType? = this.takeUnless {
         !errorTypeAsResolved && it is ConeErrorType
     }
 
     override fun transformResolvedTypeRef(resolvedTypeRef: FirResolvedTypeRef, data: ScopeClassDeclaration): FirTypeRef {
         return resolvedTypeRef
+    }
+
+    override fun transformErrorTypeRef(errorTypeRef: FirErrorTypeRef, data: ScopeClassDeclaration): FirTypeRef {
+        errorTypeRef.transformPartiallyResolvedTypeRef(this, data)
+        return errorTypeRef
     }
 
     override fun transformImplicitTypeRef(implicitTypeRef: FirImplicitTypeRef, data: ScopeClassDeclaration): FirTypeRef {

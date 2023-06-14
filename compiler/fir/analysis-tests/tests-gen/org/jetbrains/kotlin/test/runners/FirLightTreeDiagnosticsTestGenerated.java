@@ -22,6 +22,30 @@ public class FirLightTreeDiagnosticsTestGenerated extends AbstractFirLightTreeDi
     @TestDataPath("$PROJECT_ROOT")
     public class Resolve {
         @Test
+        @TestMetadata("accessJavaFromKotlinViaImport.kt")
+        public void testAccessJavaFromKotlinViaImport() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/accessJavaFromKotlinViaImport.kt");
+        }
+
+        @Test
+        @TestMetadata("accessJavaFromKotlinViaStaticImport.kt")
+        public void testAccessJavaFromKotlinViaStaticImport() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/accessJavaFromKotlinViaStaticImport.kt");
+        }
+
+        @Test
+        @TestMetadata("accessJavaFromKotlinViaStaticImport2.kt")
+        public void testAccessJavaFromKotlinViaStaticImport2() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/accessJavaFromKotlinViaStaticImport2.kt");
+        }
+
+        @Test
+        @TestMetadata("accessJavaFromKotlinViaStaticImportAndPermits.kt")
+        public void testAccessJavaFromKotlinViaStaticImportAndPermits() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/accessJavaFromKotlinViaStaticImportAndPermits.kt");
+        }
+
+        @Test
         public void testAllFilesPresentInResolve() throws Exception {
             KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/fir/analysis-tests/testData/resolve"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
         }
@@ -3782,6 +3806,18 @@ public class FirLightTreeDiagnosticsTestGenerated extends AbstractFirLightTreeDi
             }
 
             @Test
+            @TestMetadata("incompleteUserType.kt")
+            public void testIncompleteUserType() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/problems/incompleteUserType.kt");
+            }
+
+            @Test
+            @TestMetadata("incompleteUserTypeWithUnresovledTypeArgument.kt")
+            public void testIncompleteUserTypeWithUnresovledTypeArgument() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/problems/incompleteUserTypeWithUnresovledTypeArgument.kt");
+            }
+
+            @Test
             @TestMetadata("innerClassHierarchy.kt")
             public void testInnerClassHierarchy() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolve/problems/innerClassHierarchy.kt");
@@ -4163,6 +4199,12 @@ public class FirLightTreeDiagnosticsTestGenerated extends AbstractFirLightTreeDi
             @Test
             public void testAllFilesPresentInScopes() throws Exception {
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/fir/analysis-tests/testData/resolve/scopes"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+            }
+
+            @Test
+            @TestMetadata("delegatedDataClass.kt")
+            public void testDelegatedDataClass() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/scopes/delegatedDataClass.kt");
             }
 
             @Test

@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.generators.tests
 import org.jetbrains.kotlin.generators.generateTestGroupSuiteWithJUnit5
 import org.jetbrains.kotlin.generators.impl.generateTestGroupSuite
 import org.jetbrains.kotlin.incremental.AbstractJsIrES6InvalidationTest
+import org.jetbrains.kotlin.incremental.AbstractJsIrInvalidationWithPLTest
 import org.jetbrains.kotlin.incremental.AbstractJsIrInvalidationTest
 import org.jetbrains.kotlin.incremental.AbstractJsFirInvalidationTest
 import org.jetbrains.kotlin.js.test.*
@@ -81,6 +82,10 @@ fun main(args: Array<String>) {
 
             testClass<AbstractJsFirInvalidationTest> {
                 model("incremental/invalidation/", pattern = "^([^_](.+))$", targetBackend = TargetBackend.JS_IR, recursive = false)
+            }
+
+            testClass<AbstractJsIrInvalidationWithPLTest> {
+                model("incremental/invalidationWithPL/", pattern = "^([^_](.+))$", targetBackend = TargetBackend.JS_IR, recursive = false)
             }
         }
 
@@ -225,6 +230,11 @@ fun main(args: Array<String>) {
 //            testClass<AbstractFirJsSteppingTest> {
 //                model("debug/stepping")
 //            }
+
+            testClass<AbstractFirLoadK2CompiledJsKotlinTest> {
+                model("loadJava/compiledKotlin", extension = "kt")
+                model("loadJava/compiledKotlinWithStdlib", extension = "kt")
+            }
         }
     }
 }

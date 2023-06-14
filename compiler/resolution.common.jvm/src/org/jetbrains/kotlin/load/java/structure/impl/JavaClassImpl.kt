@@ -26,11 +26,16 @@ import org.jetbrains.kotlin.asJava.isSyntheticValuesOrValueOfMethod
 import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementPsiSource
+import org.jetbrains.kotlin.load.java.structure.impl.source.JavaElementSourceFactory
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtPsiUtil
 
 class JavaClassImpl(psiClassSource: JavaElementPsiSource<PsiClass>) : JavaClassifierImpl<PsiClass>(psiClassSource), VirtualFileBoundJavaClass, JavaAnnotationOwnerImpl, JavaModifierListOwnerImpl {
+
+    @SuppressWarnings("unused") // used in KSP
+    constructor(psiClass: PsiClass) : this(JavaElementSourceFactory.getInstance(psiClass.project).createPsiSource(psiClass))
+
     init {
         assert(psiClassSource.psi !is PsiTypeParameter) { "PsiTypeParameter should be wrapped in JavaTypeParameter, not JavaClass: use JavaClassifier.create()" }
     }
@@ -64,7 +69,9 @@ class JavaClassImpl(psiClassSource: JavaElementPsiSource<PsiClass>) : JavaClassi
         get() = JavaElementUtil.isSealed(this)
 
     override val permittedTypes: Collection<JavaClassifierType>
-        get() = classifierTypes(psi.permitsListTypes, sourceFactory)
+        get() = psi.permitsListTypes.convertIndexed { index, _ ->
+            JavaClassifierTypeImpl(sourceFactory.createPermittedTypeSource(psiElementSource, index))
+        }
 
     override val isRecord: Boolean
         get() = psi.isRecord
@@ -79,7 +86,9 @@ class JavaClassImpl(psiClassSource: JavaElementPsiSource<PsiClass>) : JavaClassi
         get() = typeParameters(psi.typeParameters, sourceFactory)
 
     override val supertypes: Collection<JavaClassifierType>
-        get() = classifierTypes(psi.superTypes, sourceFactory)
+        get() = psi.superTypes.convertIndexed { index, _ ->
+            JavaClassifierTypeImpl(sourceFactory.createSuperTypeSource(psiElementSource, index))
+        }
 
     override val methods: Collection<JavaMethod>
         get() {

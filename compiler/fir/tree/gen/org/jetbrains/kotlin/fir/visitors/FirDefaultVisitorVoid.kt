@@ -105,9 +105,11 @@ import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirIntegerLiteralOperatorCall
 import org.jetbrains.kotlin.fir.expressions.FirImplicitInvokeCall
 import org.jetbrains.kotlin.fir.expressions.FirDelegatedConstructorCall
+import org.jetbrains.kotlin.fir.expressions.FirMultiDelegatedConstructorCall
 import org.jetbrains.kotlin.fir.expressions.FirComponentCall
 import org.jetbrains.kotlin.fir.expressions.FirCallableReferenceAccess
 import org.jetbrains.kotlin.fir.expressions.FirThisReceiverExpression
+import org.jetbrains.kotlin.fir.expressions.FirInaccessibleReceiverExpression
 import org.jetbrains.kotlin.fir.expressions.FirSmartCastExpression
 import org.jetbrains.kotlin.fir.expressions.FirSafeCallExpression
 import org.jetbrains.kotlin.fir.expressions.FirCheckedSafeCallSubject
@@ -239,6 +241,8 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
     override fun visitIntegerLiteralOperatorCall(integerLiteralOperatorCall: FirIntegerLiteralOperatorCall)  = visitFunctionCall(integerLiteralOperatorCall)
 
     override fun visitImplicitInvokeCall(implicitInvokeCall: FirImplicitInvokeCall)  = visitFunctionCall(implicitInvokeCall)
+
+    override fun visitMultiDelegatedConstructorCall(multiDelegatedConstructorCall: FirMultiDelegatedConstructorCall)  = visitDelegatedConstructorCall(multiDelegatedConstructorCall)
 
     override fun visitComponentCall(componentCall: FirComponentCall)  = visitFunctionCall(componentCall)
 

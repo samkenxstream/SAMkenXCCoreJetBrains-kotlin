@@ -142,9 +142,7 @@ class Fir2IrVisitor(
             converter.processAnonymousObjectMembers(anonymousObject, correspondingClass, processHeaders = true)
             converter.bindFakeOverridesInClass(correspondingClass)
             conversionScope.withParent(correspondingClass) {
-                conversionScope.withContainingFirClass(anonymousObject) {
-                    memberGenerator.convertClassContent(correspondingClass, anonymousObject)
-                }
+                memberGenerator.convertClassContent(correspondingClass, anonymousObject)
                 val constructor = correspondingClass.constructors.first()
                 irEnumEntry.initializerExpression = irFactory.createExpressionBody(
                     IrEnumConstructorCallImpl(
@@ -202,9 +200,7 @@ class Fir2IrVisitor(
             irClass.sealedSubclasses = regularClass.getIrSymbolsForSealedSubclasses()
         }
         return conversionScope.withParent(irClass) {
-            conversionScope.withContainingFirClass(regularClass) {
-                memberGenerator.convertClassContent(irClass, regularClass)
-            }
+            memberGenerator.convertClassContent(irClass, regularClass)
         }
     }
 
@@ -243,9 +239,7 @@ class Fir2IrVisitor(
             ?: converter.processLocalClassAndNestedClasses(anonymousObject, irParent)
 
         conversionScope.withParent(irAnonymousObject) {
-            conversionScope.withContainingFirClass(anonymousObject) {
-                memberGenerator.convertClassContent(irAnonymousObject, anonymousObject)
-            }
+            memberGenerator.convertClassContent(irAnonymousObject, anonymousObject)
         }
         val anonymousClassType = irAnonymousObject.thisReceiver!!.type
         return anonymousObject.convertWithOffsets { startOffset, endOffset ->
@@ -630,6 +624,19 @@ class Fir2IrVisitor(
         }
         // TODO handle qualified "this" in instance methods of non-inner classes (inner class cases are handled by InnerClassesLowering)
         return visitQualifiedAccessExpression(thisReceiverExpression, data)
+    }
+
+    override fun visitInaccessibleReceiverExpression(
+        inaccessibleReceiverExpression: FirInaccessibleReceiverExpression,
+        data: Any?,
+    ): IrElement {
+        return inaccessibleReceiverExpression.convertWithOffsets { startOffset, endOffset ->
+            IrErrorExpressionImpl(
+                startOffset, endOffset,
+                inaccessibleReceiverExpression.typeRef.toIrType(),
+                "Receiver is inaccessible"
+            )
+        }
     }
 
     override fun visitSmartCastExpression(smartCastExpression: FirSmartCastExpression, data: Any?): IrElement {

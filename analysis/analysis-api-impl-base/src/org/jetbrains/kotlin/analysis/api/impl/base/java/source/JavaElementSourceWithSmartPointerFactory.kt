@@ -33,8 +33,44 @@ class JavaElementSourceWithSmartPointerFactory(project: Project) : JavaElementSo
         return JavaElementDelegatingMethodReturnTypeSourceWithSmartPointer(psiMethodSource.pointer, psiMethodSource.factory)
     }
 
+    override fun <TYPE : PsiType> createTypeParameterUpperBoundTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiTypeParameter>,
+        boundIndex: Int
+    ): JavaElementTypeSource<TYPE> {
+        require(psiTypeParameterSource is JavaElementPsiSourceWithSmartPointer)
+        return JavaElementDelegatingTypeParameterBoundTypeSourceWithSmartPointer(
+            psiTypeParameterSource.pointer,
+            boundIndex,
+            psiTypeParameterSource.factory
+        )
+    }
+
+    override fun createSuperTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiClass>,
+        superTypeIndex: Int
+    ): JavaElementTypeSource<PsiClassType> {
+        require(psiTypeParameterSource is JavaElementPsiSourceWithSmartPointer)
+        return JavaElementDelegatingSuperTypeSourceWithSmartPointer(
+            psiTypeParameterSource.pointer,
+            superTypeIndex,
+            psiTypeParameterSource.factory,
+        )
+    }
+
     override fun <TYPE : PsiType> createExpressionTypeSource(psiExpressionSource: JavaElementPsiSource<out PsiExpression>): JavaElementTypeSource<TYPE> {
         require(psiExpressionSource is JavaElementPsiSourceWithSmartPointer)
         return JavaElementDelegatingExpressionTypeSourceWithSmartPointer(psiExpressionSource.pointer, psiExpressionSource.factory)
+    }
+
+    override fun createPermittedTypeSource(
+        psiTypeParameterSource: JavaElementPsiSource<out PsiClass>,
+        permittedTypeIndex: Int
+    ): JavaElementTypeSource<PsiClassType> {
+        require(psiTypeParameterSource is JavaElementPsiSourceWithSmartPointer)
+        return JavaElementDelegatingPermittedTypeSourceWithSmartPointer(
+            psiTypeParameterSource.pointer,
+            permittedTypeIndex,
+            psiTypeParameterSource.factory,
+        )
     }
 }

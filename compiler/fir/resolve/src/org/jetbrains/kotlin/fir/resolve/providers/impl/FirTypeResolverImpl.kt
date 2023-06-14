@@ -13,10 +13,10 @@ import org.jetbrains.kotlin.fir.declarations.impl.FirOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.utils.isEnumClass
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.diagnostics.*
+import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.AbstractCallInfo
 import org.jetbrains.kotlin.fir.resolve.calls.AbstractCandidate
-import org.jetbrains.kotlin.fir.resolve.calls.ReceiverValue
 import org.jetbrains.kotlin.fir.resolve.calls.ResolutionDiagnostic
 import org.jetbrains.kotlin.fir.resolve.diagnostics.*
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
@@ -449,7 +449,7 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
     private fun createFunctionType(
         typeRef: FirFunctionTypeRef,
         containerDeclaration: FirDeclaration? = null
-    ): Pair<ConeClassLikeTypeImpl, ConeDiagnostic?> {
+    ): FirTypeResolutionResult {
         val parameters =
             typeRef.contextReceiverTypeRefs.map { it.coneType } +
                     listOfNotNull(typeRef.receiverTypeRef?.coneType) +
@@ -482,12 +482,15 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
             containerDeclaration,
             shouldExpandTypeAliases = true
         )
-        return ConeClassLikeTypeImpl(
-            classId.toLookupTag(),
-            parameters.toTypedArray(),
-            typeRef.isMarkedNullable,
-            attributes
-        ) to diagnostic
+        return FirTypeResolutionResult(
+            ConeClassLikeTypeImpl(
+                classId.toLookupTag(),
+                parameters.toTypedArray(),
+                typeRef.isMarkedNullable,
+                attributes
+            ),
+            diagnostic
+        )
     }
 
     override fun resolveType(
@@ -498,28 +501,29 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
         resolveDeprecations: Boolean,
         useSiteFile: FirFile?,
         supertypeSupplier: SupertypeSupplier
-    ): Pair<ConeKotlinType, ConeDiagnostic?> {
+    ): FirTypeResolutionResult {
         return when (typeRef) {
             is FirResolvedTypeRef -> error("Do not resolve, resolved type-refs")
             is FirUserTypeRef -> {
                 val result = resolveUserTypeToSymbol(typeRef, scopeClassDeclaration, useSiteFile, supertypeSupplier, resolveDeprecations)
-                resolveUserType(
+                val resolvedType = resolveUserType(
                     typeRef,
                     result,
                     areBareTypesAllowed,
                     scopeClassDeclaration.topContainer ?: scopeClassDeclaration.containingDeclarations.lastOrNull(),
                     scopeClassDeclaration.containerDeclaration,
                     isOperandOfIsOperator,
-                ) to (result as? TypeResolutionResult.Resolved)?.typeCandidate?.diagnostic
+                )
+                FirTypeResolutionResult(resolvedType, (result as? TypeResolutionResult.Resolved)?.typeCandidate?.diagnostic)
             }
             is FirFunctionTypeRef -> createFunctionType(typeRef, scopeClassDeclaration.containerDeclaration)
-            is FirDynamicTypeRef -> ConeDynamicType.create(session) to null
+            is FirDynamicTypeRef -> FirTypeResolutionResult(ConeDynamicType.create(session), diagnostic = null)
             is FirIntersectionTypeRef -> {
                 val leftType = typeRef.leftType.coneType
                 if (leftType is ConeTypeParameterType) {
-                    ConeDefinitelyNotNullType(leftType) to null
+                    FirTypeResolutionResult(ConeDefinitelyNotNullType(leftType), diagnostic = null)
                 } else {
-                    ConeErrorType(ConeForbiddenIntersection) to null
+                    FirTypeResolutionResult(ConeErrorType(ConeForbiddenIntersection), diagnostic = null)
                 }
             }
             else -> error(typeRef.render())
@@ -534,10 +538,10 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
         override val applicability: CandidateApplicability
     ) : AbstractCandidate() {
 
-        override val dispatchReceiverValue: ReceiverValue?
+        override val dispatchReceiver: FirExpression?
             get() = null
 
-        override val chosenExtensionReceiverValue: ReceiverValue?
+        override val chosenExtensionReceiver: FirExpression?
             get() = null
 
         override val explicitReceiverKind: ExplicitReceiverKind

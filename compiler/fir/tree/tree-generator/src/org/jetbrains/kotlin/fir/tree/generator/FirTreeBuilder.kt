@@ -129,9 +129,11 @@ object FirTreeBuilder : AbstractFirTreeBuilder() {
     val integerLiteralOperatorCall by element(Expression, functionCall)
     val implicitInvokeCall by element(Expression, functionCall)
     val delegatedConstructorCall by element(Expression, resolvable, call, contextReceiverArgumentListOwner)
+    val multiDelegatedConstructorCall by element(Expression, delegatedConstructorCall)
     val componentCall by element(Expression, functionCall)
     val callableReferenceAccess by element(Expression, qualifiedAccessExpression)
     val thisReceiverExpression by element(Expression, qualifiedAccessExpression)
+    val inaccessibleReceiverExpression by element(Expression, expression, resolvable)
 
     val smartCastExpression by element(Expression, expression)
     val safeCallExpression by element(Expression, expression)

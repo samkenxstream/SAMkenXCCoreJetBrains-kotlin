@@ -418,6 +418,10 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             generateBooleanFields("this", "super")
         }
 
+        multiDelegatedConstructorCall.configure {
+            +fieldList("delegatedConstructorCalls", delegatedConstructorCall, withReplace = true).withTransform()
+        }
+
         valueParameter.configure {
             +symbol("FirValueParameterSymbol")
             +field("defaultValue", expression, nullable = true, withReplace = true)
@@ -683,6 +687,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +stringField("labelName", nullable = true)
             +field("boundSymbol", firBasedSymbolType, "*", nullable = true, withReplace = true)
             +intField("contextReceiverNumber", withReplace = true)
+            +booleanField("isImplicit")
         }
 
         typeRef.configure {
@@ -713,6 +718,10 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +fieldList("contextReceiverTypeRefs", typeRef)
         }
 
+        errorTypeRef.configure {
+            +field("partiallyResolvedTypeRef", typeRef, nullable = true).withTransform()
+        }
+
         intersectionTypeRef.configure {
             +field("leftType", typeRef)
             +field("rightType", typeRef)
@@ -721,6 +730,10 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         thisReceiverExpression.configure {
             +field("calleeReference", thisReference)
             +booleanField("isImplicit")
+        }
+
+        inaccessibleReceiverExpression.configure {
+            +field("calleeReference", thisReference)
         }
 
         whenExpression.configure {
