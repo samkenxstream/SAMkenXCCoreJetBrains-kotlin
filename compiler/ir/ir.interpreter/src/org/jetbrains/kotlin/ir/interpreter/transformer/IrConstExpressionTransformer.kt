@@ -6,10 +6,11 @@
 package org.jetbrains.kotlin.ir.interpreter.transformer
 
 import org.jetbrains.kotlin.constant.EvaluatedConstTracker
+import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.incremental.components.InlineConstTracker
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.declarations.IrField
-import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrStringConcatenationImpl
@@ -20,30 +21,44 @@ import org.jetbrains.kotlin.ir.interpreter.createGetField
 import kotlin.math.max
 import kotlin.math.min
 
-internal class IrConstExpressionTransformer(
+internal abstract class IrConstExpressionTransformer(
     interpreter: IrInterpreter,
     irFile: IrFile,
     mode: EvaluationMode,
     checker: IrInterpreterChecker,
     evaluatedConstTracker: EvaluatedConstTracker?,
+    inlineConstTracker: InlineConstTracker?,
     onWarning: (IrFile, IrElement, IrErrorExpression) -> Unit,
     onError: (IrFile, IrElement, IrErrorExpression) -> Unit,
     suppressExceptions: Boolean,
-) : IrConstTransformer(interpreter, irFile, mode, checker, evaluatedConstTracker, onWarning, onError, suppressExceptions) {
-    override fun visitCall(expression: IrCall, data: Nothing?): IrElement {
+) : IrConstTransformer(
+    interpreter, irFile, mode, checker, evaluatedConstTracker, inlineConstTracker, onWarning, onError, suppressExceptions
+) {
+    override fun visitFunction(declaration: IrFunction, data: Data): IrStatement {
+        // It is useless to visit default accessor and if we do that we could render excess information for `IrGetField`
+        if (declaration.origin == IrDeclarationOrigin.DEFAULT_PROPERTY_ACCESSOR) return declaration
+        return super.visitFunction(declaration, data)
+    }
+
+    override fun visitClass(declaration: IrClass, data: Data): IrStatement {
+        if (declaration.kind == ClassKind.ANNOTATION_CLASS) {
+            return super.visitClass(declaration, data.copy(inAnnotation = true))
+        }
+        return super.visitClass(declaration, data)
+    }
+
+    override fun visitCall(expression: IrCall, data: Data): IrElement {
         if (expression.canBeInterpreted()) {
-            return expression.interpret(failAsError = false)
+            return expression.interpret(failAsError = data.inAnnotation)
         }
         return super.visitCall(expression, data)
     }
 
-    override fun visitField(declaration: IrField, data: Nothing?): IrStatement {
+    override fun visitField(declaration: IrField, data: Data): IrStatement {
         val initializer = declaration.initializer
         val expression = initializer?.expression ?: return declaration
-        val isConst = declaration.correspondingPropertySymbol?.owner?.isConst == true
-        if (!isConst) return super.visitField(declaration, data)
-
         val getField = declaration.createGetField()
+
         if (getField.canBeInterpreted()) {
             initializer.expression = expression.interpret(failAsError = true)
         }
@@ -51,12 +66,19 @@ internal class IrConstExpressionTransformer(
         return super.visitField(declaration, data)
     }
 
-    override fun visitStringConcatenation(expression: IrStringConcatenation, data: Nothing?): IrExpression {
+    override fun visitGetField(expression: IrGetField, data: Data): IrExpression {
+        if (expression.canBeInterpreted()) {
+            return expression.interpret(failAsError = data.inAnnotation)
+        }
+        return super.visitGetField(expression, data)
+    }
+
+    override fun visitStringConcatenation(expression: IrStringConcatenation, data: Data): IrExpression {
         fun IrExpression.wrapInStringConcat(): IrExpression = IrStringConcatenationImpl(
             this.startOffset, this.endOffset, expression.type, listOf(this@wrapInStringConcat)
         )
 
-        fun IrExpression.wrapInToStringConcatAndInterpret(): IrExpression = wrapInStringConcat().interpret(failAsError = false)
+        fun IrExpression.wrapInToStringConcatAndInterpret(): IrExpression = wrapInStringConcat().interpret(failAsError = data.inAnnotation)
         fun IrExpression.getConstStringOrEmpty(): String = if (this is IrConst<*>) value.toString() else ""
 
         // If we have some complex expression in arguments (like some `IrComposite`) we will skip it,
@@ -83,25 +105,22 @@ internal class IrConstExpressionTransformer(
                         folded += next
                         buildersList.add(StringBuilder(next.getConstStringOrEmpty()))
                     } else {
+                        buildersList.last().append(nextAsConst.value.toString())
                         folded[folded.size - 1] = IrConstImpl.string(
                             // Inlined strings may have `last.startOffset > next.endOffset`
-                            min(last.startOffset, next.startOffset), max(last.endOffset, next.endOffset), expression.type, ""
+                            min(last.startOffset, next.startOffset), max(last.endOffset, next.endOffset),
+                            expression.type, buildersList.last().toString()
                         )
-                        buildersList.last().append(nextAsConst.value.toString())
                     }
                 }
             }
         }
 
         val foldedConst = folded.singleOrNull() as? IrConst<*>
-        if (foldedConst != null) {
+        if (foldedConst != null && foldedConst.value is String) {
             return IrConstImpl.string(expression.startOffset, expression.endOffset, expression.type, buildersList.single().toString())
         }
 
-        folded.zip(buildersList).forEach {
-            @Suppress("UNCHECKED_CAST")
-            (it.first as? IrConst<String>)?.value = it.second.toString()
-        }
         return IrStringConcatenationImpl(expression.startOffset, expression.endOffset, expression.type, folded)
     }
 }

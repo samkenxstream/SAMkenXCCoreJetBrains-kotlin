@@ -204,7 +204,9 @@ internal class ClassGenerator(
         val delegateType = if (context.configuration.generateBodies) {
             getTypeInferredByFrontendOrFail(ktDelegateExpression)
         } else {
-            getTypeInferredByFrontend(ktDelegateExpression) ?: createErrorType(ErrorTypeKind.UNRESOLVED_TYPE, ktDelegateExpression.text)
+            getTypeInferredByFrontend(ktDelegateExpression).takeUnless {
+                it?.constructor?.declarationDescriptor?.let(DescriptorUtils::isLocal) == true
+            } ?: createErrorType(ErrorTypeKind.UNRESOLVED_TYPE, ktDelegateExpression.text)
         }
         val superType = getOrFail(BindingContext.TYPE, ktEntry.typeReference!!)
 
@@ -449,15 +451,16 @@ internal class ClassGenerator(
     private fun generateFieldsForContextReceivers(irClass: IrClass, classDescriptor: ClassDescriptor) {
         for ((fieldIndex, receiverDescriptor) in classDescriptor.contextReceivers.withIndex()) {
             val irField = context.irFactory.createField(
-                UNDEFINED_OFFSET, UNDEFINED_OFFSET,
-                IrDeclarationOrigin.FIELD_FOR_CLASS_CONTEXT_RECEIVER,
-                IrFieldSymbolImpl(),
-                Name.identifier("contextReceiverField$fieldIndex"),
-                receiverDescriptor.type.toIrType(),
-                DescriptorVisibilities.PRIVATE,
+                startOffset = UNDEFINED_OFFSET,
+                endOffset = UNDEFINED_OFFSET,
+                origin = IrDeclarationOrigin.FIELD_FOR_CLASS_CONTEXT_RECEIVER,
+                name = Name.identifier("contextReceiverField$fieldIndex"),
+                visibility = DescriptorVisibilities.PRIVATE,
+                symbol = IrFieldSymbolImpl(),
+                type = receiverDescriptor.type.toIrType(),
                 isFinal = true,
+                isStatic = false,
                 isExternal = false,
-                isStatic = false
             )
             context.additionalDescriptorStorage.put(receiverDescriptor.value, irField)
             irClass.addMember(irField)
@@ -531,7 +534,7 @@ internal class ClassGenerator(
         ).buildWithScope { irEnumEntry ->
             irEnumEntry.parent = irEnumClass
 
-            if (!enumEntryDescriptor.isExpect) {
+            if (!enumEntryDescriptor.isExpect && context.configuration.generateBodies) {
                 irEnumEntry.initializerExpression =
                     context.irFactory.createExpressionBody(
                         createBodyGenerator(irEnumEntry.symbol)

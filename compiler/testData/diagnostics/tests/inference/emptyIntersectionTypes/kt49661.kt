@@ -1,4 +1,3 @@
-// FIR_IDENTICAL
 // !LANGUAGE: -ForbidInferringTypeVariablesIntoEmptyIntersection
 // RENDER_DIAGNOSTICS_FULL_TEXT
 open class Foo

@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.fir.backend
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.fir.containingClassForLocalAttr
-import org.jetbrains.kotlin.fir.containingClassLookupTag
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousObjectExpression
@@ -72,14 +71,16 @@ class Fir2IrClassifierStorage(
 
     fun preCacheBuiltinClasses() {
         for ((classId, irBuiltinSymbol) in typeConverter.classIdToSymbolMap) {
-            val firClass = classId.toSymbol(session)!!.fir as FirRegularClass
+            // toSymbol() can return null when using an old stdlib that's missing some types
+            val firClass = classId.toSymbol(session)?.fir as FirRegularClass? ?: continue
             val irClass = irBuiltinSymbol.owner
             classCache[firClass] = irClass
             processClassHeader(firClass, irClass)
             declarationStorage.preCacheBuiltinClassMembers(firClass, irClass)
         }
         for ((primitiveClassId, primitiveArrayId) in StandardClassIds.primitiveArrayTypeByElementType) {
-            val firClass = primitiveArrayId.toLookupTag().toSymbol(session)!!.fir as FirRegularClass
+            // toSymbol() can return null when using an old stdlib that's missing some types
+            val firClass = primitiveArrayId.toLookupTag().toSymbol(session)?.fir as FirRegularClass? ?: continue
             val irType = typeConverter.classIdToTypeMap[primitiveClassId]
             val irClass = irBuiltIns.primitiveArrayForType[irType]!!.owner
             classCache[firClass] = irClass
@@ -147,15 +148,16 @@ class Fir2IrClassifierStorage(
         val contextReceiverFields = mutableListOf<IrField>()
         for ((index, contextReceiver) in klass.contextReceivers.withIndex()) {
             val irField = components.irFactory.createField(
-                UNDEFINED_OFFSET, UNDEFINED_OFFSET,
-                IrDeclarationOrigin.FIELD_FOR_CLASS_CONTEXT_RECEIVER,
-                IrFieldSymbolImpl(),
-                Name.identifier("contextReceiverField$index"),
-                contextReceiver.typeRef.toIrType(),
-                DescriptorVisibilities.PRIVATE,
+                startOffset = UNDEFINED_OFFSET,
+                endOffset = UNDEFINED_OFFSET,
+                origin = IrDeclarationOrigin.FIELD_FOR_CLASS_CONTEXT_RECEIVER,
+                name = Name.identifier("contextReceiverField$index"),
+                visibility = DescriptorVisibilities.PRIVATE,
+                symbol = IrFieldSymbolImpl(),
+                type = contextReceiver.typeRef.toIrType(),
                 isFinal = true,
+                isStatic = false,
                 isExternal = false,
-                isStatic = false
             )
             irField.parent = this@createContextReceiverFields
             contextReceiverFields.add(irField)
@@ -309,10 +311,14 @@ class Fir2IrClassifierStorage(
             declareIrTypeAlias(signature) { symbol ->
                 preCacheTypeParameters(typeAlias, symbol)
                 val irTypeAlias = irFactory.createTypeAlias(
-                    startOffset, endOffset, symbol,
-                    typeAlias.name, components.visibilityConverter.convertToDescriptorVisibility(typeAlias.visibility),
-                    typeAlias.expandedTypeRef.toIrType(),
-                    typeAlias.isActual, IrDeclarationOrigin.DEFINED
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = IrDeclarationOrigin.DEFINED,
+                    name = typeAlias.name,
+                    visibility = components.visibilityConverter.convertToDescriptorVisibility(typeAlias.visibility),
+                    symbol = symbol,
+                    isActual = typeAlias.isActual,
+                    expandedType = typeAlias.expandedTypeRef.toIrType(),
                 ).apply {
                     this.parent = parent
                     setTypeParameters(typeAlias)
@@ -349,18 +355,18 @@ class Fir2IrClassifierStorage(
         val irClass = regularClass.convertWithOffsets { startOffset, endOffset ->
             declareIrClass(signature) { symbol ->
                 irFactory.createClass(
-                    startOffset,
-                    endOffset,
-                    regularClass.computeIrOrigin(predefinedOrigin),
-                    symbol,
-                    regularClass.name,
-                    regularClass.classKind,
-                    components.visibilityConverter.convertToDescriptorVisibility(visibility),
-                    modality,
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = regularClass.computeIrOrigin(predefinedOrigin),
+                    name = regularClass.name,
+                    visibility = components.visibilityConverter.convertToDescriptorVisibility(visibility),
+                    symbol = symbol,
+                    kind = regularClass.classKind,
+                    modality = modality,
+                    isExternal = regularClass.isExternal,
                     isCompanion = regularClass.isCompanion,
                     isInner = regularClass.isInner,
                     isData = regularClass.isData,
-                    isExternal = regularClass.isExternal,
                     isValue = regularClass.isInline,
                     isExpect = regularClass.isExpect,
                     isFun = regularClass.isFun
@@ -388,10 +394,14 @@ class Fir2IrClassifierStorage(
         val modality = Modality.FINAL
         val irAnonymousObject = anonymousObject.convertWithOffsets { startOffset, endOffset ->
             irFactory.createClass(
-                startOffset, endOffset, origin, IrClassSymbolImpl(), name,
-                // NB: for unknown reason, IR uses 'CLASS' kind for simple anonymous objects
-                anonymousObject.classKind.takeIf { it == ClassKind.ENUM_ENTRY } ?: ClassKind.CLASS,
-                components.visibilityConverter.convertToDescriptorVisibility(visibility), modality
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = name,
+                visibility = components.visibilityConverter.convertToDescriptorVisibility(visibility),
+                symbol = IrClassSymbolImpl(),
+                kind = anonymousObject.classKind,
+                modality = modality,
             ).apply {
                 metadata = FirMetadataSource.Class(anonymousObject)
             }
@@ -429,10 +439,14 @@ class Fir2IrClassifierStorage(
                             symbolFactory = { IrTypeParameterPublicSymbolImpl(signature) }
                         ) { symbol ->
                             irFactory.createTypeParameter(
-                                startOffset, endOffset, origin, symbol,
-                                name, if (index < 0) 0 else index,
-                                isReified,
-                                variance
+                                startOffset = startOffset,
+                                endOffset = endOffset,
+                                origin = origin,
+                                name = name,
+                                symbol = symbol,
+                                variance = variance,
+                                index = if (index < 0) 0 else index,
+                                isReified = isReified,
                             )
                         }
                     } else {
@@ -441,19 +455,27 @@ class Fir2IrClassifierStorage(
                             symbolFactory = { IrTypeParameterPublicSymbolImpl(signature) }
                         ) { symbol ->
                             irFactory.createTypeParameter(
-                                startOffset, endOffset, origin, symbol,
-                                name, if (index < 0) 0 else index,
-                                isReified,
-                                variance
+                                startOffset = startOffset,
+                                endOffset = endOffset,
+                                origin = origin,
+                                name = name,
+                                symbol = symbol,
+                                variance = variance,
+                                index = if (index < 0) 0 else index,
+                                isReified = isReified,
                             )
                         }
 
                     }
                 } ?: irFactory.createTypeParameter(
-                    startOffset, endOffset, origin, IrTypeParameterSymbolImpl(),
-                    name, if (index < 0) 0 else index,
-                    isReified,
-                    variance
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = origin,
+                    name = name,
+                    symbol = IrTypeParameterSymbolImpl(),
+                    variance = variance,
+                    index = if (index < 0) 0 else index,
+                    isReified = isReified,
                 )
             }
         }
@@ -551,7 +573,11 @@ class Fir2IrClassifierStorage(
             val result = declareIrEnumEntry(signature) { symbol ->
                 val origin = enumEntry.computeIrOrigin(predefinedOrigin)
                 irFactory.createEnumEntry(
-                    startOffset, endOffset, origin, symbol, enumEntry.name
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = origin,
+                    name = enumEntry.name,
+                    symbol = symbol,
                 ).apply {
                     declarationStorage.enterScope(this)
                     if (irParent != null) {
@@ -614,7 +640,11 @@ class Fir2IrClassifierStorage(
     fun getIrClassSymbolForNotFoundClass(classLikeLookupTag: ConeClassLikeLookupTag): IrClassSymbol {
         val classId = classLikeLookupTag.classId
         val signature = IdSignature.CommonSignature(
-            classId.packageFqName.asString(), classId.relativeClassName.asString(), 0, 0,
+            packageFqName = classId.packageFqName.asString(),
+            declarationFqName = classId.relativeClassName.asString(),
+            id = 0,
+            mask = 0,
+            description = null,
         )
 
         val parentId = classId.outerClassId
@@ -623,8 +653,14 @@ class Fir2IrClassifierStorage(
 
         return symbolTable.referenceClass(signature, { Fir2IrClassSymbol(signature) }) {
             irFactory.createClass(
-                UNDEFINED_OFFSET, UNDEFINED_OFFSET, IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB, it, classId.shortClassName,
-                ClassKind.CLASS, DescriptorVisibilities.DEFAULT_VISIBILITY, Modality.FINAL,
+                startOffset = UNDEFINED_OFFSET,
+                endOffset = UNDEFINED_OFFSET,
+                origin = IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB,
+                name = classId.shortClassName,
+                visibility = DescriptorVisibilities.DEFAULT_VISIBILITY,
+                symbol = it,
+                kind = ClassKind.CLASS,
+                modality = Modality.FINAL,
             ).apply {
                 parent = irParent
             }
@@ -643,12 +679,22 @@ class Fir2IrClassifierStorage(
     }
 
     private val temporaryParent by lazy {
-        irFactory.createFunction(
-            startOffset = UNDEFINED_OFFSET, endOffset = UNDEFINED_OFFSET,
-            IrDeclarationOrigin.DEFINED, IrSimpleFunctionSymbolImpl(),
-            Name.special("<stub>"), DescriptorVisibilities.PRIVATE, Modality.FINAL, irBuiltIns.unitType,
-            isInline = false, isExternal = false, isTailrec = false,
-            isSuspend = false, isOperator = false, isInfix = false, isExpect = false
+        irFactory.createSimpleFunction(
+            startOffset = UNDEFINED_OFFSET,
+            endOffset = UNDEFINED_OFFSET,
+            origin = IrDeclarationOrigin.DEFINED,
+            name = Name.special("<stub>"),
+            visibility = DescriptorVisibilities.PRIVATE,
+            isInline = false,
+            isExpect = false,
+            returnType = irBuiltIns.unitType,
+            modality = Modality.FINAL,
+            symbol = IrSimpleFunctionSymbolImpl(),
+            isTailrec = false,
+            isSuspend = false,
+            isOperator = false,
+            isInfix = false,
+            isExternal = false,
         ).apply {
             parent = IrExternalPackageFragmentImpl(IrExternalPackageFragmentSymbolImpl(), FqName.ROOT)
         }

@@ -73,9 +73,9 @@ data class BuildOptions(
         val cocoapodsArchs: String? = null,
         val distributionType: String? = null,
         val distributionDownloadFromMaven: Boolean? = null,
-        val platformLibrariesMode: String? = null,
         val reinstall: Boolean? = null,
         val restrictedDistribution: Boolean? = null,
+        val useXcodeMessageStyle: Boolean? = null,
         val version: String? = null,
     )
 
@@ -218,14 +218,14 @@ data class BuildOptions(
         nativeOptions.distributionType?.let {
             arguments.add("-Pkotlin.native.distribution.type=${it}")
         }
-        nativeOptions.platformLibrariesMode?.let {
-            arguments.add("-Pkotlin.native.platform.libraries.mode=${it}")
-        }
         nativeOptions.reinstall?.let {
             arguments.add("-Pkotlin.native.reinstall=${it}")
         }
         nativeOptions.restrictedDistribution?.let {
             arguments.add("-Pkotlin.native.restrictedDistribution=${it}")
+        }
+        nativeOptions.useXcodeMessageStyle?.let {
+            arguments.add("-Pkotlin.native.useXcodeMessageStyle=${it}")
         }
         nativeOptions.version?.let {
             arguments.add("-Pkotlin.native.version=${it}")

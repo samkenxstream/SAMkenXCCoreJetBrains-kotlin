@@ -1721,6 +1721,12 @@ public class FirJsBoxTestGenerated extends AbstractFirJsBoxTest {
         }
 
         @Test
+        @TestMetadata("hashCode.kt")
+        public void testHashCode() throws Exception {
+            runTest("js/js.translator/testData/box/dynamic/hashCode.kt");
+        }
+
+        @Test
         @TestMetadata("identityEquals.kt")
         public void testIdentityEquals() throws Exception {
             runTest("js/js.translator/testData/box/dynamic/identityEquals.kt");
@@ -1760,6 +1766,12 @@ public class FirJsBoxTestGenerated extends AbstractFirJsBoxTest {
         @TestMetadata("iterator.kt")
         public void testIterator() throws Exception {
             runTest("js/js.translator/testData/box/dynamic/iterator.kt");
+        }
+
+        @Test
+        @TestMetadata("lambdaParameterInlining.kt")
+        public void testLambdaParameterInlining() throws Exception {
+            runTest("js/js.translator/testData/box/dynamic/lambdaParameterInlining.kt");
         }
 
         @Test
@@ -2413,6 +2425,12 @@ public class FirJsBoxTestGenerated extends AbstractFirJsBoxTest {
             @TestMetadata("jsExportInClass.kt")
             public void testJsExportInClass() throws Exception {
                 runTest("js/js.translator/testData/box/esModules/jsExport/jsExportInClass.kt");
+            }
+
+            @Test
+            @TestMetadata("perFileExportedApi.kt")
+            public void testPerFileExportedApi() throws Exception {
+                runTest("js/js.translator/testData/box/esModules/jsExport/perFileExportedApi.kt");
             }
 
             @Test
@@ -5104,6 +5122,12 @@ public class FirJsBoxTestGenerated extends AbstractFirJsBoxTest {
         @TestMetadata("definitionOrder.kt")
         public void testDefinitionOrder() throws Exception {
             runTest("js/js.translator/testData/box/inheritance/definitionOrder.kt");
+        }
+
+        @Test
+        @TestMetadata("delegatingToSecondaryCtor.kt")
+        public void testDelegatingToSecondaryCtor() throws Exception {
+            runTest("js/js.translator/testData/box/inheritance/delegatingToSecondaryCtor.kt");
         }
 
         @Test

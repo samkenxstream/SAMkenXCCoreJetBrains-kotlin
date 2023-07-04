@@ -65,9 +65,21 @@ public class FirStandaloneNormalAnalysisSourceModuleAnalysisApiPsiTypeProviderTe
     }
 
     @Test
+    @TestMetadata("duplicatedClass_functionParameter.kt")
+    public void testDuplicatedClass_functionParameter() throws Exception {
+        runTest("analysis/analysis-api/testData/components/psiTypeProvider/psiType/forDeclaration/duplicatedClass_functionParameter.kt");
+    }
+
+    @Test
     @TestMetadata("errorTypeInNestedTypeArgument.kt")
     public void testErrorTypeInNestedTypeArgument() throws Exception {
         runTest("analysis/analysis-api/testData/components/psiTypeProvider/psiType/forDeclaration/errorTypeInNestedTypeArgument.kt");
+    }
+
+    @Test
+    @TestMetadata("localClass_exposedAsMemberInAnonymousObject.kt")
+    public void testLocalClass_exposedAsMemberInAnonymousObject() throws Exception {
+        runTest("analysis/analysis-api/testData/components/psiTypeProvider/psiType/forDeclaration/localClass_exposedAsMemberInAnonymousObject.kt");
     }
 
     @Test

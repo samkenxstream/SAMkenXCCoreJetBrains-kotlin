@@ -95,13 +95,14 @@ rootProject.apply {
     from(rootProject.file("gradle/retryPublishing.gradle.kts"))
     from(rootProject.file("gradle/modularizedTestConfigurations.gradle.kts"))
     from(rootProject.file("gradle/ideaRtHack.gradle.kts"))
+    from(rootProject.file("gradle/resolveDependencies.gradle.kts"))
 }
 
 IdeVersionConfigurator.setCurrentIde(project)
 
 if (!project.hasProperty("versions.kotlin-native")) {
     // BEWARE! Bumping this version doesn't take an immediate effect on TeamCity: KTI-1107
-    extra["versions.kotlin-native"] = "1.9.20-dev-2332"
+    extra["versions.kotlin-native"] = "1.9.20-dev-4192"
 }
 
 val irCompilerModules = arrayOf(
@@ -144,6 +145,7 @@ val commonCompilerModules = arrayOf(
     ":analysis:kt-references",
     ":kotlin-build-common",
     ":compiler:build-tools:kotlin-build-statistics",
+    ":compiler:build-tools:kotlin-build-tools-api",
 ).also { extra["commonCompilerModules"] = it }
 
 val firCompilerCoreModules = arrayOf(
@@ -168,11 +170,11 @@ val firCompilerCoreModules = arrayOf(
 ).also { extra["firCompilerCoreModules"] = it }
 
 val firAllCompilerModules = firCompilerCoreModules +
-    arrayOf(
-        ":compiler:fir:raw-fir:light-tree2fir",
-        ":compiler:fir:analysis-tests",
-        ":compiler:fir:analysis-tests:legacy-fir-tests"
-    )
+        arrayOf(
+            ":compiler:fir:raw-fir:light-tree2fir",
+            ":compiler:fir:analysis-tests",
+            ":compiler:fir:analysis-tests:legacy-fir-tests"
+        )
 
 val fe10CompilerModules = arrayOf(
     ":compiler",
@@ -266,6 +268,7 @@ extra["kotlinJpsPluginMavenDependencies"] = listOf(
     ":kotlin-util-klib",
     ":kotlin-util-klib-metadata",
     ":native:kotlin-native-utils",
+    ":compiler:build-tools:kotlin-build-tools-api",
 )
 
 extra["kotlinJpsPluginMavenDependenciesNonTransitiveLibs"] = listOf(
@@ -429,7 +432,7 @@ allprojects {
             val isReflect = requested.name == "kotlin-reflect" || requested.name == "kotlin-reflect-api"
             // More strict check for "compilerModules". We can't apply this check for all modules because it would force to
             // exclude kotlin-reflect from transitive dependencies of kotlin-poet, ktor, com.android.tools.build:gradle, etc
-            if (project.path in (rootProject.extra["compilerModules"] as Array<String>)) {
+            if (project.path in @Suppress("UNCHECKED_CAST") (rootProject.extra["compilerModules"] as Array<String>)) {
                 val expectedReflectVersion = commonDependencyVersion("org.jetbrains.kotlin", "kotlin-reflect")
                 if (isReflect) {
                     check(requested.version == expectedReflectVersion) {
@@ -668,12 +671,16 @@ tasks {
     }
 
     register("wasmCompilerTest") {
-        dependsOn(":wasm:wasm.tests:test")
-        dependsOn(":wasm:wasm.tests:diagnosticsTest")
+        dependsOn(":wasm:wasm.tests:testK1")
+        dependsOn(":wasm:wasm.tests:diagnosticTest")
         // Windows WABT release requires Visual C++ Redistributable
         if (!kotlinBuildProperties.isTeamcityBuild || !org.gradle.internal.os.OperatingSystem.current().isWindows) {
             dependsOn(":wasm:wasm.ir:test")
         }
+    }
+
+    register("wasmFirCompilerTest") {
+        dependsOn(":wasm:wasm.tests:testFir")
     }
 
     register("nativeCompilerTest") {
@@ -933,9 +940,9 @@ gradle.taskGraph.whenReady(checkYarnAndNPMSuppressed)
 
 plugins.withType(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin::class) {
     extensions.configure(org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootExtension::class.java) {
-        npmInstallTaskProvider?.configure {
+        npmInstallTaskProvider.configure {
             args += listOf("--network-concurrency", "1", "--mutex", "network")
-        } ?: error("kotlinNpmInstall task should exist inside NodeJsRootExtension")
+        }
     }
 }
 

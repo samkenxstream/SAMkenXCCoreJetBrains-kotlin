@@ -34,8 +34,8 @@ class KotlinAndroidTargetHierarchyDsl {
     @Test
     fun `test - module - can be set in users afterEvaluate`() = buildProjectWithMPP().runLifecycleAwareTest {
         val dsl = KotlinAndroidTargetVariantDslImpl(project.objects)
-        afterEvaluate { dsl.sourceSetTree.set(KotlinTargetHierarchy.SourceSetTree("x")) }
-        dsl.sourceSetTree.set(KotlinTargetHierarchy.SourceSetTree("-set-before-after-evaluate-"))
+        afterEvaluate { dsl.sourceSetTree.set(KotlinSourceSetTree("x")) }
+        dsl.sourceSetTree.set(KotlinSourceSetTree("-set-before-after-evaluate-"))
         assertEquals("x", dsl.sourceSetTree.awaitFinalValue()?.name)
         assertEquals(KotlinPluginLifecycle.Stage.AfterFinaliseDsl, currentKotlinPluginLifecycle().stage)
     }
@@ -51,8 +51,8 @@ class KotlinAndroidTargetHierarchyDsl {
         val kotlin = project.multiplatformExtension
         project.runLifecycleAwareTest {
             kotlin.androidTarget {
-                unitTestVariant.sourceSetTree.set(KotlinTargetHierarchy.SourceSetTree.test)
-                instrumentedTestVariant.sourceSetTree.set(KotlinTargetHierarchy.SourceSetTree.test)
+                unitTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
+                instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
             }
 
             AfterFinaliseRefinesEdges.await()
@@ -73,13 +73,13 @@ class KotlinAndroidTargetHierarchyDsl {
         val kotlin = project.multiplatformExtension
         project.runLifecycleAwareTest {
             kotlin.androidTarget {
-                unitTestVariant.sourceSetTree.set(KotlinTargetHierarchy.SourceSetTree("xxx"))
-                instrumentedTestVariant.sourceSetTree.set(KotlinTargetHierarchy.SourceSetTree("yyy"))
+                unitTestVariant.sourceSetTree.set(KotlinSourceSetTree("xxx"))
+                instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree("yyy"))
             }
 
-            kotlin.targetHierarchy.default {
-                withSourceSetTree(KotlinTargetHierarchy.SourceSetTree("xxx"))
-                withSourceSetTree(KotlinTargetHierarchy.SourceSetTree("yyy"))
+            kotlin.applyHierarchyTemplate(KotlinHierarchyTemplate.default) {
+                withSourceSetTree(KotlinSourceSetTree("xxx"))
+                withSourceSetTree(KotlinSourceSetTree("yyy"))
             }
 
             AfterFinaliseRefinesEdges.await()

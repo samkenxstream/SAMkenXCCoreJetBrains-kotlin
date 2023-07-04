@@ -3818,6 +3818,12 @@ public class FirLightTreeDiagnosticsTestGenerated extends AbstractFirLightTreeDi
             }
 
             @Test
+            @TestMetadata("incompleteWhen.kt")
+            public void testIncompleteWhen() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/problems/incompleteWhen.kt");
+            }
+
+            @Test
             @TestMetadata("innerClassHierarchy.kt")
             public void testInnerClassHierarchy() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolve/problems/innerClassHierarchy.kt");
@@ -3857,6 +3863,12 @@ public class FirLightTreeDiagnosticsTestGenerated extends AbstractFirLightTreeDi
             @TestMetadata("objectDerivedFromInnerClass.kt")
             public void testObjectDerivedFromInnerClass() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolve/problems/objectDerivedFromInnerClass.kt");
+            }
+
+            @Test
+            @TestMetadata("primaryConstructorParameterWithoutReturnType.kt")
+            public void testPrimaryConstructorParameterWithoutReturnType() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/problems/primaryConstructorParameterWithoutReturnType.kt");
             }
 
             @Test
@@ -6491,6 +6503,24 @@ public class FirLightTreeDiagnosticsTestGenerated extends AbstractFirLightTreeDi
             @TestMetadata("FunctionTypeInJava.kt")
             public void testFunctionTypeInJava() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/j+k/FunctionTypeInJava.kt");
+            }
+
+            @Test
+            @TestMetadata("genericGetterForJavaOverriddenProperty.kt")
+            public void testGenericGetterForJavaOverriddenProperty() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/j+k/genericGetterForJavaOverriddenProperty.kt");
+            }
+
+            @Test
+            @TestMetadata("genericGetterForJavaOverriddenProperty2.kt")
+            public void testGenericGetterForJavaOverriddenProperty2() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/j+k/genericGetterForJavaOverriddenProperty2.kt");
+            }
+
+            @Test
+            @TestMetadata("genericGetterForSyntheticProperty.kt")
+            public void testGenericGetterForSyntheticProperty() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/j+k/genericGetterForSyntheticProperty.kt");
             }
 
             @Test

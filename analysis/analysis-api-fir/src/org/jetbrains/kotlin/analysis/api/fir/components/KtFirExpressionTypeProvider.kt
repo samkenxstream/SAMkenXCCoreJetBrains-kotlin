@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -15,8 +15,8 @@ import org.jetbrains.kotlin.analysis.api.types.KtErrorType
 import org.jetbrains.kotlin.analysis.api.types.KtFunctionalType
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFir
-import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirOfType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirSafe
+import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbol
 import org.jetbrains.kotlin.analysis.utils.errors.unexpectedElementError
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
@@ -27,13 +27,13 @@ import org.jetbrains.kotlin.fir.references.FirSuperReference
 import org.jetbrains.kotlin.fir.resolve.constructFunctionType
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
+import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
-import kotlin.contracts.ExperimentalContracts
-import kotlin.contracts.contract
+import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 
 internal class KtFirExpressionTypeProvider(
     override val analysisSession: KtFirAnalysisSession,
@@ -110,45 +110,38 @@ internal class KtFirExpressionTypeProvider(
 
     private data class SubstitutedValueParameter(val parameter: FirValueParameter, val substitutedType: ConeKotlinType)
 
-    private fun FirFunctionCall.argumentsToSubstitutedValueParameters(
-        substituteWithErrorTypes: Boolean = true
+    private fun FirCall.argumentsToSubstitutedValueParameters(
+        substituteWithErrorTypes: Boolean = true,
     ): LinkedHashMap<FirExpression, SubstitutedValueParameter>? {
-        val substitutor = createConeSubstitutorFromTypeArguments(discardErrorTypes = !substituteWithErrorTypes) ?: ConeSubstitutor.Empty
+        val substitutor = (this as? FirQualifiedAccessExpression)
+            ?.createConeSubstitutorFromTypeArguments(discardErrorTypes = !substituteWithErrorTypes)
+            ?: ConeSubstitutor.Empty
+
         return resolvedArgumentMapping?.mapValuesTo(LinkedHashMap()) { (_, parameter) ->
             SubstitutedValueParameter(parameter, substitutor.substituteOrSelf(parameter.returnTypeRef.coneType))
         }
     }
 
     override fun getReturnTypeForKtDeclaration(declaration: KtDeclaration): KtType {
-        val firDeclaration = if (isAnonymousFunction(declaration))
-            declaration.toFirAnonymousFunction()
-        else
+        val firDeclaration = if (declaration is KtParameter && declaration.ownerFunction == null) {
             declaration.getOrBuildFir(firResolveSession)
+        } else {
+            declaration.resolveToFirSymbol(firResolveSession, FirResolvePhase.TYPES).fir
+        }
         return when (firDeclaration) {
-            is FirCallableDeclaration -> firDeclaration.returnTypeRef.coneType.asKtType()
+            is FirCallableDeclaration -> firDeclaration.symbol.resolvedReturnType.asKtType()
             is FirFunctionTypeParameter -> firDeclaration.returnTypeRef.coneType.asKtType()
             else -> unexpectedElementError<FirElement>(firDeclaration)
         }
     }
 
     override fun getFunctionalTypeForKtFunction(declaration: KtFunction): KtType {
-        val firFunction = if (isAnonymousFunction(declaration))
-            declaration.toFirAnonymousFunction()
-        else
-            declaration.getOrBuildFirOfType<FirFunction>(firResolveSession)
-        return firFunction.constructFunctionType(firFunction.specialFunctionTypeKind(firResolveSession.useSiteFirSession)).asKtType()
-    }
-
-    @OptIn(ExperimentalContracts::class)
-    private fun isAnonymousFunction(ktDeclaration: KtDeclaration): Boolean {
-        contract {
-            returns(true) implies (ktDeclaration is KtNamedFunction)
+        val firFunction = declaration.resolveToFirSymbol(firResolveSession, FirResolvePhase.TYPES).fir as FirFunction
+        if (firFunction.returnTypeRef is FirImplicitTypeRef) {
+            firFunction.lazyResolveToPhase(FirResolvePhase.IMPLICIT_TYPES_BODY_RESOLVE)
         }
-        return ktDeclaration is KtNamedFunction && ktDeclaration.isAnonymous
-    }
 
-    private fun KtFunction.toFirAnonymousFunction(): FirAnonymousFunction {
-        return getOrBuildFirOfType<FirAnonymousFunctionExpression>(firResolveSession).anonymousFunction
+        return firFunction.constructFunctionType(firFunction.specialFunctionTypeKind(firResolveSession.useSiteFirSession)).asKtType()
     }
 
     override fun getExpectedType(expression: PsiElement): KtType? {
@@ -180,8 +173,8 @@ internal class KtFirExpressionTypeProvider(
     }
 
     private fun getExpectedTypeOfFunctionParameter(expression: PsiElement): KtType? {
-        val (ktCallExpression, argumentExpression) = expression.getFunctionCallAsWithThisAsParameter() ?: return null
-        val firCall = ktCallExpression.getOrBuildFirSafe<FirFunctionCall>(firResolveSession) ?: return null
+        val (ktCallElement, argumentExpression) = expression.getFunctionCallAsWithThisAsParameter() ?: return null
+        val firCall = ktCallElement.getOrBuildFirSafe<FirCall>(firResolveSession) ?: return null
 
         val callee = (firCall.calleeReference as? FirResolvedNamedReference)?.resolvedSymbol
         if (callee?.fir?.origin == FirDeclarationOrigin.SamConstructor) {
@@ -231,8 +224,8 @@ internal class KtFirExpressionTypeProvider(
             valueArg.getArgumentExpression()?.unwrap() == expr
         } ?: return null
         val callExpression =
-            (valueArgument.parent as? KtValueArgumentList)?.parent as? KtCallExpression
-                ?: valueArgument.parent as? KtCallExpression // KtLambdaArgument
+            (valueArgument.parent as? KtValueArgumentList)?.parent as? KtCallElement
+                ?: valueArgument.parent as? KtCallElement // KtLambdaArgument
                 ?: return null
         val argumentExpression = valueArgument.getArgumentExpression() ?: return null
         return KtCallWithArgument(callExpression, argumentExpression)
@@ -245,7 +238,7 @@ internal class KtFirExpressionTypeProvider(
 
         // There is only one parameter for infix functions; get its type
         val argumentsToParameters = firCall.argumentsToSubstitutedValueParameters(substituteWithErrorTypes = false) ?: return null
-        return argumentsToParameters.values.singleOrNull()?.substitutedType?.asKtType() ?: return null
+        return argumentsToParameters.values.singleOrNull()?.substitutedType?.asKtType()
     }
 
     private fun getExpectedTypeByReturnExpression(expression: PsiElement): KtType? {
@@ -407,7 +400,7 @@ internal class KtFirExpressionTypeProvider(
     }
 }
 
-private data class KtCallWithArgument(val call: KtCallExpression, val argument: KtExpression)
+private data class KtCallWithArgument(val call: KtCallElement, val argument: KtExpression)
 
 private inline fun <reified R : Any> PsiElement.unwrapQualified(check: (R, PsiElement) -> Boolean): R? {
     val parent = nonContainerParent

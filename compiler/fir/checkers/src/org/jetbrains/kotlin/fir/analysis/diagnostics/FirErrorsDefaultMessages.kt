@@ -20,13 +20,14 @@ import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers.STRING
 import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers.commaSeparated
 import org.jetbrains.kotlin.diagnostics.rendering.LanguageFeatureMessageRenderer
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.AMBIGUOUS_CALLS
+import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.CALLEE_NAME
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.DECLARATION_NAME
-import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.FIR
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.FQ_NAMES_IN_TYPES
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.FUNCTIONAL_TYPE_KINDS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.SYMBOLS_ON_NEWLINE_WITH_INDENT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.MODULE_DATA
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.NAME_OF_CONTAINING_DECLARATION_OR_FILE
+import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.NAME_OF_DECLARATION_OR_FILE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.RENDER_CLASS_OR_OBJECT
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.RENDER_CLASS_OR_OBJECT_NAME
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticRenderers.RENDER_COLLECTION_OF_TYPES
@@ -228,6 +229,7 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.EXPOSED_PROPERTY_
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.DEPRECATED_IDENTITY_EQUALS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.EXPECTED_EXTERNAL_DECLARATION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.EXPECTED_TAILREC_FUNCTION
+import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.EXPECT_CLASS_AS_FUNCTION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.FORBIDDEN_BINARY_MOD
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.FORBIDDEN_IDENTITY_EQUALS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.FORBIDDEN_IDENTITY_EQUALS_WARNING
@@ -295,9 +297,11 @@ import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INITIALIZER_TYPE_
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INLINE_CLASS_CONSTRUCTOR_WRONG_PARAMETERS_SIZE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INLINE_PROPERTY_WITH_BACKING_FIELD
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INLINE_SUSPEND_FUNCTION_TYPE_UNSUPPORTED
+import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INNER_CLASS_CONSTRUCTOR_NO_RECEIVER
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INNER_CLASS_INSIDE_VALUE_CLASS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INNER_CLASS_OF_GENERIC_THROWABLE_SUBCLASS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INSTANCE_ACCESS_BEFORE_SUPER_CALL
+import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INTERFACE_AS_FUNCTION
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INTERFACE_WITH_SUPERCLASS
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INT_LITERAL_OUT_OF_RANGE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors.INVALID_CHARACTERS
@@ -701,7 +705,7 @@ object FirErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(NULL_FOR_NONNULL_TYPE, "Null can not be a value of a non-null type")
 
         // Unresolved
-        map.put(INVISIBLE_REFERENCE, "Symbol {0} is invisible", SYMBOL)
+        map.put(INVISIBLE_REFERENCE, "Cannot access ''{0}'': it is {1} in {2}", SYMBOL, VISIBILITY, NAME_OF_DECLARATION_OR_FILE)
         map.put(
             INVISIBLE_SETTER,
             "Cannot access ''{0}'': it is {1} in {2}",
@@ -737,11 +741,14 @@ object FirErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
             FUNCTION_EXPECTED,
             "Expression ''{0}'' of type {1} cannot be invoked as a function. The function ''invoke()'' is not found", TO_STRING, RENDER_TYPE
         )
+        map.put(INTERFACE_AS_FUNCTION, "Interface ''{0}'' does not have constructors.", SYMBOL)
+        map.put(EXPECT_CLASS_AS_FUNCTION, "Expected class ''{0}'' does not have default constructor.", SYMBOL)
         map.put(
-            RESOLUTION_TO_CLASSIFIER,
-            "Constructor of the inner class {0} can only be called with a receiver of the containing class",
+            INNER_CLASS_CONSTRUCTOR_NO_RECEIVER,
+            "Constructor of the inner class ''{0}'' can only be called with a receiver of the containing class",
             SYMBOL
         )
+        map.put(RESOLUTION_TO_CLASSIFIER, "Resolution to the classifier ''{0}'' is not appropriate here.", SYMBOL)
         map.put(
             AMBIGUOUS_ALTERED_ASSIGN,
             "Multiple extensions tried to alter this assignment at the same time. Extensions: {0}",
@@ -1247,7 +1254,7 @@ object FirErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
             SMARTCAST_IMPOSSIBLE,
             "Smart cast to ''{0}'' is impossible, because ''{1}'' is a {2}",
             RENDER_TYPE,
-            FIR,
+            CALLEE_NAME,
             TO_STRING,
             NOT_RENDERED
         )
@@ -1360,8 +1367,7 @@ object FirErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         )
         map.put(
             INVALID_DEFAULT_FUNCTIONAL_PARAMETER_FOR_INLINE,
-            "Invalid default value for inline parameter: ''{0}''. Only lambdas, anonymous functions, and callable references are supported",
-            FIR,
+            "Invalid default value for inline function parameter. Only lambdas, anonymous functions, and callable references are supported",
             DECLARATION_NAME
         )
         map.put(
@@ -1891,36 +1897,37 @@ object FirErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         map.put(LEAKED_IN_PLACE_LAMBDA, "Leaked in-place lambda: {0}", SYMBOL)
         map.put(FirErrors.WRONG_IMPLIES_CONDITION, "Wrong implies condition")
         map.put(UNREACHABLE_CODE, "Unreachable code", NOT_RENDERED, NOT_RENDERED)
-        map.put(SENSELESS_COMPARISON, "Condition ''{0}'' is always ''{1}''", FIR, TO_STRING)
+        map.put(SENSELESS_COMPARISON, "Condition is always ''{0}''", TO_STRING)
         map.put(SENSELESS_NULL_IN_WHEN, "Expression under 'when' is never equal to null")
 
         // Nullability
         map.put(USELESS_CALL_ON_NOT_NULL, "Unsafe call on not null")
         map.put(
             UNSAFE_CALL,
-            "Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type {0}",
+            "Only safe (?.) or non-null asserted (!!.) calls are allowed on a nullable receiver of type ''{0}''.",
             RENDER_TYPE,
-            NOT_RENDERED,
+            NOT_RENDERED
         )
         map.put(
             UNSAFE_IMPLICIT_INVOKE_CALL,
-            "Reference has a nullable type ''{0}'', use explicit \"?.invoke\" to make a function-like call instead.",
+            "Reference has a nullable type ''{0}'', use explicit ''?.invoke'' to make a function-like call instead.",
             RENDER_TYPE
         )
         map.put(
             UNSAFE_INFIX_CALL,
-            "Infix call corresponds to a dot-qualified call ''{0}.{1}({2})'' which is not allowed on a nullable receiver ''{0}''. " +
-                    "Use ''?.''-qualified call instead",
-            FIR,
-            TO_STRING,
-            FIR,
+            "Infix call is not allowed on a nullable receiver of type ''{0}''. Use ''?.''-qualified call instead.",
+            RENDER_TYPE,
+            NOT_RENDERED,
+            NOT_RENDERED,
+            NOT_RENDERED,
         )
         map.put(
             UNSAFE_OPERATOR_CALL,
-            "Operator call corresponds to a dot-qualified call ''{0}.{1}({2})'' which is not allowed on a nullable receiver ''{0}''. ",
-            FIR,
-            TO_STRING,
-            FIR,
+            "Operator call is not allowed on a nullable receiver of type ''{0}''. Use ''?.''-qualified call instead.",
+            RENDER_TYPE,
+            NOT_RENDERED,
+            NOT_RENDERED,
+            NOT_RENDERED,
         )
         map.put(UNNECESSARY_NOT_NULL_ASSERTION, "Unnecessary non-null assertion (!!) on a non-null receiver of type {0}", RENDER_TYPE)
         map.put(NOT_NULL_ASSERTION_ON_LAMBDA_EXPRESSION, "Non-null assertion (!!) is called on a lambda expression")
@@ -2161,7 +2168,7 @@ object FirErrorsDefaultMessages : BaseDiagnosticRendererFactory() {
         )
         map.put(
             PRIVATE_CLASS_MEMBER_FROM_INLINE,
-            "Non-private inline function cannot access members of private classes: ''{1}''",
+            "Non-private inline function ''{1}'' cannot access members of private classes: ''{0}''",
             SYMBOL,
             SYMBOL
         )

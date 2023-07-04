@@ -23,7 +23,12 @@ import kotlin.wasm.internal.*
  * for more information on arrays.
  */
 public class Array<T> @PublishedApi internal constructor(size: Int) {
-    internal val storage: WasmAnyArray = WasmAnyArray(size)
+    internal val storage: WasmAnyArray
+
+    init {
+        if (size < 0) throw IllegalArgumentException("Negative array size")
+        storage = WasmAnyArray(size)
+    }
 
     @WasmPrimitiveConstructor
     internal constructor(storage: WasmAnyArray)
@@ -34,6 +39,8 @@ public class Array<T> @PublishedApi internal constructor(size: Int) {
      *
      * The function [init] is called for each array element sequentially starting from the first one.
      * It should return the value for an array element given its index.
+     *
+     * @throws RuntimeException if the specified [size] is negative.
      */
     public inline constructor(size: Int, init: (Int) -> T)
 
@@ -87,6 +94,7 @@ internal fun <T> arrayIterator(array: Array<T>) = object : Iterator<T> {
 }
 
 internal inline fun <reified T> createAnyArray(size: Int, init: (Int) -> T): Array<T> {
+    if (size < 0) throw IllegalArgumentException("Negative array size")
     val result = WasmAnyArray(size)
     result.fill(size, init)
     return Array(result)

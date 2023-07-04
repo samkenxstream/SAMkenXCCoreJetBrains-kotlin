@@ -8,8 +8,6 @@ package org.jetbrains.kotlin.gradle.mpp
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.testbase.*
-import org.jetbrains.kotlin.gradle.util.replaceText
-import org.jetbrains.kotlin.test.TestMetadata
 import kotlin.io.path.appendText
 import kotlin.io.path.writeText
 
@@ -18,7 +16,7 @@ class MppDiagnosticsIt : KGPBaseTest() {
     @GradleTest
     fun testDiagnosticsRenderingSmoke(gradleVersion: GradleVersion) {
         project("diagnosticsRenderingSmoke", gradleVersion) {
-            val expectedOutputFile = projectName.testProjectPath.resolve("expectedOutput.txt").toFile()
+            val expectedOutputFile = projectPath.resolve("expectedOutput.txt").toFile()
             build {
                 assertEqualsToFile(expectedOutputFile, extractProjectsAndTheirVerboseDiagnostics())
             }
@@ -26,7 +24,7 @@ class MppDiagnosticsIt : KGPBaseTest() {
     }
 
     @GradleTest
-    fun testDeprecatedProperties(gradleVersion: GradleVersion) {
+    fun testDeprecatedMppProperties(gradleVersion: GradleVersion) {
         project("mppDeprecatedProperties", gradleVersion) {
             checkDeprecatedProperties(isDeprecationExpected = false)
 
@@ -45,46 +43,6 @@ class MppDiagnosticsIt : KGPBaseTest() {
 
             this.gradleProperties.appendText("kotlin.mpp.deprecatedProperties.nowarn=true${System.lineSeparator()}")
             checkDeprecatedProperties(isDeprecationExpected = false)
-        }
-    }
-
-    @GradleTest
-    @TestMetadata("new-mpp-lib-and-app/sample-lib-gradle-kotlin-dsl")
-    fun testReportTargetsOfTheSamplePlatformAndWithTheSameAttributes(gradleVersion: GradleVersion) {
-        project("new-mpp-lib-and-app/sample-lib-gradle-kotlin-dsl", gradleVersion) {
-            // A hack to make project compatible with GradleTestKit infrastructure
-            buildGradleKts.replaceText(
-                """id("org.jetbrains.kotlin.multiplatform").version("<pluginMarkerVersion>")""",
-                """id("org.jetbrains.kotlin.multiplatform")""",
-            )
-            buildGradleKts.appendText("""
-                
-                val distinguishAttribute = Attribute.of(String::class.java) 
-                fun org.jetbrains.kotlin.gradle.plugin.KotlinTarget.applyDistinguishingAttributeIfSet(value: String) {
-                    if (project.properties.containsKey("applyDistinguishingAttribute")) {
-                        attributes { 
-                            attribute(distinguishAttribute, value)
-                        }
-                    }
-                }
-                kotlin {
-                    jvm("jvm2") { applyDistinguishingAttributeIfSet("jvm2") }
-                    linuxArm64("linuxArm_A") { applyDistinguishingAttributeIfSet("linuxArm_A") }
-                    linuxArm64("linuxArm_B") { applyDistinguishingAttributeIfSet("linuxArm_B") }
-                }
-            """.trimIndent())
-
-            val warningMessage = """w: The following targets are not distinguishable:
-                    |  * 'jvm2', 'jvm6'
-                    |  * 'linuxArm_A', 'linuxArm_B'""".trimMargin()
-
-            build {
-                assertOutputContains(warningMessage)
-            }
-
-            build(buildOptions = defaultBuildOptions.copy(freeArgs = listOf("-PapplyDistinguishingAttribute"))) {
-                assertOutputDoesNotContain(warningMessage)
-            }
         }
     }
 

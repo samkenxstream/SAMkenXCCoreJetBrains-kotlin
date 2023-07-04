@@ -419,7 +419,6 @@ internal constructor(
             .map { it + (languageSettings as DefaultLanguageSettingsBuilder).freeCompilerArgsForNonImport }
 
     private val runnerSettings = KotlinNativeCompilerRunner.Settings.fromProject(project)
-    private val isAllowCommonizer: Boolean by lazy { project.isAllowCommonizer() }
     // endregion.
 
     @Suppress("DeprecatedCallableAddReplaceWith")
@@ -507,7 +506,7 @@ internal constructor(
         properties[KLIB_PROPERTY_NATIVE_TARGETS] = konanTargetsForManifest
         properties.saveToFile(org.jetbrains.kotlin.konan.file.File(manifestFile.toPath()))
 
-        return SharedCompilationData(manifestFile, isAllowCommonizer, refinesModule)
+        return SharedCompilationData(manifestFile, refinesModule)
     }
 
     @TaskAction
@@ -721,16 +720,17 @@ internal class CacheBuilder(
         val konanCacheKind: NativeCacheKind,
         val libraries: FileCollection,
         val gradleUserHomeDir: File,
-        val binary: NativeBinary,
         val konanTarget: KonanTarget,
         val toolOptions: KotlinCommonCompilerToolOptions,
-        val externalDependenciesArgs: List<String>
+        val externalDependenciesArgs: List<String>,
+        val debuggable: Boolean,
+        val optimized: Boolean,
     ) {
         val rootCacheDirectory
             get() = getRootCacheDirectory(
                 File(runnerSettings.parent.konanHome),
                 konanTarget,
-                binary.debuggable,
+                debuggable,
                 konanCacheKind
             )
 
@@ -748,7 +748,11 @@ internal class CacheBuilder(
                     konanCacheKind = konanCacheKind,
                     libraries = binary.compilation.compileDependencyFiles,
                     gradleUserHomeDir = project.gradle.gradleUserHomeDir,
-                    binary, konanTarget, toolOptions, externalDependenciesArgs
+                    konanTarget = konanTarget,
+                    toolOptions = toolOptions,
+                    externalDependenciesArgs = externalDependenciesArgs,
+                    debuggable = binary.debuggable,
+                    optimized = binary.optimized,
                 )
             }
         }
@@ -760,17 +764,14 @@ internal class CacheBuilder(
             listOf(KLIB_INTEROP_IR_PROVIDER_IDENTIFIER)
         )
 
-    private val binary: NativeBinary
-        get() = settings.binary
-
     private val konanTarget: KonanTarget
         get() = settings.konanTarget
 
     private val optimized: Boolean
-        get() = binary.optimized
+        get() = settings.optimized
 
     private val debuggable: Boolean
-        get() = binary.debuggable
+        get() = settings.debuggable
 
     private val konanCacheKind: NativeCacheKind
         get() = settings.konanCacheKind

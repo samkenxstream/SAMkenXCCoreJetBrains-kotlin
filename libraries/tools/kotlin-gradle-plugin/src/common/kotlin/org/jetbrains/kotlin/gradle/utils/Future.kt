@@ -55,6 +55,10 @@ internal interface CompletableFuture<T> : Future<T> {
     fun complete(value: T)
 }
 
+internal fun <T, R> Future<T>.map(transform: (T) -> R): Future<R> {
+    return MappedFutureImpl(this, transform)
+}
+
 internal fun CompletableFuture<Unit>.complete() = complete(Unit)
 
 /**
@@ -64,7 +68,7 @@ internal fun CompletableFuture<Unit>.complete() = complete(Unit)
  * @param name: The name of the extras key being used to store the future (see [extrasLazyProperty])
  */
 internal inline fun <Receiver, reified T> futureExtension(
-    name: String? = null, noinline block: suspend Receiver.() -> T
+    name: String? = null, noinline block: suspend Receiver.() -> T,
 ): ExtrasLazyProperty<Receiver, Future<T>> where Receiver : HasMutableExtras, Receiver : HasProject {
     return extrasLazyProperty<Receiver, Future<T>>(name) {
         project.future { block() }
@@ -97,7 +101,7 @@ internal fun <T> CompletableFuture(): CompletableFuture<T> {
 
 private class FutureImpl<T>(
     private val deferred: Completable<T> = Completable(),
-    private val lifecycle: KotlinPluginLifecycle? = null
+    private val lifecycle: KotlinPluginLifecycle? = null,
 ) : CompletableFuture<T>, Serializable {
     fun completeWith(result: Result<T>) = deferred.completeWith(result)
 
@@ -111,7 +115,7 @@ private class FutureImpl<T>(
 
     override fun getOrThrow(): T {
         return if (deferred.isCompleted) deferred.getCompleted() else throw IllegalLifecycleException(
-            "Future was not completed yet" + if (lifecycle != null) " (stage '${lifecycle.stage}') (${lifecycle.project.displayName})"
+            "Future was not completed yet" + if (lifecycle != null) " '$lifecycle'"
             else ""
         )
     }
@@ -127,8 +131,40 @@ private class FutureImpl<T>(
     }
 }
 
+private class MappedFutureImpl<T, R>(
+    private val future: Future<T>,
+    private var transform: (T) -> R,
+) : Future<R>, Serializable {
+
+    private val value = Completable<R>()
+
+    override suspend fun await(): R {
+        if (value.isCompleted) return value.getCompleted()
+        value.complete(transform(future.await()))
+        transform = { throw IllegalStateException("Unexpected 'transform' in future") }
+        return value.getCompleted()
+    }
+
+    override fun getOrThrow(): R {
+        if (value.isCompleted) return value.getCompleted()
+        value.complete(transform(future.getOrThrow()))
+        transform = { throw IllegalStateException("Unexpected 'transform' in future") }
+        return value.getCompleted()
+    }
+
+    private fun writeReplace(): Any {
+        return Surrogate(getOrThrow())
+    }
+
+    private class Surrogate<T>(private val value: T) : Serializable {
+        private fun readResolve(): Any {
+            return FutureImpl(Completable(value))
+        }
+    }
+}
+
 private class LenientFutureImpl<T>(
-    private val future: Future<T>
+    private val future: Future<T>,
 ) : LenientFuture<T>, Serializable {
     override suspend fun await(): T {
         return future.await()
@@ -181,7 +217,7 @@ private class LazyFutureImpl<T>(private val future: Lazy<Future<T>>) : Future<T>
  * Simple, Single Threaded, replacement for kotlinx.coroutines.CompletableDeferred.
  */
 private class Completable<T>(
-    private var value: Result<T>? = null
+    private var value: Result<T>? = null,
 ) {
     constructor(value: T) : this(Result.success(value))
 

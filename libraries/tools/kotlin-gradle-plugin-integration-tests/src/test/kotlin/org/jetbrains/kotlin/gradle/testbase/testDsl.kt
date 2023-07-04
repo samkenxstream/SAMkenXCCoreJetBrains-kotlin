@@ -240,12 +240,14 @@ internal inline fun <reified T> TestProject.getModels(
 fun TestProject.enableLocalBuildCache(
     buildCacheLocation: Path,
 ) {
-    // language=Groovy
-    settingsGradle.append(
+
+    val settingsFile = if (Files.exists(settingsGradle)) settingsGradle else settingsGradleKts
+
+    settingsFile.append(
         """
         buildCache {
             local {
-                directory = '${buildCacheLocation.toUri()}'
+                directory = "${buildCacheLocation.toUri()}"
             }
         }
         """.trimIndent()
@@ -312,7 +314,9 @@ open class GradleProject(
 }
 
 @JvmInline
-value class EnvironmentalVariables @EnvironmentalVariablesOverride constructor(val environmentalVariables: Map<String, String> = emptyMap())
+value class EnvironmentalVariables @EnvironmentalVariablesOverride constructor(val environmentalVariables: Map<String, String> = emptyMap()) {
+    @EnvironmentalVariablesOverride constructor(vararg environmentVariables: Pair<String, String>) : this(mapOf(*environmentVariables))
+}
 
 @RequiresOptIn("Environmental variables override may lead to interference of parallel builds and breaks Gradle tests debugging")
 annotation class EnvironmentalVariablesOverride
@@ -471,7 +475,7 @@ private fun setupProjectFromTestResources(
         }
 }
 
-internal val String.testProjectPath: Path get() = Paths.get("src", "test", "resources", "testProject", this)
+private val String.testProjectPath: Path get() = Paths.get("src", "test", "resources", "testProject", this)
 
 internal fun Path.addDefaultBuildFiles() {
     addPluginManagementToSettings()

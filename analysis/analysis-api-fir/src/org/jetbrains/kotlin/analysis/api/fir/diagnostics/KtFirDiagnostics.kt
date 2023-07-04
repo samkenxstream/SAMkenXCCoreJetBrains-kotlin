@@ -220,6 +220,8 @@ sealed interface KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
     interface InvisibleReference : KtFirDiagnostic<PsiElement> {
         override val diagnosticClass get() = InvisibleReference::class
         val reference: KtSymbol
+        val visible: Visibility
+        val containingDeclaration: ClassId?
     }
 
     interface UnresolvedReference : KtFirDiagnostic<PsiElement> {
@@ -311,6 +313,21 @@ sealed interface KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
         override val diagnosticClass get() = FunctionExpected::class
         val expression: String
         val type: KtType
+    }
+
+    interface InterfaceAsFunction : KtFirDiagnostic<PsiElement> {
+        override val diagnosticClass get() = InterfaceAsFunction::class
+        val classSymbol: KtClassLikeSymbol
+    }
+
+    interface ExpectClassAsFunction : KtFirDiagnostic<PsiElement> {
+        override val diagnosticClass get() = ExpectClassAsFunction::class
+        val classSymbol: KtClassLikeSymbol
+    }
+
+    interface InnerClassConstructorNoReceiver : KtFirDiagnostic<PsiElement> {
+        override val diagnosticClass get() = InnerClassConstructorNoReceiver::class
+        val classSymbol: KtClassLikeSymbol
     }
 
     interface ResolutionToClassifier : KtFirDiagnostic<PsiElement> {
@@ -2489,7 +2506,6 @@ sealed interface KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     interface SenselessComparison : KtFirDiagnostic<KtExpression> {
         override val diagnosticClass get() = SenselessComparison::class
-        val expression: KtExpression
         val compareResult: Boolean
     }
 
@@ -2514,6 +2530,7 @@ sealed interface KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     interface UnsafeInfixCall : KtFirDiagnostic<KtExpression> {
         override val diagnosticClass get() = UnsafeInfixCall::class
+        val receiverType: KtType
         val receiverExpression: KtExpression
         val operator: String
         val argumentExpression: KtExpression
@@ -2521,6 +2538,7 @@ sealed interface KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     interface UnsafeOperatorCall : KtFirDiagnostic<KtExpression> {
         override val diagnosticClass get() = UnsafeOperatorCall::class
+        val receiverType: KtType
         val receiverExpression: KtExpression
         val operator: String
         val argumentExpression: KtExpression
@@ -2994,7 +3012,6 @@ sealed interface KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     interface InvalidDefaultFunctionalParameterForInline : KtFirDiagnostic<KtElement> {
         override val diagnosticClass get() = InvalidDefaultFunctionalParameterForInline::class
-        val defaultValue: KtExpression
         val parameter: KtSymbol
     }
 

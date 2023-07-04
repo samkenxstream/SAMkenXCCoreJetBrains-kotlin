@@ -166,16 +166,22 @@ internal class ReflectionReferencesGenerator(statementGenerator: StatementGenera
         val functionParameter = descriptor.valueParameters.singleOrNull()
             ?: throw AssertionError("Single value parameter expected: $descriptor")
 
-        return context.irFactory.createFunction(
-            startOffset, endOffset,
-            IrDeclarationOrigin.ADAPTER_FOR_FUN_INTERFACE_CONSTRUCTOR,
-            IrSimpleFunctionSymbolImpl(),
+        return context.irFactory.createSimpleFunction(
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = IrDeclarationOrigin.ADAPTER_FOR_FUN_INTERFACE_CONSTRUCTOR,
             name = samClassDescriptor.name,
             visibility = DescriptorVisibilities.LOCAL,
-            modality = Modality.FINAL,
+            isInline = false,
+            isExpect = false,
             returnType = irSamType,
-            isInline = false, isExternal = false, isTailrec = false, isSuspend = false, isOperator = false, isInfix = false,
-            isExpect = false, isFakeOverride = false
+            modality = Modality.FINAL,
+            symbol = IrSimpleFunctionSymbolImpl(),
+            isTailrec = false,
+            isSuspend = false,
+            isOperator = false,
+            isInfix = false,
+            isExternal = false,
         ).also { irAdapterFun ->
             context.symbolTable.withScope(irAdapterFun) {
                 irAdapterFun.metadata = null
@@ -437,22 +443,22 @@ internal class ReflectionReferencesGenerator(statementGenerator: StatementGenera
         val hasSuspendConversion = !adapteeDescriptor.isSuspend &&
                 callableReferenceType.isKSuspendFunctionType
 
-        return context.irFactory.createFunction(
-            startOffset, endOffset,
-            IrDeclarationOrigin.ADAPTER_FOR_CALLABLE_REFERENCE,
-            IrSimpleFunctionSymbolImpl(),
-            adapteeDescriptor.name,
-            DescriptorVisibilities.LOCAL,
-            Modality.FINAL,
-            ktExpectedReturnType.toIrType(),
+        return context.irFactory.createSimpleFunction(
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = IrDeclarationOrigin.ADAPTER_FOR_CALLABLE_REFERENCE,
+            name = adapteeDescriptor.name,
+            visibility = DescriptorVisibilities.LOCAL,
             isInline = adapteeDescriptor.isInline, // TODO ?
-            isExternal = false,
+            isExpect = false,
+            returnType = ktExpectedReturnType.toIrType(),
+            modality = Modality.FINAL,
+            symbol = IrSimpleFunctionSymbolImpl(),
             isTailrec = false,
             isSuspend = adapteeDescriptor.isSuspend || hasSuspendConversion,
             isOperator = adapteeDescriptor.isOperator, // TODO ?
             isInfix = adapteeDescriptor.isInfix,
-            isExpect = false,
-            isFakeOverride = false
+            isExternal = false,
         ).also { irAdapterFun ->
             context.symbolTable.withScope(irAdapterFun) {
                 irAdapterFun.metadata = DescriptorMetadataSource.Function(adapteeDescriptor)
@@ -491,13 +497,18 @@ internal class ReflectionReferencesGenerator(statementGenerator: StatementGenera
 
     private fun createAdapterParameter(startOffset: Int, endOffset: Int, name: Name, index: Int, type: KotlinType): IrValueParameter =
         context.irFactory.createValueParameter(
-            startOffset, endOffset,
-            IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE,
-            IrValueParameterSymbolImpl(),
-            name,
-            index,
-            type.toIrType(),
-            varargElementType = null, isCrossinline = false, isNoinline = false, isHidden = false, isAssignable = false
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = IrDeclarationOrigin.ADAPTER_PARAMETER_FOR_CALLABLE_REFERENCE,
+            name = name,
+            type = type.toIrType(),
+            isAssignable = false,
+            symbol = IrValueParameterSymbolImpl(),
+            index = index,
+            varargElementType = null,
+            isCrossinline = false,
+            isNoinline = false,
+            isHidden = false,
         )
 
     fun generateCallableReference(
@@ -570,20 +581,19 @@ internal class ReflectionReferencesGenerator(statementGenerator: StatementGenera
                 val offset = UNDEFINED_OFFSET
                 context.symbolTable.declareProperty(offset, offset, IrDeclarationOrigin.SYNTHETIC_JAVA_PROPERTY_DELEGATE, descriptor) {
                     context.irFactory.createProperty(
-                        offset,
-                        offset,
-                        IrDeclarationOrigin.SYNTHETIC_JAVA_PROPERTY_DELEGATE,
-                        symbol,
-                        descriptor.name,
-                        descriptor.visibility,
-                        descriptor.modality,
-                        descriptor.isVar,
-                        descriptor.isConst,
-                        descriptor.isLateInit,
-                        descriptor.isDelegated,
-                        descriptor.isExternal,
-                        descriptor.isExpect,
-                        isFakeOverride = false
+                        startOffset = offset,
+                        endOffset = offset,
+                        origin = IrDeclarationOrigin.SYNTHETIC_JAVA_PROPERTY_DELEGATE,
+                        name = descriptor.name,
+                        visibility = descriptor.visibility,
+                        modality = descriptor.modality,
+                        symbol = symbol,
+                        isVar = descriptor.isVar,
+                        isConst = descriptor.isConst,
+                        isLateinit = descriptor.isLateInit,
+                        isDelegated = descriptor.isDelegated,
+                        isExternal = descriptor.isExternal,
+                        isExpect = descriptor.isExpect,
                     ).also {
                         it.parent = scope.getLocalDeclarationParent()
                     }

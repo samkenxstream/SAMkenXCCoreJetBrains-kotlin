@@ -253,7 +253,7 @@ abstract class KotlinLibraryProperResolverWithAttributes<L : KotlinLibrary>(
             return false
         }
 
-        candidate.manifestProperties["ir_provider"]?.let {
+        candidate.irProviderName?.let {
             if (it !in knownIrProviders) {
                 logger.warning("skipping $candidatePath. The library requires unknown IR provider $it.")
                 return false

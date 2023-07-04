@@ -14,10 +14,10 @@ import org.jetbrains.kotlin.gradle.testbase.extractNativeCompilerCommandLineArgu
 import org.jetbrains.kotlin.gradle.transformProjectWithPluginsDsl
 import org.jetbrains.kotlin.gradle.util.modify
 import org.jetbrains.kotlin.gradle.utils.NativeCompilerDownloader
-import org.jetbrains.kotlin.gradle.utils.Xcode
-import org.jetbrains.kotlin.gradle.utils.XcodeVersion
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.target.Xcode
+import org.jetbrains.kotlin.konan.target.XcodeVersion
 import org.jetbrains.kotlin.konan.target.presetName
 import org.jetbrains.kotlin.konan.util.DependencyDirectories
 import org.junit.Assume
@@ -174,30 +174,6 @@ class NativeDownloadAndPlatformLibsIT : BaseGradleIT() {
     }
 
     @Test
-    fun testDeprecatedRestrictedDistributionProperty() = with(platformLibrariesProject("linuxX64")) {
-        // We allow using this deprecated property for 1.4 too. Just download the distribution without platform libs in this case.
-        build("tasks", "-Pkotlin.native.restrictedDistribution=true") {
-            assertSuccessful()
-            assertContains("Warning: Project property 'kotlin.native.restrictedDistribution' is deprecated. Please use 'kotlin.native.distribution.type=light' instead")
-            assertContainsRegex("Kotlin/Native distribution: .*kotlin-native-$platformName".toRegex())
-        }
-    }
-
-    @Test
-    fun testSettingGenerationMode() = with(platformLibrariesProject("linuxX64")) {
-        // Check that user can change generation mode used by the cinterop tool.
-        buildWithLightDist("tasks", "-Pkotlin.native.platform.libraries.mode=metadata") {
-            assertSuccessful()
-            assertTrue(
-                extractNativeCompilerCommandLineArguments(
-                    taskOutput = output,
-                    toolName = NativeToolKind.GENERATE_PLATFORM_LIBRARIES
-                ).containsSequentially("-mode", "metadata")
-            )
-        }
-    }
-
-    @Test
     fun testCompilerReinstallation() = with(platformLibrariesProject("linuxX64")) {
         // Install the compiler at the first time. Don't build to reduce execution time.
         buildWithLightDist("tasks") {
@@ -254,7 +230,7 @@ class NativeDownloadAndPlatformLibsIT : BaseGradleIT() {
 
         if (HostManager.hostIsMac) {
             // Building platform libs require Xcode 14.1
-            Assume.assumeTrue(Xcode!!.currentVersion >= XcodeVersion(14, 1))
+            Assume.assumeTrue(Xcode.findCurrent().version >= XcodeVersion(14, 1))
         }
 
         with(transformNativeTestProjectWithPluginDsl("native-download-maven")) {

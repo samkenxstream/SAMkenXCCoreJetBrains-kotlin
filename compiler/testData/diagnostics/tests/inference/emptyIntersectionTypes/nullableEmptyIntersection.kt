@@ -1,4 +1,3 @@
-// FIR_IDENTICAL
 // !LANGUAGE: -ForbidInferringTypeVariablesIntoEmptyIntersection
 fun <T : <!FINAL_UPPER_BOUND!>String<!>> g(): T? = null
 

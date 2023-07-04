@@ -5,8 +5,6 @@
 
 package org.jetbrains.kotlin.analysis.api.fir.components
 
-import com.intellij.openapi.diagnostic.Logger
-import org.jetbrains.kotlin.analysis.api.KtAnalysisApiInternals
 import org.jetbrains.kotlin.analysis.api.calls.*
 import org.jetbrains.kotlin.analysis.api.diagnostics.KtDiagnostic
 import org.jetbrains.kotlin.analysis.api.diagnostics.KtNonBoundToPsiErrorDiagnostic
@@ -28,18 +26,15 @@ import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.types.KtSubstitutor
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFir
-import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirSafe
+import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbolOfTypeSafe
 import org.jetbrains.kotlin.analysis.low.level.api.fir.resolver.AllCandidatesResolver
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.withFirEntry
-import org.jetbrains.kotlin.analysis.utils.errors.ExceptionAttachmentBuilder
-import org.jetbrains.kotlin.analysis.utils.errors.logErrorWithAttachment
 import org.jetbrains.kotlin.analysis.utils.errors.rethrowExceptionWithDetails
 import org.jetbrains.kotlin.analysis.utils.errors.withPsiEntry
 import org.jetbrains.kotlin.analysis.utils.printer.parentOfType
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.analysis.checkers.toRegularClassSymbol
-import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.declarations.fullyExpandedClass
@@ -53,7 +48,6 @@ import org.jetbrains.kotlin.fir.references.*
 import org.jetbrains.kotlin.fir.resolve.calls.AbstractCandidate
 import org.jetbrains.kotlin.fir.resolve.calls.Candidate
 import org.jetbrains.kotlin.fir.resolve.createConeDiagnosticForCandidateWithError
-import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeDiagnosticWithCandidates
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeHiddenCandidateError
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
@@ -77,8 +71,6 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.util.OperatorNameConventions.EQUALS
 import org.jetbrains.kotlin.utils.addIfNotNull
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
-
-private val LOG: Logger = Logger.getInstance(KtFirCallResolver::class.java)
 
 internal class KtFirCallResolver(
     override val analysisSession: KtFirAnalysisSession,
@@ -797,9 +789,8 @@ internal class KtFirCallResolver(
     }
 
     private fun FirExpression.toKtReceiverValue(): KtReceiverValue? {
-        val psi = psi
-        return when (this) {
-            is FirSmartCastExpression -> {
+        return when {
+            this is FirSmartCastExpression -> {
                 val result = originalExpression.toKtReceiverValue()
                 if (result != null && isStable) {
                     KtSmartCastedReceiverValue(result, smartcastType.coneType.asKtType())
@@ -807,21 +798,17 @@ internal class KtFirCallResolver(
                     result
                 }
             }
-            is FirThisReceiverExpression -> {
-                if (psi == null) {
-                    val implicitPartiallyAppliedSymbol = when (val partiallyAppliedSymbol = calleeReference.boundSymbol) {
-                        is FirClassSymbol<*> -> partiallyAppliedSymbol.toKtSymbol()
-                        is FirCallableSymbol<*> -> firSymbolBuilder.callableBuilder.buildExtensionReceiverSymbol(partiallyAppliedSymbol)
-                            ?: return null
-                        else -> return null
-                    }
-                    KtImplicitReceiverValue(implicitPartiallyAppliedSymbol, typeRef.coneType.asKtType())
-                } else {
-                    if (psi !is KtExpression) return null
-                    psi.toExplicitReceiverValue(typeRef.coneType.asKtType())
+            this is FirThisReceiverExpression && this.isImplicit -> {
+                val implicitPartiallyAppliedSymbol = when (val partiallyAppliedSymbol = calleeReference.boundSymbol) {
+                    is FirClassSymbol<*> -> partiallyAppliedSymbol.toKtSymbol()
+                    is FirCallableSymbol<*> -> firSymbolBuilder.callableBuilder.buildExtensionReceiverSymbol(partiallyAppliedSymbol)
+                        ?: return null
+                    else -> return null
                 }
+                KtImplicitReceiverValue(implicitPartiallyAppliedSymbol, typeRef.coneType.asKtType())
             }
             else -> {
+                val psi = psi
                 if (psi !is KtExpression) return null
                 psi.toExplicitReceiverValue(typeRef.coneType.asKtType())
             }
@@ -1039,12 +1026,10 @@ internal class KtFirCallResolver(
             }
         }
 
-        val derivedClass = findDerivedClass(psi)
-            ?.getOrBuildFirSafe<FirClass>(firResolveSession)
-            ?: return emptyList()
+        val derivedClass = findDerivedClass(psi)?.resolveToFirSymbolOfTypeSafe<FirClassSymbol<*>>(firResolveSession) ?: return emptyList()
 
         val candidates = AllCandidatesResolver(analysisSession.useSiteSession)
-            .getAllCandidatesForDelegatedConstructor(analysisSession.firResolveSession, this, derivedClass.symbol.toLookupTag(), psi)
+            .getAllCandidatesForDelegatedConstructor(analysisSession.firResolveSession, this, derivedClass.toLookupTag(), psi)
 
         return candidates.mapNotNull {
             convertToKtCallCandidateInfo(
@@ -1291,20 +1276,6 @@ internal class KtFirCallResolver(
                 realPsi.safeAs<KtValueArgument>()?.getArgumentExpression()
             else -> realPsi as? KtExpression
         }
-    }
-
-    @KtAnalysisApiInternals
-    override fun unresolvedKtCallError(psi: KtElement): KtErrorCallInfo {
-        LOG.logErrorWithAttachment("${psi::class.simpleName} should always resolve to a KtCallInfo") {
-            withPsiEntry("psi", psi, analysisSession::getModule)
-            provideAdditionalAttachmentToUnresolvedCall(psi, this)
-        }
-
-        return super.unresolvedKtCallError(psi)
-    }
-
-    private fun provideAdditionalAttachmentToUnresolvedCall(psi: KtElement, builder: ExceptionAttachmentBuilder) {
-        psi.getOrBuildFir(firResolveSession)?.let { builder.withFirEntry("fir", it) }
     }
 
     private inline fun <R> wrapError(element: KtElement, action: () -> R): R {

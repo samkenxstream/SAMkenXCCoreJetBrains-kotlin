@@ -11,10 +11,14 @@ import org.jetbrains.kotlin.diagnostics.KtDiagnosticRenderers
 import org.jetbrains.kotlin.diagnostics.WhenMissingCase
 import org.jetbrains.kotlin.diagnostics.rendering.ContextIndependentParameterRenderer
 import org.jetbrains.kotlin.diagnostics.rendering.Renderer
-import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirModuleData
 import org.jetbrains.kotlin.fir.declarations.utils.*
-import org.jetbrains.kotlin.fir.render
+import org.jetbrains.kotlin.fir.expressions.FirExpression
+import org.jetbrains.kotlin.fir.expressions.calleeReference
+import org.jetbrains.kotlin.fir.expressions.unwrapSmartcastExpression
+import org.jetbrains.kotlin.fir.references.FirNamedReference
+import org.jetbrains.kotlin.fir.references.FirSuperReference
+import org.jetbrains.kotlin.fir.references.FirThisReference
 import org.jetbrains.kotlin.fir.renderer.*
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
@@ -22,6 +26,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.renderReadableWithFqNames
 import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.ClassId
 
 object FirDiagnosticRenderers {
     @OptIn(SymbolInternals::class)
@@ -64,12 +69,17 @@ object FirDiagnosticRenderers {
         }
     }
 
-    val VARIABLE_NAME = Renderer { symbol: FirVariableSymbol<*> ->
-        symbol.name.asString()
+    val CALLEE_NAME = Renderer { element: FirExpression ->
+        when (val reference = element.unwrapSmartcastExpression().calleeReference) {
+            is FirNamedReference -> reference.name.asString()
+            is FirThisReference -> "this"
+            is FirSuperReference -> "super"
+            else -> "???"
+        }
     }
 
-    val FIR = Renderer { element: FirElement ->
-        element.render()
+    val VARIABLE_NAME = Renderer { symbol: FirVariableSymbol<*> ->
+        symbol.name.asString()
     }
 
     val DECLARATION_NAME = Renderer { symbol: FirBasedSymbol<*> ->
@@ -148,7 +158,10 @@ object FirDiagnosticRenderers {
     }
 
     val NAME_OF_CONTAINING_DECLARATION_OR_FILE = Renderer { symbol: CallableId ->
-        val classId = symbol.classId
+        NAME_OF_DECLARATION_OR_FILE.render(symbol.classId)
+    }
+
+    val NAME_OF_DECLARATION_OR_FILE = Renderer { classId: ClassId? ->
         if (classId == null) {
             "file"
         } else {

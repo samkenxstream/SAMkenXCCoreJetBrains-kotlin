@@ -7,6 +7,9 @@ package org.jetbrains.kotlin.gradle.plugin.diagnostics
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.jetbrains.kotlin.gradle.dsl.AndroidMainSourceSetConventionsChecker
+import org.jetbrains.kotlin.gradle.dsl.IosSourceSetConventionChecker
+import org.jetbrains.kotlin.gradle.dsl.PlatformSourceSetConventionsChecker
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
@@ -99,6 +102,18 @@ internal interface KotlinGradleProjectChecker {
             MissingNativeStdlibChecker,
             UnusedSourceSetsChecker,
             AndroidSourceSetLayoutV1SourceSetsNotFoundChecker,
+            TargetsWithAmbiguousConsumableConfigurationsChecker,
+            AndroidPluginWithoutAndroidTargetChecker,
+            NoKotlinTargetsDeclaredChecker,
+            DisabledCinteropCommonizationInHmppProjectChecker,
+            DisabledNativeTargetsChecker,
+            JsEnvironmentChecker,
+            PreHmppDependenciesUsageChecker,
+            ExperimentalK2UsageChecker,
+            KotlinSourceSetTreeDependsOnMismatchChecker,
+            PlatformSourceSetConventionsChecker,
+            AndroidMainSourceSetConventionsChecker,
+            IosSourceSetConventionChecker
         )
     }
 }

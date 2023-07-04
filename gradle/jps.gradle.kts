@@ -70,14 +70,7 @@ fun updateCompilerXml() {
         "libraries/tools/kotlin-gradle-plugin-idea-proto",
         "libraries/tools/kotlin-project-model-tests-generator",
         "repo/gradle-settings-conventions",
-        "wasm/wasm.ir/test", // KT-58111
-        "js/js.tests/test", // KT-58111
-        "js/js.tests/tests-gen", // KT-58111
-        "plugins/kotlinx-serialization/tests", // KT-58111
-        "plugins/kotlinx-serialization/tests-gen", // KT-58111
-        "plugins/atomicfu/atomicfu-compiler/test", // KT-58111
-        "generators/tests/org/jetbrains/kotlin/generators/tests", // KT-58111
-        "plugins/pill/generate-all-tests/test/org/jetbrains/kotlin/pill/generateAllTests", // KT-58111
+        "plugins/fir-plugin-prototype/plugin-annotations",
     )
 
     val d = '$'
@@ -535,7 +528,7 @@ fun RecursiveArtifact.sourceJarsFromConfiguration(configuration: Configuration, 
         .map { it.id.componentIdentifier }
         .filterIsInstance<ProjectComponentIdentifier>()
         .forEach {
-            val jarBaseName = project(it.projectPath).the<BasePluginConvention>().archivesBaseName
+            val jarBaseName = project(it.projectPath).the<BasePluginExtension>().archivesName.get()
             val renamed = renamer("$jarBaseName-sources") + ".jar"
             archive(renamed) {
                 project(it.projectPath)
@@ -560,7 +553,7 @@ fun RecursiveArtifact.jarsFromConfiguration(configuration: Configuration, rename
         .map { it.id.componentIdentifier }
         .filterIsInstance<ProjectComponentIdentifier>()
         .forEach {
-            val jarBaseName = project(it.projectPath).the<BasePluginConvention>().archivesBaseName
+            val jarBaseName = project(it.projectPath).the<BasePluginExtension>().archivesName.get()
             val artifactName = renamer(jarBaseName) + ".jar"
             if (it.projectName in jarArtifactProjects) {
                 artifact(artifactName)

@@ -9,7 +9,6 @@ package test.time
 import test.numbers.assertAlmostEquals
 import kotlin.math.nextDown
 import kotlin.math.pow
-import kotlin.native.concurrent.SharedImmutable
 import kotlin.test.*
 import kotlin.time.*
 import kotlin.random.*
@@ -21,8 +20,7 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.nanoseconds
 import kotlin.time.Duration.Companion.seconds
 
-@SharedImmutable
-private val units = DurationUnit.values()
+private val units = DurationUnit.entries
 
 class DurationTest {
 

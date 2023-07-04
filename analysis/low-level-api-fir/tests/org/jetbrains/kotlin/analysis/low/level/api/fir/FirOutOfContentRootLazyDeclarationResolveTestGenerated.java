@@ -163,6 +163,18 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     }
 
     @Test
+    @TestMetadata("delegateWithImplicitType.kt")
+    public void testDelegateWithImplicitType() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/delegateWithImplicitType.kt");
+    }
+
+    @Test
+    @TestMetadata("delegateWithImplicitTypeInDifferentModules.kt")
+    public void testDelegateWithImplicitTypeInDifferentModules() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/delegateWithImplicitTypeInDifferentModules.kt");
+    }
+
+    @Test
     @TestMetadata("delegatedField.kt")
     public void testDelegatedField() throws Exception {
         runTest("analysis/low-level-api-fir/testdata/lazyResolve/delegatedField.kt");
@@ -403,6 +415,24 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     }
 
     @Test
+    @TestMetadata("substitutionFakeOverride.kt")
+    public void testSubstitutionFakeOverride() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/substitutionFakeOverride.kt");
+    }
+
+    @Test
+    @TestMetadata("substitutionFakeOverrideInDifferentModules.kt")
+    public void testSubstitutionFakeOverrideInDifferentModules() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/substitutionFakeOverrideInDifferentModules.kt");
+    }
+
+    @Test
+    @TestMetadata("substitutionFakeOverrideWithImplicitType.kt")
+    public void testSubstitutionFakeOverrideWithImplicitType() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/substitutionFakeOverrideWithImplicitType.kt");
+    }
+
+    @Test
     @TestMetadata("superTypes.kt")
     public void testSuperTypes() throws Exception {
         runTest("analysis/low-level-api-fir/testdata/lazyResolve/superTypes.kt");
@@ -442,6 +472,12 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     @TestMetadata("typeParameterOfClass.kt")
     public void testTypeParameterOfClass() throws Exception {
         runTest("analysis/low-level-api-fir/testdata/lazyResolve/typeParameterOfClass.kt");
+    }
+
+    @Test
+    @TestMetadata("typeParameterOfClass2.kt")
+    public void testTypeParameterOfClass2() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/typeParameterOfClass2.kt");
     }
 
     @Test
@@ -655,6 +691,12 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
         @Test
         public void testAllFilesPresentInProperties() throws Exception {
             KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/properties"), Pattern.compile("^(.+)\\.kt$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("getterWithDelegation.kt")
+        public void testGetterWithDelegation() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/lazyResolve/properties/getterWithDelegation.kt");
         }
 
         @Test

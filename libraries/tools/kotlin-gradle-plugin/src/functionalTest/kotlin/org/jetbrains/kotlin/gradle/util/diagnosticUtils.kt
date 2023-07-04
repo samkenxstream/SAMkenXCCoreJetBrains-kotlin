@@ -68,15 +68,51 @@ internal fun Project.assertNoDiagnostics() {
     )
 }
 
+/**
+ * Checks that diagnostic with [factory.id] is reported. The exact parameters (if any)
+ * are ignored. If you need to compare the parameters, refer to the overload accepting [ToolingDiagnostic]
+ */
+internal fun Project.assertContainsDiagnostic(factory: ToolingDiagnosticFactory) {
+    kotlinToolingDiagnosticsCollector.getDiagnosticsForProject(this).assertContainsDiagnostic(factory)
+}
+
 internal fun Project.assertContainsDiagnostic(diagnostic: ToolingDiagnostic) {
     kotlinToolingDiagnosticsCollector.getDiagnosticsForProject(this).assertContainsDiagnostic(diagnostic)
 }
 
+private fun Any.withIndent() = this.toString().prependIndent("    ")
+
+internal fun Collection<ToolingDiagnostic>.assertContainsDiagnostic(factory: ToolingDiagnosticFactory) {
+    if (!any { it.id == factory.id }) failDiagnosticNotFound("diagnostic with id ${factory.id} ", this)
+}
+
 internal fun Collection<ToolingDiagnostic>.assertContainsDiagnostic(diagnostic: ToolingDiagnostic) {
-    fun Any.withIndent() = this.toString().prependIndent("    ")
-    if (diagnostic !in this) {
-        fail("Missing diagnostic\n${diagnostic.withIndent()} \nin:\n${this.render().withIndent()}")
+    if (diagnostic !in this) failDiagnosticNotFound("diagnostic $diagnostic\n", this)
+}
+
+private fun failDiagnosticNotFound(diagnosticDescription: String, notFoundInCollection: Collection<ToolingDiagnostic>) {
+    fail("Missing ${diagnosticDescription}in:\n${notFoundInCollection.render().withIndent()}")
+}
+
+internal fun Collection<ToolingDiagnostic>.assertDiagnostics(vararg diagnostics: ToolingDiagnostic) {
+    val expectedDiagnostics = diagnostics.toSet()
+    val actualDiagnostic = this.toSet()
+    if (expectedDiagnostics == actualDiagnostic) return
+
+    val missingDiagnostics = this - expectedDiagnostics
+    val unexpectedDiagnostics = expectedDiagnostics - this
+
+    val errorMessage = buildString {
+        if (missingDiagnostics.isNotEmpty()) {
+            appendLine(missingDiagnostics.joinToString(prefix = "Missing diagnostic\n", separator = "\n") { it.withIndent() })
+        }
+        if (unexpectedDiagnostics.isNotEmpty()) {
+            appendLine(unexpectedDiagnostics.joinToString(prefix = "Unexpected diagnostic\n", separator = "\n") { it.withIndent() })
+        }
+        appendLine("in: \n${actualDiagnostic.render().withIndent()}")
     }
+
+    fail(errorMessage)
 }
 
 internal fun Project.assertNoDiagnostics(id: String) {
@@ -100,4 +136,3 @@ private val expectedDiagnosticsRoot: Path
     get() = resourcesRoot.resolve("expectedDiagnostics")
 
 private fun expectedDiagnosticsFile(projectName: String): File = expectedDiagnosticsRoot.resolve("$projectName.txt").toFile()
-

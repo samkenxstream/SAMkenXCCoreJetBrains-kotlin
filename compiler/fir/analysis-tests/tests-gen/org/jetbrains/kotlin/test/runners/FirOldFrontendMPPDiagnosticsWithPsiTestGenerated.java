@@ -170,9 +170,21 @@ public class FirOldFrontendMPPDiagnosticsWithPsiTestGenerated extends AbstractFi
     }
 
     @Test
+    @TestMetadata("supertypeActualizationWithAny.kt")
+    public void testSupertypeActualizationWithAny() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/supertypeActualizationWithAny.kt");
+    }
+
+    @Test
     @TestMetadata("varSetterVisibility.kt")
     public void testVarSetterVisibility() throws Exception {
         runTest("compiler/testData/diagnostics/tests/multiplatform/varSetterVisibility.kt");
+    }
+
+    @Test
+    @TestMetadata("widerVisibilityInActualClassifier.kt")
+    public void testWiderVisibilityInActualClassifier() throws Exception {
+        runTest("compiler/testData/diagnostics/tests/multiplatform/widerVisibilityInActualClassifier.kt");
     }
 
     @Nested

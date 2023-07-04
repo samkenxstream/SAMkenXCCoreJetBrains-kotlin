@@ -1,4 +1,3 @@
-// FIR_IDENTICAL
 // MODULE: m1-common
 // FILE: common.kt
 
@@ -42,7 +41,7 @@ expect annotation class ClassArrays(
     val s: Array<String> = ["OK"],
     val e: Array<En> = [En.B],
     // val a: Array<Anno> = [Anno()],
-    val k: Array<KClass<*>> = [List::class],
+    val k: Array<KClass<*>> = [List::class], // KT-59581
     vararg val v: Int = [42]
 )
 

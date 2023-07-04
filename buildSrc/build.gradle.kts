@@ -122,7 +122,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib:${project.bootstrapKotlinVersion}")
     implementation("org.jetbrains.kotlin:kotlin-reflect:${project.bootstrapKotlinVersion}")
     implementation("com.google.code.gson:gson:2.8.9") // Workaround for Gradle dependency resolution error
-    implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.6.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-metadata-jvm:0.6.2")
 }
 
 samWithReceiver {
@@ -133,13 +133,10 @@ fun Project.samWithReceiver(configure: org.jetbrains.kotlin.samWithReceiver.grad
     extensions.configure("samWithReceiver", configure)
 
 tasks.withType<KotlinCompile>().configureEach {
-    kotlinOptions {
-        allWarningsAsErrors = true
-        freeCompilerArgs += listOf(
-            "-opt-in=kotlin.RequiresOptIn",
-            "-Xsuppress-version-warnings",
-            "-opt-in=kotlin.ExperimentalStdlibApi"
-        )
+    compilerOptions {
+        allWarningsAsErrors.set(true)
+        optIn.add("kotlin.ExperimentalStdlibApi")
+        freeCompilerArgs.add("-Xsuppress-version-warnings")
     }
 }
 

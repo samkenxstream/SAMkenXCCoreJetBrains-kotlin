@@ -3042,6 +3042,13 @@ standaloneTest("codegen_escapeAnalysis_string") {
     source = "codegen/escapeAnalysis/string.kt"
 }
 
+standaloneTest("codegen_escapeAnalysis_negativeArraySize") {
+    disabled = (cacheTesting != null) || // Cache is not compatible with -opt.
+            project.globalTestArgs.contains('-g') // -g and -opt are incompatible
+    flags = ['-opt', '-tr', '-opt-in=kotlin.native.internal.InternalForKotlinNative']
+    source = "codegen/escapeAnalysis/negativeArraySize.kt"
+}
+
 tasks.register("memory_var1", KonanLocalTest) {
     source = "runtime/memory/var1.kt"
 }
@@ -4126,6 +4133,9 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.defFile 'interop/objc/objCAction/objclib.def'
         it.headers "$projectDir/interop/objc/objCAction/objclib.h"
     }
+    createInterop("kt59167") {
+        it.defFile 'interop/kt59167/kt59167.def'
+    }
 }
 
 createInterop("withSpaces") {
@@ -4933,6 +4943,13 @@ if (PlatformInfo.isAppleTarget(project)) {
             }
         }
         UtilsKt.dependsOnPlatformLibs(it)
+    }
+
+    interopTest("interop_kt59167") {
+        // There is no GameController on watchOS.
+        enabled = target.family != Family.WATCHOS
+        source = 'interop/kt59167/main.kt'
+        interop = 'kt59167'
     }
 }
 
@@ -5809,7 +5826,7 @@ Task pluginTest(String name, String pluginName, Closure configureClosure) {
         from {
             sourceSets[pluginName].output
         }
-        baseName = pluginName
+        archiveBaseName = pluginName
         destinationDirectory = buildDir
     }
     def taskName = "$name-with-$pluginName"
@@ -6190,6 +6207,7 @@ fileCheckTest("filecheck_signext_zeroext_objc_export") {
     annotatedSource = project.file('filecheck/signext_zeroext_objc_export.kt')
     generateFramework = true
     enabled = target.family.appleFamily
+            && !isK2(project) // KT-58863
 }
 
 fileCheckTest("filecheck_function_attributes_at_callsite") {

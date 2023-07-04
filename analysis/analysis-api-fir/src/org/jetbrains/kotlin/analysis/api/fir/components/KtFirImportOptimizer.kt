@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.analysis.api.components.KtImportOptimizer
 import org.jetbrains.kotlin.analysis.api.components.KtImportOptimizerResult
 import org.jetbrains.kotlin.analysis.api.fir.getCandidateSymbols
+import org.jetbrains.kotlin.analysis.api.fir.isImplicitDispatchReceiver
 import org.jetbrains.kotlin.analysis.api.fir.utils.FirBodyReanalyzingVisitorVoid
 import org.jetbrains.kotlin.analysis.api.fir.utils.computeImportableName
 import org.jetbrains.kotlin.analysis.api.lifetime.KtLifetimeToken
@@ -33,10 +34,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.types.FirErrorTypeRef
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.classId
-import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.name.parentOrNull
+import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getCallNameExpression
 import org.jetbrains.kotlin.psi.psiUtil.getPossiblyQualifiedCallExpression
@@ -126,6 +124,11 @@ internal class KtFirImportOptimizer(
                 super.visitImplicitInvokeCall(implicitInvokeCall)
             }
 
+            override fun visitComponentCall(componentCall: FirComponentCall) {
+                processFunctionCall(componentCall)
+                super.visitComponentCall(componentCall)
+            }
+
             override fun visitPropertyAccessExpression(propertyAccessExpression: FirPropertyAccessExpression) {
                 processPropertyAccessExpression(propertyAccessExpression)
                 super.visitPropertyAccessExpression(propertyAccessExpression)
@@ -178,17 +181,13 @@ internal class KtFirImportOptimizer(
                 processErrorNameReference(functionCall)
 
                 val referencesByName = functionCall.functionReferenceName ?: return
-                val functionSymbol = functionCall.referencedCallableSymbol ?: return
-
-                saveCallable(functionSymbol, referencesByName)
+                saveCallable(functionCall, referencesByName)
             }
 
             private fun processImplicitFunctionCall(implicitInvokeCall: FirImplicitInvokeCall) {
                 processErrorNameReference(implicitInvokeCall)
 
-                val functionSymbol = implicitInvokeCall.referencedCallableSymbol ?: return
-
-                saveCallable(functionSymbol, OperatorNameConventions.INVOKE)
+                saveCallable(implicitInvokeCall, OperatorNameConventions.INVOKE)
             }
 
             private fun processPropertyAccessExpression(propertyAccessExpression: FirPropertyAccessExpression) {
@@ -196,9 +195,8 @@ internal class KtFirImportOptimizer(
                 processErrorNameReference(propertyAccessExpression)
 
                 val referencedByName = propertyAccessExpression.propertyReferenceName ?: return
-                val propertySymbol = propertyAccessExpression.referencedCallableSymbol ?: return
 
-                saveCallable(propertySymbol, referencedByName)
+                saveCallable(propertyAccessExpression, referencedByName)
             }
 
             private fun processTypeRef(resolvedTypeRef: FirResolvedTypeRef) {
@@ -212,9 +210,7 @@ internal class KtFirImportOptimizer(
                 processErrorNameReference(callableReferenceAccess)
 
                 val referencedByName = callableReferenceAccess.callableReferenceName ?: return
-                val resolvedSymbol = callableReferenceAccess.referencedCallableSymbol ?: return
-
-                saveCallable(resolvedSymbol, referencedByName)
+                saveCallable(callableReferenceAccess, referencedByName)
             }
 
             private fun processResolvedQualifier(resolvedQualifier: FirResolvedQualifier) {
@@ -237,10 +233,56 @@ internal class KtFirImportOptimizer(
                 saveReferencedItem(importableName, referencedByName)
             }
 
-            private fun saveCallable(resolvedSymbol: FirCallableSymbol<*>, referencedByName: Name) {
-                val importableName = resolvedSymbol.computeImportableName(firSession) ?: return
+            private fun saveCallable(qualifiedCall: FirQualifiedAccessExpression, referencedByName: Name) {
+                val importableName = importableNameForReferencedSymbol(qualifiedCall) ?: return
 
                 saveReferencedItem(importableName, referencedByName)
+            }
+
+            private fun importableNameForReferencedSymbol(qualifiedCall: FirQualifiedAccessExpression): FqName? {
+                return qualifiedCall.importableNameForImplicitlyDispatchedCallable()
+                    ?: qualifiedCall.referencedCallableSymbol?.computeImportableName(firSession)
+            }
+
+            /**
+             * Returns correct importable name for implicitly dispatched callable - that is, a callable
+             * which has a dispatch receiver, but whose dispatch receiver is present implicitly. The most
+             * important case for that is the following:
+             *
+             * ```kt
+             * import MyObject.bar
+             *
+             * open class Base { fun bar() {} }
+             *
+             * object MyObject : Base()
+             *
+             * fun test() {
+             *   bar()
+             * }
+             * ```
+             *
+             * For the `bar()` call, `MyObject` instance is an implicit dispatch receiver.
+             *
+             * In such case, [FirQualifiedAccessExpression] representing the call references
+             * the original `Base.bar` callable symbol instead of `MyObject.bar`, because there are
+             * no separate symbol for that case.
+             *
+             * Java statics present a similar case - they can be imported not only from the declaring class,
+             * but also from any subclass.
+             */
+            private fun FirQualifiedAccessExpression.importableNameForImplicitlyDispatchedCallable(): FqName? {
+                val dispatchReceiver = dispatchReceiver
+                if (
+                    dispatchReceiver !is FirResolvedQualifier ||
+                    !dispatchReceiver.isImplicitDispatchReceiver
+                ) {
+                    return null
+                }
+
+                val dispatcherClass = dispatchReceiver.classId ?: return null
+                val referencedSymbolName = referencedCallableSymbol?.name ?: return null
+
+                return CallableId(dispatcherClass, referencedSymbolName).asSingleFqName()
             }
 
             private fun saveReferencedItem(importableName: FqName, referencedByName: Name) {
@@ -271,7 +313,7 @@ private val ConeUnresolvedError.unresolvedName: Name?
 
 
 /**
- * An actual name by which this callable reference were used.
+ * An actual name by which this callable reference was used.
  */
 private val FirCallableReferenceAccess.callableReferenceName: Name?
     get() {

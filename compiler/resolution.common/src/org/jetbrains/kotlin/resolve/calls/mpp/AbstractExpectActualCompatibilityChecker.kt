@@ -106,7 +106,7 @@ object AbstractExpectActualCompatibilityChecker {
             return Incompatible.Modality
         }
 
-        if (expectClassSymbol.visibility != actualClass.visibility) {
+        if (!areCompatibleClassVisibilities(expectClassSymbol, actualClass)) {
             return Incompatible.Visibility
         }
 
@@ -122,17 +122,7 @@ object AbstractExpectActualCompatibilityChecker {
             }
         }
 
-        // Subtract kotlin.Any from supertypes because it's implicitly added if no explicit supertype is specified,
-        // and not added if an explicit supertype _is_ specified
-        val expectSupertypes = expectClassSymbol.superTypes.filterNot { it.typeConstructor().isAnyConstructor() }
-        val actualSupertypes = actualClass.superTypes.filterNot { it.typeConstructor().isAnyConstructor() }
-        if (
-            expectSupertypes.map { substitutor.safeSubstitute(it) }.any { expectSupertype ->
-                actualSupertypes.none { actualSupertype ->
-                    areCompatibleExpectActualTypes(expectSupertype, actualSupertype)
-                }
-            }
-        ) {
+        if (!areCompatibleSupertypes(expectClassSymbol, actualClass, substitutor)) {
             return Incompatible.Supertypes
         }
 
@@ -143,6 +133,52 @@ object AbstractExpectActualCompatibilityChecker {
         }
 
         return ExpectActualCompatibility.Compatible
+    }
+
+    context(ExpectActualMatchingContext<*>)
+    private fun areCompatibleSupertypes(
+        expectClassSymbol: RegularClassSymbolMarker,
+        actualClassSymbol: RegularClassSymbolMarker,
+        substitutor: TypeSubstitutorMarker,
+    ): Boolean {
+        return when (allowTransitiveSupertypesActualization) {
+            false -> areCompatibleSupertypesOneByOne(expectClassSymbol, actualClassSymbol, substitutor)
+            true -> areCompatibleSupertypesTransitive(expectClassSymbol, actualClassSymbol, substitutor)
+        }
+    }
+
+    context(ExpectActualMatchingContext<*>)
+    private fun areCompatibleSupertypesOneByOne(
+        expectClassSymbol: RegularClassSymbolMarker,
+        actualClassSymbol: RegularClassSymbolMarker,
+        substitutor: TypeSubstitutorMarker,
+    ): Boolean {
+        // Subtract kotlin.Any from supertypes because it's implicitly added if no explicit supertype is specified,
+        // and not added if an explicit supertype _is_ specified
+        val expectSupertypes = expectClassSymbol.superTypes.filterNot { it.typeConstructor().isAnyConstructor() }
+        val actualSupertypes = actualClassSymbol.superTypes.filterNot { it.typeConstructor().isAnyConstructor() }
+        return expectSupertypes.all { expectSupertype ->
+            val substitutedExpectType = substitutor.safeSubstitute(expectSupertype)
+            actualSupertypes.any { actualSupertype ->
+                areCompatibleExpectActualTypes(substitutedExpectType, actualSupertype)
+            }
+        }
+    }
+
+    context(ExpectActualMatchingContext<*>)
+    private fun areCompatibleSupertypesTransitive(
+        expectClassSymbol: RegularClassSymbolMarker,
+        actualClassSymbol: RegularClassSymbolMarker,
+        substitutor: TypeSubstitutorMarker,
+    ): Boolean {
+        val expectSupertypes = expectClassSymbol.superTypes.filterNot { it.typeConstructor().isAnyConstructor() }
+        val actualType = actualClassSymbol.defaultType
+        return expectSupertypes.all { expectSupertype ->
+            actualTypeIsSubtypeOfExpectType(
+                expectType = substitutor.safeSubstitute(expectSupertype),
+                actualType = actualType
+            )
+        }
     }
 
     context(ExpectActualMatchingContext<*>)
@@ -330,7 +366,7 @@ object AbstractExpectActualCompatibilityChecker {
             return Incompatible.Modality
         }
 
-        if (!areDeclarationsWithCompatibleVisibilities(expectDeclaration.visibility, expectModality, actualDeclaration.visibility)) {
+        if (!areCompatibleCallableVisibilities(expectDeclaration.visibility, expectModality, actualDeclaration.visibility)) {
             return Incompatible.Visibility
         }
 
@@ -436,7 +472,7 @@ object AbstractExpectActualCompatibilityChecker {
         Modality.SEALED to enumSetOf(Modality.SEALED),
     )
 
-    private fun areDeclarationsWithCompatibleVisibilities(
+    private fun areCompatibleCallableVisibilities(
         expectVisibility: Visibility,
         expectModality: Modality?,
         actualVisibility: Visibility,
@@ -449,6 +485,19 @@ object AbstractExpectActualCompatibilityChecker {
             // For non-overridable declarations actuals are allowed to have more permissive visibility
             compare != null && compare <= 0
         }
+    }
+
+    context(ExpectActualMatchingContext<*>)
+    private fun areCompatibleClassVisibilities(
+        expectClassSymbol: RegularClassSymbolMarker,
+        actualClassSymbol: RegularClassSymbolMarker,
+    ): Boolean {
+        val expectVisibility = expectClassSymbol.visibility
+        val actualVisibility = actualClassSymbol.visibility
+        if (expectVisibility == actualVisibility) return true
+        if (!allowClassActualizationWithWiderVisibility) return false
+        val result = Visibilities.compare(actualVisibility, expectVisibility)
+        return result != null && result > 0
     }
 
     context(ExpectActualMatchingContext<*>)
@@ -525,7 +574,7 @@ object AbstractExpectActualCompatibilityChecker {
     ): Boolean {
         val expectedSetter = expected.setter ?: return true
         val actualSetter = actual.setter ?: return true
-        return areDeclarationsWithCompatibleVisibilities(expectedSetter.visibility, expectedSetter.modality, actualSetter.visibility)
+        return areCompatibleCallableVisibilities(expectedSetter.visibility, expectedSetter.modality, actualSetter.visibility)
     }
 
     // ---------------------------------------- Utils ----------------------------------------

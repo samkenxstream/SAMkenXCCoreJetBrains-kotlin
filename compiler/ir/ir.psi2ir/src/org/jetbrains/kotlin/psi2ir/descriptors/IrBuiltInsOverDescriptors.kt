@@ -103,23 +103,22 @@ class IrBuiltInsOverDescriptors(
         }
 
         val symbol = symbolTable.declareSimpleFunctionIfNotExists(operatorDescriptor) {
-            val operator = irFactory.createFunction(
-                UNDEFINED_OFFSET,
-                UNDEFINED_OFFSET,
-                BUILTIN_OPERATOR,
-                it,
-                Name.identifier(name),
-                DescriptorVisibilities.PUBLIC,
-                Modality.FINAL,
-                returnType,
+            val operator = irFactory.createSimpleFunction(
+                startOffset = UNDEFINED_OFFSET,
+                endOffset = UNDEFINED_OFFSET,
+                origin = BUILTIN_OPERATOR,
+                name = Name.identifier(name),
+                visibility = DescriptorVisibilities.PUBLIC,
                 isInline = false,
-                isExternal = false,
+                isExpect = false,
+                returnType = returnType,
+                modality = Modality.FINAL,
+                symbol = it,
                 isTailrec = false,
                 isSuspend = false,
                 isOperator = false,
                 isInfix = false,
-                isExpect = false,
-                isFakeOverride = false
+                isExternal = false,
             )
             operator.parent = operatorsPackageFragment
             operatorsPackageFragment.declarations += operator
@@ -128,8 +127,18 @@ class IrBuiltInsOverDescriptors(
                 val valueParameterDescriptor = operatorDescriptor.valueParameters[i]
                 val valueParameterSymbol = IrValueParameterSymbolImpl(valueParameterDescriptor)
                 irFactory.createValueParameter(
-                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, BUILTIN_OPERATOR, valueParameterSymbol, Name.identifier("arg$i"), i,
-                    valueParameterType, null, isCrossinline = false, isNoinline = false, isHidden = false, isAssignable = false
+                    startOffset = UNDEFINED_OFFSET,
+                    endOffset = UNDEFINED_OFFSET,
+                    origin = BUILTIN_OPERATOR,
+                    name = Name.identifier("arg$i"),
+                    type = valueParameterType,
+                    isAssignable = false,
+                    symbol = valueParameterSymbol,
+                    index = i,
+                    varargElementType = null,
+                    isCrossinline = false,
+                    isNoinline = false,
+                    isHidden = false
                 ).apply {
                     parent = operator
                 }
@@ -211,21 +220,40 @@ class IrBuiltInsOverDescriptors(
                 buildSimpleType()
             }
 
-            irFactory.createFunction(
-                UNDEFINED_OFFSET, UNDEFINED_OFFSET, BUILTIN_OPERATOR,
-                operatorSymbol, name,
-                DescriptorVisibilities.PUBLIC, Modality.FINAL,
-                returnIrType,
-                isInline = false, isExternal = false, isTailrec = false, isSuspend = false, isOperator = false, isInfix = false,
-                isExpect = false, isFakeOverride = false
+            irFactory.createSimpleFunction(
+                startOffset = UNDEFINED_OFFSET,
+                endOffset = UNDEFINED_OFFSET,
+                origin = BUILTIN_OPERATOR,
+                name = name,
+                visibility = DescriptorVisibilities.PUBLIC,
+                isInline = false,
+                isExpect = false,
+                returnType = returnIrType,
+                modality = Modality.FINAL,
+                symbol = operatorSymbol,
+                isTailrec = false,
+                isSuspend = false,
+                isOperator = false,
+                isInfix = false,
+                isExternal = false,
             ).also { operator ->
                 operator.parent = operatorsPackageFragment
                 operatorsPackageFragment.declarations += operator
 
                 val valueParameterSymbol = IrValueParameterSymbolImpl(valueParameterDescriptor)
                 val valueParameter = irFactory.createValueParameter(
-                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, BUILTIN_OPERATOR, valueParameterSymbol, Name.identifier("arg0"), 0,
-                    valueIrType, null, isCrossinline = false, isNoinline = false, isHidden = false, isAssignable = false
+                    startOffset = UNDEFINED_OFFSET,
+                    endOffset = UNDEFINED_OFFSET,
+                    origin = BUILTIN_OPERATOR,
+                    name = Name.identifier("arg0"),
+                    type = valueIrType,
+                    isAssignable = false,
+                    symbol = valueParameterSymbol,
+                    index = 0,
+                    varargElementType = null,
+                    isCrossinline = false,
+                    isNoinline = false,
+                    isHidden = false,
                 )
 
                 valueParameter.parent = operator
@@ -340,6 +368,7 @@ class IrBuiltInsOverDescriptors(
     override val kCallableClass = builtIns.kCallable.toIrSymbol()
     override val kPropertyClass = builtIns.kProperty.toIrSymbol()
     override val kClassClass = builtIns.kClass.toIrSymbol()
+    override val kTypeClass = builtIns.kType.toIrSymbol()
 
     override val kProperty0Class = builtIns.kProperty0.toIrSymbol()
     override val kProperty1Class = builtIns.kProperty1.toIrSymbol()

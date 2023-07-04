@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.lexer.KtKeywordToken
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken
 import org.jetbrains.kotlin.name.CallableId
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
@@ -103,6 +104,8 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
     val UNRESOLVED by object : DiagnosticGroup("Unresolved") {
         val INVISIBLE_REFERENCE by error<PsiElement>(PositioningStrategy.REFERENCE_BY_QUALIFIED) {
             parameter<Symbol>("reference")
+            parameter<Visibility>("visible")
+            parameter<ClassId?>("containingDeclaration")
         }
         val UNRESOLVED_REFERENCE by error<PsiElement>(PositioningStrategy.REFERENCED_NAME_BY_QUALIFIED) {
             parameter<String>("reference")
@@ -158,6 +161,15 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
         val FUNCTION_EXPECTED by error<PsiElement>(PositioningStrategy.REFERENCED_NAME_BY_QUALIFIED) {
             parameter<String>("expression")
             parameter<ConeKotlinType>("type")
+        }
+        val INTERFACE_AS_FUNCTION by error<PsiElement> {
+            parameter<FirRegularClassSymbol>("classSymbol")
+        }
+        val EXPECT_CLASS_AS_FUNCTION by error<PsiElement> {
+            parameter<FirRegularClassSymbol>("classSymbol")
+        }
+        val INNER_CLASS_CONSTRUCTOR_NO_RECEIVER by error<PsiElement> {
+            parameter<FirRegularClassSymbol>("classSymbol")
         }
         val RESOLUTION_TO_CLASSIFIER by error<PsiElement> {
             parameter<FirRegularClassSymbol>("classSymbol")
@@ -1134,7 +1146,7 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
             parameter<Map<ExpectActualCompatibility<Symbol>, Collection<Symbol>>>("compatibility")
         }
 
-        val ACTUAL_WITHOUT_EXPECT by error<KtNamedDeclaration> {
+        val ACTUAL_WITHOUT_EXPECT by error<KtNamedDeclaration>(PositioningStrategy.DECLARATION_NAME_ONLY) {
             parameter<Symbol>("declaration")
             parameter<Map<ExpectActualCompatibility<Symbol>, Collection<Symbol>>>("compatibility")
         }
@@ -1224,7 +1236,6 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
             parameter<Set<KtSourceElement>>("unreachable")
         }
         val SENSELESS_COMPARISON by warning<KtExpression> {
-            parameter<FirExpression>("expression")
             parameter<Boolean>("compareResult")
         }
         val SENSELESS_NULL_IN_WHEN by warning<KtElement>()
@@ -1240,11 +1251,13 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
             parameter<ConeKotlinType>("receiverType")
         }
         val UNSAFE_INFIX_CALL by error<KtExpression>(PositioningStrategy.REFERENCE_BY_QUALIFIED) {
+            parameter<ConeKotlinType>("receiverType")
             parameter<FirExpression>("receiverExpression")
             parameter<String>("operator")
             parameter<FirExpression>("argumentExpression")
         }
         val UNSAFE_OPERATOR_CALL by error<KtExpression>(PositioningStrategy.REFERENCE_BY_QUALIFIED) {
+            parameter<ConeKotlinType>("receiverType")
             parameter<FirExpression>("receiverExpression")
             parameter<String>("operator")
             parameter<FirExpression>("argumentExpression")
@@ -1508,7 +1521,6 @@ object DIAGNOSTICS_LIST : DiagnosticList("FirErrors") {
         val NON_INTERNAL_PUBLISHED_API by error<KtElement>()
 
         val INVALID_DEFAULT_FUNCTIONAL_PARAMETER_FOR_INLINE by error<KtElement>() {
-            parameter<FirExpression>("defaultValue")
             parameter<FirValueParameterSymbol>("parameter")
         }
 

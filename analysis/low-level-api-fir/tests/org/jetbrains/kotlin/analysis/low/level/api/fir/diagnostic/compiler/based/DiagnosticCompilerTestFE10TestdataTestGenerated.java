@@ -3323,6 +3323,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             }
 
             @Test
+            @TestMetadata("genericTypealiasInLhs.kt")
+            public void testGenericTypealiasInLhs() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/callableReference/genericTypealiasInLhs.kt");
+            }
+
+            @Test
             @TestMetadata("kt15439_completeCall.kt")
             public void testKt15439_completeCall() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/callableReference/kt15439_completeCall.kt");
@@ -4040,6 +4046,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 }
 
                 @Test
+                @TestMetadata("boundViolated.kt")
+                public void testBoundViolated() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/callableReference/generic/boundViolated.kt");
+                }
+
+                @Test
                 @TestMetadata("dependOnArgumentType.kt")
                 public void testDependOnArgumentType() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/callableReference/generic/dependOnArgumentType.kt");
@@ -4067,6 +4079,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 @TestMetadata("genericFunctionsWithNullableTypes.kt")
                 public void testGenericFunctionsWithNullableTypes() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/callableReference/generic/genericFunctionsWithNullableTypes.kt");
+                }
+
+                @Test
+                @TestMetadata("incorrectNumberOfTypeArguments.kt")
+                public void testIncorrectNumberOfTypeArguments() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/callableReference/generic/incorrectNumberOfTypeArguments.kt");
                 }
 
                 @Test
@@ -4577,6 +4595,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 @TestMetadata("callableReferenceToLocalVariable.kt")
                 public void testCallableReferenceToLocalVariable() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/callableReference/unsupported/callableReferenceToLocalVariable.kt");
+                }
+
+                @Test
+                @TestMetadata("classLiteralsWithEmptyLHS.kt")
+                public void testClassLiteralsWithEmptyLHS() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/callableReference/unsupported/classLiteralsWithEmptyLHS.kt");
                 }
 
                 @Test
@@ -5366,6 +5390,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             @TestMetadata("nonClassesOnLHS.kt")
             public void testNonClassesOnLHS() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/classLiteral/nonClassesOnLHS.kt");
+            }
+
+            @Test
+            @TestMetadata("parameterizedTypeAlias.kt")
+            public void testParameterizedTypeAlias() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/classLiteral/parameterizedTypeAlias.kt");
             }
 
             @Test
@@ -7304,6 +7334,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             @TestMetadata("whenToAnyDiscriminatingUsages.kt")
             public void testWhenToAnyDiscriminatingUsages() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/controlStructures/whenToAnyDiscriminatingUsages.kt");
+            }
+
+            @Test
+            @TestMetadata("whenWithNoSubjectAndCommas.kt")
+            public void testWhenWithNoSubjectAndCommas() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/controlStructures/whenWithNoSubjectAndCommas.kt");
             }
 
             @Test
@@ -11054,6 +11090,18 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 }
 
                 @Test
+                @TestMetadata("conflictingPropertyEntriesAndReferenceOn.kt")
+                public void testConflictingPropertyEntriesAndReferenceOn() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/conflictingPropertyEntriesAndReferenceOn.kt");
+                }
+
+                @Test
+                @TestMetadata("conflictingPropertyEntriesAndReferencePrioritized.kt")
+                public void testConflictingPropertyEntriesAndReferencePrioritized() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/conflictingPropertyEntriesAndReferencePrioritized.kt");
+                }
+
+                @Test
                 @TestMetadata("entriesPropertyAsExtensionClash.kt")
                 public void testEntriesPropertyAsExtensionClash() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/enum/entries/entriesPropertyAsExtensionClash.kt");
@@ -11066,6 +11114,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 }
 
                 @Test
+                @TestMetadata("entriesPropertyAsExtensionClashPrioritized.kt")
+                public void testEntriesPropertyAsExtensionClashPrioritized() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/entriesPropertyAsExtensionClashPrioritized.kt");
+                }
+
+                @Test
                 @TestMetadata("entriesPropertyImportedClash.kt")
                 public void testEntriesPropertyImportedClash() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/enum/entries/entriesPropertyImportedClash.kt");
@@ -11075,6 +11129,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 @TestMetadata("entriesPropertyImportedClashOn.kt")
                 public void testEntriesPropertyImportedClashOn() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/enum/entries/entriesPropertyImportedClashOn.kt");
+                }
+
+                @Test
+                @TestMetadata("entriesPropertyImportedClashPrioritized.kt")
+                public void testEntriesPropertyImportedClashPrioritized() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/entriesPropertyImportedClashPrioritized.kt");
                 }
 
                 @Test
@@ -11096,6 +11156,18 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 }
 
                 @Test
+                @TestMetadata("entriesPropertyWithJvmStaticClashOn.kt")
+                public void testEntriesPropertyWithJvmStaticClashOn() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/entriesPropertyWithJvmStaticClashOn.kt");
+                }
+
+                @Test
+                @TestMetadata("entriesPropertyWithJvmStaticClashPrioritized.kt")
+                public void testEntriesPropertyWithJvmStaticClashPrioritized() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/entriesPropertyWithJvmStaticClashPrioritized.kt");
+                }
+
+                @Test
                 @TestMetadata("entriesUnsupported.kt")
                 public void testEntriesUnsupported() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/enum/entries/entriesUnsupported.kt");
@@ -11114,9 +11186,27 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 }
 
                 @Test
+                @TestMetadata("genericEntriesPropertyClashOn.kt")
+                public void testGenericEntriesPropertyClashOn() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/genericEntriesPropertyClashOn.kt");
+                }
+
+                @Test
                 @TestMetadata("javaEnumEntriesAmbiguity.kt")
                 public void testJavaEnumEntriesAmbiguity() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/enum/entries/javaEnumEntriesAmbiguity.kt");
+                }
+
+                @Test
+                @TestMetadata("javaEnumEntriesAmbiguityOn.kt")
+                public void testJavaEnumEntriesAmbiguityOn() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/javaEnumEntriesAmbiguityOn.kt");
+                }
+
+                @Test
+                @TestMetadata("javaFakeEnumEntries.kt")
+                public void testJavaFakeEnumEntries() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/javaFakeEnumEntries.kt");
                 }
 
                 @Test
@@ -11129,6 +11219,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 @TestMetadata("nameShadowingOfExternallyDefinedEntriesOn.kt")
                 public void testNameShadowingOfExternallyDefinedEntriesOn() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/enum/entries/nameShadowingOfExternallyDefinedEntriesOn.kt");
+                }
+
+                @Test
+                @TestMetadata("nameShadowingOfExternallyDefinedEntriesPrioritized.kt")
+                public void testNameShadowingOfExternallyDefinedEntriesPrioritized() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/enum/entries/nameShadowingOfExternallyDefinedEntriesPrioritized.kt");
                 }
 
                 @Test
@@ -14107,6 +14203,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             }
 
             @Test
+            @TestMetadata("ImportFromCurrentWithDifferentNameComplex.kt")
+            public void testImportFromCurrentWithDifferentNameComplex() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/imports/ImportFromCurrentWithDifferentNameComplex.kt");
+            }
+
+            @Test
             @TestMetadata("ImportFromObject.kt")
             public void testImportFromObject() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/imports/ImportFromObject.kt");
@@ -14323,6 +14425,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             }
 
             @Test
+            @TestMetadata("renamedImportInDifferentFile.kt")
+            public void testRenamedImportInDifferentFile() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/imports/renamedImportInDifferentFile.kt");
+            }
+
+            @Test
             @TestMetadata("StarImportFromObject.kt")
             public void testStarImportFromObject() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/imports/StarImportFromObject.kt");
@@ -14426,6 +14534,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             @TestMetadata("kt4866UnresolvedArrayAccess.kt")
             public void testKt4866UnresolvedArrayAccess() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/incompleteCode/kt4866UnresolvedArrayAccess.kt");
+            }
+
+            @Test
+            @TestMetadata("kt59041.kt")
+            public void testKt59041() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/incompleteCode/kt59041.kt");
             }
 
             @Test
@@ -18685,6 +18799,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             }
 
             @Test
+            @TestMetadata("virtualValInEnum.kt")
+            public void testVirtualValInEnum() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/inline/virtualValInEnum.kt");
+            }
+
+            @Test
             @TestMetadata("when.kt")
             public void testWhen() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/inline/when.kt");
@@ -19631,6 +19751,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             }
 
             @Test
+            @TestMetadata("literalInCompletedGeneric.kt")
+            public void testLiteralInCompletedGeneric() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/integerLiterals/literalInCompletedGeneric.kt");
+            }
+
+            @Test
             @TestMetadata("literalsInInference.kt")
             public void testLiteralsInInference() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/integerLiterals/literalsInInference.kt");
@@ -20160,6 +20286,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             @TestMetadata("specialBridges.kt")
             public void testSpecialBridges() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/j+k/specialBridges.kt");
+            }
+
+            @Test
+            @TestMetadata("staticImportViaInheritance.kt")
+            public void testStaticImportViaInheritance() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/j+k/staticImportViaInheritance.kt");
             }
 
             @Test
@@ -22736,6 +22868,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             @TestMetadata("inferenceFlexibleTToNullable.kt")
             public void testInferenceFlexibleTToNullable() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/nullableTypes/inferenceFlexibleTToNullable.kt");
+            }
+
+            @Test
+            @TestMetadata("kt58844.kt")
+            public void testKt58844() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/nullableTypes/kt58844.kt");
             }
 
             @Test
@@ -27312,6 +27450,24 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 }
 
                 @Test
+                @TestMetadata("avoidTypeCheckerRecursion.kt")
+                public void testAvoidTypeCheckerRecursion() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/resolve/invoke/avoidTypeCheckerRecursion.kt");
+                }
+
+                @Test
+                @TestMetadata("closeInvokesFarVariable.kt")
+                public void testCloseInvokesFarVariable() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/resolve/invoke/closeInvokesFarVariable.kt");
+                }
+
+                @Test
+                @TestMetadata("closerVariableMatterMore.kt")
+                public void testCloserVariableMatterMore() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/resolve/invoke/closerVariableMatterMore.kt");
+                }
+
+                @Test
                 @TestMetadata("completePropertyBeforeInvoke.kt")
                 public void testCompletePropertyBeforeInvoke() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/resolve/invoke/completePropertyBeforeInvoke.kt");
@@ -27327,6 +27483,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 @TestMetadata("functionExpectedWhenSeveralInvokesExist.kt")
                 public void testFunctionExpectedWhenSeveralInvokesExist() throws Exception {
                     runTest("compiler/testData/diagnostics/tests/resolve/invoke/functionExpectedWhenSeveralInvokesExist.kt");
+                }
+
+                @Test
+                @TestMetadata("implicitAndInvokeExtensionPriority.kt")
+                public void testImplicitAndInvokeExtensionPriority() throws Exception {
+                    runTest("compiler/testData/diagnostics/tests/resolve/invoke/implicitAndInvokeExtensionPriority.kt");
                 }
 
                 @Test
@@ -29626,6 +29788,12 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
             @Test
             public void testAllFilesPresentInSenselessComparison() throws Exception {
                 KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/tests/senselessComparison"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|fir|ll)\\.kts?$"), true, "multiplatform");
+            }
+
+            @Test
+            @TestMetadata("complexExpression.kt")
+            public void testComplexExpression() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/senselessComparison/complexExpression.kt");
             }
 
             @Test
@@ -39116,6 +39284,22 @@ public class DiagnosticCompilerTestFE10TestdataTestGenerated extends AbstractDia
                 public void testValid() throws Exception {
                     runTest("compiler/testData/diagnostics/testsWithStdLib/coroutines/tailCalls/valid.kt");
                 }
+            }
+        }
+
+        @Nested
+        @TestMetadata("compiler/testData/diagnostics/testsWithStdLib/delegateInference")
+        @TestDataPath("$PROJECT_ROOT")
+        public class DelegateInference {
+            @Test
+            public void testAllFilesPresentInDelegateInference() throws Exception {
+                KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/diagnostics/testsWithStdLib/delegateInference"), Pattern.compile("^(.+)\\.kt$"), Pattern.compile("^(.+)\\.(reversed|fir|ll)\\.kts?$"), true);
+            }
+
+            @Test
+            @TestMetadata("ifWithCallableReferenceInLazy.kt")
+            public void testIfWithCallableReferenceInLazy() throws Exception {
+                runTest("compiler/testData/diagnostics/testsWithStdLib/delegateInference/ifWithCallableReferenceInLazy.kt");
             }
         }
 

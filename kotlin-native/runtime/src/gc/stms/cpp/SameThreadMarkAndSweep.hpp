@@ -9,7 +9,9 @@
 #include <cstddef>
 
 #include "Allocator.hpp"
+#include "FinalizerProcessor.hpp"
 #include "GCScheduler.hpp"
+#include "GCState.hpp"
 #include "IntrusiveList.hpp"
 #include "ObjectFactory.hpp"
 #include "Types.h"
@@ -23,15 +25,10 @@ class ThreadData;
 
 namespace gc {
 
-// Stop-the-world Mark-and-Sweep that runs on mutator threads. Can support targets that do not have threads.
+// Stop-the-world mark & sweep. The GC runs in a separate thread, finalizers run in another thread of their own.
+// TODO: Rename to StopTheWorldMarkAndSweep.
 class SameThreadMarkAndSweep : private Pinned {
 public:
-    enum class SafepointFlag {
-        kNone,
-        kNeedsSuspend,
-        kNeedsGC,
-    };
-
     class ObjectData {
     public:
         bool tryMark() noexcept {
@@ -73,16 +70,15 @@ public:
         using ObjectData = SameThreadMarkAndSweep::ObjectData;
         using Allocator = AllocatorWithGC<Allocator, ThreadData>;
 
-        ThreadData(SameThreadMarkAndSweep& gc, mm::ThreadData& threadData, GCSchedulerThreadData& gcScheduler) noexcept :
+        ThreadData(SameThreadMarkAndSweep& gc, mm::ThreadData& threadData, gcScheduler::GCSchedulerThreadData& gcScheduler) noexcept :
             gc_(gc), gcScheduler_(gcScheduler) {}
         ~ThreadData() = default;
 
-        void SafePointSlowPath(SafepointFlag flag) noexcept;
         void SafePointAllocation(size_t size) noexcept;
 
-        void Schedule() noexcept { ScheduleAndWaitFullGC(); }
+        void Schedule() noexcept;
         void ScheduleAndWaitFullGC() noexcept;
-        void ScheduleAndWaitFullGCWithFinalizers() noexcept { ScheduleAndWaitFullGC(); }
+        void ScheduleAndWaitFullGCWithFinalizers() noexcept;
 
         void OnOOM(size_t size) noexcept;
 
@@ -91,22 +87,32 @@ public:
     private:
 
         SameThreadMarkAndSweep& gc_;
-        GCSchedulerThreadData& gcScheduler_;
+        gcScheduler::GCSchedulerThreadData& gcScheduler_;
     };
 
     using Allocator = ThreadData::Allocator;
 
-    SameThreadMarkAndSweep(mm::ObjectFactory<SameThreadMarkAndSweep>& objectFactory, GCScheduler& gcScheduler) noexcept;
-    ~SameThreadMarkAndSweep() = default;
+    using FinalizerQueue = mm::ObjectFactory<SameThreadMarkAndSweep>::FinalizerQueue;
+    using FinalizerQueueTraits = mm::ObjectFactory<SameThreadMarkAndSweep>::FinalizerQueueTraits;
+
+    SameThreadMarkAndSweep(mm::ObjectFactory<SameThreadMarkAndSweep>& objectFactory, gcScheduler::GCScheduler& gcScheduler) noexcept;
+    ~SameThreadMarkAndSweep();
+
+    void StartFinalizerThreadIfNeeded() noexcept;
+    void StopFinalizerThreadIfRunning() noexcept;
+    bool FinalizersThreadIsRunning() noexcept;
+
+    void Schedule() noexcept { state_.schedule(); }
 
 private:
-    // Returns `true` if GC has happened, and `false` if not (because someone else has suspended the threads).
-    bool PerformFullGC() noexcept;
-
-    uint64_t epoch_ = 0;
+    void PerformFullGC(int64_t epoch) noexcept;
 
     mm::ObjectFactory<SameThreadMarkAndSweep>& objectFactory_;
-    GCScheduler& gcScheduler_;
+    gcScheduler::GCScheduler& gcScheduler_;
+
+    GCStateHolder state_;
+    ScopedThread gcThread_;
+    FinalizerProcessor<FinalizerQueue, FinalizerQueueTraits> finalizerProcessor_;
 
     MarkQueue markQueue_;
 };
@@ -142,8 +148,6 @@ struct MarkTraits {
         process(static_cast<void*>(&markQueue), object);
     }
 };
-
-SameThreadMarkAndSweep::SafepointFlag loadSafepointFlag() noexcept;
 
 } // namespace internal
 

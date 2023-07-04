@@ -31,9 +31,9 @@ val currentOsType = run {
         else -> OsName.UNKNOWN
     }
 
-    val osArch = when (providers.systemProperty("sun.arch.data.model").forUseAtConfigurationTime().get()) {
+    val osArch = when (providers.systemProperty("sun.arch.data.model").get()) {
         "32" -> OsArch.X86_32
-        "64" -> when (providers.systemProperty("os.arch").forUseAtConfigurationTime().get().toLowerCase()) {
+        "64" -> when (providers.systemProperty("os.arch").get().lowercase()) {
             "aarch64" -> OsArch.ARM64
             else -> OsArch.X86_64
         }
@@ -67,6 +67,10 @@ dependencies {
     testApi(intellijCore())
 
     jsShell("org.mozilla:jsshell:$jsShellVersion:$jsShellSuffix@zip")
+
+    implicitDependencies("org.mozilla:jsshell:$jsShellVersion:win64@zip")
+    implicitDependencies("org.mozilla:jsshell:$jsShellVersion:linux-x86_64@zip")
+    implicitDependencies("org.mozilla:jsshell:$jsShellVersion:mac@zip")
 }
 
 val generationRoot = projectDir.resolve("tests-gen")
@@ -129,25 +133,37 @@ val generateTests by generator("org.jetbrains.kotlin.generators.tests.GenerateWa
     dependsOn(":compiler:generateTestData")
 }
 
-projectTest(parallel = true) {
-    workingDir = rootDir
-    exclude("**/diagnostics/*.class")
-    setupV8()
-    setupSpiderMonkey()
-    setupWasmStdlib()
-    setupGradlePropertiesForwarding()
-    systemProperty("kotlin.wasm.test.root.out.dir", "$buildDir/")
+fun Project.wasmProjectTest(
+    taskName: String,
+    body: Test.() -> Unit = {}
+): TaskProvider<Test> {
+    return projectTest(
+        taskName = taskName,
+        parallel = true,
+        jUnitMode = JUnitMode.JUnit5
+    ) {
+        workingDir = rootDir
+        setupV8()
+        setupSpiderMonkey()
+        useJUnitPlatform()
+        setupWasmStdlib()
+        setupGradlePropertiesForwarding()
+        systemProperty("kotlin.wasm.test.root.out.dir", "$buildDir/")
+        body()
+    }
 }
 
-projectTest(
-    taskName = "diagnosticsTest",
-    parallel = true,
-    jUnitMode = JUnitMode.JUnit5
-) {
-    workingDir = rootDir
-    include("**/diagnostics/*.class")
-    useJUnitPlatform()
-    setupWasmStdlib()
-    setupGradlePropertiesForwarding()
-    systemProperty("kotlin.wasm.test.root.out.dir", "$buildDir/")
+// Test everything
+wasmProjectTest("test")
+
+wasmProjectTest("testFir") {
+    include("**/Fir*.class")
+}
+
+wasmProjectTest("testK1") {
+    include("**/K1*.class")
+}
+
+wasmProjectTest("diagnosticTest") {
+    include("**/Diagnostics*.class")
 }

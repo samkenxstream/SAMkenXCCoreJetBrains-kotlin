@@ -1,5 +1,6 @@
-// !LANGUAGE: +EnumEntries
+// !LANGUAGE: +EnumEntries -PrioritizedEnumEntries
 // WITH_STDLIB
+// FIR_DUMP
 
 package pckg
 
@@ -9,7 +10,7 @@ enum class E {
     ;
 
     fun foo() {
-        entries.<!UNRESOLVED_REFERENCE!>length<!>
+        entries.length
         pckg.entries.length
     }
 }
@@ -20,7 +21,7 @@ class A {
 
         class B {
             fun foo() {
-                entries.<!UNRESOLVED_REFERENCE!>length<!>
+                entries.length
                 pckg.entries.length
             }
         }

@@ -21,7 +21,7 @@ val componentFactory = objects.newInstance<ComponentsFactoryAccess>().factory
 
 val jvmApi by configurations.creating {
     isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("java-api"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.jvm)
@@ -30,7 +30,7 @@ val jvmApi by configurations.creating {
 
 val jvmRuntime by configurations.creating {
     isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("java-runtime"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.jvm)
@@ -39,16 +39,16 @@ val jvmRuntime by configurations.creating {
 }
 
 val jsApiVariant by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-api"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
     }
 }
 val jsRuntimeVariant by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-runtime"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
@@ -57,16 +57,16 @@ val jsRuntimeVariant by configurations.creating {
 }
 
 val wasmApiVariant by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-api"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.wasm)
     }
 }
 val wasmRuntimeVariant by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-runtime"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.wasm)
@@ -75,8 +75,8 @@ val wasmRuntimeVariant by configurations.creating {
 }
 
 val nativeApiVariant by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-api"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.native)
@@ -84,8 +84,8 @@ val nativeApiVariant by configurations.creating {
 }
 
 val commonVariant by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-api"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.common)
@@ -113,8 +113,8 @@ dependencies {
     jvmApi(project(":kotlin-stdlib"))
     jsApiVariant("$group:kotlin-test-js:$version")
     wasmApiVariant("$group:kotlin-test-wasm:$version")
-    commonVariant("$group:kotlin-test-common:$version")
-    commonVariant("$group:kotlin-test-annotations-common:$version")
+    commonVariant(project(":kotlin-test:kotlin-test-common"))
+    commonVariant(project(":kotlin-test:kotlin-test-annotations-common"))
     kotlinTestCommonSources(project(":kotlin-test:kotlin-test-common"))
     kotlinTestJvmSources(project(":kotlin-test:kotlin-test-jvm"))
 }
@@ -200,7 +200,7 @@ jvmTestFrameworks.forEach { framework ->
     val (apiElements, runtimeElements) = listOf("api", "runtime").map { usage ->
         configurations.create("${framework}${usage.capitalize()}") {
             isCanBeConsumed = true
-            isCanBeResolved = false
+            isCanBeResolved = true
             attributes {
                 attribute(Usage.USAGE_ATTRIBUTE, objects.named("java-$usage"))
             }
@@ -256,7 +256,7 @@ commonVariant.apply {
 val (jsApi, jsRuntime) = listOf("api", "runtime").map { usage ->
     configurations.create("js${usage.capitalize()}") {
         isCanBeConsumed = true
-        isCanBeResolved = false
+        isCanBeResolved = true
         attributes {
             attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-$usage"))
             attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
@@ -287,7 +287,7 @@ val jsComponent = componentFactory.adhoc("js").apply {
 val (wasmApi, wasmRuntime) = listOf("api", "runtime").map { usage ->
     configurations.create("wasm${usage.capitalize()}") {
         isCanBeConsumed = true
-        isCanBeResolved = false
+        isCanBeResolved = true
         attributes {
             attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-$usage"))
             attribute(KotlinPlatformType.attribute, KotlinPlatformType.wasm)
@@ -320,16 +320,16 @@ val wasmComponent = componentFactory.adhoc("wasm").apply {
 }
 
 val commonMetadata by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-api"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.common)
     }
 }
 val annotationsMetadata by configurations.creating {
-    isCanBeConsumed = true
-    isCanBeResolved = false
+    isCanBeConsumed = false
+    isCanBeResolved = true
     attributes {
         attribute(Usage.USAGE_ATTRIBUTE, objects.named("kotlin-api"))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.common)
@@ -362,9 +362,10 @@ configureDefaultPublishing()
 
 publishing {
     publications {
-        create("main", MavenPublication::class) {
+        val mainPublication = register("main", MavenPublication::class) {
             from(rootComponent)
             artifact(combinedSourcesJar)
+            artifact(emptyJavadocJar)
             // Remove all optional dependencies from the root pom
             pom.withXml {
                 val dependenciesNode = (asNode().get("dependencies") as NodeList).filterIsInstance<Node>().single()
@@ -376,42 +377,68 @@ publishing {
             configureKotlinPomAttributes(project, "Kotlin Test Multiplatform library")
             suppressAllPomMetadataWarnings()
         }
+        configureSbom(
+            "Main", "kotlin-test",
+            setOf(jvmRuntime.name, commonVariant.name), mainPublication
+        )
         jvmTestFrameworks.forEach { framework ->
-            create(framework, MavenPublication::class) {
+            val publication = register(framework, MavenPublication::class) {
                 artifactId = "kotlin-test-$framework"
                 from(components[framework])
                 artifact(tasks.getByPath(":kotlin-test:kotlin-test-$framework:sourcesJar") as Jar)
+                artifact(tasks.getByPath(":kotlin-test:kotlin-test-$framework:javadocJar") as Jar)
                 configureKotlinPomAttributes(project, "Kotlin Test Support for $framework")
                 suppressAllPomMetadataWarnings()
             }
+            configureSbom(
+                framework.capitalize(), "kotlin-test-$framework",
+                setOf("${framework}Api", commonVariant.name), publication
+            )
         }
-        create("js", MavenPublication::class) {
+        val kotlinTestJsPublication = register("js", MavenPublication::class) {
             artifactId = "kotlin-test-js"
             from(jsComponent)
             artifact(tasks.getByPath(":kotlin-test:kotlin-test-js:sourcesJar") as Jar)
+            artifact(tasks.getByPath(":kotlin-test:kotlin-test-js:javadocJar") as Jar)
             configureKotlinPomAttributes(project, "Kotlin Test for JS")
         }
-        create("wasm", MavenPublication::class) {
+        configureSbom(
+            "Js", "kotlin-test-js",
+            setOf(jsRuntime.name, commonVariant.name), kotlinTestJsPublication
+        )
+        val kotlinTestWasmPublication = register("wasm", MavenPublication::class) {
             artifactId = "kotlin-test-wasm"
             from(wasmComponent)
             artifact(tasks.getByPath(":kotlin-test:kotlin-test-wasm:sourcesJar") as Jar)
+            artifact(tasks.getByPath(":kotlin-test:kotlin-test-wasm:emptyJavadocJar") as Jar)
             configureKotlinPomAttributes(project, "Kotlin Test for WASM", packaging = "klib")
         }
-        create("common", MavenPublication::class) {
+        configureSbom(
+            "Wasm", "kotlin-test-wasm",
+            setOf(wasmRuntime.name, commonVariant.name), kotlinTestWasmPublication
+        )
+        val kotlinTestCommonPublication = register("common", MavenPublication::class) {
             artifactId = "kotlin-test-common"
             from(commonMetadataComponent)
             artifact(tasks.getByPath(":kotlin-test:kotlin-test-common:sourcesJar") as Jar)
+            artifact(tasks.getByPath(":kotlin-test:kotlin-test-common:javadocJar") as Jar)
             configureKotlinPomAttributes(project, "Kotlin Test Common")
         }
-        create("annotationsCommon", MavenPublication::class) {
+        configureSbom(
+            "Common", "kotlin-test-common",
+            setOf(commonMetadata.name), kotlinTestCommonPublication
+        )
+        val annotationsCommonPublication = register("annotationsCommon", MavenPublication::class) {
             artifactId = "kotlin-test-annotations-common"
             from(annotationsMetadataComponent)
             artifact(tasks.getByPath(":kotlin-test:kotlin-test-annotations-common:sourcesJar") as Jar)
+            artifact(tasks.getByPath(":kotlin-test:kotlin-test-annotations-common:javadocJar") as Jar)
             configureKotlinPomAttributes(project, "Kotlin Test Common")
         }
-        withType<MavenPublication> {
-            artifact(emptyJavadocJar)
-        }
+        configureSbom(
+            "AnnotationsCommon", "kotlin-test-annotations-common",
+            setOf(annotationsMetadata.name), annotationsCommonPublication
+        )
     }
 }
 

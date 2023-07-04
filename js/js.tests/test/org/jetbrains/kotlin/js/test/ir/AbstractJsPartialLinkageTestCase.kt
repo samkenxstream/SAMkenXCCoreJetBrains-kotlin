@@ -23,11 +23,11 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.ir.backend.js.*
-import org.jetbrains.kotlin.ir.backend.js.codegen.JsGenerationGranularity
 import org.jetbrains.kotlin.ir.backend.js.ic.CacheUpdater
 import org.jetbrains.kotlin.ir.backend.js.ic.JsExecutableProducer
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.CompilationOutputs
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.IrModuleToJsTransformer
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsGenerationGranularity
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.TranslationMode
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
@@ -61,11 +61,11 @@ abstract class AbstractJsPartialLinkageWithICTestCase : AbstractJsPartialLinkage
 abstract class AbstractFirJsPartialLinkageNoICTestCase : AbstractJsPartialLinkageTestCase(CompilerType.K2_NO_IC)
 
 abstract class AbstractJsPartialLinkageTestCase(val compilerType: CompilerType) {
-    enum class CompilerType(val testModeName: String, val es6Mode: Boolean) {
-        K1_NO_IC("JS_NO_IC", false),
-        K1_NO_IC_WITH_ES6("JS_NO_IC", true),
-        K1_WITH_IC("JS_WITH_IC", false),
-        K2_NO_IC("JS_NO_IC", false)
+    enum class CompilerType(val es6Mode: Boolean) {
+        K1_NO_IC(false),
+        K1_NO_IC_WITH_ES6(true),
+        K1_WITH_IC(false),
+        K2_NO_IC(false)
     }
 
     private val zipAccessor = ZipFileSystemCacheableAccessor(2)
@@ -96,7 +96,7 @@ abstract class AbstractJsPartialLinkageTestCase(val compilerType: CompilerType) 
         override val testDir: File = File(testPath).absoluteFile
         override val buildDir: File get() = this@AbstractJsPartialLinkageTestCase.buildDir
         override val stdlibFile: File get() = File("libraries/stdlib/js-ir/build/classes/kotlin/js/main").absoluteFile
-        override val testModeName get() = this@AbstractJsPartialLinkageTestCase.compilerType.testModeName
+        override val testModeConstructorParameters = mapOf("isJs" to "true")
 
         override fun buildKlib(
             moduleName: String,
@@ -346,7 +346,7 @@ abstract class AbstractJsPartialLinkageTestCase(val compilerType: CompilerType) 
             relativeRequirePath = true
         )
 
-        return jsExecutableProducer.buildExecutable(multiModule = true, outJsProgram = true).compilationOut
+        return jsExecutableProducer.buildExecutable(granularity = JsGenerationGranularity.PER_MODULE, outJsProgram = true).compilationOut
     }
 
     private val IrModuleFragment.exportName get() = "kotlin_${name.asStringStripSpecialMarkers()}"

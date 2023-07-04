@@ -35,7 +35,7 @@ private class TestArtifactCache(val moduleName: String, val binaryAsts: MutableM
                     // TODO: It will be better to use saved fragments, but it doesn't work
                     //  Merger.merge() + JsNode.resolveTemporaryNames() modify fragments,
                     //  therefore the sequential calls produce different results
-                    fragment = deserializeJsIrProgramFragment(it.value)
+                    fragments = deserializeJsIrProgramFragment(it.value)
                 )
             }
         )
@@ -78,8 +78,8 @@ class JsIrIncrementalDataProvider(private val testServices: TestServices) : Test
     private fun recordIncrementalDataForRuntimeKlib(module: TestModule) {
         val runtimeKlibPath = JsEnvironmentConfigurator.getRuntimePathsForModule(module, testServices)
         val libs = runtimeKlibPath.map {
-            val descriptor = testServices.jsLibraryProvider.getDescriptorByPath(it)
-            testServices.jsLibraryProvider.getCompiledLibraryByDescriptor(descriptor)
+            val descriptor = testServices.libraryProvider.getDescriptorByPath(it)
+            testServices.libraryProvider.getCompiledLibraryByDescriptor(descriptor)
         }
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
 

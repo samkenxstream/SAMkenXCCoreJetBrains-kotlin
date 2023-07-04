@@ -13,29 +13,10 @@
 
 using namespace kotlin;
 
-namespace {
-
-ALWAYS_INLINE void SafePointRegular(gc::GC::ThreadData& threadData, size_t weight) noexcept {
-    threadData.impl().gcScheduler().OnSafePointRegular(weight);
-    auto flag = gc::internal::loadSafepointFlag();
-    if (flag != gc::SameThreadMarkAndSweep::SafepointFlag::kNone) {
-        threadData.impl().gc().SafePointSlowPath(flag);
-    }
-}
-
-} // namespace
-
-gc::GC::ThreadData::ThreadData(GC& gc, mm::ThreadData& threadData) noexcept : impl_(std_support::make_unique<Impl>(gc, threadData)) {}
+gc::GC::ThreadData::ThreadData(GC& gc, gcScheduler::GCSchedulerThreadData& gcScheduler, mm::ThreadData& threadData) noexcept :
+    impl_(std_support::make_unique<Impl>(gc, gcScheduler, threadData)) {}
 
 gc::GC::ThreadData::~ThreadData() = default;
-
-ALWAYS_INLINE void gc::GC::ThreadData::SafePointFunctionPrologue() noexcept {
-    SafePointRegular(*this, GCSchedulerThreadData::kFunctionPrologueWeight);
-}
-
-ALWAYS_INLINE void gc::GC::ThreadData::SafePointLoopBody() noexcept {
-    SafePointRegular(*this, GCSchedulerThreadData::kLoopBodyWeight);
-}
 
 void gc::GC::ThreadData::Schedule() noexcept {
     impl_->gc().Schedule();
@@ -65,13 +46,9 @@ ALWAYS_INLINE ArrayHeader* gc::GC::ThreadData::CreateArray(const TypeInfo* typeI
     return impl_->objectFactoryThreadQueue().CreateArray(typeInfo, elements);
 }
 
-void gc::GC::ThreadData::OnStoppedForGC() noexcept {
-    impl_->gcScheduler().OnStoppedForGC();
-}
-
 void gc::GC::ThreadData::OnSuspendForGC() noexcept { }
 
-gc::GC::GC() noexcept : impl_(std_support::make_unique<Impl>()) {}
+gc::GC::GC(gcScheduler::GCScheduler& gcScheduler) noexcept : impl_(std_support::make_unique<Impl>(gcScheduler)) {}
 
 gc::GC::~GC() = default;
 
@@ -84,21 +61,22 @@ size_t gc::GC::GetTotalHeapObjectsSizeBytes() const noexcept {
     return allocatedBytes();
 }
 
-gc::GCSchedulerConfig& gc::GC::gcSchedulerConfig() noexcept {
-    return impl_->gcScheduler().config();
-}
-
 void gc::GC::ClearForTests() noexcept {
+    impl_->gc().StopFinalizerThreadIfRunning();
     impl_->objectFactory().ClearForTests();
     GCHandle::ClearForTests();
 }
 
-void gc::GC::StartFinalizerThreadIfNeeded() noexcept {}
+void gc::GC::StartFinalizerThreadIfNeeded() noexcept {
+    impl_->gc().StartFinalizerThreadIfNeeded();
+}
 
-void gc::GC::StopFinalizerThreadIfRunning() noexcept {}
+void gc::GC::StopFinalizerThreadIfRunning() noexcept {
+    impl_->gc().StopFinalizerThreadIfRunning();
+}
 
 bool gc::GC::FinalizersThreadIsRunning() noexcept {
-    return false;
+    return impl_->gc().FinalizersThreadIsRunning();
 }
 
 // static
@@ -114,4 +92,8 @@ ALWAYS_INLINE void gc::GC::processArrayInMark(void* state, ArrayHeader* array) n
 // static
 ALWAYS_INLINE void gc::GC::processFieldInMark(void* state, ObjHeader* field) noexcept {
     gc::internal::processFieldInMark<gc::internal::MarkTraits>(state, field);
+}
+
+void gc::GC::Schedule() noexcept {
+    impl_->gc().Schedule();
 }

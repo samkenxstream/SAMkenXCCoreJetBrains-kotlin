@@ -40,16 +40,14 @@ public annotation class SymbolName(val name: String)
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-@Deprecated("This annotation will be removed in a future release")
-public annotation class Retain
+internal annotation class Retain
 
 /**
  * Preserve the function entry point during global optimizations, only for the given target.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-@Deprecated("This annotation will be removed in a future release")
-public annotation class RetainForTarget(val target: String)
+internal annotation class RetainForTarget(val target: String)
 
 
 /** @suppress */
@@ -62,6 +60,9 @@ public typealias Throws = kotlin.Throws
 public typealias ThreadLocal = kotlin.native.concurrent.ThreadLocal
 
 /** @suppress */
+@Suppress("DEPRECATION")
+@Deprecated("This annotation is redundant and has no effect")
+@DeprecatedSinceKotlin(warningSince = "1.9")
 // Not @FreezingIsDeprecated: Lots of usages. Usages will trigger INFO reports in the frontend.
 public typealias SharedImmutable = kotlin.native.concurrent.SharedImmutable
 

@@ -31,15 +31,15 @@ interface IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrClassSymbol,
         name: Name,
-        kind: ClassKind,
         visibility: DescriptorVisibility,
+        symbol: IrClassSymbol,
+        kind: ClassKind,
         modality: Modality,
+        isExternal: Boolean = false,
         isCompanion: Boolean = false,
         isInner: Boolean = false,
         isData: Boolean = false,
-        isExternal: Boolean = false,
         isValue: Boolean = false,
         isExpect: Boolean = false,
         isFun: Boolean = false,
@@ -50,14 +50,14 @@ interface IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrConstructorSymbol,
         name: Name,
         visibility: DescriptorVisibility,
-        returnType: IrType,
         isInline: Boolean,
-        isExternal: Boolean,
-        isPrimary: Boolean,
         isExpect: Boolean,
+        returnType: IrType,
+        symbol: IrConstructorSymbol,
+        isPrimary: Boolean,
+        isExternal: Boolean,
         containerSource: DeserializedContainerSource? = null
     ): IrConstructor
 
@@ -65,8 +65,8 @@ interface IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrEnumEntrySymbol,
         name: Name,
+        symbol: IrEnumEntrySymbol,
     ): IrEnumEntry
 
     fun createErrorDeclaration(
@@ -79,33 +79,33 @@ interface IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrFieldSymbol,
         name: Name,
-        type: IrType,
         visibility: DescriptorVisibility,
+        symbol: IrFieldSymbol,
+        type: IrType,
         isFinal: Boolean,
-        isExternal: Boolean,
         isStatic: Boolean,
+        isExternal: Boolean,
     ): IrField
 
-    fun createFunction(
+    fun createSimpleFunction(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrSimpleFunctionSymbol,
         name: Name,
         visibility: DescriptorVisibility,
-        modality: Modality,
-        returnType: IrType,
         isInline: Boolean,
-        isExternal: Boolean,
+        isExpect: Boolean,
+        returnType: IrType,
+        modality: Modality,
+        symbol: IrSimpleFunctionSymbol,
         isTailrec: Boolean,
         isSuspend: Boolean,
         isOperator: Boolean,
         isInfix: Boolean,
-        isExpect: Boolean,
-        isFakeOverride: Boolean = origin == IrDeclarationOrigin.FAKE_OVERRIDE,
+        isExternal: Boolean,
         containerSource: DeserializedContainerSource? = null,
+        isFakeOverride: Boolean = origin == IrDeclarationOrigin.FAKE_OVERRIDE,
     ): IrSimpleFunction
 
     fun createFunctionWithLateBinding(
@@ -129,8 +129,8 @@ interface IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrLocalDelegatedPropertySymbol,
         name: Name,
+        symbol: IrLocalDelegatedPropertySymbol,
         type: IrType,
         isVar: Boolean,
     ): IrLocalDelegatedProperty
@@ -139,18 +139,18 @@ interface IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrPropertySymbol,
         name: Name,
         visibility: DescriptorVisibility,
         modality: Modality,
+        symbol: IrPropertySymbol,
         isVar: Boolean,
         isConst: Boolean,
         isLateinit: Boolean,
         isDelegated: Boolean,
         isExternal: Boolean,
+        containerSource: DeserializedContainerSource? = null,
         isExpect: Boolean = false,
-        isFakeOverride: Boolean = origin == IrDeclarationOrigin.FAKE_OVERRIDE,
-        containerSource: DeserializedContainerSource? = null
+        isFakeOverride: Boolean = origin == IrDeclarationOrigin.FAKE_OVERRIDE
     ): IrProperty
 
     fun createPropertyWithLateBinding(
@@ -171,38 +171,38 @@ interface IrFactory {
     fun createTypeAlias(
         startOffset: Int,
         endOffset: Int,
-        symbol: IrTypeAliasSymbol,
+        origin: IrDeclarationOrigin,
         name: Name,
         visibility: DescriptorVisibility,
-        expandedType: IrType,
+        symbol: IrTypeAliasSymbol,
         isActual: Boolean,
-        origin: IrDeclarationOrigin,
+        expandedType: IrType,
     ): IrTypeAlias
 
     fun createTypeParameter(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrTypeParameterSymbol,
         name: Name,
+        symbol: IrTypeParameterSymbol,
+        variance: Variance,
         index: Int,
         isReified: Boolean,
-        variance: Variance,
     ): IrTypeParameter
 
     fun createValueParameter(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrValueParameterSymbol,
         name: Name,
-        index: Int,
         type: IrType,
+        isAssignable: Boolean,
+        symbol: IrValueParameterSymbol,
+        index: Int,
         varargElementType: IrType?,
         isCrossinline: Boolean,
         isNoinline: Boolean,
-        isHidden: Boolean,
-        isAssignable: Boolean
+        isHidden: Boolean
     ): IrValueParameter
 
     // Bodies
@@ -210,16 +210,6 @@ interface IrFactory {
     fun createExpressionBody(
         startOffset: Int,
         endOffset: Int,
-        initializer: IrExpressionBody.() -> Unit,
-    ): IrExpressionBody
-
-    fun createExpressionBody(
-        startOffset: Int,
-        endOffset: Int,
-        expression: IrExpression,
-    ): IrExpressionBody
-
-    fun createExpressionBody(
         expression: IrExpression,
     ): IrExpressionBody
 

@@ -256,6 +256,8 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
     add(FirErrors.INVISIBLE_REFERENCE) { firDiagnostic ->
         InvisibleReferenceImpl(
             firSymbolBuilder.buildSymbol(firDiagnostic.a),
+            firDiagnostic.b,
+            firDiagnostic.c,
             firDiagnostic as KtPsiDiagnostic,
             token,
         )
@@ -385,6 +387,27 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
         FunctionExpectedImpl(
             firDiagnostic.a,
             firSymbolBuilder.typeBuilder.buildKtType(firDiagnostic.b),
+            firDiagnostic as KtPsiDiagnostic,
+            token,
+        )
+    }
+    add(FirErrors.INTERFACE_AS_FUNCTION) { firDiagnostic ->
+        InterfaceAsFunctionImpl(
+            firSymbolBuilder.classifierBuilder.buildClassLikeSymbol(firDiagnostic.a),
+            firDiagnostic as KtPsiDiagnostic,
+            token,
+        )
+    }
+    add(FirErrors.EXPECT_CLASS_AS_FUNCTION) { firDiagnostic ->
+        ExpectClassAsFunctionImpl(
+            firSymbolBuilder.classifierBuilder.buildClassLikeSymbol(firDiagnostic.a),
+            firDiagnostic as KtPsiDiagnostic,
+            token,
+        )
+    }
+    add(FirErrors.INNER_CLASS_CONSTRUCTOR_NO_RECEIVER) { firDiagnostic ->
+        InnerClassConstructorNoReceiverImpl(
+            firSymbolBuilder.classifierBuilder.buildClassLikeSymbol(firDiagnostic.a),
             firDiagnostic as KtPsiDiagnostic,
             token,
         )
@@ -3563,8 +3586,7 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
     }
     add(FirErrors.SENSELESS_COMPARISON) { firDiagnostic ->
         SenselessComparisonImpl(
-            firDiagnostic.a.source!!.psi as KtExpression,
-            firDiagnostic.b,
+            firDiagnostic.a,
             firDiagnostic as KtPsiDiagnostic,
             token,
         )
@@ -3598,18 +3620,20 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
     }
     add(FirErrors.UNSAFE_INFIX_CALL) { firDiagnostic ->
         UnsafeInfixCallImpl(
-            firDiagnostic.a.source!!.psi as KtExpression,
-            firDiagnostic.b,
-            firDiagnostic.c.source!!.psi as KtExpression,
+            firSymbolBuilder.typeBuilder.buildKtType(firDiagnostic.a),
+            firDiagnostic.b.source!!.psi as KtExpression,
+            firDiagnostic.c,
+            firDiagnostic.d.source!!.psi as KtExpression,
             firDiagnostic as KtPsiDiagnostic,
             token,
         )
     }
     add(FirErrors.UNSAFE_OPERATOR_CALL) { firDiagnostic ->
         UnsafeOperatorCallImpl(
-            firDiagnostic.a.source!!.psi as KtExpression,
-            firDiagnostic.b,
-            firDiagnostic.c.source!!.psi as KtExpression,
+            firSymbolBuilder.typeBuilder.buildKtType(firDiagnostic.a),
+            firDiagnostic.b.source!!.psi as KtExpression,
+            firDiagnostic.c,
+            firDiagnostic.d.source!!.psi as KtExpression,
             firDiagnostic as KtPsiDiagnostic,
             token,
         )
@@ -4292,8 +4316,7 @@ internal val KT_DIAGNOSTIC_CONVERTER = KtDiagnosticConverterBuilder.buildConvert
     }
     add(FirErrors.INVALID_DEFAULT_FUNCTIONAL_PARAMETER_FOR_INLINE) { firDiagnostic ->
         InvalidDefaultFunctionalParameterForInlineImpl(
-            firDiagnostic.a.source!!.psi as KtExpression,
-            firSymbolBuilder.buildSymbol(firDiagnostic.b),
+            firSymbolBuilder.buildSymbol(firDiagnostic.a),
             firDiagnostic as KtPsiDiagnostic,
             token,
         )

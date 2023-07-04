@@ -13,7 +13,6 @@ import org.gradle.api.attributes.Attribute
 import org.gradle.api.attributes.AttributeContainer
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.*
-import org.jetbrains.kotlin.gradle.plugin.KotlinTargetHierarchy.SourceSetTree
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.copyAttributes
 import org.jetbrains.kotlin.gradle.utils.dashSeparatedName
 import org.jetbrains.kotlin.gradle.utils.forAllAndroidVariants
@@ -39,7 +38,7 @@ abstract class KotlinAndroidTarget @Inject constructor(
 
     @ExperimentalKotlinGradlePluginApi
     val mainVariant: KotlinAndroidTargetVariantDsl = KotlinAndroidTargetVariantDslImpl(project.objects).apply {
-        sourceSetTree.convention(SourceSetTree.main)
+        sourceSetTree.convention(KotlinSourceSetTree.main)
     }
 
     @ExperimentalKotlinGradlePluginApi
@@ -54,7 +53,7 @@ abstract class KotlinAndroidTarget @Inject constructor(
 
     @ExperimentalKotlinGradlePluginApi
     val unitTestVariant: KotlinAndroidTargetVariantDsl = KotlinAndroidTargetVariantDslImpl(project.objects).apply {
-        sourceSetTree.convention(SourceSetTree.test)
+        sourceSetTree.convention(KotlinSourceSetTree.test)
     }
 
     @ExperimentalKotlinGradlePluginApi
@@ -69,7 +68,7 @@ abstract class KotlinAndroidTarget @Inject constructor(
 
     @ExperimentalKotlinGradlePluginApi
     val instrumentedTestVariant: KotlinAndroidTargetVariantDsl = KotlinAndroidTargetVariantDslImpl(project.objects).apply {
-        sourceSetTree.convention(SourceSetTree.instrumentedTest)
+        sourceSetTree.convention(KotlinSourceSetTree.instrumentedTest)
     }
 
     @ExperimentalKotlinGradlePluginApi

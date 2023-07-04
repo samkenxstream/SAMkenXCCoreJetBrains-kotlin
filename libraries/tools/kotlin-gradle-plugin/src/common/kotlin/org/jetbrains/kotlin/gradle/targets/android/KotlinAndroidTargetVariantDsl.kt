@@ -9,14 +9,14 @@ package org.jetbrains.kotlin.gradle.plugin.mpp
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.plugin.KotlinTargetHierarchy.SourceSetTree
+import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
 import org.jetbrains.kotlin.gradle.utils.property
 
 
 @ExperimentalKotlinGradlePluginApi
 interface KotlinAndroidTargetVariantDsl {
     /**
-     * Configures under which [SourceSetTree] the currently configured Android Variant shall be placed.
+     * Configures under which [KotlinSourceSetTree] the currently configured Android Variant shall be placed.
      * e.g.
      *
      * ```kotlin
@@ -30,9 +30,9 @@ interface KotlinAndroidTargetVariantDsl {
      * Will ensure that all android instrumented tests (androidInstrumentedTest, androidInstrumentedTestDebug, ...)
      * will be placed into the 'test' SourceSet tree (with 'commonTest' as root)
      */
-    val sourceSetTree: Property<SourceSetTree>
+    val sourceSetTree: Property<KotlinSourceSetTree>
 }
 
 internal class KotlinAndroidTargetVariantDslImpl(objects: ObjectFactory) : KotlinAndroidTargetVariantDsl {
-    override val sourceSetTree: Property<SourceSetTree> = objects.property()
+    override val sourceSetTree: Property<KotlinSourceSetTree> = objects.property()
 }

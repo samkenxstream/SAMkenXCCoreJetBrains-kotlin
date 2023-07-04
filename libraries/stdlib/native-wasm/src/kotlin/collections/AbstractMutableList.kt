@@ -18,6 +18,16 @@ package kotlin.collections
  * @param E the type of elements contained in the list. The list is invariant in its element type.
  */
 public actual abstract class AbstractMutableList<E> protected actual constructor() : AbstractMutableCollection<E>(), MutableList<E> {
+    /**
+     * The number of times this list is structurally modified.
+     *
+     * A modification is considered to be structural if it changes the list size,
+     * or otherwise changes it in a way that iterations in progress may return incorrect results.
+     *
+     * This value can be used by iterators returned by [iterator] and [listIterator]
+     * to provide fail-fast behavoir when a concurrent modification is detected during iteration.
+     * [ConcurrentModificationException] will be thrown in this case.
+     */
     protected var modCount: Int = 0
 
     abstract override fun add(index: Int, element: E): Unit
@@ -58,23 +68,9 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
 
     override actual fun contains(element: E): Boolean = indexOf(element) >= 0
 
-    override actual fun indexOf(element: E): Int {
-        for (index in 0..lastIndex) {
-            if (get(index) == element) {
-                return index
-            }
-        }
-        return -1
-    }
+    override actual fun indexOf(element: E): Int = indexOfFirst { it == element }
 
-    override actual fun lastIndexOf(element: E): Int {
-        for (index in lastIndex downTo 0) {
-            if (get(index) == element) {
-                return index
-            }
-        }
-        return -1
-    }
+    override actual fun lastIndexOf(element: E): Int = indexOfLast { it == element }
 
     override actual fun listIterator(): MutableListIterator<E> = listIterator(0)
     override actual fun listIterator(index: Int): MutableListIterator<E> = ListIteratorImpl(index)
@@ -105,26 +101,41 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
     private open inner class IteratorImpl : MutableIterator<E> {
         /** the index of the item that will be returned on the next call to [next]`()` */
         protected var index = 0
+
         /** the index of the item that was returned on the previous call to [next]`()`
          * or [ListIterator.previous]`()` (for `ListIterator`),
          * -1 if no such item exists
          */
         protected var last = -1
 
+        /**
+         * The [modCount] value that the backing list is expected to have.
+         * Otherwise, the iterator has detected concurrent modification.
+         */
+        protected var expectedModCount = modCount
+
         override fun hasNext(): Boolean = index < size
 
         override fun next(): E {
+            checkForComodification()
             if (!hasNext()) throw NoSuchElementException()
             last = index++
             return get(last)
         }
 
         override fun remove() {
+            checkForComodification()
             check(last != -1) { "Call next() or previous() before removing element from the iterator."}
 
             removeAt(last)
             index = last
             last = -1
+            expectedModCount = modCount
+        }
+
+        protected fun checkForComodification() {
+            if (modCount != expectedModCount)
+                throw ConcurrentModificationException()
         }
     }
 
@@ -143,6 +154,7 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
         override fun nextIndex(): Int = index
 
         override fun previous(): E {
+            checkForComodification()
             if (!hasPrevious()) throw NoSuchElementException()
 
             last = --index
@@ -152,14 +164,18 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
         override fun previousIndex(): Int = index - 1
 
         override fun add(element: E) {
+            checkForComodification()
             add(index, element)
             index++
             last = -1
+            expectedModCount = modCount
         }
 
         override fun set(element: E) {
+            checkForComodification()
             check(last != -1) { "Call next() or previous() before updating element value with the iterator."}
             this@AbstractMutableList[last] = element
+            expectedModCount = modCount
         }
     }
 
@@ -176,6 +192,7 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
 
             list.add(fromIndex + index, element)
             _size++
+            modCount = list.modCount
         }
 
         override fun get(index: Int): E {
@@ -189,6 +206,7 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
 
             val result = list.removeAt(fromIndex + index)
             _size--
+            modCount = list.modCount
             return result
         }
 

@@ -19,7 +19,7 @@
 # OWNER_LIST: Alexander.Udalov
 # OWNER_LIST: Zalim.Bashorov
 # OWNER_LIST: Ilya.Goncharov
-# OWNER_LIST: Alexander.Shabalin Pavel.Kunyavskiy Svyatoslav.Scherbina
+# OWNER_LIST: Alexander.Shabalin Aleksei.Glushko Sergey.Bogolepov Svyatoslav.Scherbina
 # Kotlin Libraries
 # OWNER_LIST: A.Qurbonzoda Vsevolod.Tolstopyato Ilya.Gorbunov Sergey.Shanshin Leonid.Startsev
 
@@ -77,7 +77,7 @@
 /compiler/ir/backend.wasm/ "Kotlin Wasm"
 /compiler/ir/ir.interpreter/ "Kotlin JVM"
 /compiler/ir/ir.ir2cfg/ Mikhail.Glukhikh
-/compiler/ir/ir.psi2ir/ "Kotlin Compiler Core"
+/compiler/ir/ir.psi2ir/ "Kotlin JVM"
 /compiler/ir/ir.tree/ "Kotlin JVM" "Kotlin JS" "Kotlin Native" "Kotlin Wasm"
 /compiler/ir/serialization.common/ "Kotlin Native"
 /compiler/ir/serialization.js/ "Kotlin JS"
@@ -255,10 +255,10 @@
 /kotlin-js-store/ "Kotlin JS"
 
 /kotlin-native/ "Kotlin Native"
-/kotlin-native/common/ Alexander.Shabalin Pavel.Kunyavskiy
-/kotlin-native/runtime/ Alexander.Shabalin Pavel.Kunyavskiy
+/kotlin-native/common/ Alexander.Shabalin Aleksei.Glushko
+/kotlin-native/runtime/ Alexander.Shabalin Aleksei.Glushko
 /kotlin-native/runtime/src/main/kotlin/ "Kotlin Native" A.Qurbonzoda Vsevolod.Tolstopyato Ilya.Gorbunov
-/kotlin-native/runtime/**/*.mm Alexander.Shabalin Pavel.Kunyavskiy Svyatoslav.Scherbina
+/kotlin-native/runtime/**/*.mm Alexander.Shabalin Aleksei.Glushko Sergey.Bogolepov Svyatoslav.Scherbina
 /kotlin-native/licenses/ "Kotlin Build Infrastructure"
 
 /libraries/examples/annotation-processor-example/ "Kotlin Compiler Core"

@@ -24,15 +24,15 @@ class LazyIrFactory(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrClassSymbol,
         name: Name,
-        kind: ClassKind,
         visibility: DescriptorVisibility,
+        symbol: IrClassSymbol,
+        kind: ClassKind,
         modality: Modality,
+        isExternal: Boolean,
         isCompanion: Boolean,
         isInner: Boolean,
         isData: Boolean,
-        isExternal: Boolean,
         isValue: Boolean,
         isExpect: Boolean,
         isFun: Boolean,
@@ -41,133 +41,170 @@ class LazyIrFactory(
         symbol.owner
     else
         delegate.createClass(
-            startOffset, endOffset, origin, symbol, name, kind, visibility, modality,
-            isCompanion, isInner, isData, isExternal, isValue, isExpect, isFun, source
+            startOffset,
+            endOffset,
+            origin,
+            name,
+            visibility,
+            symbol,
+            kind,
+            modality,
+            isExternal,
+            isCompanion,
+            isInner,
+            isData,
+            isValue,
+            isExpect,
+            isFun,
+            source,
         )
 
     override fun createConstructor(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrConstructorSymbol,
         name: Name,
         visibility: DescriptorVisibility,
-        returnType: IrType,
         isInline: Boolean,
-        isExternal: Boolean,
-        isPrimary: Boolean,
         isExpect: Boolean,
+        returnType: IrType,
+        symbol: IrConstructorSymbol,
+        isPrimary: Boolean,
+        isExternal: Boolean,
         containerSource: DeserializedContainerSource?
     ): IrConstructor = if (symbol.isBound)
         symbol.owner
     else
         delegate.createConstructor(
-            startOffset, endOffset, origin, symbol, name, visibility, returnType,
-            isInline, isExternal, isPrimary, isExpect, containerSource
+            startOffset,
+            endOffset,
+            origin,
+            name,
+            visibility,
+            isInline,
+            isExpect,
+            returnType,
+            symbol,
+            isPrimary,
+            isExternal,
+            containerSource,
         )
 
     override fun createEnumEntry(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrEnumEntrySymbol,
-        name: Name
+        name: Name,
+        symbol: IrEnumEntrySymbol
     ): IrEnumEntry = if (symbol.isBound)
         symbol.owner
     else
-        delegate.createEnumEntry(startOffset, endOffset, origin, symbol, name)
+        delegate.createEnumEntry(startOffset, endOffset, origin, name, symbol)
 
     override fun createField(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrFieldSymbol,
         name: Name,
-        type: IrType,
         visibility: DescriptorVisibility,
+        symbol: IrFieldSymbol,
+        type: IrType,
         isFinal: Boolean,
-        isExternal: Boolean,
-        isStatic: Boolean
+        isStatic: Boolean,
+        isExternal: Boolean
     ): IrField = if (symbol.isBound)
         symbol.owner
     else
-        delegate.createField(startOffset, endOffset, origin, symbol, name, type, visibility, isFinal, isExternal, isStatic)
+        delegate.createField(startOffset, endOffset, origin, name, visibility, symbol, type, isFinal, isStatic, isExternal)
 
-    override fun createFunction(
+    override fun createSimpleFunction(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrSimpleFunctionSymbol,
         name: Name,
         visibility: DescriptorVisibility,
-        modality: Modality,
-        returnType: IrType,
         isInline: Boolean,
-        isExternal: Boolean,
+        isExpect: Boolean,
+        returnType: IrType,
+        modality: Modality,
+        symbol: IrSimpleFunctionSymbol,
         isTailrec: Boolean,
         isSuspend: Boolean,
         isOperator: Boolean,
         isInfix: Boolean,
-        isExpect: Boolean,
-        isFakeOverride: Boolean,
-        containerSource: DeserializedContainerSource?
+        isExternal: Boolean,
+        containerSource: DeserializedContainerSource?,
+        isFakeOverride: Boolean
     ): IrSimpleFunction = if (symbol.isBound)
         symbol.owner
     else
-        delegate.createFunction(
-            startOffset, endOffset, origin, symbol, name, visibility, modality, returnType,
-            isInline, isExternal, isTailrec, isSuspend, isOperator, isInfix, isExpect, isFakeOverride, containerSource
+        delegate.createSimpleFunction(
+            startOffset, endOffset, origin, name, visibility, isInline, isExpect, returnType,
+            modality, symbol, isTailrec, isSuspend, isOperator, isInfix, isExternal, containerSource, isFakeOverride
         )
 
     override fun createProperty(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrPropertySymbol,
         name: Name,
         visibility: DescriptorVisibility,
         modality: Modality,
+        symbol: IrPropertySymbol,
         isVar: Boolean,
         isConst: Boolean,
         isLateinit: Boolean,
         isDelegated: Boolean,
         isExternal: Boolean,
+        containerSource: DeserializedContainerSource?,
         isExpect: Boolean,
-        isFakeOverride: Boolean,
-        containerSource: DeserializedContainerSource?
+        isFakeOverride: Boolean
     ): IrProperty = if (symbol.isBound)
         symbol.owner
     else
         delegate.createProperty(
-            startOffset, endOffset, origin, symbol, name, visibility, modality,
-            isVar, isConst, isLateinit, isDelegated, isExternal, isExpect, isFakeOverride, containerSource
+            startOffset,
+            endOffset,
+            origin,
+            name,
+            visibility,
+            modality,
+            symbol,
+            isVar,
+            isConst,
+            isLateinit,
+            isDelegated,
+            isExternal,
+            containerSource,
+            isExpect,
+            isFakeOverride,
         )
 
     override fun createTypeAlias(
         startOffset: Int,
         endOffset: Int,
-        symbol: IrTypeAliasSymbol,
+        origin: IrDeclarationOrigin,
         name: Name,
         visibility: DescriptorVisibility,
-        expandedType: IrType,
+        symbol: IrTypeAliasSymbol,
         isActual: Boolean,
-        origin: IrDeclarationOrigin
+        expandedType: IrType
     ): IrTypeAlias = if (symbol.isBound)
         symbol.owner
     else
-        delegate.createTypeAlias(startOffset, endOffset, symbol, name, visibility, expandedType, isActual, origin)
+        delegate.createTypeAlias(startOffset, endOffset, origin, name, visibility, symbol, isActual, expandedType)
 
     override fun createTypeParameter(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrTypeParameterSymbol,
         name: Name,
+        symbol: IrTypeParameterSymbol,
+        variance: Variance,
         index: Int,
-        isReified: Boolean,
-        variance: Variance
+        isReified: Boolean
     ): IrTypeParameter = if (symbol.isBound)
         symbol.owner
     else
-        delegate.createTypeParameter(startOffset, endOffset, origin, symbol, name, index, isReified, variance)
+        delegate.createTypeParameter(startOffset, endOffset, origin, name, symbol, variance, index, isReified)
 }

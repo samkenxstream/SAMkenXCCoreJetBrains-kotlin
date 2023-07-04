@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.js.test.converters.ClassicJsBackendFacade
 import org.jetbrains.kotlin.js.test.converters.incremental.RecompileModuleJsBackendFacade
 import org.jetbrains.kotlin.js.test.handlers.*
 import org.jetbrains.kotlin.js.test.ir.AbstractJsBlackBoxCodegenTestBase
+import org.jetbrains.kotlin.js.test.ir.AbstractJsIrTest
 import org.jetbrains.kotlin.js.test.utils.JsIncrementalEnvironmentConfigurator
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.TargetBackend
@@ -55,75 +56,6 @@ abstract class AbstractJsTest(
                     ::JsTranslationResultHandler,
                     ::JsSourceMapHandler,
                     ::JsRecompiledArtifactsIdentityHandler,
-                )
-            }
-        }
-    }
-}
-
-open class AbstractBoxJsTest : AbstractJsTest(pathToTestDir = "${JsEnvironmentConfigurator.TEST_DATA_DIR_PATH}/box/", testGroupOutputDirPrefix = "box/") {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                +JsEnvironmentConfigurationDirectives.RUN_MINIFIER_BY_DEFAULT
-            }
-        }
-    }
-}
-
-open class AbstractJsCodegenBoxTest : AbstractJsTest(
-    pathToTestDir = "compiler/testData/codegen/box/",
-    testGroupOutputDirPrefix = "codegen/box/"
-)
-
-open class AbstractJsCodegenInlineTest : AbstractJsTest(
-    pathToTestDir = "compiler/testData/codegen/boxInline",
-    testGroupOutputDirPrefix = "codegen/boxInline"
-)
-
-open class AbstractJsLegacyPrimitiveArraysBoxTest : AbstractJsTest(
-    pathToTestDir = "compiler/testData/codegen/box/arrays/",
-    testGroupOutputDirPrefix = "codegen/box/arrays-legacy-primitivearrays/"
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                -JsEnvironmentConfigurationDirectives.TYPED_ARRAYS
-            }
-        }
-    }
-}
-
-open class AbstractSourceMapGenerationSmokeTest : AbstractJsTest(
-    pathToTestDir = "${JsEnvironmentConfigurator.TEST_DATA_DIR_PATH}/sourcemap/",
-    testGroupOutputDirPrefix = "sourcemap/"
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                +JsEnvironmentConfigurationDirectives.GENERATE_SOURCE_MAP
-                -JsEnvironmentConfigurationDirectives.GENERATE_NODE_JS_RUNNER
-            }
-        }
-    }
-}
-
-open class AbstractOutputPrefixPostfixTest : AbstractJsTest(
-    pathToTestDir = "${JsEnvironmentConfigurator.TEST_DATA_DIR_PATH}/outputPrefixPostfix/",
-    testGroupOutputDirPrefix = "outputPrefixPostfix/"
-) {
-    override fun configure(builder: TestConfigurationBuilder) {
-        super.configure(builder)
-        with(builder) {
-            defaultDirectives {
-                -JsEnvironmentConfigurationDirectives.GENERATE_NODE_JS_RUNNER
-            }
-            configureJsArtifactsHandlersStep {
-                useHandlers(
-                    ::JsPrefixPostfixHandler
                 )
             }
         }

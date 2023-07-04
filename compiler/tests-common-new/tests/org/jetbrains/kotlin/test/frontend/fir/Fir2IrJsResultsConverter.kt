@@ -48,7 +48,7 @@ import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.test.services.compilerConfigurationProvider
-import org.jetbrains.kotlin.test.services.jsLibraryProvider
+import org.jetbrains.kotlin.test.services.libraryProvider
 import org.jetbrains.kotlin.utils.metadataVersion
 
 class Fir2IrJsResultsConverter(
@@ -146,7 +146,8 @@ class Fir2IrJsResultsConverter(
                 FirKLibSerializerExtension(
                     components.session, metadataVersion,
                     ConstValueProviderImpl(components),
-                    allowErrorTypes = false, exportKDoc = false
+                    allowErrorTypes = false, exportKDoc = false,
+                    components.annotationsFromPluginRegistrar.createMetadataAnnotationsProvider()
                 ),
                 configuration.languageVersionSettings,
             )
@@ -175,6 +176,7 @@ fun AbstractFirAnalyzerFacade.convertToJsIr(
         linkViaSignatures = generateSignatures,
         evaluatedConstTracker = configuration
             .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+        inlineConstTracker = null,
     )
     return Fir2IrConverter.createModuleFragmentWithSignaturesIfNeeded(
         session, scopeSession, firFiles.toList(),
@@ -202,7 +204,7 @@ private fun loadResolvedLibraries(
 
     return resolvedLibraries.map { resolvedLibrary ->
         // resolvedLibrary.library.libraryName in fact resolves to (modified) file path, which is confising and maybe should be refactored
-        testServices.jsLibraryProvider.getOrCreateStdlibByPath(resolvedLibrary.library.libraryName) {
+        testServices.libraryProvider.getOrCreateStdlibByPath(resolvedLibrary.library.libraryName) {
             // TODO: check safety of the approach of creating a separate storage manager per library
             val storageManager = LockBasedStorageManager("ModulesStructure")
 

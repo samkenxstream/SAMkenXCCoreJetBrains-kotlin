@@ -172,16 +172,16 @@ class WasmSharedVariablesManager(val context: JsCommonBackendContext, val builtI
         val symbol = IrFieldSymbolImpl()
         val fieldName = Name.identifier("v")
         return context.irFactory.createField(
-            UNDEFINED_OFFSET,
-            UNDEFINED_OFFSET,
-            IrDeclarationOrigin.FIELD_FOR_OUTER_THIS,
-            symbol,
-            fieldName,
-            builtIns.anyNType,
-            DescriptorVisibilities.PUBLIC,
+            startOffset = UNDEFINED_OFFSET,
+            endOffset = UNDEFINED_OFFSET,
+            origin = IrDeclarationOrigin.FIELD_FOR_OUTER_THIS,
+            name = fieldName,
+            visibility = DescriptorVisibilities.PUBLIC,
+            symbol = symbol,
+            type = builtIns.anyNType,
             isFinal = false,
-            isExternal = false,
             isStatic = false,
+            isExternal = false,
         ).also {
             it.parent = closureBoxClassDeclaration
             closureBoxClassDeclaration.declarations += it
@@ -192,9 +192,17 @@ class WasmSharedVariablesManager(val context: JsCommonBackendContext, val builtI
         val symbol = IrConstructorSymbolImpl()
 
         val declaration = context.irFactory.createConstructor(
-            UNDEFINED_OFFSET, UNDEFINED_OFFSET, JsLoweredDeclarationOrigin.JS_CLOSURE_BOX_CLASS_DECLARATION, symbol,
-            SpecialNames.INIT, DescriptorVisibilities.PUBLIC, closureBoxClassDeclaration.defaultType,
-            isInline = false, isExternal = false, isPrimary = true, isExpect = false
+            startOffset = UNDEFINED_OFFSET,
+            endOffset = UNDEFINED_OFFSET,
+            origin = JsLoweredDeclarationOrigin.JS_CLOSURE_BOX_CLASS_DECLARATION,
+            name = SpecialNames.INIT,
+            visibility = DescriptorVisibilities.PUBLIC,
+            isInline = false,
+            isExpect = false,
+            returnType = closureBoxClassDeclaration.defaultType,
+            symbol = symbol,
+            isPrimary = true,
+            isExternal = false,
         )
 
         declaration.parent = closureBoxClassDeclaration

@@ -239,6 +239,7 @@ object BuilderConfigurator : AbstractBuilderConfigurator<FirTreeBuilder>(FirTree
             parents += variableBuilder
             default("resolvePhase", "FirResolvePhase.DECLARATIONS")
             openBuilder()
+            withCopy()
         }
 
         builder(typeOperatorCall) {
@@ -256,6 +257,7 @@ object BuilderConfigurator : AbstractBuilderConfigurator<FirTreeBuilder>(FirTree
         builder(thisReceiverExpression) {
             parents += qualifiedAccessExpressionBuilder
             default("isImplicit", "false")
+            withCopy()
         }
 
         builder(thisReference, "FirExplicitThisReference") {

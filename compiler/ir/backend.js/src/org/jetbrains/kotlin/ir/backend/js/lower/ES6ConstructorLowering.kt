@@ -155,7 +155,8 @@ class ES6ConstructorLowering(val context: JsIrBackendContext) : DeclarationTrans
             type = irClass.defaultType,
             parent = this,
             name = Namer.SYNTHETIC_RECEIVER_NAME,
-            initializer = initializer
+            initializer = initializer,
+            origin = IrDeclarationOrigin.IR_TEMPORARY_VARIABLE
         )
     }
 
@@ -225,7 +226,7 @@ class ES6ConstructorLowering(val context: JsIrBackendContext) : DeclarationTrans
                     constructor.isEffectivelyExternal() ->
                         JsIrBuilder.buildCall(context.intrinsics.jsCreateExternalThisSymbol)
                             .apply {
-                                putValueArgument(0, irClass.getCurrentConstructorReference(constructorReplacement))
+                                putValueArgument(0, getCurrentConstructorReference(constructorReplacement))
                                 putValueArgument(1, expression.symbol.owner.parentAsClass.jsConstructorReference(context))
                                 putValueArgument(2, irAnyArray(expression.valueArguments.memoryOptimizedMap { it ?: context.getVoid() }))
                                 putValueArgument(3, boxParameterGetter)
@@ -233,7 +234,7 @@ class ES6ConstructorLowering(val context: JsIrBackendContext) : DeclarationTrans
                     constructor.parentAsClass.symbol == context.irBuiltIns.anyClass ->
                         JsIrBuilder.buildCall(context.intrinsics.jsCreateThisSymbol)
                             .apply {
-                                putValueArgument(0, irClass.getCurrentConstructorReference(constructorReplacement))
+                                putValueArgument(0, getCurrentConstructorReference(constructorReplacement))
                                 putValueArgument(1, boxParameterGetter)
                             }
                     else ->
@@ -262,12 +263,8 @@ class ES6ConstructorLowering(val context: JsIrBackendContext) : DeclarationTrans
         }
     }
 
-    private fun IrClass.getCurrentConstructorReference(currentFactoryFunction: IrSimpleFunction): IrExpression {
-        return if (isFinalClass) {
-            jsConstructorReference(context)
-        } else {
-            JsIrBuilder.buildGetValue(currentFactoryFunction.dispatchReceiverParameter!!.symbol)
-        }
+    private fun getCurrentConstructorReference(currentFactoryFunction: IrSimpleFunction): IrExpression {
+        return JsIrBuilder.buildGetValue(currentFactoryFunction.dispatchReceiverParameter!!.symbol)
     }
 
     private fun IrDeclaration.excludeFromExport() {

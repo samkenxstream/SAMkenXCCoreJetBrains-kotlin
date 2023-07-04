@@ -159,6 +159,7 @@ object FirKotlinToJvmBytecodeCompiler {
             linkViaSignatures = moduleConfiguration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES),
             evaluatedConstTracker = moduleConfiguration
                 .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+            inlineConstTracker = moduleConfiguration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
         )
         val fir2IrAndIrActualizerResult = firResult.convertToIrAndActualizeForJvm(
             fir2IrExtensions,
@@ -209,7 +210,7 @@ object FirKotlinToJvmBytecodeCompiler {
         val rootModuleName = module.getModuleName()
         val libraryList = createLibraryListForJvm(rootModuleName, moduleConfiguration, module.getFriendPaths())
         val sessionsWithSources = prepareJvmSessions(
-            ktFiles, moduleConfiguration, projectEnvironment, Name.identifier(rootModuleName),
+            ktFiles, moduleConfiguration, projectEnvironment, Name.special("<$rootModuleName>"),
             extensionRegistrars, librariesScope, libraryList,
             isCommonSource = { it.isCommonSource == true },
             fileBelongsToModule = { file, moduleName -> file.hmppModuleName == moduleName },

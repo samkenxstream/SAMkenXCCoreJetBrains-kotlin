@@ -47,7 +47,7 @@ object FirInlineDeclarationChecker : FirFunctionChecker() {
         if (context.session.inlineCheckerExtension?.isGenerallyOk(declaration, context, reporter) == false) return
         if (declaration !is FirPropertyAccessor && declaration !is FirSimpleFunction) return
 
-        val effectiveVisibility = declaration.effectiveVisibility
+        val effectiveVisibility = declaration.publishedApiEffectiveVisibility ?: declaration.effectiveVisibility
         checkInlineFunctionBody(declaration, effectiveVisibility, context, reporter)
         checkCallableDeclaration(declaration, context, reporter)
     }
@@ -150,8 +150,8 @@ object FirInlineDeclarationChecker : FirFunctionChecker() {
                 reporter.reportOn(
                     source,
                     FirErrors.NON_PUBLIC_CALL_FROM_PUBLIC_INLINE,
-                    accessedSymbol,
                     inlineFunction.symbol,
+                    accessedSymbol,
                     context
                 )
             } else {
@@ -295,7 +295,7 @@ object FirInlineDeclarationChecker : FirFunctionChecker() {
                     prohibitProtectedCallFromInline -> FirErrors.PROTECTED_CALL_FROM_PUBLIC_INLINE_ERROR
                     else -> FirErrors.PROTECTED_CALL_FROM_PUBLIC_INLINE
                 }
-                reporter.reportOn(source, factory, calledDeclaration, inlineFunction.symbol, context)
+                reporter.reportOn(source, factory, inlineFunction.symbol, calledDeclaration, context)
             }
         }
 
@@ -420,7 +420,6 @@ object FirInlineDeclarationChecker : FirFunctionChecker() {
                 reporter.reportOn(
                     defaultValue.source,
                     FirErrors.INVALID_DEFAULT_FUNCTIONAL_PARAMETER_FOR_INLINE,
-                    defaultValue,
                     param.symbol,
                     context
                 )

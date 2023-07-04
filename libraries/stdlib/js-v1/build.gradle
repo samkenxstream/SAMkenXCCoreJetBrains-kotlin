@@ -1,5 +1,5 @@
 plugins {
-    id "com.github.node-gradle.node" version "3.0.1"
+    id "com.github.node-gradle.node" version "5.0.0"
 }
 
 description = 'Kotlin Standard Library for JS'
@@ -134,7 +134,6 @@ compileKotlin2Js {
             "-opt-in=kotlin.RequiresOptIn",
             "-opt-in=kotlin.ExperimentalMultiplatform",
             "-opt-in=kotlin.contracts.ExperimentalContracts",
-            "-XXLanguage:+RangeUntilOperator",
             "-Xforce-deprecated-legacy-compiler-usage"
         ]
     }
@@ -148,7 +147,6 @@ compileTestKotlin2Js {
             "-opt-in=kotlin.ExperimentalUnsignedTypes",
             "-opt-in=kotlin.ExperimentalStdlibApi",
             "-opt-in=kotlin.io.encoding.ExperimentalEncodingApi",
-            "-XXLanguage:+RangeUntilOperator",
         ]
     }
 }
@@ -369,8 +367,6 @@ tasks.register("runMocha", NodeTask) {
         it.workingDir = buildDir
     }
 }
-
-test.dependsOn runMocha
 
 tasks.withType(org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile) {
     kotlinOptions.freeCompilerArgs += "-Xforce-deprecated-legacy-compiler-usage"

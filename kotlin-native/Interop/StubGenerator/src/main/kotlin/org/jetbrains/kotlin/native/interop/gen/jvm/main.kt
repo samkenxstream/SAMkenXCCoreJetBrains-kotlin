@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.DefFile
 import org.jetbrains.kotlin.konan.util.KonanHomeProvider
 import org.jetbrains.kotlin.konan.util.usingNativeMemoryAllocator
+import org.jetbrains.kotlin.library.KLIB_PROPERTY_IR_PROVIDER
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.metadata.resolver.TopologicalLibraryOrder
 import org.jetbrains.kotlin.library.metadata.resolver.impl.KotlinLibraryResolverImpl
@@ -290,17 +291,6 @@ private fun processCLib(
 
     val outKtPkg = fqParts.joinToString(".")
 
-    val mode = run {
-        val providedMode = cinteropArguments.mode
-
-        if (providedMode == GenerationMode.METADATA && flavor == KotlinPlatform.JVM) {
-            warn("Metadata mode isn't supported for Kotlin/JVM! Falling back to sourcecode.")
-            GenerationMode.SOURCE_CODE
-        } else {
-            providedMode
-        }
-    }
-
     val resolver = getLibraryResolver(cinteropArguments, tool.target)
 
     val allLibraryDependencies = when (flavor) {
@@ -348,7 +338,10 @@ private fun processCLib(
     } else {
         {}
     }
-
+    val mode = when (flavor) {
+        KotlinPlatform.JVM -> GenerationMode.SOURCE_CODE
+        KotlinPlatform.NATIVE -> GenerationMode.METADATA
+    }
     val stubIrContext = StubIrContext(logger, configuration, nativeIndex, imports, flavor, mode, libName, plugin)
     val stubIrOutput = run {
         val outKtFileCreator = {
@@ -378,7 +371,7 @@ private fun processCLib(
     }
     def.manifestAddendProperties["interop"] = "true"
     if (stubIrOutput is StubIrDriver.Result.Metadata) {
-        def.manifestAddendProperties["ir_provider"] = KLIB_INTEROP_IR_PROVIDER_IDENTIFIER
+        def.manifestAddendProperties[KLIB_PROPERTY_IR_PROVIDER] = KLIB_INTEROP_IR_PROVIDER_IDENTIFIER
     }
     stubIrContext.addManifestProperties(def.manifestAddendProperties)
     // cinterop command line option overrides def file property

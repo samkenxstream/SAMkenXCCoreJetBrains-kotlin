@@ -8,6 +8,7 @@
 #include <cinttypes>
 #include <optional>
 
+#include "CallsChecker.hpp"
 #include "CompilerConstants.hpp"
 #include "GlobalData.hpp"
 #include "GCImpl.hpp"
@@ -18,11 +19,9 @@
 #include "ThreadRegistry.hpp"
 #include "ThreadSuspension.hpp"
 #include "GCState.hpp"
-#include "FinalizerProcessor.hpp"
 #include "GCStatistics.hpp"
 
 #ifdef CUSTOM_ALLOCATOR
-#include "CustomFinalizerProcessor.hpp"
 #include "Heap.hpp"
 #endif
 
@@ -62,7 +61,6 @@ struct ProcessWeaksTraits {
 
 void gc::ConcurrentMarkAndSweep::ThreadData::SafePointAllocation(size_t size) noexcept {
     gcScheduler_.OnSafePointAllocation(size);
-    mm::SuspendIfRequested();
 }
 
 void gc::ConcurrentMarkAndSweep::ThreadData::Schedule() noexcept {
@@ -90,7 +88,9 @@ void gc::ConcurrentMarkAndSweep::ThreadData::OnOOM(size_t size) noexcept {
     ScheduleAndWaitFullGC();
 }
 
-NO_EXTERNAL_CALLS_CHECK void gc::ConcurrentMarkAndSweep::ThreadData::OnSuspendForGC() noexcept {
+void gc::ConcurrentMarkAndSweep::ThreadData::OnSuspendForGC() noexcept {
+    CallsCheckerIgnoreGuard guard;
+
     std::unique_lock lock(markingMutex);
     if (!markingRequested.load()) return;
     AutoReset scopedAssignMarking(&marking_, true);
@@ -108,22 +108,16 @@ NO_EXTERNAL_CALLS_CHECK void gc::ConcurrentMarkAndSweep::ThreadData::OnSuspendFo
 
 #ifndef CUSTOM_ALLOCATOR
 gc::ConcurrentMarkAndSweep::ConcurrentMarkAndSweep(
-        mm::ObjectFactory<ConcurrentMarkAndSweep>& objectFactory, GCScheduler& gcScheduler) noexcept :
+        mm::ObjectFactory<ConcurrentMarkAndSweep>& objectFactory, gcScheduler::GCScheduler& gcScheduler) noexcept :
     objectFactory_(objectFactory),
-    gcScheduler_(gcScheduler),
-    finalizerProcessor_(std_support::make_unique<FinalizerProcessor>([this](int64_t epoch) {
 #else
-gc::ConcurrentMarkAndSweep::ConcurrentMarkAndSweep(GCScheduler& gcScheduler) noexcept :
-    gcScheduler_(gcScheduler), finalizerProcessor_(std_support::make_unique<alloc::CustomFinalizerProcessor>([this](int64_t epoch) {
+gc::ConcurrentMarkAndSweep::ConcurrentMarkAndSweep(gcScheduler::GCScheduler& gcScheduler) noexcept :
 #endif
+    gcScheduler_(gcScheduler),
+    finalizerProcessor_([this](int64_t epoch) {
         GCHandle::getByEpoch(epoch).finalizersDone();
         state_.finalized(epoch);
-    })) {
-    gcScheduler_.SetScheduleGC([this]() NO_INLINE {
-        // This call acquires a lock, so we need to ensure that we're in the safe state.
-        NativeOrUnregisteredThreadGuard guard(/* reentrant = */ true);
-        state_.schedule();
-    });
+    }) {
     gcThread_ = ScopedThread(ScopedThread::attributes().name("GC thread"), [this] {
         while (true) {
             auto epoch = state_.waitScheduled();
@@ -144,31 +138,31 @@ gc::ConcurrentMarkAndSweep::~ConcurrentMarkAndSweep() {
 
 void gc::ConcurrentMarkAndSweep::StartFinalizerThreadIfNeeded() noexcept {
     NativeOrUnregisteredThreadGuard guard(true);
-    finalizerProcessor_->StartFinalizerThreadIfNone();
-    finalizerProcessor_->WaitFinalizerThreadInitialized();
+    finalizerProcessor_.StartFinalizerThreadIfNone();
+    finalizerProcessor_.WaitFinalizerThreadInitialized();
 }
 
 void gc::ConcurrentMarkAndSweep::StopFinalizerThreadIfRunning() noexcept {
     NativeOrUnregisteredThreadGuard guard(true);
-    finalizerProcessor_->StopFinalizerThread();
+    finalizerProcessor_.StopFinalizerThread();
 }
 
 bool gc::ConcurrentMarkAndSweep::FinalizersThreadIsRunning() noexcept {
-    return finalizerProcessor_->IsRunning();
+    return finalizerProcessor_.IsRunning();
 }
 
 void gc::ConcurrentMarkAndSweep::SetMarkingBehaviorForTests(MarkingBehavior markingBehavior) noexcept {
     markingBehavior_ = markingBehavior;
 }
 
-bool gc::ConcurrentMarkAndSweep::PerformFullGC(int64_t epoch) noexcept {
+void gc::ConcurrentMarkAndSweep::PerformFullGC(int64_t epoch) noexcept {
     auto gcHandle = GCHandle::create(epoch);
     SetMarkingRequested(epoch);
     bool didSuspend = mm::RequestThreadsSuspension();
     RuntimeAssert(didSuspend, "Only GC thread can request suspension");
     gcHandle.suspensionRequested();
 
-    RuntimeAssert(!kotlin::mm::IsCurrentThreadRegistered(), "Concurrent GC must run on unregistered thread");
+    RuntimeAssert(!kotlin::mm::IsCurrentThreadRegistered(), "GC must run on unregistered thread");
     WaitForThreadsReadyToMark();
     gcHandle.threadsAreSuspended();
 
@@ -215,11 +209,11 @@ bool gc::ConcurrentMarkAndSweep::PerformFullGC(int64_t epoch) noexcept {
     state_.finish(epoch);
     gcHandle.finalizersScheduled(finalizerQueue.size());
     gcHandle.finished();
+
     // This may start a new thread. On some pthreads implementations, this may block waiting for concurrent thread
     // destructors running. So, it must ensured that no locks are held by this point.
     // TODO: Consider having an always on sleeping finalizer thread.
-    finalizerProcessor_->ScheduleTasks(std::move(finalizerQueue), epoch);
-    return true;
+    finalizerProcessor_.ScheduleTasks(std::move(finalizerQueue), epoch);
 }
 
 namespace {
@@ -259,7 +253,7 @@ void gc::ConcurrentMarkAndSweep::WaitForThreadsReadyToMark() noexcept {
     }
 }
 
-NO_EXTERNAL_CALLS_CHECK void gc::ConcurrentMarkAndSweep::CollectRootSetAndStartMarking(GCHandle gcHandle) noexcept {
+void gc::ConcurrentMarkAndSweep::CollectRootSetAndStartMarking(GCHandle gcHandle) noexcept {
         std::unique_lock lock(markingMutex);
         markingRequested = false;
         gc::collectRootSet<internal::MarkTraits>(

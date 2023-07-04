@@ -38,15 +38,15 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrClassSymbol,
         name: Name,
-        kind: ClassKind,
         visibility: DescriptorVisibility,
+        symbol: IrClassSymbol,
+        kind: ClassKind,
         modality: Modality,
+        isExternal: Boolean,
         isCompanion: Boolean,
         isInner: Boolean,
         isData: Boolean,
-        isExternal: Boolean,
         isValue: Boolean,
         isExpect: Boolean,
         isFun: Boolean,
@@ -62,14 +62,14 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrConstructorSymbol,
         name: Name,
         visibility: DescriptorVisibility,
-        returnType: IrType,
         isInline: Boolean,
-        isExternal: Boolean,
-        isPrimary: Boolean,
         isExpect: Boolean,
+        returnType: IrType,
+        symbol: IrConstructorSymbol,
+        isPrimary: Boolean,
+        isExternal: Boolean,
         containerSource: DeserializedContainerSource?,
     ): IrConstructor =
         IrConstructorImpl(
@@ -81,8 +81,8 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrEnumEntrySymbol,
         name: Name,
+        symbol: IrEnumEntrySymbol,
     ): IrEnumEntry =
         IrEnumEntryImpl(startOffset, endOffset, origin, symbol, name, factory = this)
 
@@ -97,34 +97,34 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrFieldSymbol,
         name: Name,
-        type: IrType,
         visibility: DescriptorVisibility,
+        symbol: IrFieldSymbol,
+        type: IrType,
         isFinal: Boolean,
-        isExternal: Boolean,
         isStatic: Boolean,
+        isExternal: Boolean,
     ): IrField =
         IrFieldImpl(startOffset, endOffset, origin, symbol, name, type, visibility, isFinal, isExternal, isStatic, factory = this)
 
-    override fun createFunction(
+    override fun createSimpleFunction(
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrSimpleFunctionSymbol,
         name: Name,
         visibility: DescriptorVisibility,
-        modality: Modality,
-        returnType: IrType,
         isInline: Boolean,
-        isExternal: Boolean,
+        isExpect: Boolean,
+        returnType: IrType,
+        modality: Modality,
+        symbol: IrSimpleFunctionSymbol,
         isTailrec: Boolean,
         isSuspend: Boolean,
         isOperator: Boolean,
         isInfix: Boolean,
-        isExpect: Boolean,
-        isFakeOverride: Boolean,
+        isExternal: Boolean,
         containerSource: DeserializedContainerSource?,
+        isFakeOverride: Boolean,
     ): IrSimpleFunction =
         IrFunctionImpl(
             startOffset, endOffset, origin, symbol, name, visibility, modality, returnType,
@@ -158,8 +158,8 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrLocalDelegatedPropertySymbol,
         name: Name,
+        symbol: IrLocalDelegatedPropertySymbol,
         type: IrType,
         isVar: Boolean,
     ): IrLocalDelegatedProperty =
@@ -169,18 +169,18 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrPropertySymbol,
         name: Name,
         visibility: DescriptorVisibility,
         modality: Modality,
+        symbol: IrPropertySymbol,
         isVar: Boolean,
         isConst: Boolean,
         isLateinit: Boolean,
         isDelegated: Boolean,
         isExternal: Boolean,
+        containerSource: DeserializedContainerSource?,
         isExpect: Boolean,
         isFakeOverride: Boolean,
-        containerSource: DeserializedContainerSource?,
     ): IrProperty =
         IrPropertyImpl(
             startOffset, endOffset, origin, symbol, name, visibility, modality,
@@ -211,12 +211,12 @@ abstract class AbstractIrFactoryImpl : IrFactory {
     override fun createTypeAlias(
         startOffset: Int,
         endOffset: Int,
-        symbol: IrTypeAliasSymbol,
+        origin: IrDeclarationOrigin,
         name: Name,
         visibility: DescriptorVisibility,
-        expandedType: IrType,
+        symbol: IrTypeAliasSymbol,
         isActual: Boolean,
-        origin: IrDeclarationOrigin,
+        expandedType: IrType,
     ): IrTypeAlias =
         IrTypeAliasImpl(startOffset, endOffset, symbol, name, visibility, expandedType, isActual, origin, factory = this)
 
@@ -224,11 +224,11 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrTypeParameterSymbol,
         name: Name,
+        symbol: IrTypeParameterSymbol,
+        variance: Variance,
         index: Int,
         isReified: Boolean,
-        variance: Variance,
     ): IrTypeParameter =
         IrTypeParameterImpl(startOffset, endOffset, origin, symbol, name, index, isReified, variance, factory = this)
 
@@ -236,15 +236,15 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         startOffset: Int,
         endOffset: Int,
         origin: IrDeclarationOrigin,
-        symbol: IrValueParameterSymbol,
         name: Name,
-        index: Int,
         type: IrType,
+        isAssignable: Boolean,
+        symbol: IrValueParameterSymbol,
+        index: Int,
         varargElementType: IrType?,
         isCrossinline: Boolean,
         isNoinline: Boolean,
         isHidden: Boolean,
-        isAssignable: Boolean,
     ): IrValueParameter =
         IrValueParameterImpl(
             startOffset, endOffset, origin, symbol, name, index, type, varargElementType,
@@ -254,21 +254,9 @@ abstract class AbstractIrFactoryImpl : IrFactory {
     override fun createExpressionBody(
         startOffset: Int,
         endOffset: Int,
-        initializer: IrExpressionBody.() -> Unit,
-    ): IrExpressionBody =
-        IrExpressionBodyImpl(startOffset, endOffset, initializer)
-
-    override fun createExpressionBody(
-        startOffset: Int,
-        endOffset: Int,
         expression: IrExpression,
     ): IrExpressionBody =
         IrExpressionBodyImpl(startOffset, endOffset, expression)
-
-    override fun createExpressionBody(
-        expression: IrExpression,
-    ): IrExpressionBody =
-        IrExpressionBodyImpl(expression)
 
     override fun createBlockBody(
         startOffset: Int,

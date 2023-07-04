@@ -42,6 +42,20 @@ fun BuildResult.assertTasksExecuted(vararg tasks: String) {
 }
 
 /**
+ * Asserts any of [tasks] has 'SUCCESS' execution state.
+ */
+fun BuildResult.assertAnyTaskHasBeenExecuted(tasks: Set<String>) {
+    assert(
+        tasks.any { task ->
+            task(task)?.outcome == TaskOutcome.SUCCESS
+        }
+    ) {
+        printBuildOutput()
+        "There are no 'SUCCESS' tasks in the $tasks"
+    }
+}
+
+/**
  * Asserts given [tasks] have not been executed.
  */
 fun BuildResult.assertTasksNotExecuted(vararg tasks: String) {
@@ -148,7 +162,7 @@ fun BuildResult.assertTasksPackedToCache(vararg tasks: String) {
 fun BuildResult.assertNativeTasksClasspath(
     vararg tasksPaths: String,
     toolName: NativeToolKind = NativeToolKind.KONANC,
-    assertions: (List<String>) -> Unit
+    assertions: (List<String>) -> Unit,
 ) = tasksPaths.forEach { taskPath -> assertions(extractNativeCompilerClasspath(getOutputForTask(taskPath), toolName)) }
 
 /**
@@ -168,9 +182,10 @@ fun BuildResult.assertNativeTasksClasspath(
 fun TestProject.buildAndAssertAllTasks(
     registeredTasks: List<String> = emptyList(),
     notRegisteredTasks: List<String> = emptyList(),
+    buildOptions: BuildOptions = this.buildOptions,
     environmentVariables: EnvironmentalVariables = EnvironmentalVariables()
 ) {
-    build("tasks", "--all", environmentVariables = environmentVariables) {
+    build("tasks", "--all", buildOptions = buildOptions, environmentVariables = environmentVariables) {
         assertTasksInBuildOutput(registeredTasks, notRegisteredTasks)
     }
 }
@@ -188,7 +203,7 @@ fun TestProject.buildAndAssertAllTasks(
  */
 fun BuildResult.assertTasksInBuildOutput(
     expectedPresentTasks: List<String> = emptyList(),
-    expectedAbsentTasks: List<String> = emptyList()
+    expectedAbsentTasks: List<String> = emptyList(),
 ) {
     val registeredTasks = getAllTasksFromTheOutput()
     expectedPresentTasks.forEach {

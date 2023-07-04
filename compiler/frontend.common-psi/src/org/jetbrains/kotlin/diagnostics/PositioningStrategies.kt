@@ -162,6 +162,20 @@ object PositioningStrategies {
     }
 
     @JvmField
+    val DECLARATION_NAME_ONLY: PositioningStrategy<KtNamedDeclaration> = object : DeclarationHeader<KtNamedDeclaration>() {
+        override fun mark(element: KtNamedDeclaration): List<TextRange> {
+            val nameIdentifier = element.nameIdentifier
+            if (nameIdentifier != null) {
+                return markElement(nameIdentifier)
+            }
+            if (element is KtNamedFunction) {
+                return DECLARATION_SIGNATURE.mark(element)
+            }
+            return DEFAULT.mark(element)
+        }
+    }
+
+    @JvmField
     val DECLARATION_SIGNATURE: PositioningStrategy<KtDeclaration> = object : DeclarationHeader<KtDeclaration>() {
         override fun mark(element: KtDeclaration): List<TextRange> {
             when (element) {
@@ -931,11 +945,14 @@ object PositioningStrategies {
 
     val PROPERTY_INITIALIZER: PositioningStrategy<KtNamedDeclaration> = object : PositioningStrategy<KtNamedDeclaration>() {
         override fun mark(element: KtNamedDeclaration): List<TextRange> {
-            return markElement(when (element) {
-                is KtProperty -> element.initializer ?: element
-                is KtParameter -> element.typeReference ?: element
-                else -> element
-            })
+            return markElement(
+                when (element) {
+                    is KtProperty -> element.initializer ?: element
+                    // Type reference is used as a target for loop variable type mismatches
+                    is KtParameter -> element.defaultValue ?: element.typeReference ?: element
+                    else -> element
+                }
+            )
         }
     }
 
@@ -992,6 +1009,8 @@ object PositioningStrategies {
                 }
             }
         }
+
+        override fun isValid(element: PsiElement): Boolean = true
     }
 
     val NON_FINAL_MODIFIER_OR_NAME: PositioningStrategy<KtModifierListOwner> =

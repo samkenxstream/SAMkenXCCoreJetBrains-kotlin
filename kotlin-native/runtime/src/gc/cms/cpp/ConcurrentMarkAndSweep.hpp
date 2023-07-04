@@ -9,7 +9,10 @@
 #include <cstddef>
 
 #include "Allocator.hpp"
+#include "FinalizerProcessor.hpp"
 #include "GCScheduler.hpp"
+#include "GCState.hpp"
+#include "GCStatistics.hpp"
 #include "IntrusiveList.hpp"
 #include "MarkAndSweepUtils.hpp"
 #include "ObjectFactory.hpp"
@@ -17,25 +20,16 @@
 #include "ThreadData.hpp"
 #include "Types.h"
 #include "Utils.hpp"
-#include "GCState.hpp"
 #include "std_support/Memory.hpp"
-#include "GCStatistics.hpp"
 
 #ifdef CUSTOM_ALLOCATOR
 #include "CustomAllocator.hpp"
+#include "CustomFinalizerProcessor.hpp"
 #include "Heap.hpp"
-
-namespace kotlin::alloc {
-class CustomFinalizerProcessor;
-}
 #endif
 
 namespace kotlin {
 namespace gc {
-
-#ifndef CUSTOM_ALLOCATOR
-class FinalizerProcessor;
-#endif
 
 // Stop-the-world parallel mark + concurrent sweep. The GC runs in a separate thread, finalizers run in another thread of their own.
 // TODO: Also make marking run concurrently with Kotlin threads.
@@ -82,7 +76,8 @@ public:
 
         using Allocator = AllocatorWithGC<Allocator, ThreadData>;
 
-        explicit ThreadData(ConcurrentMarkAndSweep& gc, mm::ThreadData& threadData, GCSchedulerThreadData& gcScheduler) noexcept :
+        explicit ThreadData(
+                ConcurrentMarkAndSweep& gc, mm::ThreadData& threadData, gcScheduler::GCSchedulerThreadData& gcScheduler) noexcept :
             gc_(gc), threadData_(threadData), gcScheduler_(gcScheduler) {}
         ~ThreadData() = default;
 
@@ -102,16 +97,24 @@ public:
         friend ConcurrentMarkAndSweep;
         ConcurrentMarkAndSweep& gc_;
         mm::ThreadData& threadData_;
-        GCSchedulerThreadData& gcScheduler_;
+        gcScheduler::GCSchedulerThreadData& gcScheduler_;
         std::atomic<bool> marking_;
     };
 
     using Allocator = ThreadData::Allocator;
 
-#ifdef CUSTOM_ALLOCATOR
-    explicit ConcurrentMarkAndSweep(GCScheduler& scheduler) noexcept;
+#ifndef CUSTOM_ALLOCATOR
+    using FinalizerQueue = mm::ObjectFactory<ConcurrentMarkAndSweep>::FinalizerQueue;
+    using FinalizerQueueTraits = mm::ObjectFactory<ConcurrentMarkAndSweep>::FinalizerQueueTraits;
 #else
-    ConcurrentMarkAndSweep(mm::ObjectFactory<ConcurrentMarkAndSweep>& objectFactory, GCScheduler& scheduler) noexcept;
+    using FinalizerQueue = alloc::FinalizerQueue;
+    using FinalizerQueueTraits = alloc::FinalizerQueueTraits;
+#endif
+
+#ifdef CUSTOM_ALLOCATOR
+    explicit ConcurrentMarkAndSweep(gcScheduler::GCScheduler& scheduler) noexcept;
+#else
+    ConcurrentMarkAndSweep(mm::ObjectFactory<ConcurrentMarkAndSweep>& objectFactory, gcScheduler::GCScheduler& scheduler) noexcept;
 #endif
     ~ConcurrentMarkAndSweep();
 
@@ -127,24 +130,21 @@ public:
     alloc::Heap& heap() noexcept { return heap_; }
 #endif
 
+    void Schedule() noexcept { state_.schedule(); }
+
 private:
-    // Returns `true` if GC has happened, and `false` if not (because someone else has suspended the threads).
-    bool PerformFullGC(int64_t epoch) noexcept;
+    void PerformFullGC(int64_t epoch) noexcept;
 
 #ifndef CUSTOM_ALLOCATOR
     mm::ObjectFactory<ConcurrentMarkAndSweep>& objectFactory_;
 #else
     alloc::Heap heap_;
 #endif
-    GCScheduler& gcScheduler_;
+    gcScheduler::GCScheduler& gcScheduler_;
 
     GCStateHolder state_;
     ScopedThread gcThread_;
-#ifndef CUSTOM_ALLOCATOR
-    std_support::unique_ptr<FinalizerProcessor> finalizerProcessor_;
-#else
-    std_support::unique_ptr<alloc::CustomFinalizerProcessor> finalizerProcessor_;
-#endif
+    FinalizerProcessor<FinalizerQueue, FinalizerQueueTraits> finalizerProcessor_;
 
     MarkQueue markQueue_;
     MarkingBehavior markingBehavior_;

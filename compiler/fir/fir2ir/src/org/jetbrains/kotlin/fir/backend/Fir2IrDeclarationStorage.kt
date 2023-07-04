@@ -331,11 +331,18 @@ class Fir2IrDeclarationStorage(
         isNoinline: Boolean = false,
     ): IrValueParameter {
         return irFactory.createValueParameter(
-            startOffset, endOffset, IrDeclarationOrigin.DEFINED, IrValueParameterSymbolImpl(),
-            name ?: SpecialNames.IMPLICIT_SET_PARAMETER, parent.contextReceiverParametersCount, type,
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = IrDeclarationOrigin.DEFINED,
+            name = name ?: SpecialNames.IMPLICIT_SET_PARAMETER,
+            type = type,
+            isAssignable = false,
+            symbol = IrValueParameterSymbolImpl(),
+            index = parent.contextReceiverParametersCount,
             varargElementType = null,
-            isCrossinline = isCrossinline, isNoinline = isNoinline,
-            isHidden = false, isAssignable = false
+            isCrossinline = isCrossinline,
+            isNoinline = isNoinline,
+            isHidden = false,
         ).apply {
             this.parent = parent
             if (firValueParameter != null) {
@@ -568,21 +575,22 @@ class Fir2IrDeclarationStorage(
         val created = function.convertWithOffsets { startOffset, endOffset ->
             val result = declareIrSimpleFunction(signature) { symbol ->
                 classifierStorage.preCacheTypeParameters(function, symbol)
-                irFactory.createFunction(
-                    if (updatedOrigin == IrDeclarationOrigin.DELEGATED_MEMBER) SYNTHETIC_OFFSET else startOffset,
-                    if (updatedOrigin == IrDeclarationOrigin.DELEGATED_MEMBER) SYNTHETIC_OFFSET else endOffset,
-                    updatedOrigin, symbol,
-                    name, components.visibilityConverter.convertToDescriptorVisibility(visibility),
-                    simpleFunction?.modality ?: Modality.FINAL,
-                    function.returnTypeRef.toIrType(),
+                irFactory.createSimpleFunction(
+                    startOffset = if (updatedOrigin == IrDeclarationOrigin.DELEGATED_MEMBER) SYNTHETIC_OFFSET else startOffset,
+                    endOffset = if (updatedOrigin == IrDeclarationOrigin.DELEGATED_MEMBER) SYNTHETIC_OFFSET else endOffset,
+                    origin = updatedOrigin,
+                    name = name,
+                    visibility = components.visibilityConverter.convertToDescriptorVisibility(visibility),
                     isInline = simpleFunction?.isInline == true,
-                    isExternal = simpleFunction?.isExternal == true,
+                    isExpect = simpleFunction?.isExpect == true,
+                    returnType = function.returnTypeRef.toIrType(),
+                    modality = simpleFunction?.modality ?: Modality.FINAL,
+                    symbol = symbol,
                     isTailrec = simpleFunction?.isTailRec == true,
                     isSuspend = isSuspend,
-                    isExpect = simpleFunction?.isExpect == true,
-                    isFakeOverride = updatedOrigin == IrDeclarationOrigin.FAKE_OVERRIDE,
                     isOperator = simpleFunction?.isOperator == true,
                     isInfix = simpleFunction?.isInfix == true,
+                    isExternal = simpleFunction?.isExternal == true,
                     containerSource = simpleFunction?.containerSource,
                 ).apply {
                     metadata = FirMetadataSource.Function(function)
@@ -665,10 +673,17 @@ class Fir2IrDeclarationStorage(
             declareIrConstructor(signature) { symbol ->
                 classifierStorage.preCacheTypeParameters(constructor, symbol)
                 irFactory.createConstructor(
-                    startOffset, endOffset, origin, symbol,
-                    SpecialNames.INIT, components.visibilityConverter.convertToDescriptorVisibility(visibility),
-                    constructor.returnTypeRef.toIrType(),
-                    isInline = false, isExternal = false, isPrimary = isPrimary, isExpect = constructor.isExpect
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = origin,
+                    name = SpecialNames.INIT,
+                    visibility = components.visibilityConverter.convertToDescriptorVisibility(visibility),
+                    isInline = false,
+                    isExpect = constructor.isExpect,
+                    returnType = constructor.returnTypeRef.toIrType(),
+                    symbol = symbol,
+                    isPrimary = isPrimary,
+                    isExternal = false,
                 ).apply {
                     metadata = FirMetadataSource.Function(constructor)
                     // Add to cache before generating parameters to prevent an infinite loop when an annotation value parameter is annotated
@@ -731,16 +746,22 @@ class Fir2IrDeclarationStorage(
             val visibility = propertyAccessor?.visibility?.let {
                 components.visibilityConverter.convertToDescriptorVisibility(it)
             }
-            irFactory.createFunction(
-                startOffset, endOffset, origin, symbol,
-                Name.special("<$prefix-${correspondingProperty.name}>"),
-                visibility ?: (correspondingProperty as IrDeclarationWithVisibility).visibility,
-                (correspondingProperty as? IrOverridableMember)?.modality ?: Modality.FINAL, accessorReturnType,
+            irFactory.createSimpleFunction(
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = Name.special("<$prefix-${correspondingProperty.name}>"),
+                visibility = visibility ?: (correspondingProperty as IrDeclarationWithVisibility).visibility,
                 isInline = propertyAccessor?.isInline == true,
-                isExternal = propertyAccessor?.isExternal == true,
-                isTailrec = false, isSuspend = false, isOperator = false,
+                isExpect = false,
+                returnType = accessorReturnType,
+                modality = (correspondingProperty as? IrOverridableMember)?.modality ?: Modality.FINAL,
+                symbol = symbol,
+                isTailrec = false,
+                isSuspend = false,
+                isOperator = false,
                 isInfix = false,
-                isExpect = false, isFakeOverride = origin == IrDeclarationOrigin.FAKE_OVERRIDE,
+                isExternal = propertyAccessor?.isExternal == true,
                 containerSource = containerSource,
             ).apply {
                 correspondingPropertySymbol = (correspondingProperty as? IrProperty)?.symbol
@@ -798,11 +819,16 @@ class Fir2IrDeclarationStorage(
         val inferredType = type ?: firInitializerExpression!!.typeRef.toIrType()
         return declareIrField { symbol ->
             irFactory.createField(
-                startOffset, endOffset, origin, symbol,
-                name, inferredType,
-                visibility, isFinal = isFinal,
-                isExternal = property.isExternal,
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = name,
+                visibility = visibility,
+                symbol = symbol,
+                type = inferredType,
+                isFinal = isFinal,
                 isStatic = property.isStatic || !(parent is IrClass || parent is IrScript),
+                isExternal = property.isExternal,
             ).also {
                 it.correspondingPropertySymbol = this@createBackingField.symbol
             }.apply {
@@ -910,16 +936,20 @@ class Fir2IrDeclarationStorage(
             val result = declareIrProperty(signature) { symbol ->
                 classifierStorage.preCacheTypeParameters(property, symbol)
                 irFactory.createProperty(
-                    startOffset, endOffset, origin, symbol,
-                    property.name, components.visibilityConverter.convertToDescriptorVisibility(property.visibility), property.modality!!,
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = origin,
+                    name = property.name,
+                    visibility = components.visibilityConverter.convertToDescriptorVisibility(property.visibility),
+                    modality = property.modality!!,
+                    symbol = symbol,
                     isVar = property.isVar,
                     isConst = property.isConst,
                     isLateinit = property.isLateInit,
                     isDelegated = property.delegate != null,
                     isExternal = property.isExternal,
-                    isExpect = property.isExpect,
-                    isFakeOverride = origin == IrDeclarationOrigin.FAKE_OVERRIDE,
                     containerSource = property.containerSource,
+                    isExpect = property.isExpect,
                 ).apply {
                     metadata = FirMetadataSource.Property(property)
                     convertAnnotationsForNonDeclaredMembers(property, origin)
@@ -1103,7 +1133,9 @@ class Fir2IrDeclarationStorage(
             irParent = irClass,
             typeRef = initializer?.typeRef ?: field.returnTypeRef,
             origin = IrDeclarationOrigin.DELEGATE
-        )
+        ).apply {
+            metadata = FirMetadataSource.Field(field)
+        }
     }
 
     internal fun createIrField(
@@ -1122,22 +1154,33 @@ class Fir2IrDeclarationStorage(
                     signature, symbolFactory = { IrFieldPublicSymbolImpl(signature) }
                 ) { symbol ->
                     irFactory.createField(
-                        startOffset, endOffset, origin, symbol,
-                        field.name, type, components.visibilityConverter.convertToDescriptorVisibility(field.visibility),
+                        startOffset = startOffset,
+                        endOffset = endOffset,
+                        origin = origin,
+                        name = field.name,
+                        visibility = components.visibilityConverter.convertToDescriptorVisibility(field.visibility),
+                        symbol = symbol,
+                        type = type,
                         isFinal = field.modality == Modality.FINAL,
-                        isExternal = false,
-                        isStatic = field.isStatic
+                        isStatic = field.isStatic,
+                        isExternal = false
                     )
                 }
             } else {
                 irFactory.createField(
-                    startOffset, endOffset, origin, IrFieldSymbolImpl(),
-                    field.name, type, components.visibilityConverter.convertToDescriptorVisibility(field.visibility),
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = origin,
+                    name = field.name,
+                    visibility = components.visibilityConverter.convertToDescriptorVisibility(field.visibility),
+                    symbol = IrFieldSymbolImpl(),
+                    type = type,
                     isFinal = field.modality == Modality.FINAL,
-                    isExternal = false,
-                    isStatic = field.isStatic
+                    isStatic = field.isStatic,
+                    isExternal = false
                 )
             }.apply {
+                metadata = FirMetadataSource.Field(field)
                 val staticFakeOverrideKey = getFieldStaticFakeOverrideKey(field, containingClassLookupTag)
                 if (staticFakeOverrideKey == null) {
                     fieldCache[field] = this
@@ -1172,12 +1215,20 @@ class Fir2IrDeclarationStorage(
         val type = valueParameter.returnTypeRef.toIrType(typeContext)
         val irParameter = valueParameter.convertWithOffsets { startOffset, endOffset ->
             irFactory.createValueParameter(
-                startOffset, endOffset, origin, IrValueParameterSymbolImpl(),
-                valueParameter.name, index, type,
-                if (!valueParameter.isVararg) null
-                else valueParameter.returnTypeRef.coneType.arrayElementType()?.toIrType(typeContext),
-                isCrossinline = valueParameter.isCrossinline, isNoinline = valueParameter.isNoinline,
-                isHidden = false, isAssignable = false
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = valueParameter.name,
+                type = type,
+                isAssignable = false,
+                symbol = IrValueParameterSymbolImpl(),
+                index = index,
+                varargElementType =
+                    if (!valueParameter.isVararg) null
+                    else valueParameter.returnTypeRef.coneType.arrayElementType()?.toIrType(typeContext),
+                isCrossinline = valueParameter.isCrossinline,
+                isNoinline = valueParameter.isNoinline,
+                isHidden = false,
             ).apply {
                 if (!skipDefaultParameter && valueParameter.defaultValue.let {
                         it != null && (useStubForDefaultValueStub || it !is FirExpressionStub)
@@ -1204,11 +1255,18 @@ class Fir2IrDeclarationStorage(
         val type = contextReceiver.typeRef.toIrType()
         return contextReceiver.convertWithOffsets { startOffset, endOffset ->
             irFactory.createValueParameter(
-                startOffset, endOffset, IrDeclarationOrigin.DEFINED, IrValueParameterSymbolImpl(),
-                NameUtils.contextReceiverName(index), index, type,
-                null,
-                isCrossinline = false, isNoinline = false,
-                isHidden = false, isAssignable = false
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = IrDeclarationOrigin.DEFINED,
+                name = NameUtils.contextReceiverName(index),
+                type = type,
+                isAssignable = false,
+                symbol = IrValueParameterSymbolImpl(),
+                index = index,
+                varargElementType = null,
+                isCrossinline = false,
+                isNoinline = false,
+                isHidden = false,
             )
         }
     }
@@ -1268,13 +1326,13 @@ class Fir2IrDeclarationStorage(
         val origin = IrDeclarationOrigin.DEFINED
         val irProperty = property.convertWithOffsets { startOffset, endOffset ->
             irFactory.createLocalDelegatedProperty(
-                startOffset,
-                endOffset,
-                origin,
-                IrLocalDelegatedPropertySymbolImpl(),
-                property.name,
-                type,
-                property.isVar
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = property.name,
+                symbol = IrLocalDelegatedPropertySymbolImpl(),
+                type = type,
+                isVar = property.isVar
             )
         }.apply {
             parent = irParent

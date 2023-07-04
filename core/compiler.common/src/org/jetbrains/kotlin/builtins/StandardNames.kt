@@ -38,6 +38,8 @@ object StandardNames {
 
     @JvmField val NEXT_CHAR = Name.identifier("nextChar")
 
+    @JvmField val IMPLICIT_LAMBDA_PARAMETER_NAME = Name.identifier("it")
+
     @JvmField val CONTEXT_FUNCTION_TYPE_PARAMETER_COUNT_NAME = Name.identifier("count")
 
     @JvmField val DYNAMIC_FQ_NAME = FqName("<dynamic>")
@@ -164,6 +166,7 @@ object StandardNames {
         @JvmField val mutableMapEntry: FqName = mutableMap.child(Name.identifier("MutableEntry"))
 
         @JvmField val kClass: FqNameUnsafe = reflect("KClass")
+        @JvmField val kType: FqNameUnsafe = reflect("KType")
         @JvmField val kCallable: FqNameUnsafe = reflect("KCallable")
         @JvmField val kProperty0: FqNameUnsafe = reflect("KProperty0")
         @JvmField val kProperty1: FqNameUnsafe = reflect("KProperty1")

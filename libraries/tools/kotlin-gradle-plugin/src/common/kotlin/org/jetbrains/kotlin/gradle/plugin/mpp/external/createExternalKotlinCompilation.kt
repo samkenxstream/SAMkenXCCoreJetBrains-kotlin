@@ -7,14 +7,14 @@ package org.jetbrains.kotlin.gradle.plugin.mpp.external
 
 import org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi
 import org.jetbrains.kotlin.gradle.plugin.*
-import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.DefaultKotlinCompilationAssociator
+import org.jetbrains.kotlin.gradle.plugin.hierarchy.SourceSetTreeClassifierWrapper
+import org.jetbrains.kotlin.gradle.plugin.hierarchy.sourceSetTreeClassifier
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.DefaultKotlinCompilationFriendPathsResolver
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.KotlinCompilationAssociator
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.KotlinCompilationSourceSetsContainer
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.factory.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.decoratedInstance
 import org.jetbrains.kotlin.gradle.plugin.mpp.external.DecoratedExternalKotlinCompilation.Delegate
-import org.jetbrains.kotlin.gradle.plugin.mpp.targetHierarchy.sourceSetTreeClassifier
 import org.jetbrains.kotlin.gradle.tasks.KotlinTasksProvider
 
 /**
@@ -49,12 +49,12 @@ fun <T : DecoratedExternalKotlinCompilation> DecoratedExternalKotlinTarget.creat
                 compileAllTaskName = descriptor.compileAllTaskName ?: default.compileAllTaskName
             )
         },
-        compilationAssociator = descriptor.compilationAssociator?.let { declaredAssociator ->
-            @Suppress("unchecked_cast")
-            KotlinCompilationAssociator { _, first, second ->
-                declaredAssociator.associate(first.decoratedInstance as T, second.decoratedInstance as DecoratedExternalKotlinCompilation)
-            }
-        } ?: DefaultKotlinCompilationAssociator,
+        compilationAssociator = @Suppress("unchecked_cast") KotlinCompilationAssociator { _, first, second ->
+            descriptor.compilationAssociator.associate(
+                first.decoratedInstance as T,
+                second.decoratedInstance as DecoratedExternalKotlinCompilation
+            )
+        },
         compilationFriendPathsResolver = DefaultKotlinCompilationFriendPathsResolver(
             DefaultKotlinCompilationFriendPathsResolver.FriendArtifactResolver.composite(
                 DefaultKotlinCompilationFriendPathsResolver.DefaultFriendArtifactResolver,
@@ -70,7 +70,10 @@ fun <T : DecoratedExternalKotlinCompilation> DecoratedExternalKotlinTarget.creat
 
     val compilationImpl = compilationImplFactory.create(this, descriptor.compilationName)
     val decoratedCompilation = descriptor.compilationFactory.create(Delegate(compilationImpl))
-    decoratedCompilation.sourceSetTreeClassifier = descriptor.sourceSetTreeClassifier
+
+    decoratedCompilation.sourceSetTreeClassifier = descriptor.sourceSetTreeClassifierV2
+        ?: @Suppress("DEPRECATION") SourceSetTreeClassifierWrapper(descriptor.sourceSetTreeClassifier)
+
     descriptor.configure?.invoke(decoratedCompilation)
     this.delegate.compilations.add(decoratedCompilation)
 

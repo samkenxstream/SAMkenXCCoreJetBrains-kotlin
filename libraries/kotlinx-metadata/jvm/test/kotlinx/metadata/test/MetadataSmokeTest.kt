@@ -48,19 +48,22 @@ class MetadataSmokeTest {
 
         val klass = KmClass().apply {
             name = "Hello"
-            flags = flagsOf(Flag.IS_PUBLIC)
-            constructors += KmConstructor(flagsOf(Flag.IS_PUBLIC)).apply {
+            visibility = Visibility.PUBLIC
+            constructors += KmConstructor().apply {
+                visibility = Visibility.PUBLIC
                 signature = JvmMethodSignature("<init>", "()V")
             }
-            functions += KmFunction(flagsOf(Flag.IS_PUBLIC, Flag.Function.IS_DECLARATION), "hello").apply {
-                returnType = KmType(flagsOf()).apply {
+            functions += KmFunction("hello").apply {
+                visibility = Visibility.PUBLIC
+                kind = MemberKind.DECLARATION
+                returnType = KmType().apply {
                     classifier = KmClassifier.Class("kotlin/String")
                 }
                 signature = JvmMethodSignature("hello", "()Ljava/lang/String;")
             }
         }
 
-        val annotationData = KotlinClassMetadata.writeClass(klass).annotationData
+        val annotationData = KotlinClassMetadata.writeClass(klass)
 
         // Then, produce the bytecode of a .class file with ASM
 
@@ -124,7 +127,7 @@ class MetadataSmokeTest {
         class ClassNameReader : KmClassVisitor() {
             lateinit var className: ClassName
 
-            override fun visit(flags: Flags, name: ClassName) {
+            override fun visit(flags: Int, name: ClassName) {
                 className = name
             }
         }
@@ -166,24 +169,30 @@ class MetadataSmokeTest {
         classWithStableParameterNames.constructors.forEach { assertFalse(Flag.Constructor.HAS_NON_STABLE_PARAMETER_NAMES(it.flags)) }
         classWithStableParameterNames.functions.forEach { assertFalse(Flag.Function.HAS_NON_STABLE_PARAMETER_NAMES(it.flags)) }
 
+        classWithStableParameterNames.constructors.forEach { assertFalse(it.hasNonStableParameterNames) }
+        classWithStableParameterNames.functions.forEach { assertFalse(it.hasNonStableParameterNames) }
+
         val newMetadata = KotlinClassMetadata.writeClass(
             KmClass().apply {
                 classWithStableParameterNames.accept(
                     object : KmClassVisitor(this) {
-                        override fun visitConstructor(flags: Flags) =
+                        override fun visitConstructor(flags: Int) =
                             super.visitConstructor(flags + flagsOf(Flag.Constructor.HAS_NON_STABLE_PARAMETER_NAMES))
 
-                        override fun visitFunction(flags: Flags, name: String) =
+                        override fun visitFunction(flags: Int, name: String) =
                             super.visitFunction(flags + flagsOf(Flag.Function.HAS_NON_STABLE_PARAMETER_NAMES), name)
                     }
                 )
             }
         )
 
-        val classWithUnstableParameterNames = newMetadata.toKmClass()
+        val classWithUnstableParameterNames = newMetadata.readAsKmClass()
 
         classWithUnstableParameterNames.constructors.forEach { assertTrue(Flag.Constructor.HAS_NON_STABLE_PARAMETER_NAMES(it.flags)) }
         classWithUnstableParameterNames.functions.forEach { assertTrue(Flag.Function.HAS_NON_STABLE_PARAMETER_NAMES(it.flags)) }
+
+        classWithUnstableParameterNames.constructors.forEach { assertTrue(it.hasNonStableParameterNames) }
+        classWithUnstableParameterNames.functions.forEach { assertTrue(it.hasNonStableParameterNames) }
     }
 
     @Test
@@ -206,18 +215,38 @@ class MetadataSmokeTest {
         // exist are controlled by compiler options, so we have to manually create metadata with the
         // flags set. Since the current flags only apply to interfaces with default functions we modify
         // the metadata for the kotlin.coroutines.CoroutineContext interface.
-        val jvmClassFlags: Flags = flagsOf(
-            JvmFlag.Class.IS_COMPILED_IN_COMPATIBILITY_MODE,
-            JvmFlag.Class.HAS_METHOD_BODIES_IN_INTERFACE
-        )
 
         val metadata = CoroutineContext::class.java.getMetadata()
         val kmClass = metadata.readAsKmClass()
-        kmClass.jvmFlags = jvmClassFlags
+        assertFalse(kmClass.isCompiledInCompatibilityMode)
+        assertFalse(kmClass.hasMethodBodiesInInterface)
+        kmClass.isCompiledInCompatibilityMode = true
+        kmClass.hasMethodBodiesInInterface = true
 
         val kmClassCopy = KotlinClassMetadata
             .writeClass(kmClass, metadata.metadataVersion, metadata.extraInt)
-            .toKmClass()
-        assertEquals(kmClassCopy.jvmFlags, jvmClassFlags)
+            .readAsKmClass()
+        assertTrue(kmClassCopy.isCompiledInCompatibilityMode)
+        assertTrue(kmClassCopy.hasMethodBodiesInInterface)
     }
+
+    @Test
+    fun testDisplayNameSample() {
+        class A {}
+
+        val b: (Int) -> Int = fun(x: Int) = x
+
+        assertEquals("Class .kotlinx/metadata/test/MetadataSmokeTest\$testDisplayNameSample\$A", displayName(A::class.java.getMetadata()))
+        assertEquals("Lambda <no name provided>", displayName(b::class.java.getMetadata()))
+    }
+
+    fun displayName(metadata: Metadata): String = when (val kcm = KotlinClassMetadata.read(metadata)) {
+        is KotlinClassMetadata.Class -> "Class ${kcm.kmClass.name}"
+        is KotlinClassMetadata.FileFacade -> "File facade with functions: ${kcm.kmPackage.functions.joinToString { it.name }}"
+        is KotlinClassMetadata.SyntheticClass -> kcm.kmLambda?.function?.name?.let { "Lambda $it" } ?: "Synthetic class"
+        is KotlinClassMetadata.MultiFileClassFacade -> "Multifile class facade with parts: ${kcm.partClassNames.joinToString()}"
+        is KotlinClassMetadata.MultiFileClassPart -> "Multifile class part ${kcm.facadeClassName}"
+        is KotlinClassMetadata.Unknown -> "Unknown metadata"
+    }
+
 }

@@ -77,9 +77,10 @@ class IrBuiltInsOverFir(
 
     private val number by createClass(kotlinIrPackage, IdSignatureValues.number, build = { modality = Modality.ABSTRACT }) {
         configureSuperTypes()
-        for (targetPrimitive in primitiveIrTypesWithComparisons) {
+        for (targetPrimitive in primitiveNumericIrTypes) {
             createMemberFunction("to${targetPrimitive.classFqName!!.shortName().asString()}", targetPrimitive, modality = Modality.ABSTRACT)
         }
+        createMemberFunction("toChar", charType, modality = Modality.OPEN)
         finalizeClassDefinition()
     }
     override val numberClass: IrClassSymbol get() = number.klass
@@ -265,6 +266,8 @@ class IrBuiltInsOverFir(
     override val kPropertyClass: IrClassSymbol get() = kProperty.klass
     private val kClass by loadClass(StandardClassIds.KClass)
     override val kClassClass: IrClassSymbol get() = kClass.klass
+    private val kType by loadClass(StandardClassIds.KType)
+    override val kTypeClass: IrClassSymbol get() = kType.klass
     private val kProperty0 by loadClass(StandardClassIds.KProperty0)
     override val kProperty0Class: IrClassSymbol get() = kProperty0.klass
     private val kProperty1 by loadClass(StandardClassIds.KProperty1)
@@ -455,8 +458,14 @@ class IrBuiltInsOverFir(
 
             checkNotNullSymbol = run {
                 val typeParameter: IrTypeParameter = irFactory.createTypeParameter(
-                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, BUILTIN_OPERATOR, IrTypeParameterSymbolImpl(), Name.identifier("T0"), 0, true,
-                    Variance.INVARIANT
+                    startOffset = UNDEFINED_OFFSET,
+                    endOffset = UNDEFINED_OFFSET,
+                    origin = BUILTIN_OPERATOR,
+                    name = Name.identifier("T0"),
+                    symbol = IrTypeParameterSymbolImpl(),
+                    variance = Variance.INVARIANT,
+                    index = 0,
+                    isReified = true
                 ).apply {
                     superTypes = listOf(anyType)
                 }
@@ -707,8 +716,21 @@ class IrBuiltInsOverFir(
                         origin = IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB
                         build()
                         irFactory.createClass(
-                            startOffset, endOffset, origin, symbol, name, kind, visibility, modality,
-                            isCompanion, isInner, isData, isExternal, isValue, isExpect, isFun
+                            startOffset = startOffset,
+                            endOffset = endOffset,
+                            origin = origin,
+                            name = name,
+                            visibility = visibility,
+                            symbol = symbol,
+                            kind = kind,
+                            modality = modality,
+                            isExternal = isExternal,
+                            isCompanion = isCompanion,
+                            isInner = isInner,
+                            isData = isData,
+                            isValue = isValue,
+                            isExpect = isExpect,
+                            isFun = isFun,
                         )
                     }.also {
                         it.parent = parent
@@ -773,8 +795,21 @@ class IrBuiltInsOverFir(
                 origin = IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB
                 builderBlock()
                 irFactory.createClass(
-                    startOffset, endOffset, origin, symbol, name, kind, visibility, modality,
-                    isCompanion, isInner, isData, isExternal, isValue, isExpect, isFun
+                    startOffset = startOffset,
+                    endOffset = endOffset,
+                    origin = origin,
+                    name = name,
+                    visibility = visibility,
+                    symbol = symbol,
+                    kind = kind,
+                    modality = modality,
+                    isExternal = isExternal,
+                    isCompanion = isCompanion,
+                    isInner = isInner,
+                    isData = isData,
+                    isValue = isValue,
+                    isExpect = isExpect,
+                    isFun = isFun,
                 )
             }.also {
                 it.parent = this
@@ -793,8 +828,17 @@ class IrBuiltInsOverFir(
     ): IrConstructorSymbol {
         val name = SpecialNames.INIT
         val ctor = irFactory.createConstructor(
-            UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, IrConstructorSymbolImpl(), name, visibility, defaultType,
-            isInline = false, isExternal = false, isPrimary = isPrimary, isExpect = false
+            startOffset = UNDEFINED_OFFSET,
+            endOffset = UNDEFINED_OFFSET,
+            origin = origin,
+            name = name,
+            visibility = visibility,
+            isInline = false,
+            isExpect = false,
+            returnType = defaultType,
+            symbol = IrConstructorSymbolImpl(),
+            isPrimary = isPrimary,
+            isExternal = false,
         )
         ctor.parent = this
         ctor.build()
@@ -899,12 +943,24 @@ class IrBuiltInsOverFir(
             this.isOperator = isOperator
             this.isInfix = isInfix
             build()
-            irFactory.createFunction(
-                startOffset, endOffset, this.origin,
-                symbol,
-                this.name, visibility, this.modality, this.returnType,
-                isInline, isExternal, isTailrec, isSuspend, this.isOperator, this.isInfix, isExpect, isFakeOverride,
-                containerSource,
+            irFactory.createSimpleFunction(
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = this.origin,
+                name = this.name,
+                visibility = visibility,
+                isInline = isInline,
+                isExpect = isExpect,
+                returnType = this.returnType,
+                modality = this.modality,
+                symbol = symbol,
+                isTailrec = isTailrec,
+                isSuspend = isSuspend,
+                isOperator = this.isOperator,
+                isInfix = this.isInfix,
+                isExternal = isExternal,
+                containerSource = containerSource,
+                isFakeOverride = isFakeOverride,
             )
         }.also { fn ->
             valueParameterTypes.forEachIndexed { index, (pName, irType) ->
@@ -980,9 +1036,11 @@ class IrBuiltInsOverFir(
                     this.isFinal = isConst
                 }.also {
                     if (fieldInit != null) {
-                        it.initializer = irFactory.createExpressionBody(0, 0) {
-                            expression = fieldInit
-                        }
+                        it.initializer = irFactory.createExpressionBody(
+                            startOffset = 0,
+                            endOffset = 0,
+                            expression = fieldInit,
+                        )
                     }
                 }
             }

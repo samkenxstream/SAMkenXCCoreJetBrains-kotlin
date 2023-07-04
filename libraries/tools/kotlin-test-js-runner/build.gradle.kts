@@ -4,10 +4,20 @@ description = "Simple Kotlin/JS tests runner with TeamCity reporter"
 
 plugins {
     id("base")
-    id("com.github.node-gradle.node") version "3.2.1"
+    id("com.github.node-gradle.node") version "5.0.0"
 }
 
 publish(sbom = false)
+
+val sbom by configurations.creating {
+    isCanBeResolved = true
+    extendsFrom(configurations.publishedRuntime.get())
+}
+
+configureSbom(
+    gradleConfigurations = setOf(sbom.name)
+)
+
 
 val default = configurations.getByName(Dependency.DEFAULT_CONFIGURATION)
 default.extendsFrom(configurations.publishedRuntime.get())
@@ -16,6 +26,13 @@ node {
     version.set(nodejsVersion)
     download.set(true)
     nodeProjectDir.set(projectDir)
+}
+
+dependencies {
+    implicitDependencies("org.nodejs:node:$nodejsVersion:win-x64@zip")
+    implicitDependencies("org.nodejs:node:$nodejsVersion:linux-x64@tar.gz")
+    implicitDependencies("org.nodejs:node:$nodejsVersion:darwin-x64@tar.gz")
+    implicitDependencies("org.nodejs:node:$nodejsVersion:darwin-arm64@tar.gz")
 }
 
 tasks {

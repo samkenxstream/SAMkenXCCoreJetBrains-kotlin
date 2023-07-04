@@ -209,6 +209,7 @@ fun transformFirToIr(
             linkViaSignatures = false,
             evaluatedConstTracker = moduleStructure.compilerConfiguration
                 .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+            inlineConstTracker = null,
         ),
         IrGenerationExtension.getInstances(moduleStructure.project),
         signatureComposer = DescriptorSignatureComposerStub(JsManglerDesc),
@@ -259,7 +260,8 @@ private class Fir2KlibSerializer(
             FirKLibSerializerExtension(
                 session, metadataVersion,
                 ConstValueProviderImpl(fir2IrActualizedResult.components),
-                allowErrorTypes = false, exportKDoc = false
+                allowErrorTypes = false, exportKDoc = false,
+                fir2IrActualizedResult.components.annotationsFromPluginRegistrar.createMetadataAnnotationsProvider()
             ),
             languageVersionSettings,
         )

@@ -13,20 +13,20 @@ val commonMainSources by task<Sync> {
 }
 
 kotlin {
+    @OptIn(org.jetbrains.kotlin.gradle.targets.js.dsl.ExperimentalWasmDsl::class)
     wasm {
         nodejs()
     }
 
-    @Suppress("UNUSED_VARIABLE")
     sourceSets {
-         val commonMain by getting {
+         named("commonMain") {
             dependencies {
                 api(project(":kotlin-stdlib-wasm"))
             }
             kotlin.srcDir(commonMainSources.get().destinationDir)
         }
 
-        val wasmMain by getting {
+        named("wasmMain") {
             dependencies {
                 api(project(":kotlin-stdlib-wasm"))
             }
@@ -53,4 +53,8 @@ tasks.register<Jar>("sourcesJar") {
     archiveClassifier.set("sources")
     from(kotlin.sourceSets["commonMain"].kotlin)
     from(kotlin.sourceSets["wasmMain"].kotlin)
+}
+
+tasks.register<Jar>("emptyJavadocJar") {
+    archiveClassifier.set("javadoc")
 }

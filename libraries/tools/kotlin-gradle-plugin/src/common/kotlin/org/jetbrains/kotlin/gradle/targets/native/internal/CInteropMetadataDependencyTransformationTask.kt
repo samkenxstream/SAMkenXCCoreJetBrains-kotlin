@@ -11,11 +11,13 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.tasks.*
+import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.commonizer.SharedCommonizerTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.ide.Idea222Api
 import org.jetbrains.kotlin.gradle.plugin.ide.ideaImportDependsOn
+import org.jetbrains.kotlin.gradle.plugin.launch
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.MetadataDependencyResolution.ChooseVisibleSourceSets
 import org.jetbrains.kotlin.gradle.plugin.mpp.MetadataDependencyResolution.ChooseVisibleSourceSets.MetadataProvider.ArtifactMetadataProvider
@@ -40,10 +42,11 @@ internal val KotlinSourceSet.cinteropMetadataDependencyTransformationTaskName: S
 internal val KotlinSourceSet.cinteropMetadataDependencyTransformationForIdeTaskName: String
     get() = lowerCamelCaseName("transform", name, "CInteropDependenciesMetadataForIde")
 
-internal fun Project.locateOrRegisterCInteropMetadataDependencyTransformationTask(
+internal suspend fun Project.locateOrRegisterCInteropMetadataDependencyTransformationTask(
     sourceSet: DefaultKotlinSourceSet,
 ): TaskProvider<CInteropMetadataDependencyTransformationTask>? {
-    if (!kotlinPropertiesProvider.enableCInteropCommonization) return null
+    if (!cInteropCommonizationEnabled()) return null
+    if (sourceSet.internal.commonizerTarget.await() !is SharedCommonizerTarget) return null
 
     return locateOrRegisterTask(
         sourceSet.cinteropMetadataDependencyTransformationTaskName,
@@ -56,14 +59,15 @@ internal fun Project.locateOrRegisterCInteropMetadataDependencyTransformationTas
             /* transformProjectDependencies = */
             true,
         ),
-        configureTask = { configureTaskOrder(); onlyIfSourceSetIsSharedNative() }
+        configureTask = { configureTaskOrder() }
     )
 }
 
-internal fun Project.locateOrRegisterCInteropMetadataDependencyTransformationTaskForIde(
+internal suspend fun Project.locateOrRegisterCInteropMetadataDependencyTransformationTaskForIde(
     sourceSet: DefaultKotlinSourceSet,
 ): TaskProvider<CInteropMetadataDependencyTransformationTask>? {
-    if (!kotlinPropertiesProvider.enableCInteropCommonization) return null
+    if (!cInteropCommonizationEnabled()) return null
+    if (sourceSet.internal.commonizerTarget.await() !is SharedCommonizerTarget) return null
 
     return locateOrRegisterTask(
         sourceSet.cinteropMetadataDependencyTransformationForIdeTaskName,
@@ -84,7 +88,7 @@ internal fun Project.locateOrRegisterCInteropMetadataDependencyTransformationTas
             /* transformProjectDependencies = */
             false, // For IDE Project Dependencies will be transformed during configuration, see [createCInteropMetadataDependencyClasspath]
         ),
-        configureTask = { configureTaskOrder(); onlyIfSourceSetIsSharedNative() }
+        configureTask = { configureTaskOrder() }
     )
 }
 
@@ -105,11 +109,8 @@ private fun CInteropMetadataDependencyTransformationTask.configureTaskOrder() {
     mustRunAfter(tasksForVisibleSourceSets)
 }
 
-private fun CInteropMetadataDependencyTransformationTask.onlyIfSourceSetIsSharedNative() {
-    val isSharedCommonizerTarget = sourceSet.internal.commonizerTarget.getOrThrow() is SharedCommonizerTarget
-    onlyIf { isSharedCommonizerTarget }
-}
 
+@DisableCachingByDefault(because = "Metadata Dependency Transformation Task doesn't benefit from caching as it doesn't have heavy load")
 internal open class CInteropMetadataDependencyTransformationTask @Inject constructor(
     @Transient @get:Internal val sourceSet: DefaultKotlinSourceSet,
     @get:OutputDirectory val outputDirectory: File,
@@ -167,7 +168,7 @@ internal open class CInteropMetadataDependencyTransformationTask @Inject constru
     }
 
     private fun materializeMetadata(
-        chooseVisibleSourceSets: ChooseVisibleSourceSets
+        chooseVisibleSourceSets: ChooseVisibleSourceSets,
     ): Iterable<File> {
         val metadataProvider = chooseVisibleSourceSets.metadataProvider
         return when (metadataProvider) {

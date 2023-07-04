@@ -107,7 +107,7 @@ internal class StandaloneDeclarationGenerator(private val context: GeneratorCont
         startOffset: Int, endOffset: Int, origin: IrDeclarationOrigin, descriptor: ClassDescriptor, symbol: IrEnumEntrySymbol
     ): IrEnumEntry {
         // TODO: corresponging class?
-        val irEntry = irFactory.createEnumEntry(startOffset, endOffset, origin, symbol, descriptor.name)
+        val irEntry = irFactory.createEnumEntry(startOffset, endOffset, origin, descriptor.name, symbol)
 
         return irEntry
     }
@@ -120,7 +120,14 @@ internal class StandaloneDeclarationGenerator(private val context: GeneratorCont
         symbol: IrTypeAliasSymbol
     ): IrTypeAlias = with(descriptor) {
         irFactory.createTypeAlias(
-            startOffset, endOffset, symbol, name, visibility, expandedType.toIrType(), isActual, origin
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = origin,
+            name = name,
+            visibility = visibility,
+            symbol = symbol,
+            isActual = isActual,
+            expandedType = expandedType.toIrType()
         ).also {
             generateGlobalTypeParametersDeclarations(it, declaredTypeParameters)
         }
@@ -167,8 +174,17 @@ internal class StandaloneDeclarationGenerator(private val context: GeneratorCont
     ): IrConstructor {
         val irConstructor = with(descriptor) {
             irFactory.createConstructor(
-                startOffset, endOffset, origin, symbol, name, visibility, IrUninitializedType, isInline,
-                isEffectivelyExternal(), isPrimary, isExpect
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = name,
+                visibility = visibility,
+                isInline = isInline,
+                isExpect = isExpect,
+                returnType = IrUninitializedType,
+                symbol = symbol,
+                isPrimary = isPrimary,
+                isExternal = isEffectivelyExternal(),
             )
         }
         irConstructor.metadata = DescriptorMetadataSource.Function(descriptor)
@@ -192,9 +208,22 @@ internal class StandaloneDeclarationGenerator(private val context: GeneratorCont
         defaultArgumentFactory: IrFunction.(IrValueParameter) -> IrExpressionBody? = { null }
     ): IrSimpleFunction {
         val irFunction = with(descriptor) {
-            irFactory.createFunction(
-                startOffset, endOffset, origin, symbol, name, visibility, modality, IrUninitializedType,
-                isInline, isEffectivelyExternal(), isTailrec, isSuspend, isOperator, isInfix, isExpect
+            irFactory.createSimpleFunction(
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = name,
+                visibility = visibility,
+                isInline = isInline,
+                isExpect = isExpect,
+                returnType = IrUninitializedType,
+                modality = modality,
+                symbol = symbol,
+                isTailrec = isTailrec,
+                isSuspend = isSuspend,
+                isOperator = isOperator,
+                isInfix = isInfix,
+                isExternal = isEffectivelyExternal(),
             )
         }
         irFunction.metadata = DescriptorMetadataSource.Function(descriptor)
@@ -213,16 +242,19 @@ internal class StandaloneDeclarationGenerator(private val context: GeneratorCont
         startOffset: Int, endOffset: Int, origin: IrDeclarationOrigin, descriptor: PropertyDescriptor, symbol: IrPropertySymbol
     ): IrProperty {
         val irProperty = irFactory.createProperty(
-            startOffset, endOffset, origin, symbol,
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = origin,
             name = descriptor.name,
             visibility = descriptor.visibility,
             modality = descriptor.modality,
+            symbol = symbol,
             isVar = descriptor.isVar,
             isConst = descriptor.isConst,
             isLateinit = descriptor.isLateInit,
             isDelegated = false,
             isExternal = descriptor.isEffectivelyExternal(),
-            isExpect = descriptor.isExpect
+            isExpect = descriptor.isExpect,
         )
 
         irProperty.metadata = DescriptorMetadataSource.Property(descriptor)

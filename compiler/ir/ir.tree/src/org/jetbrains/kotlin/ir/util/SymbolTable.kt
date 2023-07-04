@@ -654,7 +654,7 @@ open class SymbolTable(
     fun declareEnumEntry(
         startOffset: Int, endOffset: Int, origin: IrDeclarationOrigin, descriptor: ClassDescriptor,
         factory: (IrEnumEntrySymbol) -> IrEnumEntry = {
-            irFactory.createEnumEntry(startOffset, endOffset, origin, it, nameProvider.nameForDeclaration(descriptor))
+            irFactory.createEnumEntry(startOffset, endOffset, origin, nameProvider.nameForDeclaration(descriptor), it)
         }
     ): IrEnumEntry =
         enumEntrySymbolTable.declare(
@@ -715,9 +715,16 @@ open class SymbolTable(
         visibility: DescriptorVisibility? = null,
         fieldFactory: (IrFieldSymbol) -> IrField = {
             irFactory.createField(
-                startOffset, endOffset, origin, it, nameProvider.nameForDeclaration(descriptor), type,
-                visibility ?: it.descriptor.visibility, !it.descriptor.isVar, it.descriptor.isEffectivelyExternal(),
-                it.descriptor.dispatchReceiverParameter == null
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = nameProvider.nameForDeclaration(descriptor),
+                visibility = visibility ?: it.descriptor.visibility,
+                symbol = it,
+                type = type,
+                isFinal = !it.descriptor.isVar,
+                isStatic = it.descriptor.dispatchReceiverParameter == null,
+                isExternal = it.descriptor.isEffectivelyExternal(),
             ).apply {
                 metadata = DescriptorMetadataSource.Property(it.descriptor)
             }
@@ -791,16 +798,20 @@ open class SymbolTable(
         isDelegated: Boolean = descriptor.isDelegated,
         propertyFactory: (IrPropertySymbol) -> IrProperty = { symbol ->
             irFactory.createProperty(
-                startOffset, endOffset, origin, symbol, name = nameProvider.nameForDeclaration(descriptor),
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = nameProvider.nameForDeclaration(descriptor),
                 visibility = descriptor.visibility,
                 modality = descriptor.modality,
+                symbol = symbol,
                 isVar = descriptor.isVar,
                 isConst = descriptor.isConst,
                 isLateinit = descriptor.isLateInit,
                 isDelegated = isDelegated,
                 isExternal = descriptor.isEffectivelyExternal(),
                 isExpect = descriptor.isExpect,
-                isFakeOverride = descriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE
+                isFakeOverride = descriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE,
             ).apply {
                 metadata = DescriptorMetadataSource.Property(symbol.descriptor)
             }
@@ -981,8 +992,14 @@ open class SymbolTable(
         descriptor: TypeParameterDescriptor,
         typeParameterFactory: (IrTypeParameterSymbol) -> IrTypeParameter = {
             irFactory.createTypeParameter(
-                startOffset, endOffset, origin, it, nameProvider.nameForDeclaration(descriptor),
-                it.descriptor.index, it.descriptor.isReified, it.descriptor.variance
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = nameProvider.nameForDeclaration(descriptor),
+                symbol = it,
+                variance = it.descriptor.variance,
+                index = it.descriptor.index,
+                isReified = it.descriptor.isReified
             )
         }
     ): IrTypeParameter =
@@ -1008,8 +1025,14 @@ open class SymbolTable(
         descriptor: TypeParameterDescriptor,
         typeParameterFactory: (IrTypeParameterSymbol) -> IrTypeParameter = {
             irFactory.createTypeParameter(
-                startOffset, endOffset, origin, it, nameProvider.nameForDeclaration(descriptor),
-                it.descriptor.index, it.descriptor.isReified, it.descriptor.variance
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = nameProvider.nameForDeclaration(descriptor),
+                symbol = it,
+                variance = it.descriptor.variance,
+                index = it.descriptor.index,
+                isReified = it.descriptor.isReified
             )
         }
     ): IrTypeParameter =
@@ -1042,9 +1065,18 @@ open class SymbolTable(
         isAssignable: Boolean = false,
         valueParameterFactory: (IrValueParameterSymbol) -> IrValueParameter = {
             irFactory.createValueParameter(
-                startOffset, endOffset, origin, it, name ?: nameProvider.nameForDeclaration(descriptor),
-                index ?: descriptor.indexOrMinusOne, type, varargElementType, descriptor.isCrossinline, descriptor.isNoinline,
-                isHidden = false, isAssignable = isAssignable
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = name ?: nameProvider.nameForDeclaration(descriptor),
+                type = type,
+                isAssignable = isAssignable,
+                symbol = it,
+                index = index ?: descriptor.indexOrMinusOne,
+                varargElementType = varargElementType,
+                isCrossinline = descriptor.isCrossinline,
+                isNoinline = descriptor.isNoinline,
+                isHidden = false,
             )
         }
     ): IrValueParameter =
@@ -1125,7 +1157,13 @@ open class SymbolTable(
         type: IrType,
         factory: (IrLocalDelegatedPropertySymbol) -> IrLocalDelegatedProperty = {
             irFactory.createLocalDelegatedProperty(
-                startOffset, endOffset, origin, it, nameProvider.nameForDeclaration(descriptor), type, descriptor.isVar
+                startOffset = startOffset,
+                endOffset = endOffset,
+                origin = origin,
+                name = nameProvider.nameForDeclaration(descriptor),
+                symbol = it,
+                type = type,
+                isVar = descriptor.isVar
             )
         }
     ): IrLocalDelegatedProperty =

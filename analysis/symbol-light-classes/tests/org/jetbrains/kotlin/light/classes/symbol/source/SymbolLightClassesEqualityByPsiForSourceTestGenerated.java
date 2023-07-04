@@ -97,6 +97,12 @@ public class SymbolLightClassesEqualityByPsiForSourceTestGenerated extends Abstr
     }
 
     @Test
+    @TestMetadata("defaultParameterValue.kt")
+    public void testDefaultParameterValue() throws Exception {
+        runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/defaultParameterValue.kt");
+    }
+
+    @Test
     @TestMetadata("DelegatedProperty.kt")
     public void testDelegatedProperty() throws Exception {
         runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/DelegatedProperty.kt");
@@ -421,6 +427,12 @@ public class SymbolLightClassesEqualityByPsiForSourceTestGenerated extends Abstr
         @TestMetadata("properties.kt")
         public void testProperties() throws Exception {
             runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/facades/properties.kt");
+        }
+
+        @Test
+        @TestMetadata("reifiedInlineReturnsObject.kt")
+        public void testReifiedInlineReturnsObject() throws Exception {
+            runTest("compiler/testData/asJava/lightClasses/lightClassByPsi/facades/reifiedInlineReturnsObject.kt");
         }
 
         @Test

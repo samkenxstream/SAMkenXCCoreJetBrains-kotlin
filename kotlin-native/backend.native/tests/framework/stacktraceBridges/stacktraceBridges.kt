@@ -2,6 +2,7 @@
  * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
+@file:OptIn(kotlin.experimental.ExperimentalNativeApi::class)
 
 fun thrower() : Nothing {
     throw Exception()
@@ -18,14 +19,6 @@ fun getStackTrace() : List<String> {
 
 open class Foo {
     open fun foo(): List<String> { return emptyList() }
-
-    companion object {
-        var trace: List<String> = emptyList()
-
-        init {
-            trace = getStackTrace()
-        }
-    }
 }
 
 private class Bar : Foo() {
@@ -37,6 +30,16 @@ object Object {
 
     init {
         trace = getStackTrace()
+    }
+}
+
+class WithCompanion {
+    companion object {
+        var trace: List<String> = emptyList()
+
+        init {
+            trace = getStackTrace()
+        }
     }
 }
 

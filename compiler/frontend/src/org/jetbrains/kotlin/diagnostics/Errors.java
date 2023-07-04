@@ -77,6 +77,13 @@ public interface Errors {
 
     DiagnosticFactory0<KtElement> EXPLICIT_BACKING_FIELDS_UNSUPPORTED = DiagnosticFactory0.create(ERROR);
 
+    DiagnosticFactory1<PsiElement, String> UNSUPPORTED_INHERITANCE_FROM_JAVA_MEMBER_REFERENCING_KOTLIN_FUNCTION = DiagnosticFactory1.create(ERROR);
+    DiagnosticFactory0<PsiElement> UNSUPPORTED_SEALED_WHEN = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<PsiElement> UNSUPPORTED_SEALED_FUN_INTERFACE = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<PsiElement> UNSUPPORTED_SUSPEND_TEST = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<PsiElement> UNSUPPORTED_REFERENCES_TO_VARIABLES_AND_PARAMETERS = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<PsiElement> UNSUPPORTED_CLASS_LITERALS_WITH_EMPTY_LHS = DiagnosticFactory0.create(ERROR);
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // Generic errors/warnings: applicable in many contexts

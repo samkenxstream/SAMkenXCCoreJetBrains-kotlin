@@ -9,7 +9,7 @@ plugins {
     kotlin("jvm")
     kotlin("plugin.serialization")
     id("jps-compatible")
-    id("com.github.node-gradle.node") version "3.2.1"
+    id("com.github.node-gradle.node") version "5.0.0"
 }
 
 val nodeDir = buildDir.resolve("node")
@@ -331,8 +331,7 @@ fun Test.setUpBoxTests() {
 
     systemProperty("kotlin.js.test.root.out.dir", "$nodeDir/")
     systemProperty(
-        "overwrite.output", project.providers.gradleProperty("overwrite.output")
-            .forUseAtConfigurationTime().orNull ?: "false"
+        "overwrite.output", project.providers.gradleProperty("overwrite.output").orNull ?: "false"
     )
 
     forwardProperties()
@@ -388,7 +387,6 @@ projectTest("jsStdlibApiTest", parallel = true, maxHeapSizeMb = 4096) {
 
     include("org/jetbrains/kotlin/js/testOld/api/*")
     inputs.dir(rootDir.resolve("libraries/stdlib/api/js"))
-    inputs.dir(rootDir.resolve("libraries/stdlib/api/js-v1"))
 
     dependsOn(":kotlin-stdlib-js-ir:compileKotlinJs")
     systemProperty("kotlin.js.full.stdlib.path", "libraries/stdlib/js-ir/build/classes/kotlin/js/main")

@@ -5,15 +5,21 @@
 
 package org.jetbrains.kotlin.gradle.testbase
 
+import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.BaseGradleIT
+import org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin
+import org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin.Companion.POD_BUILD_TASK_NAME
 import org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin.Companion.POD_INSTALL_TASK_NAME
+import org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin.Companion.POD_SETUP_BUILD_TASK_NAME
+import org.jetbrains.kotlin.gradle.util.assertProcessRunResult
 import org.jetbrains.kotlin.gradle.util.replaceText
 import org.jetbrains.kotlin.gradle.util.runProcess
 import java.io.File
 import java.io.IOException
 import java.nio.file.Path
 import kotlin.io.path.*
+import kotlin.test.assertTrue
 import kotlin.test.fail
 
 val String.normalizeCocoapadsFrameworkName: String
@@ -148,8 +154,6 @@ fun cocoaPodsEnvironmentVariables(): Map<String, String> {
     return mapOf(
         "PATH" to path,
         "GEM_PATH" to gemPath,
-        // CocoaPods 1.11 requires UTF-8 locale being set, more details: https://github.com/CocoaPods/CocoaPods/issues/10939
-        "LC_ALL" to "en_US.UTF-8"
     )
 }
 
@@ -160,13 +164,19 @@ fun cocoaPodsEnvironmentVariables(): Map<String, String> {
  *
  * @throws AssertionError if [shouldInstallLocalCocoapods] is false and  cocoapods has not been installed
  */
+@Synchronized
 fun ensureCocoapodsInstalled() {
     if (shouldInstallLocalCocoapods) {
         val installDir = cocoapodsInstallationRoot.absolutePathString()
         println("Installing CocoaPods...")
 
-        //https://github.com/ffi/ffi/issues/864#issuecomment-875242776
-        gem("install", "--install-dir", installDir, "ffi", "-v", "1.15.5", "--", "--enable-libffi-alloc")
+        try {
+            //https://github.com/ffi/ffi/issues/864#issuecomment-875242776
+            gem("install", "--install-dir", installDir, "ffi", "-v", "1.15.5", "--", "--enable-libffi-alloc")
+        } catch (e: AssertionError) {
+            System.err.println("ffi installation with '--enable-libffi-alloc' has failed but we'll try to continue with a default ffi")
+            System.err.println(e.toString())
+        }
 
         gem("install", "--install-dir", installDir, "cocoapods", "-v", TestVersions.COCOAPODS.VERSION)
     } else if (!isCocoapodsInstalled()) {
@@ -199,7 +209,36 @@ fun KGPBaseTest.nativeProjectWithCocoapodsAndIosAppPodFile(
     }
 }
 
+fun BuildResult.podImportAsserts(
+    buildScript: Path,
+    projectName: String? = null,
+) {
+
+    val buildScriptText = buildScript.readText()
+    val taskPrefix = projectName?.let { ":$it" } ?: ""
+    val podspec = "podspec"
+
+    if ("noPodspec()" in buildScriptText) {
+        assertTasksSkipped("$taskPrefix:$podspec")
+    }
+
+    if ("podfile" in buildScriptText) {
+        assertTasksExecuted("$taskPrefix$podInstallTaskName")
+    } else {
+        assertTasksSkipped("$taskPrefix$podInstallTaskName")
+    }
+    if (buildScriptText.matches("pod\\(.*\\)".toRegex())) {
+        assertTasksExecuted(listOf("$taskPrefix:${KotlinCocoapodsPlugin.POD_GEN_TASK_NAME}"))
+    }
+
+    if (buildScriptText.matches("pod\\(.*\\)".toRegex())) {
+        assertTasksExecuted("$taskPrefix:$POD_SETUP_BUILD_TASK_NAME", "$taskPrefix:$POD_BUILD_TASK_NAME")
+    }
+}
+
 private val templateProjectName = "native-cocoapods-template"
+
+private val podInstallTaskName = ":$POD_INSTALL_TASK_NAME"
 
 private val shouldInstallLocalCocoapods: Boolean = System.getProperty("installCocoapods").toBoolean()
 private val cocoapodsInstallationRoot: Path by lazy { createTempDirectory("cocoapods") }
@@ -223,8 +262,12 @@ private fun gem(vararg args: String): String {
     val command = listOf("gem", *args)
     println("Run command: ${command.joinToString(separator = " ")}")
     val result = runProcess(command, File("."), options = BaseGradleIT.BuildOptions(forceOutputToStdout = true))
-    check(result.isSuccessful) {
-        "Process 'gem ${args.joinToString(separator = " ")}' exited with error code ${result.exitCode}. See log for details."
+
+    assertProcessRunResult(result) {
+        assertTrue(
+            result.isSuccessful,
+            "Process 'gem ${args.joinToString(separator = " ")}' exited with error code ${result.exitCode}. See log for details."
+        )
     }
     return result.output
 }

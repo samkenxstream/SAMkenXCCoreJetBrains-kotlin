@@ -3356,6 +3356,11 @@ public class LazyBodyIsNotTouchedTestGenerated extends AbstractLazyBodyIsNotTouc
             runTest("compiler/fir/analysis-tests/testData/resolve/problems/incompleteUserTypeWithUnresovledTypeArgument.kt");
         }
 
+        @TestMetadata("incompleteWhen.kt")
+        public void testIncompleteWhen() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/problems/incompleteWhen.kt");
+        }
+
         @TestMetadata("innerClassHierarchy.kt")
         public void testInnerClassHierarchy() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/problems/innerClassHierarchy.kt");
@@ -3389,6 +3394,11 @@ public class LazyBodyIsNotTouchedTestGenerated extends AbstractLazyBodyIsNotTouc
         @TestMetadata("objectDerivedFromInnerClass.kt")
         public void testObjectDerivedFromInnerClass() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/problems/objectDerivedFromInnerClass.kt");
+        }
+
+        @TestMetadata("primaryConstructorParameterWithoutReturnType.kt")
+        public void testPrimaryConstructorParameterWithoutReturnType() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/problems/primaryConstructorParameterWithoutReturnType.kt");
         }
 
         @TestMetadata("questionableSmartCast.kt")

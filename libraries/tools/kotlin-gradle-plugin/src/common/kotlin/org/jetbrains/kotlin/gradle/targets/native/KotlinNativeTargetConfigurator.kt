@@ -29,12 +29,15 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle.Stage.ReadyForEx
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.KOTLIN_NATIVE_IGNORE_INCORRECT_DEPENDENCIES
 import org.jetbrains.kotlin.gradle.plugin.internal.artifactTypeAttribute
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.XcodeVersionTask
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.registerEmbedAndSignAppleFrameworkTask
+import org.jetbrains.kotlin.gradle.plugin.mpp.apple.version
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.GradleKpmVariant
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.copyAttributes
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
 import org.jetbrains.kotlin.gradle.targets.metadata.isKotlinGranularMetadataEnabled
 import org.jetbrains.kotlin.gradle.targets.native.*
+import org.jetbrains.kotlin.gradle.targets.native.internal.*
 import org.jetbrains.kotlin.gradle.targets.native.internal.commonizeCInteropTask
 import org.jetbrains.kotlin.gradle.targets.native.internal.createCInteropApiElementsKlibArtifact
 import org.jetbrains.kotlin.gradle.targets.native.internal.locateOrCreateCInteropApiElementsConfiguration
@@ -46,7 +49,7 @@ import org.jetbrains.kotlin.gradle.tasks.*
 import org.jetbrains.kotlin.gradle.testing.internal.configureConventions
 import org.jetbrains.kotlin.gradle.testing.internal.kotlinTestRegistry
 import org.jetbrains.kotlin.gradle.testing.testTaskName
-import org.jetbrains.kotlin.gradle.utils.Xcode
+import org.jetbrains.kotlin.gradle.utils.XcodeUtils
 import org.jetbrains.kotlin.gradle.utils.newInstance
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -63,6 +66,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
         // this afterEvaluate comes from NativeCompilerOptions
         val compilationCompilerOptions = binary.compilation.compilerOptions
         val konanPropertiesBuildService = KonanPropertiesBuildService.registerIfAbsent(project)
+        val xcodeVersionTask = XcodeVersionTask.locateOrRegister(project)
         val linkTask = registerTask<KotlinNativeLink>(
             binary.linkTaskName, listOf(binary)
         ) {
@@ -75,6 +79,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
             it.toolOptions.freeCompilerArgs.value(compilationCompilerOptions.options.freeCompilerArgs)
             it.toolOptions.freeCompilerArgs.addAll(providers.provider { PropertiesProvider(project).nativeLinkArgs })
             it.runViaBuildToolsApi.value(false).disallowChanges() // K/N is not yet supported
+            it.xcodeVersion.set(xcodeVersionTask.version)
         }
 
 
@@ -145,8 +150,12 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
                 it.enabled = compilation.konanTarget.enabledOnCurrentHost
             }
 
-            project.commonizeCInteropTask?.configure { commonizeCInteropTask ->
-                commonizeCInteropTask.from((interopTask.get()))
+
+            project.launch {
+                project.commonizeCInteropTask()?.configure { commonizeCInteropTask ->
+                    commonizeCInteropTask.from(interopTask)
+                }
+                project.copyCommonizeCInteropForIdeTask()
             }
 
             val interopOutput = project.files(interopTask.map { it.outputFileProvider })
@@ -584,9 +593,9 @@ class KotlinNativeTargetWithSimulatorTestsConfigurator :
 
     override fun configureTestTask(target: KotlinNativeTargetWithSimulatorTests, testTask: KotlinNativeSimulatorTest) {
         super.configureTestTask(target, testTask)
-        if (Xcode != null) {
+        if (isTestTaskEnabled(target)) {
             val deviceIdProvider = testTask.project.provider {
-                Xcode.getDefaultTestDeviceId(target.konanTarget)
+                XcodeUtils.getDefaultTestDeviceId(target.konanTarget)
                     ?: error("Xcode does not support simulator tests for ${target.konanTarget.name}. Check that requested SDK is installed.")
             }
             testTask.device.convention(deviceIdProvider).finalizeValueOnRead()

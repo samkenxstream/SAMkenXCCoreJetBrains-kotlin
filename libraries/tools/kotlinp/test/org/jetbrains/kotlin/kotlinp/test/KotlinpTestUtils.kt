@@ -14,7 +14,8 @@ import org.jetbrains.kotlin.checkers.setupLanguageVersionSettingsForCompilerTest
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.codegen.GenerationUtils
-import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.jvm.compiler.AbstractLoadJavaTest
 import org.jetbrains.kotlin.kotlinp.Kotlinp
 import org.jetbrains.kotlin.kotlinp.KotlinpSettings
@@ -26,18 +27,36 @@ import org.jetbrains.kotlin.test.util.KtTestUtil
 import java.io.File
 import kotlin.test.fail
 
-fun compileAndPrintAllFiles(
+private const val IGNORE_K2_DIRECTIVE = "// IGNORE K2"
+
+fun compareAllFiles(
     file: File,
     disposable: Disposable,
     tmpdir: File,
     compareWithTxt: Boolean,
     readWriteAndCompare: Boolean,
-    useK2: Boolean
+    useK2: Boolean,
 ) {
-    if (useK2 && InTextDirectivesUtils.findStringWithPrefixes(file.readText(), "// IGNORE K2") != null) {
-        return
+    val isMutedForK2 = useK2 && InTextDirectivesUtils.findStringWithPrefixes(file.readText(), IGNORE_K2_DIRECTIVE) != null
+    try {
+        compileAndPrintAllFiles(file, disposable, tmpdir, compareWithTxt, readWriteAndCompare, useK2)
+    } catch (e: Throwable) {
+        if (isMutedForK2) return
+        throw e
     }
+    if (isMutedForK2) {
+        throw AssertionError("Looks like this test can be unmuted. Remove the \"$IGNORE_K2_DIRECTIVE\" directive.")
+    }
+}
 
+private fun compileAndPrintAllFiles(
+    file: File,
+    disposable: Disposable,
+    tmpdir: File,
+    compareWithTxt: Boolean,
+    readWriteAndCompare: Boolean,
+    useK2: Boolean,
+) {
     val main = StringBuilder()
     val afterVisitors = StringBuilder()
     val afterNodes = StringBuilder()
@@ -49,8 +68,8 @@ fun compileAndPrintAllFiles(
         when (outputFile.extension) {
             "kotlin_module" -> {
                 val moduleFile = kotlinp.readModuleFile(outputFile)!!
-                val transformedWithVisitors = transformModuleFileWithReadWriteVisitors(moduleFile)
-                val transformedWithNodes = transformModuleFileWithNodes(moduleFile)
+                val transformedWithVisitors = KotlinModuleMetadata.read(transformModuleFileWithReadWriteVisitors(moduleFile))
+                val transformedWithNodes = KotlinModuleMetadata.read(transformModuleFileWithNodes(moduleFile))
 
                 for ((sb, moduleFileToRender) in listOf(
                     main to moduleFile, afterVisitors to transformedWithVisitors, afterNodes to transformedWithNodes
@@ -60,9 +79,10 @@ fun compileAndPrintAllFiles(
                 }
             }
             "class" -> {
-                val classFile = kotlinp.readClassFile(outputFile)!!
+                val metadata = kotlinp.readClassFile(outputFile)
+                val classFile = kotlinp.readMetadata(metadata)
                 val classFile2 = transformClassFileWithReadWriteVisitors(classFile)
-                val classFile3 = transformClassFileWithNodes(classFile)
+                val classFile3 = KotlinClassMetadata.read(transformClassFileWithNodes(metadata, classFile))
 
                 for ((sb, classFileToRender) in listOf(
                     main to classFile, afterVisitors to classFile2, afterNodes to classFile3
@@ -130,24 +150,25 @@ private fun transformClassFileWithReadWriteVisitors(classFile: KotlinClassMetada
     }
 
 // Reads the class file and writes it back with KmClass/KmFunction/... elements.
-private fun transformClassFileWithNodes(classFile: KotlinClassMetadata): KotlinClassMetadata =
+private fun transformClassFileWithNodes(metadata: Metadata, classFile: KotlinClassMetadata): Metadata =
     when (classFile) {
         is KotlinClassMetadata.Class ->
-            KotlinClassMetadata.writeClass(classFile.toKmClass())
+            KotlinClassMetadata.writeClass(classFile.kmClass)
         is KotlinClassMetadata.FileFacade ->
-            KotlinClassMetadata.writeFileFacade(classFile.toKmPackage())
+            KotlinClassMetadata.writeFileFacade(classFile.kmPackage)
         is KotlinClassMetadata.SyntheticClass ->
-            classFile.toKmLambda()?.let { KotlinClassMetadata.writeLambda(it) } ?: KotlinClassMetadata.writeSyntheticClass()
+            classFile.kmLambda?.let { KotlinClassMetadata.writeLambda(it) } ?: KotlinClassMetadata.writeSyntheticClass()
         is KotlinClassMetadata.MultiFileClassPart ->
-            KotlinClassMetadata.writeMultiFileClassPart(classFile.toKmPackage(), classFile.facadeClassName)
-        else -> classFile
+            KotlinClassMetadata.writeMultiFileClassPart(classFile.kmPackage, classFile.facadeClassName)
+        is KotlinClassMetadata.MultiFileClassFacade -> KotlinClassMetadata.writeMultiFileClassFacade(classFile.partClassNames)
+        is KotlinClassMetadata.Unknown -> metadata
     }
 
 @Suppress("DEPRECATION") // We're testing that reading/writing with KmNodes is identical to direct
 @OptIn(UnstableMetadataApi::class)
-private fun transformModuleFileWithReadWriteVisitors(moduleFile: KotlinModuleMetadata): KotlinModuleMetadata =
+private fun transformModuleFileWithReadWriteVisitors(moduleFile: KotlinModuleMetadata): ByteArray =
     KotlinModuleMetadata.Writer().apply(moduleFile::accept).write()
 
 @OptIn(UnstableMetadataApi::class)
-private fun transformModuleFileWithNodes(moduleFile: KotlinModuleMetadata): KotlinModuleMetadata =
-    KotlinModuleMetadata.write(moduleFile.toKmModule())
+private fun transformModuleFileWithNodes(moduleFile: KotlinModuleMetadata): ByteArray =
+    KotlinModuleMetadata.write(moduleFile.kmModule)

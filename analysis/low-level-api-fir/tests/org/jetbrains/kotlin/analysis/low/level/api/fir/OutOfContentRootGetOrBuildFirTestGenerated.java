@@ -130,6 +130,12 @@ public class OutOfContentRootGetOrBuildFirTestGenerated extends AbstractOutOfCon
         }
 
         @Test
+        @TestMetadata("typeOnAnnotationOnConstructorParameterExpression.kt")
+        public void testTypeOnAnnotationOnConstructorParameterExpression() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnConstructorParameterExpression.kt");
+        }
+
+        @Test
         @TestMetadata("typeOnAnnotationOnConstructorProperty.kt")
         public void testTypeOnAnnotationOnConstructorProperty() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnConstructorProperty.kt");
@@ -157,6 +163,42 @@ public class OutOfContentRootGetOrBuildFirTestGenerated extends AbstractOutOfCon
         @TestMetadata("typeOnAnnotationOnFunctionParameterWithArguments.kt")
         public void testTypeOnAnnotationOnFunctionParameterWithArguments() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnFunctionParameterWithArguments.kt");
+        }
+
+        @Test
+        @TestMetadata("typeOnAnnotationOnReceiverFunction.kt")
+        public void testTypeOnAnnotationOnReceiverFunction() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnReceiverFunction.kt");
+        }
+
+        @Test
+        @TestMetadata("typeOnAnnotationOnReceiverParameter.kt")
+        public void testTypeOnAnnotationOnReceiverParameter() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnReceiverParameter.kt");
+        }
+
+        @Test
+        @TestMetadata("typeOnAnnotationOnReceiverProperty.kt")
+        public void testTypeOnAnnotationOnReceiverProperty() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnReceiverProperty.kt");
+        }
+
+        @Test
+        @TestMetadata("typeOnAnnotationOnReceiverPropertyCall.kt")
+        public void testTypeOnAnnotationOnReceiverPropertyCall() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnReceiverPropertyCall.kt");
+        }
+
+        @Test
+        @TestMetadata("typeOnAnnotationOnReturnFunction.kt")
+        public void testTypeOnAnnotationOnReturnFunction() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnReturnFunction.kt");
+        }
+
+        @Test
+        @TestMetadata("typeOnAnnotationOnReturnProperty.kt")
+        public void testTypeOnAnnotationOnReturnProperty() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/typeOnAnnotationOnReturnProperty.kt");
         }
 
         @Nested
@@ -457,6 +499,18 @@ public class OutOfContentRootGetOrBuildFirTestGenerated extends AbstractOutOfCon
         @TestMetadata("destructuringEntry.kt")
         public void testDestructuringEntry() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations/destructuringEntry.kt");
+        }
+
+        @Test
+        @TestMetadata("ktij23263.kt")
+        public void testKtij23263() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations/ktij23263.kt");
+        }
+
+        @Test
+        @TestMetadata("ktij24730.kt")
+        public void testKtij24730() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations/ktij24730.kt");
         }
 
         @Test
@@ -806,6 +860,24 @@ public class OutOfContentRootGetOrBuildFirTestGenerated extends AbstractOutOfCon
         }
 
         @Test
+        @TestMetadata("duplicatedClasses.kt")
+        public void testDuplicatedClasses() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode/duplicatedClasses.kt");
+        }
+
+        @Test
+        @TestMetadata("duplicatedClassesFunctionParameter.kt")
+        public void testDuplicatedClassesFunctionParameter() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode/duplicatedClassesFunctionParameter.kt");
+        }
+
+        @Test
+        @TestMetadata("expectAndActualInTheSameFile.kt")
+        public void testExpectAndActualInTheSameFile() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode/expectAndActualInTheSameFile.kt");
+        }
+
+        @Test
         @TestMetadata("incompletePropertyWithAnnotation.kt")
         public void testIncompletePropertyWithAnnotation() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode/incompletePropertyWithAnnotation.kt");
@@ -910,6 +982,12 @@ public class OutOfContentRootGetOrBuildFirTestGenerated extends AbstractOutOfCon
         }
 
         @Test
+        @TestMetadata("nestedClassType.kt")
+        public void testNestedClassType() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/types/nestedClassType.kt");
+        }
+
+        @Test
         @TestMetadata("nestedTypeArgument.kt")
         public void testNestedTypeArgument() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/types/nestedTypeArgument.kt");
@@ -928,9 +1006,27 @@ public class OutOfContentRootGetOrBuildFirTestGenerated extends AbstractOutOfCon
         }
 
         @Test
+        @TestMetadata("receiverType.kt")
+        public void testReceiverType() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/types/receiverType.kt");
+        }
+
+        @Test
         @TestMetadata("typeArgument.kt")
         public void testTypeArgument() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/types/typeArgument.kt");
+        }
+
+        @Test
+        @TestMetadata("typeParameterBound.kt")
+        public void testTypeParameterBound() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/types/typeParameterBound.kt");
+        }
+
+        @Test
+        @TestMetadata("typeParameterBoundNested.kt")
+        public void testTypeParameterBoundNested() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/types/typeParameterBoundNested.kt");
         }
 
         @Test

@@ -8,10 +8,7 @@ package org.jetbrains.kotlin.ir.util
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.*
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.declarations.addConstructor
-import org.jetbrains.kotlin.ir.builders.declarations.buildClass
-import org.jetbrains.kotlin.ir.builders.declarations.buildReceiverParameter
-import org.jetbrains.kotlin.ir.builders.declarations.buildTypeParameter
+import org.jetbrains.kotlin.ir.builders.declarations.*
 import org.jetbrains.kotlin.ir.builders.irImplicitCast
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
@@ -168,11 +165,6 @@ fun IrMemberAccessExpression<*>.addArguments(args: Map<ParameterDescriptor, IrEx
         }
     }
 }
-
-@ObsoleteDescriptorBasedAPI
-@Suppress("unused") // Used in kotlin-native
-fun IrMemberAccessExpression<*>.addArguments(args: List<Pair<ParameterDescriptor, IrExpression>>) =
-    this.addArguments(args.toMap())
 
 fun IrExpression.isNullConst() = this is IrConst<*> && this.kind == IrConstKind.Null
 
@@ -795,16 +787,27 @@ fun IrValueParameter.copyTo(
 ): IrValueParameter {
     val symbol = IrValueParameterSymbolImpl()
     val defaultValueCopy = defaultValue?.let { originalDefault ->
-        factory.createExpressionBody(originalDefault.startOffset, originalDefault.endOffset) {
-            expression = originalDefault.expression.deepCopyWithVariables().also {
-                it.patchDeclarationParents(irFunction)
-            }
+        factory.createExpressionBody(
+            startOffset = originalDefault.startOffset,
+            endOffset = originalDefault.endOffset,
+            expression = originalDefault.expression.deepCopyWithVariables(),
+        ).apply {
+            expression.patchDeclarationParents(irFunction)
         }
     }
     return factory.createValueParameter(
-        startOffset, endOffset, origin, symbol,
-        name, index, type, varargElementType, isCrossinline = isCrossinline,
-        isNoinline = isNoinline, isHidden = false, isAssignable = isAssignable
+        startOffset = startOffset,
+        endOffset = endOffset,
+        origin = origin,
+        name = name,
+        type = type,
+        isAssignable = isAssignable,
+        symbol = symbol,
+        index = index,
+        varargElementType = varargElementType,
+        isCrossinline = isCrossinline,
+        isNoinline = isNoinline,
+        isHidden = false,
     ).also {
         it.parent = irFunction
         it.defaultValue = defaultValueCopy
@@ -826,13 +829,18 @@ fun IrTypeParameter.copyToWithoutSuperTypes(
 fun IrFunction.copyReceiverParametersFrom(from: IrFunction, substitutionMap: Map<IrTypeParameterSymbol, IrType>) {
     dispatchReceiverParameter = from.dispatchReceiverParameter?.run {
         factory.createValueParameter(
-            startOffset, endOffset, origin,
-            IrValueParameterSymbolImpl(),
-            name, index,
-            type.substitute(substitutionMap),
-            varargElementType?.substitute(substitutionMap),
-            isCrossinline, isNoinline,
-            isHidden, isAssignable
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = origin,
+            name = name,
+            type = type.substitute(substitutionMap),
+            isAssignable = isAssignable,
+            symbol = IrValueParameterSymbolImpl(),
+            index = index,
+            varargElementType = varargElementType?.substitute(substitutionMap),
+            isCrossinline = isCrossinline,
+            isNoinline = isNoinline,
+            isHidden = isHidden,
         ).also { parameter ->
             parameter.parent = this@copyReceiverParametersFrom
         }
@@ -1101,17 +1109,18 @@ fun IrFunction.createDispatchReceiverParameter(origin: IrDeclarationOrigin? = nu
     assert(dispatchReceiverParameter == null)
 
     dispatchReceiverParameter = factory.createValueParameter(
-        startOffset, endOffset,
-        origin ?: parentAsClass.origin,
-        IrValueParameterSymbolImpl(),
-        SpecialNames.THIS,
-        -1,
-        parentAsClass.defaultType,
-        null,
+        startOffset = startOffset,
+        endOffset = endOffset,
+        origin = origin ?: parentAsClass.origin,
+        name = SpecialNames.THIS,
+        type = parentAsClass.defaultType,
+        isAssignable = false,
+        symbol = IrValueParameterSymbolImpl(),
+        index = UNDEFINED_PARAMETER_INDEX,
+        varargElementType = null,
         isCrossinline = false,
         isNoinline = false,
         isHidden = false,
-        isAssignable = false
     ).apply {
         parent = this@createDispatchReceiverParameter
     }
@@ -1188,23 +1197,24 @@ fun IrFactory.createStaticFunctionWithReceivers(
     typeParametersFromContext: List<IrTypeParameter> = listOf(),
     remapMultiFieldValueClassStructure: (IrFunction, IrFunction, Map<IrValueParameter, IrValueParameter>?) -> Unit
 ): IrSimpleFunction {
-    return createFunction(
-        oldFunction.startOffset, oldFunction.endOffset,
-        origin,
-        IrSimpleFunctionSymbolImpl(),
-        name,
-        visibility,
-        modality,
-        oldFunction.returnType,
+    return createSimpleFunction(
+        startOffset = oldFunction.startOffset,
+        endOffset = oldFunction.endOffset,
+        origin = origin,
+        name = name,
+        visibility = visibility,
         isInline = oldFunction.isInline,
-        isExternal = false,
+        isExpect = oldFunction.isExpect,
+        returnType = oldFunction.returnType,
+        modality = modality,
+        symbol = IrSimpleFunctionSymbolImpl(),
         isTailrec = false,
         isSuspend = oldFunction.isSuspend,
-        isExpect = oldFunction.isExpect,
-        isFakeOverride = isFakeOverride,
         isOperator = oldFunction is IrSimpleFunction && oldFunction.isOperator,
         isInfix = oldFunction is IrSimpleFunction && oldFunction.isInfix,
+        isExternal = false,
         containerSource = oldFunction.containerSource,
+        isFakeOverride = isFakeOverride,
     ).apply {
         parent = irParent
 

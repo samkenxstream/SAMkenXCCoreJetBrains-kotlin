@@ -7,19 +7,25 @@ package org.jetbrains.kotlin.gradle.dsl
 
 import org.gradle.api.*
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle.Stage.AfterFinaliseDsl
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
+import org.jetbrains.kotlin.gradle.plugin.hierarchy.KotlinHierarchyDslImpl
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
-import org.jetbrains.kotlin.gradle.plugin.mpp.targetHierarchy.KotlinTargetHierarchyDslImpl
 import javax.inject.Inject
 
-abstract class KotlinMultiplatformExtension(project: Project) :
+@Suppress("DEPRECATION")
+@KotlinGradlePluginDsl
+abstract class KotlinMultiplatformExtension
+@InternalKotlinGradlePluginApi constructor(project: Project) :
     KotlinProjectExtension(project),
     KotlinTargetContainerWithPresetFunctions,
     KotlinTargetContainerWithJsPresetFunctions,
     KotlinTargetContainerWithWasmPresetFunctions,
-    KotlinTargetContainerWithNativeShortcuts {
+    KotlinTargetContainerWithNativeShortcuts,
+    KotlinHierarchyDsl,
+    KotlinMultiplatformSourceSetConventions by KotlinMultiplatformSourceSetConventionsImpl {
     override val presets: NamedDomainObjectCollection<KotlinTargetPreset<*>> = project.container(KotlinTargetPreset::class.java)
 
     final override val targets: NamedDomainObjectCollection<KotlinTarget> = project.container(KotlinTarget::class.java)
@@ -45,12 +51,71 @@ abstract class KotlinMultiplatformExtension(project: Project) :
         configure(presetExtension)
     }
 
-    internal val internalKotlinTargetHierarchy by lazy {
-        KotlinTargetHierarchyDslImpl(targets, sourceSets)
+    internal val hierarchy by lazy { KotlinHierarchyDslImpl(targets, sourceSets) }
+
+    /**
+     * Sets up a 'natural'/'default' hierarchy withing [KotlinTarget]'s in the project.
+     *
+     * #### Example
+     *
+     * ```kotlin
+     * kotlin {
+     *     applyDefaultHierarchyTemplate() // <- position of this call is not relevant!
+     *
+     *     iosX64()
+     *     iosArm64()
+     *     linuxX64()
+     *     linuxArm64()
+     * }
+     * ```
+     *
+     * Will create the following SourceSets:
+     * `[iosMain, iosTest, appleMain, appleTest, linuxMain, linuxTest, nativeMain, nativeTest]
+     *
+     *
+     * Hierarchy:
+     * ```
+     *                                                                     common
+     *                                                                        |
+     *                                                      +-----------------+-------------------+
+     *                                                      |                                     |
+     *
+     *                                                    native                                 ...
+     *
+     *                                                     |
+     *                                                     |
+     *                                                     |
+     *         +----------------------+--------------------+-----------------------+
+     *         |                      |                    |                       |
+     *
+     *       apple                  linux                mingw              androidNative
+     *
+     *         |
+     *  +-----------+------------+------------+
+     *  |           |            |            |
+     *
+     * macos       ios         tvos        watchos
+     * ```
+     *
+     * @see KotlinHierarchyTemplate.extend
+     */
+    fun applyDefaultHierarchyTemplate() = applyHierarchyTemplate(KotlinHierarchyTemplate.default)
+
+
+    @ExperimentalKotlinGradlePluginApi
+    override fun applyHierarchyTemplate(template: KotlinHierarchyTemplate) {
+        hierarchy.applyHierarchyTemplate(template)
     }
 
     @ExperimentalKotlinGradlePluginApi
-    val targetHierarchy: KotlinTargetHierarchyDsl get() = internalKotlinTargetHierarchy
+    override fun applyHierarchyTemplate(template: KotlinHierarchyTemplate, extension: KotlinHierarchyBuilder.Root.() -> Unit) {
+        hierarchy.applyHierarchyTemplate(template, extension)
+    }
+
+    @ExperimentalKotlinGradlePluginApi
+    override fun applyHierarchyTemplate(template: KotlinHierarchyBuilder.Root.() -> Unit) {
+        hierarchy.applyHierarchyTemplate(template)
+    }
 
     @Suppress("unused") // DSL
     val testableTargets: NamedDomainObjectCollection<KotlinTargetWithTests<*, *>>
