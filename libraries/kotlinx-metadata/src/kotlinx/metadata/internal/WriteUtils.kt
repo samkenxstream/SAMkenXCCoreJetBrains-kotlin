@@ -5,15 +5,12 @@
 
 package kotlinx.metadata.internal
 
-import kotlinx.metadata.ClassName
-import kotlinx.metadata.KmAnnotation
-import kotlinx.metadata.KmAnnotationArgument
-import kotlinx.metadata.isLocalClassName
+import kotlinx.metadata.*
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.Flags
 import org.jetbrains.kotlin.metadata.serialization.StringTable
 
-fun KmAnnotation.writeAnnotation(strings: StringTable): ProtoBuf.Annotation.Builder =
+public fun KmAnnotation.writeAnnotation(strings: StringTable): ProtoBuf.Annotation.Builder =
     ProtoBuf.Annotation.newBuilder().apply {
         id = strings.getClassNameIndex(className)
         for ((name, argument) in arguments) {
@@ -24,7 +21,7 @@ fun KmAnnotation.writeAnnotation(strings: StringTable): ProtoBuf.Annotation.Buil
         }
     }
 
-fun KmAnnotationArgument.writeAnnotationArgument(strings: StringTable): ProtoBuf.Annotation.Argument.Value.Builder =
+public fun KmAnnotationArgument.writeAnnotationArgument(strings: StringTable): ProtoBuf.Annotation.Argument.Value.Builder =
     ProtoBuf.Annotation.Argument.Value.newBuilder().apply {
         when (this@writeAnnotationArgument) {
             is KmAnnotationArgument.ByteValue -> {

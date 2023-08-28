@@ -14,6 +14,7 @@ import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiWhiteSpace
 import com.intellij.psi.tree.IElementType
 import com.intellij.util.diff.FlyweightCapableTreeStructure
+import org.jetbrains.kotlin.utils.getElementTextWithContext
 
 sealed class KtSourceElementKind {
     abstract val shouldSkipErrorTypeReporting: Boolean
@@ -85,9 +86,19 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
         object FromLastStatement : ImplicitReturn()
     }
 
-    // return expression in procedures -> return Unit
-    // with a fake sources which refers to the return statement
-    object ImplicitUnit : KtFakeSourceElementKind()
+    sealed class ImplicitUnit : KtFakeSourceElementKind() {
+        // this source is used for implicit returns from empty lambdas {}
+        // fake source refers to the lambda expression
+        object LambdaCoercion : ImplicitUnit()
+
+        // this source is used for 'return' without given value converted to 'return Unit'
+        // fake source refers to the return statement
+        object Return : ImplicitUnit()
+
+        // this source is used for 'a[i] = b' or 'a[i] += b' converted to { a[i] = b; Unit }
+        // fake source refers to the assignment statement
+        object IndexedAssignmentCoercion : ImplicitUnit()
+    }
 
     // delegates are wrapped into FirWrappedDelegateExpression
     // with a fake sources which refers to delegated expression
@@ -198,11 +209,6 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     // where `Supertype` has a fake source
     object SuperCallImplicitType : KtFakeSourceElementKind()
 
-    // Consider `super<Supertype>.foo()`. The source PSI `Supertype` is referenced by both the qualified access expression
-    // `super<Supertype>` and the calleeExpression `super<Supertype>`. To avoid having two FIR elements sharing the same source, this fake
-    // source is assigned to the qualified access expression.
-    object SuperCallExplicitType : KtFakeSourceElementKind(shouldSkipErrorTypeReporting = true)
-
     // fun foo(vararg args: Int) {}
     // fun bar(1, 2, 3) --> [resolved] fun bar(VarargArgument(1, 2, 3))
     object VarargArgument : KtFakeSourceElementKind()
@@ -213,6 +219,10 @@ sealed class KtFakeSourceElementKind(final override val shouldSkipErrorTypeRepor
     // { it + 1} --> { it -> it + 1 }
     // where `it` parameter declaration has fake source
     object ItLambdaParameter : KtFakeSourceElementKind()
+
+    // { (a, b) -> foo() } -> { x -> val (a, b) = x; { foo() } }
+    // where the inner block { foo() } has fake source
+    object LambdaDestructuringBlock : KtFakeSourceElementKind()
 
     // for java annotations implicit constructor is generated
     // with a fake source which refers to containing class
@@ -309,6 +319,8 @@ sealed class KtSourceElement : AbstractKtSourceElement() {
     abstract val lighterASTNode: LighterASTNode
     abstract val treeStructure: FlyweightCapableTreeStructure<LighterASTNode>
 
+    abstract fun getElementTextInContextForDebug(): String
+
     /** Implementation must compute the hashcode from the source element. */
     abstract override fun hashCode(): Int
 
@@ -334,6 +346,10 @@ sealed class KtPsiSourceElement(val psi: PsiElement) : KtSourceElement() {
 
     override val treeStructure: FlyweightCapableTreeStructure<LighterASTNode> by lazy(LazyThreadSafetyMode.PUBLICATION) {
         WrappedTreeStructure(psi.containingFile)
+    }
+
+    override fun getElementTextInContextForDebug(): String {
+        return getElementTextWithContext(psi)
     }
 
     internal class WrappedTreeStructure(file: PsiFile) : FlyweightCapableTreeStructure<LighterASTNode> {
@@ -519,6 +535,10 @@ class KtLightSourceElement(
         if (treeStructure !is KtPsiSourceElement.WrappedTreeStructure) return null
         val node = treeStructure.unwrap(lighterASTNode)
         return node.psi?.toKtPsiSourceElement(kind)
+    }
+
+    override fun getElementTextInContextForDebug(): String {
+        return treeStructure.toString(lighterASTNode).toString()
     }
 
     override fun equals(other: Any?): Boolean {

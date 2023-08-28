@@ -13,6 +13,10 @@ object WasmEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
         description = "Run kotlin.test unit tests (function marked with @Test)",
     )
 
+    val DISABLE_WASM_EXCEPTION_HANDLING by directive(
+        description = "Generate wasm without EH proposal and test in runtime with EH turned off",
+    )
+
     // Next directives are used only inside test system and must not be present in test file
 
     val PATH_TO_TEST_DIR by stringDirective(
@@ -28,6 +32,11 @@ object WasmEnvironmentConfigurationDirectives : SimpleDirectivesContainer() {
 
     val TEST_GROUP_OUTPUT_DIR_PREFIX by stringDirective(
         description = "Specify the prefix directory for output directory that will contains artifacts",
+        applicability = DirectiveApplicability.Global
+    )
+
+    val GENERATE_SOURCE_MAP by directive(
+        description = "Enables generation of source map",
         applicability = DirectiveApplicability.Global
     )
 }

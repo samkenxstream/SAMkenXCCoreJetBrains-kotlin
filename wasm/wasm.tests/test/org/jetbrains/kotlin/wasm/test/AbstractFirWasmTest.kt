@@ -13,12 +13,17 @@ import org.jetbrains.kotlin.test.builders.*
 import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives
+import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.frontend.fir.*
 import org.jetbrains.kotlin.test.frontend.fir.handlers.*
 import org.jetbrains.kotlin.test.model.*
 import org.jetbrains.kotlin.test.runners.codegen.commonFirHandlersForCodegenTest
+import org.jetbrains.kotlin.test.services.EnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.WasmEnvironmentConfiguratorJs
 import org.jetbrains.kotlin.wasm.test.converters.FirWasmKlibBackendFacade
 import org.jetbrains.kotlin.wasm.test.converters.WasmBackendFacade
+import org.jetbrains.kotlin.wasm.test.handlers.WasmBoxRunner
+import org.jetbrains.kotlin.wasm.test.handlers.WasmDebugRunner
 
 
 open class AbstractFirWasmTest(
@@ -38,6 +43,12 @@ open class AbstractFirWasmTest(
 
     override val afterBackendFacade: Constructor<AbstractTestFacade<BinaryArtifacts.KLib, BinaryArtifacts.Wasm>>
         get() = ::WasmBackendFacade
+
+    override val wasmBoxTestRunner: Constructor<AnalysisHandler<BinaryArtifacts.Wasm>>
+        get() = ::WasmBoxRunner
+
+    override val wasmEnvironmentConfigurator: Constructor<EnvironmentConfigurator>
+        get() = ::WasmEnvironmentConfiguratorJs
 
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
@@ -90,3 +101,18 @@ open class AbstractFirWasmJsTranslatorTest : AbstractFirWasmTest(
     "js/js.translator/testData/box/",
     "js.translator/firBox"
 )
+open class AbstractFirWasmSteppingTest : AbstractFirWasmTest(
+    "compiler/testData/debug/stepping/",
+    "debug/stepping/"
+) {
+
+    override val wasmBoxTestRunner: Constructor<AnalysisHandler<BinaryArtifacts.Wasm>>
+        get() = ::WasmDebugRunner
+
+    override fun TestConfigurationBuilder.configuration() {
+        commonConfigurationForWasmBlackBoxCodegenTest()
+        defaultDirectives {
+            +WasmEnvironmentConfigurationDirectives.GENERATE_SOURCE_MAP
+        }
+    }
+}

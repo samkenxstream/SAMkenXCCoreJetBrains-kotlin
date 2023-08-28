@@ -10,15 +10,14 @@ import org.jetbrains.kotlin.builtins.functions.functionInterfacePackageFragmentP
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.contracts.ContractDeserializerImpl
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.descriptors.deserialization.PlatformDependentTypeTransformer
 import org.jetbrains.kotlin.descriptors.impl.CompositePackageFragmentProvider
 import org.jetbrains.kotlin.descriptors.impl.EmptyPackageFragmentDescriptor
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.metadata.*
-import org.jetbrains.kotlin.library.unresolvedDependencies
-import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.library.hasDependencies
+import org.jetbrains.kotlin.name.NativeForwardDeclarationKind
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.parentOrNull
 import org.jetbrains.kotlin.platform.jvm.isJvm
@@ -28,13 +27,12 @@ import org.jetbrains.kotlin.serialization.deserialization.*
 import org.jetbrains.kotlin.storage.StorageManager
 
 private val ModuleDescriptorImpl.isStdlibModule
-    get() = (this.klibModuleOrigin as? DeserializedKlibModuleOrigin)?.library?.unresolvedDependencies?.isEmpty() ?: false
+    get() = (this.klibModuleOrigin as? DeserializedKlibModuleOrigin)?.library?.let { !it.hasDependencies } ?: false
 
 class KlibMetadataModuleDescriptorFactoryImpl(
     override val descriptorFactory: KlibModuleDescriptorFactory,
     override val packageFragmentsFactory: KlibMetadataDeserializedPackageFragmentsFactory,
-    override val flexibleTypeDeserializer: FlexibleTypeDeserializer,
-    override val platformDependentTypeTransformer: PlatformDependentTypeTransformer
+    override val flexibleTypeDeserializer: FlexibleTypeDeserializer
 ) : KlibMetadataModuleDescriptorFactory {
 
     override fun createDescriptorOptionalBuiltIns(
@@ -110,11 +108,6 @@ class KlibMetadataModuleDescriptorFactoryImpl(
             library, packageFragmentNames, moduleDescriptor, packageAccessHandler, storageManager, configuration
         )
 
-        // TODO: this is native specific. Move to a child class.
-        val syntheticPackageFragments = packageFragmentsFactory.createSyntheticPackageFragments(
-            library, deserializedPackageFragments, moduleDescriptor
-        )
-
         // Generate empty PackageFragmentDescriptor instances for packages that aren't mentioned in compilation units directly.
         // For example, if there's `package foo.bar` directive, we'll get only PackageFragmentDescriptor for `foo.bar`, but
         // none for `foo`. Various descriptor/scope code relies on presence of such package fragments, and currently we
@@ -130,7 +123,7 @@ class KlibMetadataModuleDescriptorFactoryImpl(
             }
         }
 
-        val provider = PackageFragmentProviderImpl(deserializedPackageFragments + syntheticPackageFragments + emptyPackageFragments)
+        val provider = PackageFragmentProviderImpl(deserializedPackageFragments + emptyPackageFragments)
         return initializePackageFragmentProvider(provider, deserializedPackageFragments, storageManager,
             moduleDescriptor, configuration, compositePackageFragmentAddend, lookupTracker)
     }
@@ -173,7 +166,6 @@ class KlibMetadataModuleDescriptorFactoryImpl(
             ContractDeserializerImpl(configuration, storageManager),
             extensionRegistryLite = KlibMetadataSerializerProtocol.extensionRegistry,
             samConversionResolver = SamConversionResolverImpl(storageManager, samWithReceiverResolvers = emptyList()),
-            platformDependentTypeTransformer = platformDependentTypeTransformer,
             enumEntriesDeserializationSupport = enumEntriesDeserializationSupport,
         )
 
@@ -194,22 +186,18 @@ class KlibMetadataModuleDescriptorFactoryImpl(
         storageManager: StorageManager,
         module: ModuleDescriptorImpl
     ): PackageFragmentProviderImpl {
-        fun createPackage(fqName: FqName, supertypeName: String, classKind: ClassKind) =
+        fun createPackage(kind: NativeForwardDeclarationKind) =
             ForwardDeclarationsPackageFragmentDescriptor(
                 storageManager,
                 module,
-                fqName,
-                Name.identifier(supertypeName),
-                classKind,
+                kind.packageFqName,
+                kind.superClassName,
+                kind.classKind,
                 isExpect = true
             )
 
         val packageFragmentProvider = PackageFragmentProviderImpl(
-            listOf(
-                createPackage(ForwardDeclarationsFqNames.cNamesStructs, "COpaque", ClassKind.CLASS),
-                createPackage(ForwardDeclarationsFqNames.objCNamesClasses, "ObjCObjectBase", ClassKind.CLASS),
-                createPackage(ForwardDeclarationsFqNames.objCNamesProtocols, "ObjCObject", ClassKind.INTERFACE)
-            )
+            NativeForwardDeclarationKind.entries.map { createPackage(it) }
         )
         return packageFragmentProvider
     }

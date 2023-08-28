@@ -59,6 +59,10 @@ class DeclarationCheckersDiagnosticComponent(
         checkers.allConstructorCheckers.check(constructor, data)
     }
 
+    override fun visitErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: CheckerContext) {
+        checkers.allConstructorCheckers.check(errorPrimaryConstructor, data)
+    }
+
     override fun visitAnonymousFunction(anonymousFunction: FirAnonymousFunction, data: CheckerContext) {
         checkers.allAnonymousFunctionCheckers.check(anonymousFunction, data)
     }
@@ -105,6 +109,10 @@ class DeclarationCheckersDiagnosticComponent(
 
     override fun visitScript(script: FirScript, data: CheckerContext) {
         checkers.allBasicDeclarationCheckers.check(script, data)
+    }
+
+    override fun visitCodeFragment(codeFragment: FirCodeFragment, data: CheckerContext) {
+        checkers.allBasicDeclarationCheckers.check(codeFragment, data)
     }
 
     private fun <D : FirDeclaration> Collection<FirDeclarationChecker<D>>.check(

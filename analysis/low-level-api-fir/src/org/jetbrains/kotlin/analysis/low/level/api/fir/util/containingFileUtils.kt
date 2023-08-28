@@ -26,7 +26,7 @@ fun FirElementWithResolveState.getContainingFile(): FirFile? {
         is FirCallableDeclaration -> provider.getFirCallableContainerFile(symbol)
         is FirClassLikeDeclaration -> provider.getFirClassifierContainerFileIfAny(symbol)
         is FirAnonymousInitializer -> containingClass().getContainingFile()
-        is FirDanglingModifierList -> {
+        is FirDanglingModifierList, is FirCodeFragment -> {
             val ktFile = psi?.containingFile as? KtFile
                 ?: error("File for dangling modifier list cannot be null")
             val moduleComponents = llFirResolvableSession?.moduleComponents
@@ -34,6 +34,6 @@ fun FirElementWithResolveState.getContainingFile(): FirFile? {
             moduleComponents.cache.getCachedFirFile(ktFile)
                 ?: error("Fir file for dandling modifier list cannot be null")
         }
-        else -> errorWithFirSpecificEntries("Unsupported declaration ${this::class.java}", fir = this)
+        else -> errorWithFirSpecificEntries("Unsupported declaration ${this::class}", fir = this)
     }
 }

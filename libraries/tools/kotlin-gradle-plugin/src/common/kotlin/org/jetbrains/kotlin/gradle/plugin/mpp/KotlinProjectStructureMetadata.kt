@@ -10,11 +10,11 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.stream.JsonWriter
 import org.gradle.api.Project
+import org.gradle.api.plugins.ExtensionAware
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.Nested
 import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.dsl.multiplatformExtensionOrNull
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.GradleKpmModule
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.currentBuildId
 import org.jetbrains.kotlin.gradle.plugin.sources.KotlinDependencyScope
@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.gradle.targets.metadata.dependsOnClosureWithInterCom
 import org.jetbrains.kotlin.gradle.targets.metadata.getPublishedPlatformCompilations
 import org.jetbrains.kotlin.gradle.targets.metadata.isNativeSourceSet
 import org.jetbrains.kotlin.gradle.targets.native.internal.CInteropCommonizerCompositeMetadataJarBundling.cinteropMetadataDirectoryPath
+import org.jetbrains.kotlin.gradle.utils.buildPathCompat
 import org.jetbrains.kotlin.gradle.utils.compositeBuildRootProject
 import org.jetbrains.kotlin.gradle.utils.future
 import org.jetbrains.kotlin.gradle.utils.getOrPut
@@ -37,7 +38,7 @@ import javax.xml.parsers.DocumentBuilderFactory
 // FIXME support module classifiers for PM2.0 or drop this class in favor of KotlinModuleIdentifier
 open class ModuleDependencyIdentifier(
     open val groupId: String?,
-    open val moduleId: String
+    open val moduleId: String,
 ) : Serializable {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -65,7 +66,7 @@ open class ModuleDependencyIdentifier(
 
 class ChangingModuleDependencyIdentifier(
     val groupIdProvider: () -> String?,
-    val moduleIdProvider: () -> String
+    val moduleIdProvider: () -> String,
 ) : ModuleDependencyIdentifier(groupIdProvider(), moduleIdProvider()) {
     override val groupId: String?
         get() = groupIdProvider()
@@ -77,7 +78,7 @@ sealed class SourceSetMetadataLayout(
     @get:Input
     val name: String,
     @get:Internal
-    val archiveExtension: String
+    val archiveExtension: String,
 ) : Serializable {
     object METADATA : SourceSetMetadataLayout("metadata", "jar")
     object KLIB : SourceSetMetadataLayout("klib", "klib")
@@ -126,7 +127,7 @@ data class KotlinProjectStructureMetadata(
     val sourceSetNames: Set<String>,
 
     @Input
-    val formatVersion: String = FORMAT_VERSION_0_3_3
+    val formatVersion: String = FORMAT_VERSION_0_3_3,
 ) : Serializable {
     @Suppress("UNUSED") // Gradle input
     @get:Input
@@ -159,6 +160,17 @@ internal val KotlinMultiplatformExtension.kotlinProjectStructureMetadata: Kotlin
         buildKotlinProjectStructureMetadata(this)
     }
 
+/**
+ * Return the name of the variant, taking into account that external targets might pass `.*-published` whereas
+ * internally maintained targets will pass the name of the original dependency configuration
+ *
+ * ### Example
+ * external target: `apiElements-published` -> `apiElements`
+ * non-external target: `apiElements` -> `apiElements`
+ *
+ */
+private val KotlinUsageContext.variantName get() = kotlinVariantNameFromPublishedVariantName(name)
+
 private fun buildKotlinProjectStructureMetadata(extension: KotlinMultiplatformExtension): KotlinProjectStructureMetadata {
     val project = extension.project
     require(project.state.executed) { "Cannot build 'KotlinProjectStructureMetadata' during project configuration phase" }
@@ -167,7 +179,7 @@ private fun buildKotlinProjectStructureMetadata(extension: KotlinMultiplatformEx
         .getByName(KotlinMultiplatformPlugin.METADATA_TARGET_NAME)
         .compilations.associateBy { it.defaultSourceSet }
 
-    val publishedVariantsNamesWithCompilation = project.future { getPublishedPlatformCompilations(project).mapKeys { it.key.name } }
+    val publishedVariantsNamesWithCompilation = project.future { getPublishedPlatformCompilations(project).mapKeys { it.key.variantName } }
         .getOrThrow()
 
     return KotlinProjectStructureMetadata(
@@ -253,7 +265,7 @@ internal fun <Serializer> KotlinProjectStructureMetadata.serialize(
     multiNodes: Serializer.(name: String, Serializer.() -> Unit) -> Unit,
     multiNodesItem: Serializer.(name: String, Serializer.() -> Unit) -> Unit,
     value: Serializer.(key: String, value: String) -> Unit,
-    multiValue: Serializer.(name: String, values: List<String>) -> Unit
+    multiValue: Serializer.(name: String, values: List<String>) -> Unit,
 ) = with(serializer) {
     node(ROOT_NODE_NAME) {
         value(FORMAT_VERSION_NODE_NAME, formatVersion)
@@ -349,7 +361,7 @@ internal fun <ParsingContext> parseKotlinSourceSetMetadata(
     getRoot: () -> ParsingContext,
     valueNamed: ParsingContext.(key: String) -> String?,
     multiObjects: ParsingContext.(named: String) -> Iterable<ParsingContext>,
-    multiValues: ParsingContext.(named: String) -> Iterable<String>
+    multiValues: ParsingContext.(named: String) -> Iterable<String>,
 ): KotlinProjectStructureMetadata {
     val projectStructureNode = getRoot()
 
@@ -419,13 +431,15 @@ internal object GlobalProjectStructureMetadataStorage {
     fun propertyName(buildName: String, projectPath: String) = "$propertyPrefix.$buildName.path.$projectPath"
 
     fun registerProjectStructureMetadata(project: Project, metadataProvider: () -> KotlinProjectStructureMetadata) {
-        project.compositeBuildRootProject.extensions.extraProperties.set(
-            propertyName(project.currentBuildId().name, project.path),
-            { metadataProvider().toJson() }
-        )
+        project.compositeBuildRootProject {
+            (it as ExtensionAware).extensions.extraProperties.set(
+                propertyName(project.currentBuildId().buildPathCompat, project.path),
+                { metadataProvider().toJson() }
+            )
+        }
     }
 
-    fun getProjectStructureMetadataProvidersFromAllGradleBuilds(project: Project): Map<ProjectPathWithBuildName, Lazy<KotlinProjectStructureMetadata?>> {
+    fun getProjectStructureMetadataProvidersFromAllGradleBuilds(project: Project): Map<ProjectPathWithBuildPath, Lazy<KotlinProjectStructureMetadata?>> {
         return project.compositeBuildRootProject.extensions.extraProperties.properties
             .filterKeys { it.startsWith(propertyPrefix) }
             .entries
@@ -443,11 +457,11 @@ internal object GlobalProjectStructureMetadataStorage {
         return parseKotlinSourceSetMetadataFromJson(jsonString)
     }
 
-    private fun String.toProjectPathWithBuildName(): ProjectPathWithBuildName {
-        val (buildName, projectPath) = removePrefix("$propertyPrefix.").split(".path.")
-        return ProjectPathWithBuildName(
+    private fun String.toProjectPathWithBuildName(): ProjectPathWithBuildPath {
+        val (buildPath, projectPath) = removePrefix("$propertyPrefix.").split(".path.")
+        return ProjectPathWithBuildPath(
             projectPath = projectPath,
-            buildName = buildName
+            buildPath = buildPath
         )
     }
 }

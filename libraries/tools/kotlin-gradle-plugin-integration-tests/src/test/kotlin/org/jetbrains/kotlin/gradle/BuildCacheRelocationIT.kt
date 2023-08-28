@@ -17,13 +17,15 @@
 package org.jetbrains.kotlin.gradle
 
 import org.gradle.api.logging.LogLevel
-import org.gradle.api.logging.configuration.WarningMode
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.junit.jupiter.api.DisplayName
 import java.io.File
 import kotlin.io.path.createDirectory
+import kotlin.io.path.isRegularFile
+import kotlin.io.path.readText
+import kotlin.io.path.walk
 
 @DisplayName("Build cache relocation")
 class BuildCacheRelocationIT : KGPBaseTest() {
@@ -101,8 +103,8 @@ class BuildCacheRelocationIT : KGPBaseTest() {
             listOf("build"),
             listOf(
                 ":compileCommonMainKotlinMetadata",
-                ":compileKotlinJvmWithJava",
-                ":compileTestKotlinJvmWithJava",
+                ":compileKotlinJvmWithoutJava",
+                ":compileTestKotlinJvmWithoutJava",
                 ":compileKotlinJs",
                 ":compileTestKotlinJs"
             )
@@ -111,7 +113,6 @@ class BuildCacheRelocationIT : KGPBaseTest() {
 
     @AndroidGradlePluginTests
     @DisplayName("works with Android project")
-    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_42)
     @GradleAndroidTest
     fun testRelocationAndroidProject(
         gradleVersion: GradleVersion,
@@ -141,7 +142,6 @@ class BuildCacheRelocationIT : KGPBaseTest() {
 
     @AndroidGradlePluginTests
     @DisplayName("Test relocation for Android with dagger project")
-    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_42)
     @GradleAndroidTest
     fun testRelocationAndroidDagger(
         gradleVersion: GradleVersion,
@@ -171,8 +171,6 @@ class BuildCacheRelocationIT : KGPBaseTest() {
 
     @AndroidGradlePluginTests
     @DisplayName("KT-48617: Kapt ignores empty directories from Android variant")
-    @GradleTestVersions(minVersion = TestVersions.Gradle.G_6_8)
-    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_42)
     @GradleAndroidTest
     fun kaptIgnoreEmptyAndroidVariant(
         gradleVersion: GradleVersion,
@@ -402,6 +400,31 @@ class BuildCacheRelocationIT : KGPBaseTest() {
         }
         secondProject.build("clean", "build", buildOptions = options) {
             assertTasksFromCache(":app:kaptGenerateStubsKotlin", ":app:kaptKotlin")
+        }
+    }
+
+    @JvmGradlePluginTests
+    @DisplayName("test relocatability for projects using custom build directory") // Regression test for KT-58547
+    @GradleTest
+    fun testCustomBuildDirectory(gradleVersion: GradleVersion) {
+        val (firstProject, secondProject) = prepareTestProjects("buildCacheSimple", gradleVersion)
+        firstProject.buildGradle.append("buildDir = \"../BUILD_DIR_1\"")
+        secondProject.buildGradle.append("buildDir = \"../BUILD_DIR_2\"")
+
+        firstProject.build(":compileKotlin")
+
+        val outputFilesContainingNonRelocatablePaths =
+            firstProject.projectPath.resolve("../BUILD_DIR_1/kotlin/compileKotlin").walk()
+                .filter {
+                    // Use readText() even for binary files as we don't have a better way for now
+                    it.isRegularFile() && it.readText().contains("BUILD_DIR_1")
+                }.toList()
+        assert(outputFilesContainingNonRelocatablePaths.isEmpty()) {
+            "The following output files contain non-relocatable paths:\n" + outputFilesContainingNonRelocatablePaths.joinToString("\n")
+        }
+
+        secondProject.build(":compileKotlin") {
+            assertTasksFromCache(":compileKotlin")
         }
     }
 }

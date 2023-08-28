@@ -6,7 +6,10 @@
 package org.jetbrains.kotlin.backend.common.lower.inline
 
 
-import org.jetbrains.kotlin.backend.common.*
+import org.jetbrains.kotlin.backend.common.BodyLoweringPass
+import org.jetbrains.kotlin.backend.common.CommonBackendContext
+import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
+import org.jetbrains.kotlin.backend.common.ScopeWithIr
 import org.jetbrains.kotlin.backend.common.ir.Symbols
 import org.jetbrains.kotlin.backend.common.ir.isPure
 import org.jetbrains.kotlin.backend.common.lower.InnerClassesSupport
@@ -42,6 +45,9 @@ fun IrExpression.isAdaptedFunctionReference() =
 interface InlineFunctionResolver {
     fun getFunctionDeclaration(symbol: IrFunctionSymbol): IrFunction
     fun getFunctionSymbol(irFunction: IrFunction): IrFunctionSymbol
+    fun shouldExcludeFunctionFromInlining(symbol: IrFunctionSymbol): Boolean {
+        return Symbols.isLateinitIsInitializedPropertyGetter(symbol) || Symbols.isTypeOfIntrinsic(symbol)
+    }
 }
 
 fun IrFunction.isTopLevelInPackage(name: String, packageName: String): Boolean {
@@ -84,7 +90,6 @@ class FunctionInlining(
     private val innerClassesSupport: InnerClassesSupport? = null,
     private val insertAdditionalImplicitCasts: Boolean = false,
     private val alwaysCreateTemporaryVariablesForArguments: Boolean = false,
-    private val inlinePureArguments: Boolean = true,
     private val regenerateInlinedAnonymousObjects: Boolean = false,
     private val inlineArgumentsWithTheirOriginalTypeAndOffset: Boolean = false,
     private val allowExternalInlining: Boolean = false,
@@ -110,11 +115,7 @@ class FunctionInlining(
             is IrConstructorCall -> expression.symbol.owner
             else -> return expression
         }
-        if (!callee.needsInlining)
-            return expression
-        if (Symbols.isLateinitIsInitializedPropertyGetter(callee.symbol))
-            return expression
-        if (Symbols.isTypeOfIntrinsic(callee.symbol))
+        if (!callee.needsInlining || inlineFunctionResolver.shouldExcludeFunctionFromInlining(callee.symbol))
             return expression
 
         val actualCallee = inlineFunctionResolver.getFunctionDeclaration(callee.symbol)
@@ -404,13 +405,17 @@ class FunctionInlining(
                     typeParam.symbol to superType.arguments[typeParam.index].typeOrNull!!
                 }
 
+                require(superType.arguments.isNotEmpty()) { "type should have at least one type argument: ${superType.render()}" }
+                // This expression equals to return type of function reference with substituted type arguments
+                val functionReferenceReturnType = superType.arguments.last().typeOrFail
+
                 val immediateCall = when (inlinedFunction) {
                     is IrConstructor -> {
                         val classTypeParametersCount = inlinedFunction.parentAsClass.typeParameters.size
                         IrConstructorCallImpl.fromSymbolOwner(
                             if (inlineArgumentsWithTheirOriginalTypeAndOffset) irFunctionReference.startOffset else irCall.startOffset,
                             if (inlineArgumentsWithTheirOriginalTypeAndOffset) irFunctionReference.endOffset else irCall.endOffset,
-                            inlinedFunction.returnType,
+                            functionReferenceReturnType,
                             inlinedFunction.symbol,
                             classTypeParametersCount,
                             INLINED_FUNCTION_REFERENCE
@@ -420,7 +425,7 @@ class FunctionInlining(
                         IrCallImpl(
                             if (inlineArgumentsWithTheirOriginalTypeAndOffset) irFunctionReference.startOffset else irCall.startOffset,
                             if (inlineArgumentsWithTheirOriginalTypeAndOffset) irFunctionReference.endOffset else irCall.endOffset,
-                            inlinedFunction.returnType,
+                            functionReferenceReturnType,
                             inlinedFunction.symbol,
                             inlinedFunction.typeParameters.size,
                             inlinedFunction.valueParameters.size,
@@ -845,8 +850,7 @@ class FunctionInlining(
         }
 
         private fun ParameterToArgument.shouldBeSubstitutedViaTemporaryVariable(): Boolean =
-            !(isImmutableVariableLoad && parameter.index >= 0) &&
-                    !(argumentExpression.isPure(false, context = context) && inlinePureArguments)
+            !(isImmutableVariableLoad && parameter.index >= 0) && !argumentExpression.isPure(false, context = context)
 
         private fun createTemporaryVariable(
             parameter: IrValueParameter,
@@ -873,7 +877,7 @@ class FunctionInlining(
             )
 
             if (alwaysCreateTemporaryVariablesForArguments) {
-                variable.name = parameter.name
+                variable.name = Name.identifier(parameter.name.asStringStripSpecialMarkers())
             }
 
             return variable

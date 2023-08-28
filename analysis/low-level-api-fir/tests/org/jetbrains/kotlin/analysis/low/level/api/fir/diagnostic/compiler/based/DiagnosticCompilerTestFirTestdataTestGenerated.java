@@ -525,9 +525,21 @@ public class DiagnosticCompilerTestFirTestdataTestGenerated extends AbstractDiag
         }
 
         @Test
+        @TestMetadata("properLocalPackages.kt")
+        public void testProperLocalPackages() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/properLocalPackages.kt");
+        }
+
+        @Test
         @TestMetadata("propertyFromJavaPlusAssign.kt")
         public void testPropertyFromJavaPlusAssign() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/propertyFromJavaPlusAssign.kt");
+        }
+
+        @Test
+        @TestMetadata("propertyGetterWithoutType.kt")
+        public void testPropertyGetterWithoutType() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/propertyGetterWithoutType.kt");
         }
 
         @Test
@@ -1389,6 +1401,12 @@ public class DiagnosticCompilerTestFirTestdataTestGenerated extends AbstractDiag
             @TestMetadata("loops.kt")
             public void testLoops() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolve/cfg/loops.kt");
+            }
+
+            @Test
+            @TestMetadata("nestedClass.kt")
+            public void testNestedClass() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolve/cfg/nestedClass.kt");
             }
 
             @Test
@@ -6883,6 +6901,12 @@ public class DiagnosticCompilerTestFirTestdataTestGenerated extends AbstractDiag
             @TestMetadata("localScopesInAnonymousObject.kt")
             public void testLocalScopesInAnonymousObject() throws Exception {
                 runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/problems/localScopesInAnonymousObject.kt");
+            }
+
+            @Test
+            @TestMetadata("malformedRawTypes.kt")
+            public void testMalformedRawTypes() throws Exception {
+                runTest("compiler/fir/analysis-tests/testData/resolveWithStdlib/problems/malformedRawTypes.kt");
             }
 
             @Test

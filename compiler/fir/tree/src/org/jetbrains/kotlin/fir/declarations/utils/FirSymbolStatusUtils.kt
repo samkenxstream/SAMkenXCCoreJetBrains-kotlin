@@ -24,9 +24,6 @@ inline val FirCallableSymbol<*>.isFinal: Boolean
 inline val FirCallableSymbol<*>.visibility: Visibility get() = resolvedStatus.visibility
 inline val FirCallableSymbol<*>.effectiveVisibility: EffectiveVisibility get() = resolvedStatus.effectiveVisibility
 
-inline val FirCallableSymbol<*>.allowsToHaveFakeOverride: Boolean
-    get() = !Visibilities.isPrivate(visibility) && visibility != Visibilities.InvisibleFake
-
 inline val FirCallableSymbol<*>.isActual: Boolean get() = rawStatus.isActual
 inline val FirCallableSymbol<*>.isExpect: Boolean get() = rawStatus.isExpect
 inline val FirCallableSymbol<*>.isInner: Boolean get() = rawStatus.isInner
@@ -48,7 +45,6 @@ inline val FirCallableSymbol<*>.isFun: Boolean get() = rawStatus.isFun
 
 inline val FirClassLikeSymbol<*>.modality: Modality? get() = resolvedStatus.modality
 inline val FirClassLikeSymbol<*>.isAbstract: Boolean get() = resolvedStatus.modality == Modality.ABSTRACT
-inline val FirClassLikeSymbol<*>.isOpen: Boolean get() = resolvedStatus.modality == Modality.OPEN
 inline val FirClassLikeSymbol<*>.isFinal: Boolean
     get() {
         // member with unspecified modality is final
@@ -72,9 +68,6 @@ inline val FirClassLikeSymbol<*>.isCompanion: Boolean get() = rawStatus.isCompan
 inline val FirClassLikeSymbol<*>.isData: Boolean get() = rawStatus.isData
 inline val FirClassLikeSymbol<*>.isSealed: Boolean get() = resolvedStatus.modality == Modality.SEALED
 
-inline val FirRegularClassSymbol.canHaveAbstractDeclaration: Boolean
-    get() = isAbstract || isSealed || isEnumClass
-
 // ---------------------- common classes ----------------------
 
 inline val FirClassLikeSymbol<*>.isLocal: Boolean get() = classId.isLocal
@@ -96,9 +89,5 @@ inline val FirClassSymbol<*>.isEnumEntry: Boolean
     get() = classKind.isEnumEntry
 
 // ---------------------- specific callables ----------------------
-
-inline val FirPropertyAccessorSymbol.allowsToHaveFakeOverride: Boolean get() = visibility.allowsToHaveFakeOverride
-
-inline val FirPropertySymbol.allowsToHaveFakeOverride: Boolean get() = visibility.allowsToHaveFakeOverride
 
 inline val FirNamedFunctionSymbol.isLocal: Boolean get() = rawStatus.visibility == Visibilities.Local

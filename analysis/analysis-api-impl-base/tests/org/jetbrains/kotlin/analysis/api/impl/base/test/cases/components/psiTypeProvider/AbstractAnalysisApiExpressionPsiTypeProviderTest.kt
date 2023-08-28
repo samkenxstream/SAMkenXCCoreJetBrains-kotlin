@@ -25,7 +25,7 @@ abstract class AbstractAnalysisApiExpressionPsiTypeProviderTest : AbstractAnalys
         val declarationAtCaret = when (val element = testServices.expressionMarkerProvider.getSelectedElement(ktFile)) {
             is KtExpression -> element
             is KtValueArgument -> element.getArgumentExpression()!!
-            else -> error("Unexpected element: $element of ${element::class.java}")
+            else -> error("Unexpected element: $element of ${element::class}")
         }
         val containingDeclaration = declarationAtCaret.parentOfType<KtDeclaration>()
             ?: error("Can't find containing declaration for $declarationAtCaret")
@@ -34,11 +34,14 @@ abstract class AbstractAnalysisApiExpressionPsiTypeProviderTest : AbstractAnalys
             ?: error("Can't find psi context for $containingDeclaration")
         val actual = analyze(ktFile) {
             val returnType = declarationAtCaret.getKtType()
-                ?: error("Not a typable expression ${declarationAtCaret::class} ${declarationAtCaret.text}")
-            val psiType = returnType.asPsiType(psiContext, allowErrorTypes = false)
-            buildString {
-                appendLine("KtType: ${returnType.render(position = Variance.INVARIANT)}")
-                appendLine("PsiType: $psiType")
+            if (returnType != null) {
+                val psiType = returnType.asPsiType(psiContext, allowErrorTypes = false)
+                buildString {
+                    appendLine("KtType: ${returnType.render(position = Variance.INVARIANT)}")
+                    appendLine("PsiType: $psiType")
+                }
+            } else {
+                "null"
             }
         }
         testServices.assertions.assertEqualsToTestDataFileSibling(actual)

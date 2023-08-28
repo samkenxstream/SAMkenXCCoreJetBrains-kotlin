@@ -5,11 +5,11 @@
 
 package org.jetbrains.kotlin.fir.signaturer
 
-import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.backend.common.serialization.mangle.MangleConstant
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fir.*
-import org.jetbrains.kotlin.fir.backend.Fir2IrSignatureComposer
+import org.jetbrains.kotlin.fir.backend.FirMangler
+import org.jetbrains.kotlin.fir.backend.conversionData
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyGetter
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertySetter
@@ -23,73 +23,88 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 
 // @NoMutableState -- we'll restore this annotation once we get rid of withFileSignature().
-class FirBasedSignatureComposer(override val mangler: FirMangler) : Fir2IrSignatureComposer {
-    private var fileSignature: IdSignature.FileSignature? = null
-
-    override fun withFileSignature(sig: IdSignature.FileSignature, body: () -> Unit) {
-        fileSignature = sig
-        body()
-        fileSignature = null
-    }
-
+class FirBasedSignatureComposer(val mangler: FirMangler) {
     private data class FirDeclarationWithParentId(val declaration: FirDeclaration, val classId: ClassId?, val forceExpect: Boolean)
 
     private val signatureCache = mutableMapOf<FirDeclarationWithParentId, IdSignature.CommonSignature>()
 
-    inner class SignatureBuilder(private val forceExpect: Boolean) : FirVisitor<Unit, Any?>() {
-        var hashId: Long? = null
-        var mask = 0L
-
-        private fun setExpected(f: Boolean) {
-            mask = mask or IdSignature.Flags.IS_EXPECT.encode(f || forceExpect)
-        }
-
-        override fun visitElement(element: FirElement, data: Any?) {
-            TODO("Should not be here")
-        }
-
-        override fun visitRegularClass(regularClass: FirRegularClass, data: Any?) {
-            setExpected(regularClass.isExpect)
-            //platformSpecificClass(descriptor)
-        }
-
-        override fun visitScript(script: FirScript, data: Any?) {
-        }
-
-        override fun visitTypeAlias(typeAlias: FirTypeAlias, data: Any?) {
-            setExpected(typeAlias.isExpect)
-        }
-
-        override fun visitConstructor(constructor: FirConstructor, data: Any?) {
-            hashId = mangler.run { constructor.signatureMangle(compatibleMode = false) }
-            setExpected(constructor.isExpect)
-        }
-
-        override fun visitSimpleFunction(simpleFunction: FirSimpleFunction, data: Any?) {
-            hashId = mangler.run { simpleFunction.signatureMangle(compatibleMode = false) }
-            setExpected(simpleFunction.isExpect)
-        }
-
-        override fun visitProperty(property: FirProperty, data: Any?) {
-            hashId = mangler.run { property.signatureMangle(compatibleMode = false) }
-            setExpected(property.isExpect)
-        }
-
-        override fun visitField(field: FirField, data: Any?) {
-            hashId = mangler.run { field.signatureMangle(compatibleMode = false) }
-            setExpected(field.isExpect)
-        }
-
-        override fun visitEnumEntry(enumEntry: FirEnumEntry, data: Any?) {
-            setExpected(enumEntry.isExpect)
-        }
+    private fun computeSignatureHashAndDescriptionFor(declaration: FirDeclaration): Pair<Long, String> = mangler.run {
+        declaration.signatureString(compatibleMode = false).let { it.hashMangle to it }
     }
 
-    override fun composeSignature(
+    fun composeSignature(declaration: FirClassLikeDeclaration): IdSignature? {
+        return composeSignatureImpl(declaration, containingClass = null, forceExpect = false)
+    }
+
+    fun composeSignature(
+        declaration: FirCallableDeclaration,
+        containingClass: ConeClassLikeLookupTag? = null,
+        forceExpect: Boolean = false
+    ): IdSignature? {
+        return composeSignatureImpl(declaration, containingClass, forceExpect)
+    }
+
+    fun composeSignature(declaration: FirScript): IdSignature? {
+        return composeSignatureImpl(declaration, containingClass = null, forceExpect = false)
+    }
+
+    fun composeSignature(declaration: FirCodeFragment): IdSignature? {
+        return composeSignatureImpl(declaration, containingClass = null, forceExpect = false)
+    }
+
+    fun composeTypeParameterSignature(
+        index: Int,
+        containerSignature: IdSignature?
+    ): IdSignature? {
+        if (containerSignature == null) return null
+        return IdSignature.CompositeSignature(
+            containerSignature,
+            IdSignature.LocalSignature(MangleConstant.TYPE_PARAMETER_MARKER_NAME, index.toLong(), null)
+        )
+    }
+
+    fun composeAccessorSignature(
+        property: FirProperty,
+        isSetter: Boolean,
+        containingClass: ConeClassLikeLookupTag? = null
+    ): IdSignature? {
+        val propSig: IdSignature.CommonSignature
+        val fileSig: IdSignature.FileSignature?
+        when (val propertySignature = composeSignature(property, containingClass)) {
+            is IdSignature.CompositeSignature -> {
+                propSig = propertySignature.inner as? IdSignature.CommonSignature ?: return null
+                fileSig = propertySignature.container as? IdSignature.FileSignature ?: return null
+            }
+            is IdSignature.CommonSignature -> {
+                propSig = propertySignature
+                fileSig = null
+            }
+            else -> return null
+        }
+        val accessor = if (isSetter) {
+            property.setterOrDefault()
+        } else {
+            property.getterOrDefault()
+        }
+        val (id, description) = computeSignatureHashAndDescriptionFor(accessor)
+        val accessorFqName = "${propSig.declarationFqName}.${accessor.irName}"
+        val commonSig = IdSignature.CommonSignature(
+            packageFqName = propSig.packageFqName,
+            declarationFqName = accessorFqName,
+            id = id,
+            mask = propSig.mask,
+            description = description,
+        )
+        val accessorSig = IdSignature.AccessorSignature(propSig, commonSig)
+        return if (fileSig != null) {
+            IdSignature.CompositeSignature(fileSig, accessorSig)
+        } else accessorSig
+    }
+
+    private fun composeSignatureImpl(
         declaration: FirDeclaration,
         containingClass: ConeClassLikeLookupTag?,
-        forceTopLevelPrivate: Boolean,
-        forceExpect: Boolean,
+        forceExpect: Boolean
     ): IdSignature? {
         if (declaration is FirAnonymousObject || declaration is FirAnonymousFunction) return null
         if (declaration is FirRegularClass && declaration.classId.isLocal) return null
@@ -103,8 +118,8 @@ class FirBasedSignatureComposer(override val mangler: FirMangler) : Fir2IrSignat
             calculatePublicSignature(declarationWithParentId)
         }
 
-        val resultSignature: IdSignature = if (isTopLevelPrivate(declaration) || forceTopLevelPrivate) {
-            val fileSig = fileSignature ?: declaration.fakeFileSignature(publicSignature)
+        val resultSignature: IdSignature = if (isTopLevelPrivate(declaration)) {
+            val fileSig = declaration.fakeFileSignature(publicSignature)
             IdSignature.CompositeSignature(fileSig, publicSignature)
         } else
             publicSignature
@@ -129,7 +144,7 @@ class FirBasedSignatureComposer(override val mangler: FirMangler) : Fir2IrSignat
                     declarationFqName = classId.relativeClassName.asString(),
                     id = builder.hashId,
                     mask = builder.mask,
-                    description = null, // TODO(KT-59486): Save mangled name here
+                    description = builder.description,
                 )
             }
             is FirTypeAlias -> {
@@ -139,7 +154,7 @@ class FirBasedSignatureComposer(override val mangler: FirMangler) : Fir2IrSignat
                     declarationFqName = classId.relativeClassName.asString(),
                     id = builder.hashId,
                     mask = builder.mask,
-                    description = null, // TODO(KT-59486): Save mangled name here
+                    description = builder.description,
                 )
             }
             is FirCallableDeclaration -> {
@@ -152,76 +167,86 @@ class FirBasedSignatureComposer(override val mangler: FirMangler) : Fir2IrSignat
                     declarationFqName = classId?.relativeClassName?.child(callableName)?.asString() ?: callableName.asString(),
                     id = builder.hashId,
                     mask = builder.mask,
-                    description = null, // TODO(KT-59486): Save mangled name here
+                    description = builder.description,
                 )
             }
             is FirScript -> {
                 IdSignature.CommonSignature(
-                    packageFqName = declaration.name.asString(), // TODO: find package id
+                    packageFqName = declaration.name.asString(),
                     declarationFqName = declaration.name.asString(),
                     id = builder.hashId,
                     mask = builder.mask,
-                    description = null, // TODO(KT-59486): Save mangled name here
+                    description = builder.description,
                 )
+            }
+            is FirCodeFragment -> {
+                val conversionData = declaration.conversionData
+                val packageFqName = conversionData.classId.packageFqName.asString()
+                val classFqName = conversionData.classId.relativeClassName.asString()
+                IdSignature.CommonSignature(packageFqName, classFqName, builder.hashId, builder.mask, description = null)
             }
             else -> error("Unsupported FIR declaration in signature composer: ${declaration.render()}")
         }
     }
 
-    override fun composeTypeParameterSignature(
-        typeParameter: FirTypeParameter,
-        index: Int,
-        containerSignature: IdSignature?
-    ): IdSignature? {
-        if (containerSignature == null) return null
-        return IdSignature.CompositeSignature(
-            containerSignature,
-            IdSignature.LocalSignature(MangleConstant.TYPE_PARAMETER_MARKER_NAME, index.toLong(), null)
-        )
-    }
+    private inner class SignatureBuilder(private val forceExpect: Boolean) : FirVisitor<Unit, Any?>() {
+        var hashId: Long? = null
+        var description: String? = null
+        var mask = 0L
 
-    override fun composeAccessorSignature(
-        property: FirProperty,
-        isSetter: Boolean,
-        containingClass: ConeClassLikeLookupTag?,
-        forceTopLevelPrivate: Boolean
-    ): IdSignature? {
-        val propSig: IdSignature.CommonSignature
-        val fileSig: IdSignature.FileSignature?
-        when (val propertySignature = composeSignature(property, containingClass, forceTopLevelPrivate)) {
-            is IdSignature.CompositeSignature -> {
-                propSig = propertySignature.inner as? IdSignature.CommonSignature ?: return null
-                fileSig = propertySignature.container as? IdSignature.FileSignature ?: return null
-            }
-            is IdSignature.CommonSignature -> {
-                propSig = propertySignature
-                fileSig = null
-            }
-            else -> return null
-        }
-        val id = with(mangler) {
-            if (isSetter) {
-                property.setterOrDefault().signatureMangle(compatibleMode = false)
-            } else {
-                property.getterOrDefault().signatureMangle(compatibleMode = false)
+        private fun setHashAndDescriptionFor(declaration: FirDeclaration) {
+            computeSignatureHashAndDescriptionFor(declaration).let {
+                hashId = it.first
+                description = it.second
             }
         }
-        val accessorFqName = if (isSetter) {
-            propSig.declarationFqName + ".<set-${property.name.asString()}>"
-        } else {
-            propSig.declarationFqName + ".<get-${property.name.asString()}>"
+
+        private fun setExpected(f: Boolean) {
+            mask = mask or IdSignature.Flags.IS_EXPECT.encode(f || forceExpect)
         }
-        val commonSig = IdSignature.CommonSignature(
-            packageFqName = propSig.packageFqName,
-            declarationFqName = accessorFqName,
-            id = id,
-            mask = propSig.mask,
-            description = null, // TODO(KT-59486): Save mangled name here
-        )
-        val accessorSig = IdSignature.AccessorSignature(propSig, commonSig)
-        return if (fileSig != null) {
-            IdSignature.CompositeSignature(fileSig, accessorSig)
-        } else accessorSig
+
+        override fun visitElement(element: FirElement, data: Any?) {
+            TODO("Should not be here")
+        }
+
+        override fun visitRegularClass(regularClass: FirRegularClass, data: Any?) {
+            setExpected(regularClass.isExpect)
+            //platformSpecificClass(descriptor)
+        }
+
+        override fun visitScript(script: FirScript, data: Any?) {
+        }
+
+        override fun visitCodeFragment(codeFragment: FirCodeFragment, data: Any?) {
+        }
+
+        override fun visitTypeAlias(typeAlias: FirTypeAlias, data: Any?) {
+            setExpected(typeAlias.isExpect)
+        }
+
+        override fun visitConstructor(constructor: FirConstructor, data: Any?) {
+            setHashAndDescriptionFor(constructor)
+            setExpected(constructor.isExpect)
+        }
+
+        override fun visitSimpleFunction(simpleFunction: FirSimpleFunction, data: Any?) {
+            setHashAndDescriptionFor(simpleFunction)
+            setExpected(simpleFunction.isExpect)
+        }
+
+        override fun visitProperty(property: FirProperty, data: Any?) {
+            setHashAndDescriptionFor(property)
+            setExpected(property.isExpect)
+        }
+
+        override fun visitField(field: FirField, data: Any?) {
+            setHashAndDescriptionFor(field)
+            setExpected(field.isExpect)
+        }
+
+        override fun visitEnumEntry(enumEntry: FirEnumEntry, data: Any?) {
+            setExpected(enumEntry.isExpect)
+        }
     }
 
     private fun isTopLevelPrivate(declaration: FirDeclaration): Boolean =
@@ -229,21 +254,24 @@ class FirBasedSignatureComposer(override val mangler: FirMangler) : Fir2IrSignat
 
     // We only need file signatures to distinguish between declarations with the same fqName across different files,
     // so FirDeclaration itself is an appropriate id.
-    private fun FirDeclaration.fakeFileSignature(commonSignature: IdSignature.CommonSignature) =
-        IdSignature.FileSignature(
+    private fun FirDeclaration.fakeFileSignature(commonSignature: IdSignature.CommonSignature): IdSignature.FileSignature {
+        return IdSignature.FileSignature(
             this, FqName(commonSignature.packageFqName + "." + commonSignature.declarationFqName), "<unknown>"
         )
+    }
 
-    private fun FirProperty.getterOrDefault() =
-        getter ?: FirDefaultPropertyGetter(
+    private fun FirProperty.getterOrDefault(): FirPropertyAccessor {
+        return getter ?: FirDefaultPropertyGetter(
             source = null,
             moduleData, origin, returnTypeRef, visibility, symbol
         )
+    }
 
-    private fun FirProperty.setterOrDefault() =
-        setter ?: FirDefaultPropertySetter(
+    private fun FirProperty.setterOrDefault(): FirPropertyAccessor {
+        return setter ?: FirDefaultPropertySetter(
             source = null,
             moduleData, origin, returnTypeRef, visibility, symbol
         )
+    }
 
 }

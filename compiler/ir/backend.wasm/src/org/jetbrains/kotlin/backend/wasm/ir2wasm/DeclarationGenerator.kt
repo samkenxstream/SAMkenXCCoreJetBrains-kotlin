@@ -182,11 +182,16 @@ class DeclarationGenerator(
         if (initPriority != null)
             context.registerInitFunction(function, initPriority)
 
-        if (declaration.isExported()) {
+        val nameIfExported = when {
+            declaration.isJsExport() -> declaration.getJsNameOrKotlinName().identifier
+            else -> declaration.getWasmExportNameIfWasmExport()
+        }
+
+        if (nameIfExported != null) {
             context.addExport(
                 WasmExport.Function(
                     field = function,
-                    name = declaration.getJsNameOrKotlinName().identifier
+                    name = nameIfExported
                 )
             )
         }
@@ -485,8 +490,8 @@ fun generateDefaultInitializerForType(type: WasmType, g: WasmExpressionBuilder) 
             WasmF32 -> g.buildConstF32(0f, location)
             WasmF64 -> g.buildConstF64(0.0, location)
             is WasmRefNullType -> g.buildRefNull(type.heapType, location)
-            is WasmRefNullNoneType -> g.buildRefNull(WasmHeapType.Simple.NullNone, location)
-            is WasmRefNullExternrefType -> g.buildRefNull(WasmHeapType.Simple.NullNoExtern, location)
+            is WasmRefNullrefType -> g.buildRefNull(WasmHeapType.Simple.None, location)
+            is WasmRefNullExternrefType -> g.buildRefNull(WasmHeapType.Simple.NoExtern, location)
             is WasmAnyRef -> g.buildRefNull(WasmHeapType.Simple.Any, location)
             is WasmExternRef -> g.buildRefNull(WasmHeapType.Simple.Extern, location)
             WasmUnreachableType -> error("Unreachable type can't be initialized")
@@ -500,8 +505,7 @@ fun IrFunction.getEffectiveValueParameters(): List<IrValueParameter> {
 }
 
 fun IrFunction.isExported(): Boolean =
-    isJsExport()
-
+    isJsExport() || getWasmExportNameIfWasmExport() != null
 
 fun generateConstExpression(
     expression: IrConst<*>,
@@ -512,7 +516,7 @@ fun generateConstExpression(
     when (val kind = expression.kind) {
         is IrConstKind.Null -> {
             val isExternal = expression.type.getClass()?.isExternal ?: expression.type.erasedUpperBound?.isExternal
-            val bottomType = if (isExternal == true) WasmRefNullExternrefType else WasmRefNullNoneType
+            val bottomType = if (isExternal == true) WasmRefNullExternrefType else WasmRefNullrefType
             body.buildInstr(WasmOp.REF_NULL, location, WasmImmediate.HeapType(bottomType))
         }
         is IrConstKind.Boolean -> body.buildConstI32(if (kind.valueOf(expression)) 1 else 0, location)

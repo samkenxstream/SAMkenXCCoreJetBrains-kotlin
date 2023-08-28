@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.fir.analysis.checkers.declaration
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtRealSourceElementKind
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
@@ -14,6 +15,7 @@ import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirOptInUsageBaseChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirOptInUsageBaseChecker.Experimentality
+import org.jetbrains.kotlin.fir.analysis.checkers.getContainingClassSymbol
 import org.jetbrains.kotlin.fir.analysis.checkers.unsubstitutedScope
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.analysis.overridesBackwardCompatibilityHelper
@@ -28,9 +30,8 @@ import org.jetbrains.kotlin.fir.originalOrSelf
 import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.scopes.FirTypeScope
-import org.jetbrains.kotlin.fir.scopes.getDirectOverriddenFunctions
-import org.jetbrains.kotlin.fir.scopes.getDirectOverriddenProperties
 import org.jetbrains.kotlin.fir.scopes.impl.toConeType
+import org.jetbrains.kotlin.fir.scopes.retrieveDirectOverriddenOf
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.symbols.impl.*
@@ -53,22 +54,6 @@ object FirOverrideChecker : FirClassChecker() {
                 val callable = it as FirCallableDeclaration
                 checkMember(callable.symbol, declaration, reporter, typeCheckerState, firTypeScope, context)
             }
-        }
-    }
-
-    private fun FirTypeScope.retrieveDirectOverriddenOf(memberSymbol: FirCallableSymbol<*>): List<FirCallableSymbol<*>> {
-        return when (memberSymbol) {
-            is FirNamedFunctionSymbol -> {
-                processFunctionsByName(memberSymbol.name) {}
-                getDirectOverriddenFunctions(memberSymbol)
-            }
-
-            is FirPropertySymbol -> {
-                processPropertiesByName(memberSymbol.name) {}
-                getDirectOverriddenProperties(memberSymbol)
-            }
-
-            else -> throw IllegalArgumentException("unexpected member kind $memberSymbol")
         }
     }
 
@@ -187,10 +172,10 @@ object FirOverrideChecker : FirClassChecker() {
         overriddenSymbols: List<FirCallableSymbol<*>>,
         context: CheckerContext
     ) {
-        val ownDeprecation = this.getDeprecation(context.session.languageVersionSettings.apiVersion)
+        val ownDeprecation = this.getDeprecation(context.session.languageVersionSettings)
         if (ownDeprecation == null || ownDeprecation.isNotEmpty()) return
         for (overriddenSymbol in overriddenSymbols) {
-            val deprecationInfoFromOverridden = overriddenSymbol.getDeprecation(context.session.languageVersionSettings.apiVersion)
+            val deprecationInfoFromOverridden = overriddenSymbol.getDeprecation(context.session.languageVersionSettings)
                 ?: continue
             val deprecationFromOverriddenSymbol = deprecationInfoFromOverridden.all
                 ?: deprecationInfoFromOverridden.bySpecificSite?.values?.firstOrNull()
@@ -234,6 +219,30 @@ object FirOverrideChecker : FirClassChecker() {
         return null
     }
 
+    @OptIn(SymbolInternals::class)
+    private fun FirFunctionSymbol<*>.checkDefaultValues(
+        reporter: DiagnosticReporter,
+        context: CheckerContext,
+    ) {
+        for (valueParameterSymbol in valueParameterSymbols) {
+            val defaultValue = valueParameterSymbol.fir.defaultValue
+            if (defaultValue != null) {
+                reporter.reportOn(defaultValue.source, FirErrors.DEFAULT_VALUE_NOT_ALLOWED_IN_OVERRIDE, context)
+            }
+        }
+    }
+
+    private fun FirCallableSymbol<*>.checkDataClassCopy(
+        reporter: DiagnosticReporter,
+        overriddenMemberSymbols: List<FirCallableSymbol<*>>,
+        containingClass: FirClass,
+        context: CheckerContext,
+    ) {
+        val overridden = overriddenMemberSymbols.firstOrNull() ?: return
+        val overriddenClass = overridden.getContainingClassSymbol(context.session) as? FirClassSymbol<*> ?: return
+        reporter.reportOn(containingClass.source, FirErrors.DATA_CLASS_OVERRIDE_DEFAULT_VALUES, this, overriddenClass, context)
+    }
+
     private fun checkMember(
         member: FirCallableSymbol<*>,
         containingClass: FirClass,
@@ -262,6 +271,9 @@ object FirOverrideChecker : FirClassChecker() {
                         base,
                         context
                     )
+                }
+                if (member.name == StandardNames.DATA_CLASS_COPY) {
+                    member.checkDataClassCopy(reporter, overriddenMemberSymbols, containingClass, context)
                 }
                 return
             }
@@ -315,6 +327,10 @@ object FirOverrideChecker : FirClassChecker() {
         member.checkVisibility(containingClass, reporter, overriddenMemberSymbols, context)
 
         member.checkDeprecation(reporter, overriddenMemberSymbols, context)
+
+        if (member is FirFunctionSymbol) {
+            member.checkDefaultValues(reporter, context)
+        }
 
         val restriction = member.checkReturnType(
             overriddenSymbols = overriddenMemberSymbols,

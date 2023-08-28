@@ -13,6 +13,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.kotlin.config.LanguageFeature;
 import org.jetbrains.kotlin.config.LanguageVersionSettings;
 import org.jetbrains.kotlin.descriptors.*;
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor;
 import org.jetbrains.kotlin.diagnostics.rendering.DeclarationWithDiagnosticComponents;
 import org.jetbrains.kotlin.diagnostics.rendering.DefaultErrorMessages;
 import org.jetbrains.kotlin.diagnostics.rendering.DiagnosticFactoryToRendererMap;
@@ -21,6 +22,7 @@ import org.jetbrains.kotlin.lexer.KtKeywordToken;
 import org.jetbrains.kotlin.lexer.KtModifierKeywordToken;
 import org.jetbrains.kotlin.lexer.KtTokens;
 import org.jetbrains.kotlin.metadata.deserialization.VersionRequirement;
+import org.jetbrains.kotlin.name.ClassId;
 import org.jetbrains.kotlin.name.FqName;
 import org.jetbrains.kotlin.name.Name;
 import org.jetbrains.kotlin.psi.*;
@@ -32,7 +34,9 @@ import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability;
 import org.jetbrains.kotlin.resolve.calls.tower.WrongResolutionToClassifier;
 import org.jetbrains.kotlin.resolve.calls.util.BuilderLambdaLabelingInfo;
 import org.jetbrains.kotlin.resolve.deprecation.DescriptorBasedDeprecationInfo;
+import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualAnnotationsIncompatibilityType;
 import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualCompatibility.Incompatible;
+import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualMemberDiff;
 import org.jetbrains.kotlin.serialization.deserialization.IncompatibleVersionErrorData;
 import org.jetbrains.kotlin.types.KotlinType;
 
@@ -806,7 +810,9 @@ public interface Errors {
             ACTUAL_TYPE_ALIAS_TO_CLASS_WITH_DECLARATION_SITE_VARIANCE = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
     DiagnosticFactory0<KtTypeAlias> ACTUAL_TYPE_ALIAS_WITH_USE_SITE_VARIANCE = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
     DiagnosticFactory0<KtTypeAlias> ACTUAL_TYPE_ALIAS_WITH_COMPLEX_SUBSTITUTION = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
-    DiagnosticFactory0<PsiElement> ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<KtTypeAlias> ACTUAL_TYPE_ALIAS_TO_NULLABLE_TYPE = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtTypeAlias> ACTUAL_TYPE_ALIAS_TO_NOTHING = DiagnosticFactory0.create(ERROR, DECLARATION_SIGNATURE);
+    DiagnosticFactory0<KtFunction> ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS = DiagnosticFactory0.create(ERROR, PARAMETERS_WITH_DEFAULT_VALUE);
     DiagnosticFactory2<KtNamedDeclaration, ClassDescriptor, Collection<FunctionDescriptor>> DEFAULT_ARGUMENTS_IN_EXPECT_WITH_ACTUAL_TYPEALIAS = DiagnosticFactory2.create(ERROR);
     DiagnosticFactory1<PsiElement, ValueParameterDescriptor> ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE =
             DiagnosticFactory1.create(ERROR);
@@ -816,6 +822,8 @@ public interface Errors {
     DiagnosticFactory3<KtNamedDeclaration, MemberDescriptor, ModuleDescriptor,
             Map<Incompatible<MemberDescriptor>, Collection<MemberDescriptor>>> NO_ACTUAL_FOR_EXPECT =
             DiagnosticFactory3.create(ERROR, INCOMPATIBLE_DECLARATION);
+    DiagnosticFactory2<KtNamedDeclaration, MemberDescriptor, ModuleDescriptor> IMPLICIT_JVM_ACTUALIZATION =
+            DiagnosticFactory2.create(ERROR, INCOMPATIBLE_DECLARATION);
     DiagnosticFactory2<KtNamedDeclaration, MemberDescriptor,
             Map<Incompatible<MemberDescriptor>, Collection<MemberDescriptor>>> ACTUAL_WITHOUT_EXPECT =
             DiagnosticFactory2.create(ERROR, INCOMPATIBLE_DECLARATION);
@@ -832,9 +840,42 @@ public interface Errors {
 
     DiagnosticFactory1<KtNamedDeclaration, MemberDescriptor> EXPECT_AND_ACTUAL_IN_THE_SAME_MODULE = DiagnosticFactory1.create(WARNING, DECLARATION_NAME);
 
+    DiagnosticFactory3<KtClassLikeDeclaration, ClassifierDescriptorWithTypeParameters, Set<ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>, ClassDescriptor>
+            ACTUAL_CLASSIFIER_MUST_HAVE_THE_SAME_MEMBERS_AS_NON_FINAL_EXPECT_CLASSIFIER =
+            DiagnosticFactory3.create(ERROR, DECLARATION_NAME);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            NON_ACTUAL_MEMBER_DECLARED_IN_EXPECT_NON_FINAL_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, DECLARATION_NAME);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            RETURN_TYPE_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, DECLARATION_RETURN_TYPE);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            MODALITY_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, MODALITY_MODIFIER);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            VISIBILITY_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, VISIBILITY_MODIFIER);
+    DiagnosticFactory1<KtPropertyAccessor, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            SETTER_VISIBILITY_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, VISIBILITY_MODIFIER);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            PARAMETER_NAME_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, DECLARATION_NAME);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            PROPERTY_KIND_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, VAL_OR_VAR_NODE);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            LATEINIT_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, LATEINIT_MODIFIER);
+    DiagnosticFactory1<KtCallableDeclaration, ExpectActualMemberDiff<CallableMemberDescriptor, ClassDescriptor>>
+            TYPE_PARAMETER_NAMES_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION = DiagnosticFactory1.create(ERROR, TYPE_PARAMETERS_OR_DECLARATION_SIGNATURE);
+
+    DiagnosticFactory3<KtClassLikeDeclaration, ClassifierDescriptorWithTypeParameters, List<Name>, ClassDescriptor>
+            ACTUAL_CLASSIFIER_MUST_HAVE_THE_SAME_SUPERTYPES_AS_NON_FINAL_EXPECT_CLASSIFIER =
+            DiagnosticFactory3.create(ERROR, DECLARATION_NAME);
+
     DiagnosticFactory0<PsiElement> OPTIONAL_EXPECTATION_NOT_ON_EXPECTED = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<PsiElement> OPTIONAL_DECLARATION_OUTSIDE_OF_ANNOTATION_ENTRY = DiagnosticFactory0.create(ERROR);
     DiagnosticFactory0<PsiElement> OPTIONAL_DECLARATION_USAGE_IN_NON_COMMON_SOURCE = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<PsiElement> NOT_A_MULTIPLATFORM_COMPILATION = DiagnosticFactory0.create(ERROR);
+    DiagnosticFactory0<KtNamedDeclaration> EXPECT_ACTUAL_OPT_IN_ANNOTATION = DiagnosticFactory0.create(ERROR, EXPECT_ACTUAL_MODIFIER);
+    DiagnosticFactory1<KtTypeAlias, ClassId> ACTUAL_TYPEALIAS_TO_SPECIAL_ANNOTATION =
+            DiagnosticFactory1.create(ERROR, TYPEALIAS_TYPE_REFERENCE);
+    DiagnosticFactory3<KtNamedDeclaration, DeclarationDescriptor, DeclarationDescriptor,
+            ExpectActualAnnotationsIncompatibilityType<AnnotationDescriptor>> ACTUAL_ANNOTATIONS_NOT_MATCH_EXPECT =
+            DiagnosticFactory3.create(WARNING, DECLARATION_NAME_ONLY);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

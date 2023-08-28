@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import com.google.common.io.Files
+import com.google.common.base.StandardSystemProperty
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.backend.common.linkage.issues.UserVisibleIrModulesSupport
 import org.jetbrains.kotlin.backend.konan.serialization.KonanUserVisibleIrModulesSupport
@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.konan.util.KonanHomeProvider
 import org.jetbrains.kotlin.konan.util.visibleName
 import org.jetbrains.kotlin.library.metadata.resolver.TopologicalLibraryOrder
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
+import java.nio.file.Files
+import java.nio.file.Paths
 
 enum class IrVerificationMode {
     NONE,
@@ -42,7 +44,8 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 configuration.get(KonanConfigKeys.KONAN_HOME) ?: KonanHomeProvider.determineKonanHome(),
                 false,
                 configuration.get(KonanConfigKeys.RUNTIME_FILE),
-                overridenProperties
+                overridenProperties,
+                configuration.get(KonanConfigKeys.KONAN_DATA_DIR)
         )
     }
 
@@ -142,8 +145,40 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         } ?: arg
     }
 
-    val gcMarkSingleThreaded: Boolean
-        get() = configuration.get(BinaryOptions.gcMarkSingleThreaded) == true
+    private val defaultGcMarkSingleThreaded get() = target.family == Family.MINGW
+
+    val gcMarkSingleThreaded: Boolean by lazy {
+        configuration.get(BinaryOptions.gcMarkSingleThreaded) ?: defaultGcMarkSingleThreaded
+    }
+
+    val concurrentWeakSweep: Boolean
+        get() = configuration.get(BinaryOptions.concurrentWeakSweep) ?: false
+
+    val gcMutatorsCooperate: Boolean by lazy {
+        val mutatorsCooperate = configuration.get(BinaryOptions.gcMutatorsCooperate)
+        if (gcMarkSingleThreaded) {
+            if (mutatorsCooperate == true) {
+                configuration.report(CompilerMessageSeverity.STRONG_WARNING,
+                        "Mutators cooperation is not supported during single threaded mark")
+            }
+            false
+        } else {
+            mutatorsCooperate ?: true
+        }
+    }
+
+    val auxGCThreads: UInt by lazy {
+        val auxGCThreads = configuration.get(BinaryOptions.auxGCThreads)
+        if (gcMarkSingleThreaded) {
+            if (auxGCThreads != null && auxGCThreads != 0U) {
+                configuration.report(CompilerMessageSeverity.STRONG_WARNING,
+                        "Auxiliary GC workers are not supported during single threaded mark")
+            }
+            0U
+        } else {
+            auxGCThreads ?: 0U
+        }
+    }
 
     val irVerificationMode: IrVerificationMode
         get() = configuration.getNotNull(KonanConfigKeys.VERIFY_IR)
@@ -228,15 +263,11 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     val shouldCoverSources = configuration.getBoolean(KonanConfigKeys.COVERAGE)
     private val shouldCoverLibraries = !configuration.getList(KonanConfigKeys.LIBRARIES_TO_COVER).isNullOrEmpty()
 
-    private val defaultAllocationMode get() = when {
-        gc == GC.PARALLEL_MARK_CONCURRENT_SWEEP && sanitizer == null -> {
+    private val defaultAllocationMode get() =
+        if (sanitizer == null)
             AllocationMode.CUSTOM
-        }
-        target.supportsMimallocAllocator() && sanitizer == null -> {
-            AllocationMode.MIMALLOC
-        }
-        else -> AllocationMode.STD
-    }
+        else
+            AllocationMode.STD
 
     val allocationMode by lazy {
         when (configuration.get(KonanConfigKeys.ALLOCATION_MODE)) {
@@ -258,13 +289,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 if (sanitizer != null) {
                     configuration.report(CompilerMessageSeverity.STRONG_WARNING, "Sanitizers are useful only with the std allocator")
                 }
-                if (gc == GC.PARALLEL_MARK_CONCURRENT_SWEEP) {
-                    AllocationMode.CUSTOM
-                } else {
-                    configuration.report(CompilerMessageSeverity.STRONG_WARNING,
-                            "Custom allocator is currently only integrated with concurrent mark and sweep gc. Using default mode.")
-                    defaultAllocationMode
-                }
+                AllocationMode.CUSTOM
             }
         }
     }
@@ -289,19 +314,17 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         }
         if (allocationMode == AllocationMode.CUSTOM) {
             add("experimental_memory_manager_custom.bc")
-            add("concurrent_ms_gc_custom.bc")
+            when (gc) {
+                GC.STOP_THE_WORLD_MARK_AND_SWEEP -> add("same_thread_ms_gc_custom.bc")
+                GC.NOOP -> add("noop_gc_custom.bc")
+                GC.PARALLEL_MARK_CONCURRENT_SWEEP -> add("concurrent_ms_gc_custom.bc")
+            }
         } else {
             add("experimental_memory_manager.bc")
             when (gc) {
-                GC.STOP_THE_WORLD_MARK_AND_SWEEP -> {
-                    add("same_thread_ms_gc.bc")
-                }
-                GC.NOOP -> {
-                    add("noop_gc.bc")
-                }
-                GC.PARALLEL_MARK_CONCURRENT_SWEEP -> {
-                    add("concurrent_ms_gc.bc")
-                }
+                GC.STOP_THE_WORLD_MARK_AND_SWEEP -> add("same_thread_ms_gc.bc")
+                GC.NOOP -> add("noop_gc.bc")
+                GC.PARALLEL_MARK_CONCURRENT_SWEEP -> add("concurrent_ms_gc.bc")
             }
         }
         if (shouldCoverLibraries || shouldCoverSources) add("profileRuntime.bc")
@@ -398,7 +421,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         append("STATIC")
 
         if (propertyLazyInitialization != defaultPropertyLazyInitialization)
-            append("-lazy_init=${if (propertyLazyInitialization) "enable" else "disable"}")
+            append("-lazy_init${if (propertyLazyInitialization) "ENABLE" else "DISABLE"}")
     }
 
     private val systemCacheFlavorString = buildString {
@@ -407,15 +430,17 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         if (useDebugInfoInNativeLibs)
             append("-runtime_debug")
         if (allocationMode != defaultAllocationMode)
-            append("-allocator=${allocationMode.name}")
+            append("-allocator${allocationMode.name}")
         if (gc != defaultGC)
-            append("-gc=${gc.name}")
+            append("-gc${gc.name}")
         if (gcSchedulerType != defaultGCSchedulerType)
-            append("-gc-scheduler=${gcSchedulerType.name}")
+            append("-gc_scheduler${gcSchedulerType.name}")
         if (runtimeAssertsMode != RuntimeAssertsMode.IGNORE)
-            append("-runtime_asserts=${runtimeAssertsMode.name}")
+            append("-runtime_asserts${runtimeAssertsMode.name}")
         if (disableMmap != defaultDisableMmap)
-            append("-disable_mmap=${disableMmap}")
+            append("-disable_mmap${if (disableMmap) "TRUE" else "FALSE"}")
+        if (gcMarkSingleThreaded != defaultGcMarkSingleThreaded)
+            append("-gc_mark_single_threaded${if (gcMarkSingleThreaded) "TRUE" else "FALSE"}")
     }
 
     private val userCacheFlavorString = buildString {
@@ -524,7 +549,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     internal val saveLlvmIrDirectory: java.io.File by lazy {
         val path = configuration.get(KonanConfigKeys.SAVE_LLVM_IR_DIRECTORY)
         if (path == null) {
-            val tempDir = Files.createTempDir()
+            val tempDir = Files.createTempDirectory(Paths.get(StandardSystemProperty.JAVA_IO_TMPDIR.value()!!), /* prefix= */ null).toFile()
             configuration.report(CompilerMessageSeverity.WARNING,
                     "Temporary directory for LLVM IR is ${tempDir.canonicalPath}")
             tempDir

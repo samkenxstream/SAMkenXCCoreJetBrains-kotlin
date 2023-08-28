@@ -11,6 +11,11 @@ const val KLIB_PROPERTY_ABI_VERSION = "abi_version"
 const val KLIB_PROPERTY_COMPILER_VERSION = "compiler_version"
 
 /**
+ * A set of values of [org.jetbrains.kotlin.library.KotlinIrSignatureVersion].
+ */
+const val KLIB_PROPERTY_IR_SIGNATURE_VERSIONS = "ir_signature_versions"
+
+/**
  * [org.jetbrains.kotlin.library.metadata.KlibMetadataVersion]
  */
 const val KLIB_PROPERTY_METADATA_VERSION = "metadata_version"
@@ -99,6 +104,9 @@ val BaseKotlinLibrary.unresolvedDependencies: List<RequiredUnresolvedLibrary>
 fun BaseKotlinLibrary.unresolvedDependencies(lenient: Boolean = false): List<UnresolvedLibrary> =
     manifestProperties.propertyList(KLIB_PROPERTY_DEPENDS, escapeInQuotes = true)
         .map { UnresolvedLibrary(it, manifestProperties.getProperty("dependency_version_$it"), lenient = lenient) }
+
+val BaseKotlinLibrary.hasDependencies: Boolean
+    get() = !manifestProperties.getProperty(KLIB_PROPERTY_DEPENDS).isNullOrBlank()
 
 interface KotlinLibrary : BaseKotlinLibrary, MetadataLibrary, IrLibrary
 

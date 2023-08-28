@@ -16,10 +16,7 @@
 
 package org.jetbrains.kotlin.native.interop.tool
 
-import kotlinx.cli.ArgParser
-import kotlinx.cli.ArgType
 import kotlinx.cli.*
-import org.jetbrains.kotlin.native.interop.gen.jvm.GenerationMode
 
 const val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "headerFilterAdditionalSearchPrefix"
 const val NODEFAULTLIBS_DEPRECATED = "nodefaultlibs"
@@ -35,6 +32,7 @@ const val FOREIGN_EXCEPTION_MODE = "Xforeign-exception-mode"
 const val DUMP_BRIDGES = "Xdump-bridges"
 const val DISABLE_EXCEPTION_PRETTIFIER = "Xdisable-exception-prettifier"
 const val USER_SETUP_HINT = "Xuser-setup-hint"
+const val KONAN_DATA_DIR = "Xkonan-data-dir"
 
 // TODO: unify camel and snake cases.
 // Possible solution is to accept both cases
@@ -74,6 +72,8 @@ open class CommonInteropArguments(val argParser: ArgParser) {
             fullName = "Xoverride-konan-properties",
             description = "Override konan.properties.values"
         ).multiple().delimiter(";")
+    val konanDataDir by argParser.option(ArgType.String, KONAN_DATA_DIR,
+            description = "Path to konan and dependencies root folder")
 }
 
 open class CInteropArguments(argParser: ArgParser =
@@ -136,6 +136,9 @@ open class CInteropArguments(argParser: ArgParser =
 
     val userSetupHint by argParser.option(ArgType.String, USER_SETUP_HINT,
             description = "A suggestion that is displayed to the user if produced lib fails to link")
+
+    val disableExperimentalAnnotation by argParser.option(ArgType.Boolean, "Xdisable-experimental-annotation",
+            description = "Don't add @ExperimentalForeignApi to generated Kotlin declarations")
 }
 
 class JSInteropArguments(argParser: ArgParser = ArgParser("jsinterop",

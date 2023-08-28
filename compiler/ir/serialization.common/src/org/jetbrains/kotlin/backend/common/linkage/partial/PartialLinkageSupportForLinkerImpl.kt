@@ -5,17 +5,18 @@
 
 package org.jetbrains.kotlin.backend.common.linkage.partial
 
+import org.jetbrains.kotlin.backend.common.linkage.issues.PartialLinkageErrorsLogged
 import org.jetbrains.kotlin.backend.common.overrides.FakeOverrideBuilder
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageConfig
+import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageLogLevel
 import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageLogger
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.IrMessageLogger
 import org.jetbrains.kotlin.ir.util.SymbolTable
-import org.jetbrains.kotlin.ir.util.allUnbound
 
 fun createPartialLinkageSupportForLinker(
     partialLinkageConfig: PartialLinkageConfig,
@@ -30,7 +31,7 @@ else
 internal class PartialLinkageSupportForLinkerImpl(
     builtIns: IrBuiltIns,
     allowErrorTypes: Boolean,
-    logger: PartialLinkageLogger
+    private val logger: PartialLinkageLogger
 ) : PartialLinkageSupportForLinker {
     private val stubGenerator = MissingDeclarationStubGenerator(builtIns)
     private val classifierExplorer = ClassifierExplorer(builtIns, stubGenerator, allowErrorTypes)
@@ -73,7 +74,7 @@ internal class PartialLinkageSupportForLinkerImpl(
 
     private fun generateStubsAndPatchUsagesInternal(symbolTable: SymbolTable, patchIrTree: () -> Unit) {
         // Generate stubs.
-        for (symbol in symbolTable.allUnbound) {
+        for (symbol in symbolTable.descriptorExtension.allUnboundSymbols) {
             stubGenerator.getDeclaration(symbol)
         }
 
@@ -82,5 +83,10 @@ internal class PartialLinkageSupportForLinkerImpl(
 
         // Patch the stubs which were not patched yet.
         patcher.patchDeclarations(stubGenerator.grabDeclarationsToPatch())
+
+        // Make sure that there are no linkage issues that have been reported with the 'error' severity.
+        // If there are, abort the current compilation.
+        if (logger.logLevel == PartialLinkageLogLevel.ERROR && patcher.linkageIssuesLogged > 0)
+            PartialLinkageErrorsLogged.raiseIssue(logger.irLogger)
     }
 }

@@ -21,16 +21,16 @@ import org.jetbrains.kotlin.analysis.api.types.KtSubstitutor
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLFirResolveSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.withConeTypeEntry
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.withFirEntry
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.withFirSymbolEntry
+import org.jetbrains.kotlin.fir.utils.exceptions.withConeTypeEntry
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
 import org.jetbrains.kotlin.analysis.providers.KotlinPackageProvider
-import org.jetbrains.kotlin.analysis.utils.errors.buildErrorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.impl.FirFieldImpl
-import org.jetbrains.kotlin.fir.declarations.impl.FirOuterClassTypeParameterRef
+import org.jetbrains.kotlin.fir.declarations.FirOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.diagnostics.ConeCannotInferTypeParameterType
 import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
 import org.jetbrains.kotlin.fir.java.declarations.FirJavaField
@@ -98,6 +98,13 @@ internal class KtSymbolByFirBuilder constructor(
             is FirFileSymbol -> buildFileSymbol(firSymbol)
             is FirScriptSymbol -> buildScriptSymbol(firSymbol)
             else -> throwUnexpectedElementError(firSymbol)
+        }
+    }
+
+
+    fun buildDestructuringDeclarationSymbol(firSymbol: FirVariableSymbol<*>): KtDestructuringDeclarationSymbol {
+        return symbolsCache.cache(firSymbol) {
+            KtFirDestructuringDeclarationSymbol(firSymbol, analysisSession)
         }
     }
 
@@ -583,19 +590,19 @@ internal class KtSymbolByFirBuilder constructor(
 
     companion object {
         private fun throwUnexpectedElementError(element: FirBasedSymbol<*>): Nothing {
-            buildErrorWithAttachment("Unexpected ${element::class.simpleName}") {
+            errorWithAttachment("Unexpected ${element::class.simpleName}") {
                 withFirSymbolEntry("firSymbol", element)
             }
         }
 
         private fun throwUnexpectedElementError(element: FirElement): Nothing {
-            buildErrorWithAttachment("Unexpected ${element::class.simpleName}") {
+            errorWithAttachment("Unexpected ${element::class.simpleName}") {
                 withFirEntry("firElement", element)
             }
         }
 
         private fun throwUnexpectedElementError(element: ConeKotlinType): Nothing {
-            buildErrorWithAttachment("Unexpected ${element::class.simpleName}") {
+            errorWithAttachment("Unexpected ${element::class.simpleName}") {
                 withConeTypeEntry("coneType", element)
             }
         }
@@ -623,7 +630,9 @@ private class BuilderCache<From, To : KtSymbol> {
     inline fun <reified S : To> cache(key: From, calculation: () -> S): S {
         val value = cache.getOrPut(key, calculation)
         return value as? S
-            ?: error("Cannot cast ${value::class} to ${S::class}\n${value}")
+            ?: errorWithAttachment("Cannot cast ${value::class} to ${S::class}") {
+                withEntry("value", value.toString())
+            }
     }
 }
 

@@ -29,6 +29,8 @@ import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
+import org.jetbrains.kotlin.fir.declarations.FirConstructedClassTypeParameterRef
+import org.jetbrains.kotlin.fir.declarations.FirOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.FirVariable
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.declarations.FirReceiverParameter
@@ -48,6 +50,7 @@ import org.jetbrains.kotlin.fir.declarations.FirBackingField
 import org.jetbrains.kotlin.fir.declarations.FirConstructor
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirScript
+import org.jetbrains.kotlin.fir.declarations.FirCodeFragment
 import org.jetbrains.kotlin.fir.FirPackageDirective
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
@@ -91,12 +94,13 @@ import org.jetbrains.kotlin.fir.expressions.FirWhenBranch
 import org.jetbrains.kotlin.fir.expressions.FirContextReceiverArgumentListOwner
 import org.jetbrains.kotlin.fir.expressions.FirCheckNotNullCall
 import org.jetbrains.kotlin.fir.expressions.FirElvisExpression
-import org.jetbrains.kotlin.fir.expressions.FirArrayOfCall
+import org.jetbrains.kotlin.fir.expressions.FirArrayLiteral
 import org.jetbrains.kotlin.fir.expressions.FirAugmentedArraySetCall
 import org.jetbrains.kotlin.fir.expressions.FirClassReferenceExpression
 import org.jetbrains.kotlin.fir.expressions.FirErrorExpression
 import org.jetbrains.kotlin.fir.declarations.FirErrorFunction
 import org.jetbrains.kotlin.fir.declarations.FirErrorProperty
+import org.jetbrains.kotlin.fir.declarations.FirErrorPrimaryConstructor
 import org.jetbrains.kotlin.fir.declarations.FirDanglingModifierList
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedErrorAccessExpression
@@ -258,6 +262,14 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
         visitElement(typeParameter)
     }
 
+    open fun visitConstructedClassTypeParameterRef(constructedClassTypeParameterRef: FirConstructedClassTypeParameterRef) {
+        visitElement(constructedClassTypeParameterRef)
+    }
+
+    open fun visitOuterClassTypeParameterRef(outerClassTypeParameterRef: FirOuterClassTypeParameterRef) {
+        visitElement(outerClassTypeParameterRef)
+    }
+
     open fun visitVariable(variable: FirVariable) {
         visitElement(variable)
     }
@@ -332,6 +344,10 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
 
     open fun visitScript(script: FirScript) {
         visitElement(script)
+    }
+
+    open fun visitCodeFragment(codeFragment: FirCodeFragment) {
+        visitElement(codeFragment)
     }
 
     open fun visitPackageDirective(packageDirective: FirPackageDirective) {
@@ -506,8 +522,8 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
         visitElement(elvisExpression)
     }
 
-    open fun visitArrayOfCall(arrayOfCall: FirArrayOfCall) {
-        visitElement(arrayOfCall)
+    open fun visitArrayLiteral(arrayLiteral: FirArrayLiteral) {
+        visitElement(arrayLiteral)
     }
 
     open fun visitAugmentedArraySetCall(augmentedArraySetCall: FirAugmentedArraySetCall) {
@@ -528,6 +544,10 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
 
     open fun visitErrorProperty(errorProperty: FirErrorProperty) {
         visitElement(errorProperty)
+    }
+
+    open fun visitErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor) {
+        visitElement(errorPrimaryConstructor)
     }
 
     open fun visitDanglingModifierList(danglingModifierList: FirDanglingModifierList) {
@@ -866,6 +886,14 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
         visitTypeParameter(typeParameter)
     }
 
+    final override fun visitConstructedClassTypeParameterRef(constructedClassTypeParameterRef: FirConstructedClassTypeParameterRef, data: Nothing?) {
+        visitConstructedClassTypeParameterRef(constructedClassTypeParameterRef)
+    }
+
+    final override fun visitOuterClassTypeParameterRef(outerClassTypeParameterRef: FirOuterClassTypeParameterRef, data: Nothing?) {
+        visitOuterClassTypeParameterRef(outerClassTypeParameterRef)
+    }
+
     final override fun visitVariable(variable: FirVariable, data: Nothing?) {
         visitVariable(variable)
     }
@@ -940,6 +968,10 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
 
     final override fun visitScript(script: FirScript, data: Nothing?) {
         visitScript(script)
+    }
+
+    final override fun visitCodeFragment(codeFragment: FirCodeFragment, data: Nothing?) {
+        visitCodeFragment(codeFragment)
     }
 
     final override fun visitPackageDirective(packageDirective: FirPackageDirective, data: Nothing?) {
@@ -1114,8 +1146,8 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
         visitElvisExpression(elvisExpression)
     }
 
-    final override fun visitArrayOfCall(arrayOfCall: FirArrayOfCall, data: Nothing?) {
-        visitArrayOfCall(arrayOfCall)
+    final override fun visitArrayLiteral(arrayLiteral: FirArrayLiteral, data: Nothing?) {
+        visitArrayLiteral(arrayLiteral)
     }
 
     final override fun visitAugmentedArraySetCall(augmentedArraySetCall: FirAugmentedArraySetCall, data: Nothing?) {
@@ -1136,6 +1168,10 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
 
     final override fun visitErrorProperty(errorProperty: FirErrorProperty, data: Nothing?) {
         visitErrorProperty(errorProperty)
+    }
+
+    final override fun visitErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: Nothing?) {
+        visitErrorPrimaryConstructor(errorPrimaryConstructor)
     }
 
     final override fun visitDanglingModifierList(danglingModifierList: FirDanglingModifierList, data: Nothing?) {

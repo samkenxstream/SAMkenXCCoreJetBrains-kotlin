@@ -8,9 +8,9 @@ package org.jetbrains.kotlin.fir.declarations
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualCompatibility
-import org.jetbrains.kotlin.resolve.multiplatform.compatible
 
 private object ExpectForActualAttributeKey : FirDeclarationDataKey()
 
@@ -19,22 +19,11 @@ typealias ExpectForActualData = Map<ExpectActualCompatibility<FirBasedSymbol<*>>
 @SymbolInternals
 var FirDeclaration.expectForActual: ExpectForActualData? by FirDeclarationDataRegistry.data(ExpectForActualAttributeKey)
 
-fun FirFunctionSymbol<*>.getSingleExpectForActualOrNull(compatibleOnly: Boolean = false) =
-    (this as FirBasedSymbol<*>).getSingleExpectForActualOrNull(compatibleOnly) as? FirFunctionSymbol<*>
+fun FirFunctionSymbol<*>.getSingleExpectForActualOrNull(): FirFunctionSymbol<*>? =
+    (this as FirBasedSymbol<*>).getSingleExpectForActualOrNull() as? FirFunctionSymbol<*>
 
-fun FirBasedSymbol<*>.getSingleExpectForActualOrNull(compatibleOnly: Boolean = false): FirBasedSymbol<*>? {
-    val expectForActual = expectForActual ?: return null
-    var actuals: List<FirBasedSymbol<*>>? = null
-    for ((key, item) in expectForActual) {
-        if (!compatibleOnly || key.compatible) {
-            if (actuals == null) {
-                actuals = item
-            } else {
-                return null // Exit if there are more than one list with actuals
-            }
-        }
-    }
-    return actuals?.singleOrNull()
+fun FirBasedSymbol<*>.getSingleExpectForActualOrNull(): FirBasedSymbol<*>? {
+    return expectForActual?.values?.singleOrNull()?.singleOrNull()
 }
 
 val FirBasedSymbol<*>.expectForActual: ExpectForActualData?
@@ -43,3 +32,13 @@ val FirBasedSymbol<*>.expectForActual: ExpectForActualData?
         return fir.expectForActual
     }
 
+
+private object MemberExpectForActualAttributeKey : FirDeclarationDataKey()
+
+// Expect class in the key is needed, because class may correspond to two expects
+// in case when two `actual typealias` point to the same class.
+typealias MemberExpectForActualData =
+        Map<Pair</* actual member */ FirBasedSymbol<*>, /* expect class */ FirRegularClassSymbol>,
+                Map</* expect member */ FirBasedSymbol<*>, ExpectActualCompatibility<*>>>
+
+var FirRegularClass.memberExpectForActual: MemberExpectForActualData? by FirDeclarationDataRegistry.data(MemberExpectForActualAttributeKey)

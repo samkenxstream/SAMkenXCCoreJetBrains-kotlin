@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.gradle.plugin.diagnostics
 
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.PRESETS_DEPRECATION_MESSAGE_SUFFIX
 import org.jetbrains.kotlin.gradle.dsl.KotlinSourceSetConvention.isRegisteredByKotlinSourceSetConventionAt
 import org.jetbrains.kotlin.gradle.dsl.NativeTargetShortcutTrace
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
@@ -14,15 +15,23 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_MPP_APPLY_DEFAULT_HIERARCHY_TEMPLATE
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_NATIVE_IGNORE_DISABLED_TARGETS
+import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_NATIVE_SUPPRESS_EXPERIMENTAL_ARTIFACTS_DSL_WARNING
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnostic.Severity.*
 import org.jetbrains.kotlin.gradle.plugin.sources.android.multiplatformAndroidSourceSetLayoutV1
 import org.jetbrains.kotlin.gradle.plugin.sources.android.multiplatformAndroidSourceSetLayoutV2
 
 @InternalKotlinGradlePluginApi // used in integration tests
 object KotlinToolingDiagnostics {
-    object HierarchicalMultiplatformFlagsWarning : ToolingDiagnosticFactory(WARNING) {
+    /**
+     * This diagnostic is suppressed in kotlin-test and kotlin-stdlib.
+     * We should migrate the stdlib and kotlin-test from deprecated flags and then completely remove the support.
+     * ETA: 2.0-M1
+     *
+     * P.s. Some tests also suppress this diagnostic -- these tests should be removed together with the flags support
+     */
+    object PreHMPPFlagsError : ToolingDiagnosticFactory(ERROR) {
         operator fun invoke(usedDeprecatedFlags: List<String>) = build(
-            "The following properties are obsolete and will be removed in Kotlin 1.9.20:\n" +
+            "The following properties are obsolete and no longer supported:\n" +
                     "${usedDeprecatedFlags.joinToString()}\n" +
                     "Read the details here: https://kotlinlang.org/docs/multiplatform-compatibility-guide.html#deprecate-hmpp-properties",
         )
@@ -34,8 +43,8 @@ object KotlinToolingDiagnostics {
         )
     }
 
-    object CommonMainWithDependsOnDiagnostic : ToolingDiagnosticFactory(WARNING) {
-        operator fun invoke() = build("commonMain can't declare dependsOn on other source sets")
+    object CommonMainOrTestWithDependsOnDiagnostic : ToolingDiagnosticFactory(ERROR) {
+        operator fun invoke(suffix: String) = build("common$suffix can't declare dependsOn on other source sets")
     }
 
     object NativeStdlibIsMissingDiagnostic : ToolingDiagnosticFactory(WARNING) {
@@ -46,7 +55,7 @@ object KotlinToolingDiagnostics {
         )
     }
 
-    object DeprecatedJvmWithJavaPresetDiagnostic : ToolingDiagnosticFactory(WARNING) {
+    object DeprecatedJvmWithJavaPresetDiagnostic : ToolingDiagnosticFactory(ERROR) {
         operator fun invoke() = build(
             """
                 The 'jvmWithJava' preset is deprecated and will be removed soon. Please use an ordinary JVM target with Java support: 
@@ -86,17 +95,12 @@ object KotlinToolingDiagnostics {
         }
     }
 
-    object PromoteAndroidSourceSetLayoutV2Warning : ToolingDiagnosticFactory(WARNING) {
+    object AndroidSourceSetLayoutV1Deprecation : ToolingDiagnosticFactory(ERROR) {
         operator fun invoke() = build(
             """
-                ${multiplatformAndroidSourceSetLayoutV1.name} is deprecated. Use ${multiplatformAndroidSourceSetLayoutV2.name} instead. 
-                To enable ${multiplatformAndroidSourceSetLayoutV2.name}: put the following in your gradle.properties: 
-                ${PropertiesProvider.PropertyNames.KOTLIN_MPP_ANDROID_SOURCE_SET_LAYOUT_VERSION}=2
+                The version 1 of Android source set layout is deprecated. Please remove kotlin.mpp.androidSourceSetLayoutVersion=1 from the gradle.properties file.
                 
-                To suppress this warning: put the following in your gradle.properties:
-                ${PropertiesProvider.PropertyNames.KOTLIN_MPP_ANDROID_SOURCE_SET_LAYOUT_VERSION_1_NO_WARN}=true
-                
-                Learn more: https://kotlinlang.org/docs/whatsnew18.html#kotlin-multiplatform-a-new-android-source-set-layout
+                Learn how to migrate to the version 2 source set layout at: https://kotl.in/android-source-set-layout-v2
             """.trimIndent()
         )
     }
@@ -119,7 +123,7 @@ object KotlinToolingDiagnostics {
                 To suppress this warning: put the following in your gradle.properties:
                 ${PropertiesProvider.PropertyNames.KOTLIN_MPP_ANDROID_SOURCE_SET_LAYOUT_ANDROID_STYLE_NO_WARN}=true
                 
-                Learn more: https://kotlinlang.org/docs/whatsnew18.html#kotlin-multiplatform-a-new-android-source-set-layout
+                Learn more: https://kotl.in/android-source-set-layout-v2
             """.trimIndent()
         )
     }
@@ -180,7 +184,7 @@ object KotlinToolingDiagnostics {
                 sourceSets.getByName("androidAndroidTest") -> sourceSets.getByName("androidInstrumentedTest")
                 
                 Learn more about the new Kotlin/Android SourceSet Layout: 
-                https://kotlinlang.org/docs/whatsnew18.html#kotlin-multiplatform-a-new-android-source-set-layout
+                https://kotl.in/android-source-set-layout-v2
             """.trimIndent()
         )
     }
@@ -190,17 +194,6 @@ object KotlinToolingDiagnostics {
             """
                 Target '$targetName': Unable to create run task '$taskName' as there is already such a task registered
             """.trimIndent()
-        )
-    }
-
-    object TargetsNeedDisambiguation : ToolingDiagnosticFactory(WARNING) {
-        operator fun invoke(targetGroupsRendered: String) = build(
-            """
-            |The following targets are not distinguishable:
-            |$targetGroupsRendered
-            |Use an additional attribute to disambiguate them 
-            |See https://kotlinlang.org/docs/multiplatform-set-up-targets.html#distinguish-several-targets-for-one-platform for more details
-            """.trimMargin()
         )
     }
 
@@ -217,12 +210,12 @@ object KotlinToolingDiagnostics {
         )
     }
 
-    object Kotlin12XMppDeprecation : ToolingDiagnosticFactory(WARNING) {
+    object Kotlin12XMppDeprecation : ToolingDiagnosticFactory(FATAL) {
         operator fun invoke() = build(
             """
-            The 'org.jetbrains.kotlin.platform.*' plugins are deprecated and are no longer available since Kotlin 1.4.
+            The 'org.jetbrains.kotlin.platform.*' plugins are no longer available.
             Please migrate the project to the 'org.jetbrains.kotlin.multiplatform' plugin.
-            See: https://kotlinlang.org/docs/reference/building-mpp-with-gradle.html
+            See: https://kotl.in/legacy-multiplatform-plugins
             """.trimIndent()
         )
     }
@@ -244,6 +237,27 @@ object KotlinToolingDiagnostics {
             }
             ```
             """.trimIndent()
+        )
+    }
+
+    object AndroidGradlePluginIsMissing : ToolingDiagnosticFactory(FATAL) {
+        operator fun invoke(trace: Throwable? = null) = build(
+            """
+                The Android target requires a 'Android Gradle Plugin' to be applied to the project. 
+                
+                plugins {
+                    kotlin("multiplatform")
+                    
+                    /* Android Gradle Plugin missing */
+                    id("com.android.library") /* <- Android Gradle Plugin for libraries */
+                    id("com.android.application") <* <- Android Gradle Plugin for applications */
+                }
+                
+                kotlin {
+                    androidTarget() /* <- requires Android Gradle Plugin to be applied */
+                }
+            """.trimIndent(),
+            throwable = trace
         )
     }
 
@@ -298,7 +312,8 @@ object KotlinToolingDiagnostics {
             """
                 Inconsistent JVM-target compatibility detected for tasks '$javaTaskName' ($targetCompatibility) and '$kotlinTaskName' ($jvmTarget).
                 ${if (severity == WARNING) "This will become an error in Gradle 8.0." else ""}
-                Read more: https://kotl.in/gradle/jvm/target-validation 
+                Consider using JVM Toolchain: https://kotl.in/gradle/jvm/toolchain
+                Learn more about JVM-target validation: https://kotl.in/gradle/jvm/target-validation 
             """.trimIndent(),
             severity
         )
@@ -312,7 +327,7 @@ object KotlinToolingDiagnostics {
                 |kotlin {
                 |    js {
                 |        // To build distributions for and run tests on browser or Node.js use one or both of:
-                |        ${availableEnvironments.joinToString(separator = "\n")}
+                |        ${availableEnvironments.joinToString(separator = "\n        ")}
                 |    }
                 |}
             """.trimMargin()
@@ -440,10 +455,10 @@ object KotlinToolingDiagnostics {
                 |     iosX64()
                 |     iosArm64()
                 |     iosSimulatorArm64()
-                |     
-                |     /* Use convention
+                |
+                |     /* Use convention */
                 |     sourceSets.${sourceSet.name}.dependencies {
-                |     
+                |
                 |     }
                 |  }
             """.trimMargin(),
@@ -454,13 +469,15 @@ object KotlinToolingDiagnostics {
     object KotlinDefaultHierarchyFallbackDependsOnUsageDetected : ToolingDiagnosticFactory(WARNING) {
         operator fun invoke(project: Project, sourceSetsWithDependsOnEdges: Iterable<KotlinSourceSet>) = build(
             """
-                The Default Kotlin Hierarchy was not applied to '${project.displayName}':
-                Manual .dependsOn() edges were configured for the following source sets:
+                The Default Kotlin Hierarchy Template was not applied to '${project.displayName}':
+                Explicit .dependsOn() edges were configured for the following source sets:
                 ${sourceSetsWithDependsOnEdges.toSet().map { it.name }}
                 
-                To suppress the 'Default Hierarchy Template' add
+                Consider removing dependsOn-calls or disabling the default template by adding
                     '$KOTLIN_MPP_APPLY_DEFAULT_HIERARCHY_TEMPLATE=false'
                 to your gradle.properties
+                
+                Learn more about hierarchy templates: https://kotl.in/hierarchy-template
             """.trimIndent()
         )
     }
@@ -468,14 +485,14 @@ object KotlinToolingDiagnostics {
     object KotlinDefaultHierarchyFallbackNativeTargetShortcutUsageDetected : ToolingDiagnosticFactory(WARNING) {
         internal operator fun invoke(project: Project, trace: NativeTargetShortcutTrace) = build(
             """
-                The Default Kotlin Hierarchy was not applied to '${project.displayName}':
+                The Default Kotlin Hierarchy Template was not applied to '${project.displayName}':
                 Deprecated '${trace.shortcut}()' shortcut was used:
                 
                   kotlin {
                       ${trace.shortcut}()
                   }
-                  
-                Could be replaced by declaring the supported ${trace.shortcut} targets directly: 
+                
+                Please declare the required targets explicitly: 
                 
                   kotlin {
                       ${trace.shortcut}X64()
@@ -487,6 +504,8 @@ object KotlinToolingDiagnostics {
                 To suppress the 'Default Hierarchy Template' add
                     '$KOTLIN_MPP_APPLY_DEFAULT_HIERARCHY_TEMPLATE=false'
                 to your gradle.properties
+                
+                Learn more about hierarchy templates: https://kotl.in/hierarchy-template
             """.trimIndent(),
             throwable = trace
         )
@@ -495,13 +514,25 @@ object KotlinToolingDiagnostics {
     object KotlinDefaultHierarchyFallbackIllegalTargetNames : ToolingDiagnosticFactory(WARNING) {
         operator fun invoke(project: Project, illegalTargetNamesUsed: Iterable<String>) = build(
             """
-                The Default Kotlin Hierarchy was not applied to '${project.displayName}':
-                Illegal target names were found:
+                The Default Kotlin Hierarchy Template was not applied to '${project.displayName}':
+                Source sets created by the following targets will clash with source sets created by the template:
                 ${illegalTargetNamesUsed.toSet()}
                 
-                To suppress the 'Default Hierarchy Template' add 
+                Consider renaming the targets or disabling the default template by adding 
                     '$KOTLIN_MPP_APPLY_DEFAULT_HIERARCHY_TEMPLATE=false'
                 to your gradle.properties
+                
+                Learn more about hierarchy templates: https://kotl.in/hierarchy-template
+            """.trimIndent()
+        )
+    }
+
+    object KotlinTestFrameworkInferenceFailed : ToolingDiagnosticFactory(WARNING) {
+        operator fun invoke(configurationName: String) = build(
+            """
+                kotlin-test was added to a non-testing configuration "$configurationName" where test framework couldn't be inferred.
+                
+                Learn how to configure kotlin-test at: https://kotl.in/kotlin-test-frameworks
             """.trimIndent()
         )
     }
@@ -518,6 +549,94 @@ object KotlinToolingDiagnostics {
                 Unable to detect Kotlin framework build type for CONFIGURATION=$envConfiguration automatically.
                 Specify 'KOTLIN_FRAMEWORK_BUILD_TYPE' to 'debug' or 'release'
             """.trimIndent()
+        )
+    }
+
+    object ExperimentalArtifactsDslUsed : ToolingDiagnosticFactory(WARNING) {
+        operator fun invoke() = build(
+            """
+                'kotlinArtifacts' DSL is experimental and may be changed in the future.
+                To suppress this warning add '$KOTLIN_NATIVE_SUPPRESS_EXPERIMENTAL_ARTIFACTS_DSL_WARNING=true' to your gradle.properties
+            """.trimIndent()
+        )
+    }
+
+    private val presetsDeprecationSeverity = ToolingDiagnostic.Severity.WARNING
+
+    object TargetFromPreset : ToolingDiagnosticFactory(presetsDeprecationSeverity) {
+        const val DEPRECATION_MESSAGE = "The targetFromPreset() $PRESETS_DEPRECATION_MESSAGE_SUFFIX"
+        operator fun invoke() = build(DEPRECATION_MESSAGE)
+    }
+
+    object FromPreset : ToolingDiagnosticFactory(presetsDeprecationSeverity) {
+        const val DEPRECATION_MESSAGE = "The fromPreset() $PRESETS_DEPRECATION_MESSAGE_SUFFIX"
+        operator fun invoke() = build(DEPRECATION_MESSAGE)
+    }
+
+    object CreateTarget : ToolingDiagnosticFactory(presetsDeprecationSeverity) {
+        const val DEPRECATION_MESSAGE = "The KotlinTargetPreset.createTarget() $PRESETS_DEPRECATION_MESSAGE_SUFFIX"
+        operator fun invoke() = build(DEPRECATION_MESSAGE)
+    }
+
+    object JvmWithJavaIsIncompatibleWithAndroid : ToolingDiagnosticFactory(FATAL) {
+        operator fun invoke(androidPluginId: String, trace: Throwable?) = build(
+            """
+                'withJava()' is not compatible with Android Plugins
+                Incompatible Android Plugin applied: '$androidPluginId'
+                
+                  kotlin {
+                      jvm {
+                          withJava() /* <- cannot be used when the Android Plugin is present */
+                      }
+                  }
+            """.trimIndent(),
+            throwable = trace
+        )
+    }
+
+    object KotlinTargetAlreadyDeclared : ToolingDiagnosticFactory(WARNING) {
+        operator fun invoke(targetDslFunctionName: String) = build(
+            """
+                Kotlin Target '$targetDslFunctionName()' is already declared.
+
+                Declaring multiple Kotlin Targets of the same type is not recommended
+                and will become an error in the upcoming Kotlin releases.
+                
+                Read https://kotl.in/declaring-multiple-targets for details.
+            """.trimIndent()
+        )
+    }
+
+    object KotlinCompilationSourceDeprecation : ToolingDiagnosticFactory(WARNING) {
+        operator fun invoke(trace: Throwable?) = build(
+            """
+                `KotlinCompilation.source(KotlinSourceSet)` method is deprecated 
+                and will be removed in upcoming Kotlin releases.
+
+                See https://kotl.in/compilation-source-deprecation for details.
+            """.trimIndent(),
+            throwable = trace,
+        )
+    }
+
+    object CircularDependsOnEdges : ToolingDiagnosticFactory(FATAL) {
+        operator fun invoke(sourceSetsOnCycle: Collection<String>) = build(
+            """
+                Circular dependsOn hierarchy found in the Kotlin source sets: ${sourceSetsOnCycle.joinToString(" -> ")}
+            """.trimIndent()
+        )
+    }
+
+    object InternalKotlinGradlePluginPropertiesUsed : ToolingDiagnosticFactory(WARNING) {
+        operator fun invoke(propertiesUsed: Collection<String>) = build(
+            """
+                |ATTENTION! This build uses the following Kotlin Gradle Plugin properties:
+                |
+                |${propertiesUsed.joinToString(separator = "\n")}
+                |
+                |Internal properties are not recommended for production use. 
+                |Stability and future compatibility of the build is not guaranteed.
+            """.trimMargin()
         )
     }
 }

@@ -10,6 +10,6 @@ open class FooImpl : Foo<String> {
 }
 
 open class FooImpl2 : FooImpl() {
-    <!ACCIDENTAL_OVERRIDE!>fun foo(x: Any)<!> {
-    }
+    <!ACCIDENTAL_OVERRIDE!>fun foo(x: Any) {
+    }<!>
 }

@@ -17,12 +17,12 @@ import com.intellij.psi.PsiManager
 import com.intellij.psi.SingleRootFileViewProvider
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.stubs.StubElement
-import com.intellij.util.containers.CollectionFactory.createConcurrentWeakValueMap
 import com.intellij.util.indexing.FileContent
 import com.intellij.util.indexing.FileContentImpl
 import com.intellij.util.io.URLUtil
 import java.util.concurrent.ConcurrentHashMap
 import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinBuiltInDecompiler
+import org.jetbrains.kotlin.analysis.decompiler.psi.KotlinBuiltInFileType
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.ClsKotlinBinaryClassCache
 import org.jetbrains.kotlin.analysis.decompiler.stub.file.KotlinClsStubBuilder
 import org.jetbrains.kotlin.analysis.project.structure.KtModule
@@ -127,12 +127,14 @@ public class KotlinStaticDeclarationProviderFactory(
     files: Collection<KtFile>,
     private val jarFileSystem: CoreJarFileSystem = CoreJarFileSystem(),
     additionalRoots: List<VirtualFile> = emptyList(),
+    skipBuiltins: Boolean = false,
 ) : KotlinDeclarationProviderFactory() {
 
     private val index = KotlinStaticDeclarationIndex()
 
     private val psiManager = PsiManager.getInstance(project)
     private val builtInDecompiler = KotlinBuiltInDecompiler()
+    private val createdFakeKtFiles = mutableListOf<KtFile>()
 
     private fun loadBuiltIns(): Collection<KotlinFileStubImpl> {
         val classLoader = this::class.java.classLoader
@@ -168,6 +170,7 @@ public class KotlinStaticDeclarationProviderFactory(
             override fun isPhysical() = false
         }
         ktFileStub.psi = fakeFile
+        createdFakeKtFiles.add(fakeFile)
         return ktFileStub
     }
 
@@ -257,7 +260,6 @@ public class KotlinStaticDeclarationProviderFactory(
     init {
         val recorder = KtDeclarationRecorder()
 
-        // Indexing built-ins
         fun indexStub(stub: StubElement<*>) {
             when (stub) {
                 is KotlinClassStubImpl -> {
@@ -298,10 +300,13 @@ public class KotlinStaticDeclarationProviderFactory(
             ktFileStub.childrenStubs.forEach(::indexStub)
         }
 
+        // Indexing built-ins
         val builtins = mutableSetOf<String>()
-        loadBuiltIns().forEach { stub ->
-            processStub(stub)
-            builtins.add(stub.psi.virtualFile.name)
+        if (!skipBuiltins) {
+            loadBuiltIns().forEach { stub ->
+                processStub(stub)
+                builtins.add(stub.psi.virtualFile.name)
+            }
         }
 
         val binaryClassCache = ClsKotlinBinaryClassCache.getInstance()
@@ -312,10 +317,20 @@ public class KotlinStaticDeclarationProviderFactory(
                     override fun visitFile(file: VirtualFile): Boolean {
                         if (!file.isDirectory) {
                             val fileContent = FileContentImpl.createByFile(file)
-                            if (binaryClassCache.isKotlinJvmCompiledFile(file, fileContent.content) &&
-                                file.fileType == JavaClassFileType.INSTANCE
-                            ) {
-                                (KotlinClsStubBuilder().buildFileStub(fileContent) as? KotlinFileStubImpl)?.let { stubs.put(file, it) }
+                            when {
+                                binaryClassCache.isKotlinJvmCompiledFile(file, fileContent.content) &&
+                                        file.fileType == JavaClassFileType.INSTANCE -> {
+                                    (KotlinClsStubBuilder().buildFileStub(fileContent) as? KotlinFileStubImpl)?.let { stubs.put(file, it) }
+                                }
+                                file.fileType == KotlinBuiltInFileType
+                                        && file.extension != BuiltInSerializerProtocol.BUILTINS_FILE_EXTENSION -> {
+                                    (builtInDecompiler.stubBuilder.buildFileStub(fileContent) as? KotlinFileStubImpl)?.let {
+                                        stubs.put(
+                                            file,
+                                            it
+                                        )
+                                    }
+                                }
                             }
                         }
                         return true
@@ -329,6 +344,7 @@ public class KotlinStaticDeclarationProviderFactory(
                     override fun isPhysical() = false
                 }
                 stub.psi = fakeFile
+                createdFakeKtFiles.add(fakeFile)
                 processStub(stub)
             }
         }
@@ -341,6 +357,10 @@ public class KotlinStaticDeclarationProviderFactory(
 
     override fun createDeclarationProvider(scope: GlobalSearchScope, contextualModule: KtModule?): KotlinDeclarationProvider {
         return KotlinStaticDeclarationProvider(index, scope)
+    }
+
+    public fun getAdditionalCreatedKtFiles(): List<KtFile> {
+        return createdFakeKtFiles
     }
 }
 

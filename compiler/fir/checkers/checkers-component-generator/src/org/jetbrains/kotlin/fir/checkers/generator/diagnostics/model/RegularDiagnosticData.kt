@@ -24,6 +24,7 @@ data class RegularDiagnosticData(
     override val psiType: KType,
     override val parameters: List<DiagnosticParameter>,
     override val positioningStrategy: PositioningStrategy,
+    val isSuppressible: Boolean,
 ) : DiagnosticData()
 
 data class DeprecationDiagnosticData(
@@ -52,6 +53,7 @@ enum class PositioningStrategy(private val strategy: String? = null) {
     MODALITY_MODIFIER,
     OPERATOR,
     PARAMETER_DEFAULT_VALUE,
+    PARAMETERS_WITH_DEFAULT_VALUE,
     PARAMETER_VARARG_MODIFIER,
     DECLARATION_RETURN_TYPE,
     OVERRIDE_MODIFIER,
@@ -76,17 +78,15 @@ enum class PositioningStrategy(private val strategy: String? = null) {
     USELESS_ELVIS,
     NAME_OF_NAMED_ARGUMENT,
     VALUE_ARGUMENTS,
+    VALUE_ARGUMENTS_LIST,
     SUPERTYPES_LIST,
     RETURN_WITH_LABEL,
     PROPERTY_INITIALIZER,
     WHOLE_ELEMENT,
-    INT_LITERAL_OUT_OF_RANGE,
-    FLOAT_LITERAL_OUT_OF_RANGE,
     LONG_LITERAL_SUFFIX,
     REIFIED_MODIFIER,
     TYPE_PARAMETERS_LIST,
     FUN_MODIFIER,
-    SUSPEND_MODIFIER,
     FUN_INTERFACE,
     NAME_IDENTIFIER,
     QUESTION_MARK_BY_TYPE,
@@ -115,6 +115,8 @@ enum class PositioningStrategy(private val strategy: String? = null) {
     REDUNDANT_NULLABLE,
     INLINE_FUN_MODIFIER,
     CALL_ELEMENT_WITH_DOT,
+    EXPECT_ACTUAL_MODIFIER,
+    TYPEALIAS_TYPE_REFERENCE,
     ;
 
     val expressionToCreate get() = "SourceElementPositioningStrategies.${strategy ?: name}"

@@ -158,15 +158,13 @@ bitcode {
         }
 
         module("custom_alloc") {
-            headersDirs.from(files("src/main/cpp", "src/mm/cpp", "src/gc/common/cpp", "src/gcScheduler/common/cpp", "src/gc/cms/cpp"))
+            headersDirs.from(files("src/main/cpp", "src/mm/cpp", "src/gc/common/cpp", "src/gcScheduler/common/cpp"))
             sourceSets {
                 main {}
                 test {}
             }
 
             compilerArgs.add("-DCUSTOM_ALLOCATOR")
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("opt_alloc") {
@@ -195,6 +193,7 @@ bitcode {
 
             onlyIf { target.supportsCoreSymbolication() }
         }
+
         module("source_info_libbacktrace") {
             srcRoot.set(layout.projectDirectory.dir("src/source_info/libbacktrace"))
             headersDirs.from(files("src/main/cpp", "src/libbacktrace/c/include"))
@@ -203,20 +202,6 @@ bitcode {
             }
 
             onlyIf { target.supportsLibBacktrace() }
-        }
-
-        module("strict") {
-            headersDirs.from(files("src/main/cpp"))
-            sourceSets {
-                main {}
-            }
-        }
-
-        module("relaxed") {
-            headersDirs.from(files("src/main/cpp"))
-            sourceSets {
-                main {}
-            }
         }
 
         module("profileRuntime") {
@@ -242,15 +227,6 @@ bitcode {
             }
         }
 
-        module("legacy_memory_manager") {
-            srcRoot.set(layout.projectDirectory.dir("src/legacymm"))
-            headersDirs.from(files("src/main/cpp"))
-            sourceSets {
-                main {}
-                testFixtures {}
-            }
-        }
-
         module("experimental_memory_manager") {
             srcRoot.set(layout.projectDirectory.dir("src/mm"))
             headersDirs.from(files("src/gcScheduler/common/cpp", "src/gc/common/cpp", "src/main/cpp"))
@@ -259,8 +235,6 @@ bitcode {
                 testFixtures {}
                 test {}
             }
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("experimental_memory_manager_custom") {
@@ -273,8 +247,6 @@ bitcode {
             }
 
             compilerArgs.add("-DCUSTOM_ALLOCATOR")
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("common_gc") {
@@ -284,8 +256,6 @@ bitcode {
                 main {}
                 test {}
             }
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("noop_gc") {
@@ -295,8 +265,17 @@ bitcode {
                 main {}
                 testFixtures {}
             }
+        }
 
-            onlyIf { target.supportsThreads() }
+        module("noop_gc_custom") {
+            srcRoot.set(layout.projectDirectory.dir("src/gc/noop"))
+            headersDirs.from(files("src/gcScheduler/common/cpp", "src/gc/common/cpp", "src/mm/cpp", "src/main/cpp", "src/custom_alloc/cpp"))
+            sourceSets {
+                main {}
+                testFixtures {}
+            }
+
+            compilerArgs.add("-DCUSTOM_ALLOCATOR")
         }
 
         module("same_thread_ms_gc") {
@@ -307,8 +286,18 @@ bitcode {
                 testFixtures {}
                 test {}
             }
+        }
 
-            onlyIf { target.supportsThreads() }
+        module("same_thread_ms_gc_custom") {
+            srcRoot.set(layout.projectDirectory.dir("src/gc/stms"))
+            headersDirs.from(files("src/gcScheduler/common/cpp", "src/gc/common/cpp", "src/mm/cpp", "src/main/cpp", "src/custom_alloc/cpp"))
+            sourceSets {
+                main {}
+                testFixtures {}
+                test {}
+            }
+
+            compilerArgs.add("-DCUSTOM_ALLOCATOR")
         }
 
         module("concurrent_ms_gc") {
@@ -319,8 +308,6 @@ bitcode {
                 testFixtures {}
                 test {}
             }
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("concurrent_ms_gc_custom") {
@@ -333,8 +320,6 @@ bitcode {
             }
 
             compilerArgs.add("-DCUSTOM_ALLOCATOR")
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("common_gcScheduler") {
@@ -342,11 +327,8 @@ bitcode {
             headersDirs.from(files("src/gc/common/cpp", "src/mm/cpp", "src/main/cpp"))
             sourceSets {
                 main {}
-                testFixtures {}
                 test {}
             }
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("manual_gcScheduler") {
@@ -355,8 +337,6 @@ bitcode {
             sourceSets {
                 main {}
             }
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("adaptive_gcScheduler") {
@@ -366,8 +346,6 @@ bitcode {
                 main {}
                 test {}
             }
-
-            onlyIf { target.supportsThreads() }
         }
 
         module("aggressive_gcScheduler") {
@@ -377,8 +355,6 @@ bitcode {
                 main {}
                 test {}
             }
-
-            onlyIf { target.supportsThreads() }
         }
 
         testsGroup("custom_alloc_runtime_tests") {
@@ -394,6 +370,11 @@ bitcode {
             testedModules.addAll("main", "experimental_memory_manager", "common_gc", "common_gcScheduler", "manual_gcScheduler", "same_thread_ms_gc", "std_alloc", "objc")
         }
 
+        testsGroup("experimentalMM_custom_alloc_runtime_tests") {
+            testedModules.addAll("experimental_memory_manager_custom", "same_thread_ms_gc_custom")
+            testSupportModules.addAll("main", "common_gc", "common_gcScheduler", "manual_gcScheduler", "custom_alloc", "objc")
+        }
+
         testsGroup("experimentalMM_cms_mimalloc_runtime_tests") {
             testedModules.addAll("main", "experimental_memory_manager", "common_gc", "common_gcScheduler", "manual_gcScheduler", "concurrent_ms_gc", "mimalloc", "opt_alloc", "objc")
         }
@@ -402,12 +383,22 @@ bitcode {
             testedModules.addAll("main", "experimental_memory_manager", "common_gc", "common_gcScheduler", "manual_gcScheduler", "concurrent_ms_gc", "std_alloc", "objc")
         }
 
+        testsGroup("experimentalMM_cms_custom_alloc_runtime_tests") {
+            testedModules.addAll("experimental_memory_manager_custom", "concurrent_ms_gc_custom")
+            testSupportModules.addAll("main", "common_gc", "common_gcScheduler", "manual_gcScheduler", "custom_alloc", "objc")
+        }
+
         testsGroup("experimentalMM_noop_mimalloc_runtime_tests") {
             testedModules.addAll("main", "experimental_memory_manager", "common_gc", "common_gcScheduler", "manual_gcScheduler", "noop_gc", "mimalloc", "opt_alloc", "objc")
         }
 
         testsGroup("experimentalMM_noop_std_alloc_runtime_tests") {
             testedModules.addAll("main", "experimental_memory_manager", "common_gc", "common_gcScheduler", "manual_gcScheduler", "noop_gc", "std_alloc", "objc")
+        }
+
+        testsGroup("experimentalMM_noop_custom_alloc_runtime_tests") {
+            testedModules.addAll("experimental_memory_manager_custom", "noop_gc_custom")
+            testSupportModules.addAll("main", "common_gc", "common_gcScheduler", "manual_gcScheduler", "custom_alloc", "objc")
         }
 
         testsGroup("aggressive_gcScheduler_runtime_tests") {
@@ -546,6 +537,8 @@ konanArtifacts {
                 "-opt-in=kotlin.contracts.ExperimentalContracts",
                 "-opt-in=kotlin.ExperimentalMultiplatform",
                 "-opt-in=kotlin.native.internal.InternalForKotlinNative",
+                "-language-version",
+                "1.9",
         )
 
         commonStdlibSrcDirs.forEach { commonSrcDir(it) }

@@ -37,7 +37,6 @@ import org.jetbrains.kotlin.fir.types.builder.buildStarProjection
 import org.jetbrains.kotlin.fir.types.builder.buildTypeProjectionWithVariance
 import org.jetbrains.kotlin.fir.types.builder.buildUserTypeRef
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
-import org.jetbrains.kotlin.fir.types.impl.FirImplicitUnitTypeRef
 import org.jetbrains.kotlin.fir.types.impl.FirQualifierPartImpl
 import org.jetbrains.kotlin.fir.types.impl.FirTypeArgumentListImpl
 import org.jetbrains.kotlin.fir.visitors.FirDefaultTransformer
@@ -51,6 +50,7 @@ import org.jetbrains.kotlin.name.StandardClassIds.Annotations.JvmRecord
 import org.jetbrains.kotlin.name.StandardClassIds.Annotations.SinceKotlin
 import org.jetbrains.kotlin.name.StandardClassIds.Annotations.Target
 import org.jetbrains.kotlin.name.StandardClassIds.Annotations.WasExperimental
+import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 
 /**
@@ -90,7 +90,7 @@ abstract class AbstractFirSpecificAnnotationResolveTransformer(
         implicitTypeOnly = false,
     ) {
         override val expressionsTransformer: FirExpressionsResolveTransformer = FirEnumAnnotationArgumentsTransformer(this)
-        override val declarationsTransformer: FirDeclarationsResolveTransformer get() = throw NotImplementedError()
+        override val declarationsTransformer: FirDeclarationsResolveTransformer? = null
     }
 
     /**
@@ -143,7 +143,7 @@ abstract class AbstractFirSpecificAnnotationResolveTransformer(
                     source = receiver.source
                     packageFqName = symbol.classId.packageFqName
                     relativeClassFqName = symbol.classId.relativeClassName
-                    typeRef = FirImplicitUnitTypeRef(receiver.typeRef.source)
+                    coneTypeOrNull = session.builtinTypes.unitType.type
                     this.symbol = symbol
                     isFullyQualified = segments.isNotEmpty()
                 }
@@ -189,7 +189,7 @@ abstract class AbstractFirSpecificAnnotationResolveTransformer(
 
             calleeSymbol.containingClassLookupTag()
                 ?.let { ConeClassLikeTypeImpl(it, emptyArray(), false) }
-                ?.let { replaceTypeRef(typeRef.resolvedTypeFromPrototype(it)) }
+                ?.let { replaceConeTypeOrNull(it) }
         }
     }
 
@@ -244,7 +244,6 @@ abstract class AbstractFirSpecificAnnotationResolveTransformer(
         annotationCall.replaceAnnotationTypeRef(transformedAnnotationType)
         annotationCall.replaceAnnotationResolvePhase(FirAnnotationResolvePhase.CompilerRequiredAnnotations)
 
-        // TODO: what if we have type alias here?
         if (transformedAnnotationType.coneTypeSafe<ConeClassLikeType>()?.lookupTag?.classId in REQUIRED_ANNOTATIONS_WITH_ARGUMENTS) {
             argumentsTransformer.transformAnnotation(annotationCall, ResolutionMode.ContextDependent)
         }
@@ -276,7 +275,10 @@ abstract class AbstractFirSpecificAnnotationResolveTransformer(
     }
 
     private fun ConeKotlinType.markedWithMetaAnnotation(session: FirSession, metaAnnotations: Set<AnnotationFqn>): Boolean {
-        return toRegularClassSymbol(session).markedWithMetaAnnotationImpl(session, metaAnnotations, includeItself = true, mutableSetOf())
+        return toRegularClassSymbol(session).markedWithMetaAnnotationImpl(session, metaAnnotations, includeItself = true, mutableSetOf()) {
+            computationSession.resolveAnnotationsOnAnnotationIfNeeded(it, scopeSession)
+            it.annotations
+        }
     }
 
 
@@ -476,6 +478,9 @@ abstract class AbstractFirSpecificAnnotationResolveTransformer(
             calculateDeprecations(constructor)
         } as FirConstructor
     }
+
+    override fun transformErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: Nothing?) =
+        transformConstructor(errorPrimaryConstructor, data)
 
     override fun transformEnumEntry(enumEntry: FirEnumEntry, data: Nothing?): FirStatement {
         return transformCallableDeclarationForDeprecations(enumEntry, data)

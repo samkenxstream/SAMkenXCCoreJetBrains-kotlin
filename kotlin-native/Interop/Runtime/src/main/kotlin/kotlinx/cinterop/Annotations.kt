@@ -14,7 +14,11 @@ package kotlinx.cinterop
 @Suppress("unused") // Is emitted by the Commonizer
 @Target(AnnotationTarget.TYPEALIAS, AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.BINARY)
-@RequiresOptIn(level = RequiresOptIn.Level.WARNING)
+@RequiresOptIn(
+        message = "The declaration is using numbers with different bit widths in least two actual platforms. " +
+                "Such types shall not be used in user-defined 'expect fun' signatures",
+        level = RequiresOptIn.Level.ERROR
+)
 public annotation class UnsafeNumber(val actualPlatformTypes: Array<String>)
 
 /**
@@ -35,10 +39,12 @@ public annotation class UnsafeNumber(val actualPlatformTypes: Array<String>)
 public annotation class BetaInteropApi
 
 /**
- * Marks foreign-memory-related API as experimental.
+ * Marks foreign-language-related API as experimental.
  *
  * Foreign API includes all operations and classifiers that are required for operating with
  * unmanaged and foreign memory, including but not limited to such declarations as [CPointer], [CPointed], [StableRef], and `Pinned`.
+ * It also includes API of C and Objective-C libraries, except for those that are available in Kotlin by default
+ * (like `platform.posix.*` or `platform.Foundation.*`).
  *
  * Such API is considered experimental and has the following known limitations and caveats:
  * - It is either undocumented or lacks extensive and sound description.

@@ -22,33 +22,6 @@ internal inline fun <E> arrayOfUninitializedElements(size: Int): Array<E> {
     return Array<E>(size)
 }
 
-/**
- * Copies elements of the [collection] into the given [array].
- * If the array is too small, allocates a new one of collection.size size.
- * @return [array] with the elements copied from the collection.
- */
-internal fun <E, T> collectionToArray(collection: Collection<E>, array: Array<T>): Array<T> {
-    val toArray = if (collection.size > array.size) {
-        arrayOfUninitializedElements<T>(collection.size)
-    } else {
-        array
-    }
-    var i = 0
-    for (v in collection) {
-        @Suppress("UNCHECKED_CAST")
-        toArray[i] = v as T
-        i++
-    }
-    return toArray
-}
-
-/**
- * Creates an array of collection.size size and copies elements of the [collection] into it.
- * @return [array] with the elements copied from the collection.
- */
-internal fun <E> collectionToArray(collection: Collection<E>): Array<E>
-        = collectionToArray(collection, arrayOfUninitializedElements(collection.size))
-
 
 /**
  * Resets an array element at a specified index to some implementation-specific _uninitialized_ value.
@@ -137,18 +110,3 @@ internal external fun arrayCopy(array: DoubleArray, fromIndex: Int, destination:
 @GCUnsafeCall("Kotlin_BooleanArray_copyImpl")
 internal external fun arrayCopy(array: BooleanArray, fromIndex: Int, destination: BooleanArray, toIndex: Int, count: Int)
 
-
-internal fun <E> Collection<E>.collectionToString(): String {
-    val sb = StringBuilder(2 + size * 3)
-    sb.append("[")
-    var i = 0
-    val it = iterator()
-    while (it.hasNext()) {
-        if (i > 0) sb.append(", ")
-        val next = it.next()
-        if (next == this) sb.append("(this Collection)") else sb.append(next)
-        i++
-    }
-    sb.append("]")
-    return sb.toString()
-}

@@ -14,23 +14,34 @@ import com.intellij.psi.stubs.StubTreeLoader
 import com.intellij.psi.util.PsiUtilCore
 import org.jetbrains.kotlin.KtFakeSourceElement
 import org.jetbrains.kotlin.KtRealPsiSourceElement
-import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.builder.createDataClassCopyFunction
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.declarations.builder.*
+import org.jetbrains.kotlin.fir.declarations.builder.buildOuterClassTypeParameterRef
+import org.jetbrains.kotlin.fir.declarations.builder.buildRegularClass
 import org.jetbrains.kotlin.fir.declarations.comparators.FirMemberDeclarationComparator
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
-import org.jetbrains.kotlin.fir.declarations.utils.*
-import org.jetbrains.kotlin.fir.deserialization.*
+import org.jetbrains.kotlin.fir.declarations.utils.addDeclaration
+import org.jetbrains.kotlin.fir.declarations.utils.isCompanion
+import org.jetbrains.kotlin.fir.declarations.utils.sourceElement
+import org.jetbrains.kotlin.fir.deserialization.addCloneForArrayIfNeeded
+import org.jetbrains.kotlin.fir.deserialization.deserializationExtension
 import org.jetbrains.kotlin.fir.resolve.transformers.setLazyPublishedVisibility
 import org.jetbrains.kotlin.fir.scopes.FirScopeProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirTypeAliasSymbol
 import org.jetbrains.kotlin.lexer.KtTokens
-import org.jetbrains.kotlin.name.*
+import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 import java.lang.ref.WeakReference
 
 internal val KtModifierListOwner.visibility: Visibility
@@ -98,7 +109,9 @@ internal fun deserializeClassToSymbol(
             classOrObject.isAnnotation() -> ClassKind.ANNOTATION_CLASS
             else -> ClassKind.CLASS
         }
-        else -> throw AssertionError("Unexpected class or object: ${classOrObject.text}")
+        else -> errorWithAttachment("Unexpected class or object: ${classOrObject::class}") {
+            withPsiEntry("class", classOrObject)
+        }
     }
     val modality = classOrObject.modality
     val visibility = classOrObject.visibility
@@ -155,9 +168,12 @@ internal fun deserializeClassToSymbol(
 
         val superTypeList = classOrObject.getSuperTypeList()
         if (superTypeList != null) {
-            superTypeRefs.addAll(superTypeList.entries.map {
+            superTypeRefs.addAll(superTypeList.entries.map { superTypeReference ->
                 typeDeserializer.typeRef(
-                    it.typeReference ?: error("Super entry doesn't have type reference $it")
+                    superTypeReference.typeReference
+                        ?: errorWithAttachment("Super entry doesn't have type reference") {
+                            withPsiEntry("superTypeReference", superTypeReference)
+                        }
                 )
             })
         } else if (StandardClassIds.Any != classId && StandardClassIds.Nothing != classId) {
@@ -169,6 +185,7 @@ internal fun deserializeClassToSymbol(
             addDeclaration(constructor)
             constructor
         }
+
         classOrObject.body?.declarations?.forEach { declaration ->
             when (declaration) {
                 is KtConstructor<*> -> addDeclaration(memberDeserializer.loadConstructor(declaration, classOrObject, this))
@@ -176,13 +193,16 @@ internal fun deserializeClassToSymbol(
                 is KtProperty -> addDeclaration(memberDeserializer.loadProperty(declaration, symbol))
                 is KtEnumEntry -> addDeclaration(memberDeserializer.loadEnumEntry(declaration, symbol, classId))
                 is KtClassOrObject -> {
-                    val nestedClassId =
-                        classId.createNestedClassId(Name.identifier(declaration.name ?: error("Class doesn't have name $declaration")))
-                    deserializeNestedClass(nestedClassId, context)?.fir?.let { addDeclaration(it) }
+                    val name = declaration.name ?: errorWithAttachment("Class doesn't have name $declaration") {
+                        withPsiEntry("class", declaration)
+                    }
+
+                    val nestedClassId = classId.createNestedClassId(Name.identifier(name))
+                    // Add declaration to the context to avoid redundant provider access to the class map
+                    deserializeNestedClass(nestedClassId, context.withClassLikeDeclaration(declaration))?.fir?.let(this::addDeclaration)
                 }
-                is KtTypeAlias -> addDeclaration(
-                    memberDeserializer.loadTypeAlias(declaration, FirTypeAliasSymbol(classId))
-                )
+
+                is KtTypeAlias -> addDeclaration(memberDeserializer.loadTypeAlias(declaration, FirTypeAliasSymbol(classId)))
             }
         }
 
@@ -218,8 +238,8 @@ internal fun deserializeClassToSymbol(
         }
 
         addCloneForArrayIfNeeded(classId, context.dispatchReceiver, session)
-        session.deserializedClassConfigurator?.run {
-            configure(classId)
+        session.deserializationExtension?.run {
+            configureDeserializedClass(classId)
         }
 
         declarations.sortWith(object : Comparator<FirDeclaration> {
@@ -245,10 +265,6 @@ internal fun deserializeClassToSymbol(
         sourceElement = containerSource
 
         replaceDeprecationsProvider(getDeprecationsProvider(session))
-
-        session.deserializedClassConfigurator?.run {
-            configure(classId)
-        }
 
         setLazyPublishedVisibility(
             hasPublishedApi = classOrObject.annotationEntries.any { context.annotationDeserializer.getAnnotationClassId(it) == StandardClassIds.Annotations.PublishedApi },

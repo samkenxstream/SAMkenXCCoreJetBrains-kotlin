@@ -25,6 +25,7 @@ import org.gradle.kotlin.dsl.*
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.jetbrains.kotlin.ExecClang
 import org.jetbrains.kotlin.cpp.*
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.SanitizerKind
 import org.jetbrains.kotlin.konan.target.TargetDomainObjectContainer
 import org.jetbrains.kotlin.konan.target.TargetWithSanitizer
@@ -490,9 +491,13 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) :
             maxParallelUsages.set(1)
         }
 
-        // TODO: remove when tests compilation does not consume so much memory.
         private val compileTestsSemaphore = project.gradle.sharedServices.registerIfAbsent("compileTestsSemaphore", CompileTestsSemaphore::class.java) {
-            maxParallelUsages.set(5)
+            // TODO: Make the default always null when tests compilation stops consuming so much memory.
+            val defaultParallelism = if (project.kotlinBuildProperties.isTeamcityBuild) 2 else null
+            val parallelism = project.kotlinBuildProperties.getOrNull("kotlin.native.runtimeTestsCompilationParallelism")?.toString()?.toInt() ?: defaultParallelism
+            parallelism?.let {
+                maxParallelUsages.set(it)
+            }
         }
 
         private val modules: NamedDomainObjectContainer<Module> = project.objects.polymorphicDomainObjectContainer(Module::class.java).apply {
@@ -603,13 +608,23 @@ open class CompileToBitcodeExtension @Inject constructor(val project: Project) :
                 filter.set(project.findProperty("gtest_filter") as? String)
                 tsanSuppressionsFile.set(project.layout.projectDirectory.file("tsan_suppressions.txt"))
                 this.target.set(target)
-                this.executionTimeout.set(Duration.ofMinutes(30)) // The tests binaries are big.
+                this.executionTimeout.set(
+                    (project.findProperty("gtest_timeout") as? String)?.let {
+                        Duration.parse("PT${it}")
+                    } ?: Duration.ofMinutes(30)) // The tests binaries are big.
 
                 usesService(runGTestSemaphore)
             }
 
             owner.allTestsTasks[target.name]!!.configure {
                 dependsOn(runTask)
+            }
+
+            // TODO: Support tsan natively on macOS arm64.
+            if (target == KonanTarget.MACOS_X64 && sanitizer == SanitizerKind.THREAD) {
+                owner.allTestsTasks[KonanTarget.MACOS_ARM64.name]!!.configure {
+                    dependsOn(runTask)
+                }
             }
         }
     }

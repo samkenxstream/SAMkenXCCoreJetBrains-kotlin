@@ -15,7 +15,10 @@ import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.wasm.ir.*
 import org.jetbrains.kotlin.wasm.ir.source.location.SourceLocation
 
-class WasmCompiledModuleFragment(val irBuiltIns: IrBuiltIns) {
+class WasmCompiledModuleFragment(
+    val irBuiltIns: IrBuiltIns,
+    generateTrapsInsteadOfExceptions: Boolean,
+) {
     val functions =
         ReferencableAndDefinable<IrFunctionSymbol, WasmFunction>()
     val globalFields =
@@ -49,7 +52,7 @@ class WasmCompiledModuleFragment(val irBuiltIns: IrBuiltIns) {
         ),
         emptyList()
     )
-    val tag = WasmTag(tagFuncType)
+    val tags = if (generateTrapsInsteadOfExceptions) emptyList() else listOf(WasmTag(tagFuncType))
 
     val typeInfo = ReferencableAndDefinable<IrClassSymbol, ConstantDataElement>()
 
@@ -175,14 +178,14 @@ class WasmCompiledModuleFragment(val irBuiltIns: IrBuiltIns) {
             }
         }
 
-       val masterInitFunctionType = WasmFunctionType(emptyList(), emptyList())
-        val masterInitFunction = WasmFunction.Defined("__init", WasmSymbol(masterInitFunctionType))
+        val masterInitFunctionType = WasmFunctionType(emptyList(), emptyList())
+        val masterInitFunction = WasmFunction.Defined("_initialize", WasmSymbol(masterInitFunctionType))
         with(WasmIrExpressionBuilder(masterInitFunction.instructions)) {
             initFunctions.sortedBy { it.priority }.forEach {
                 buildCall(WasmSymbol(it.function), SourceLocation.NoLocation("Generated service code"))
             }
         }
-        exports += WasmExport.Function("__init", masterInitFunction)
+        exports += WasmExport.Function("_initialize", masterInitFunction)
 
         val typeInfoSize = currentDataSectionAddress
         val memorySizeInPages = (typeInfoSize / 65_536) + 1
@@ -238,7 +241,7 @@ class WasmCompiledModuleFragment(val irBuiltIns: IrBuiltIns) {
             elements = emptyList(),
             data = data,
             dataCount = true,
-            tags = listOf(tag)
+            tags = tags
         )
         module.calculateIds()
         return module

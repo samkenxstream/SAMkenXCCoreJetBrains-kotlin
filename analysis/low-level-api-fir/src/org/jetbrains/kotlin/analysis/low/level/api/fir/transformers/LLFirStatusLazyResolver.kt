@@ -10,9 +10,8 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirSingleRe
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.asResolveTarget
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.tryCollectDesignationWithFile
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirLockProvider
-import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.LLFirPhaseUpdater
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkDeclarationStatusIsResolved
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkPhase
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.forEachDependentDeclaration
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
@@ -20,8 +19,7 @@ import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.transformers.FirStatusResolveTransformer
 import org.jetbrains.kotlin.fir.resolve.transformers.StatusComputationSession
-import org.jetbrains.kotlin.fir.resolve.transformers.StatusComputationSession.StatusComputationStatus
-import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirTowerDataContextCollector
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirResolveContextCollector
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.name.Name
@@ -32,7 +30,7 @@ internal object LLFirStatusLazyResolver : LLFirLazyResolver(FirResolvePhase.STAT
         lockProvider: LLFirLockProvider,
         session: FirSession,
         scopeSession: ScopeSession,
-        towerDataContextCollector: FirTowerDataContextCollector?,
+        towerDataContextCollector: FirResolveContextCollector?,
     ) {
         val resolver = LLFirStatusTargetResolver(
             target = target,
@@ -45,20 +43,9 @@ internal object LLFirStatusLazyResolver : LLFirLazyResolver(FirResolvePhase.STAT
         resolver.resolveDesignation()
     }
 
-    override fun updatePhaseForDeclarationInternals(target: FirElementWithResolveState) {
-        LLFirPhaseUpdater.updateDeclarationInternalsPhase(target, resolverPhase, updateForLocalDeclarations = false)
-    }
-
-    override fun checkIsResolved(target: FirElementWithResolveState) {
-        if (target !is FirAnonymousInitializer) {
-            target.checkPhase(resolverPhase)
-        }
-
-        if (target is FirMemberDeclaration) {
-            checkDeclarationStatusIsResolved(target)
-        }
-
-        checkNestedDeclarationsAreResolved(target)
+    override fun phaseSpecificCheckIsResolved(target: FirElementWithResolveState) {
+        if (target !is FirMemberDeclaration) return
+        checkDeclarationStatusIsResolved(target)
     }
 }
 
@@ -104,10 +91,6 @@ private class LLFirStatusTargetResolver(
     private val resolveMode: StatusResolveMode,
 ) : LLFirTargetResolver(target, lockProvider, FirResolvePhase.STATUS, isJumpingPhase = false) {
     private val transformer = Transformer(session, scopeSession)
-
-    override fun withFile(firFile: FirFile, action: () -> Unit) {
-        action()
-    }
 
     @Deprecated("Should never be called directly, only for override purposes, please use withRegularClass", level = DeprecationLevel.ERROR)
     override fun withRegularClassImpl(firClass: FirRegularClass, action: () -> Unit) {
@@ -165,9 +148,7 @@ private class LLFirStatusTargetResolver(
             true
         }
 
-        else -> {
-            false
-        }
+        else -> super.doResolveWithoutLock(target)
     }
 
     private inline fun <T : FirCallableDeclaration> performResolveWithOverriddenCallables(
@@ -184,12 +165,10 @@ private class LLFirStatusTargetResolver(
 
     override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {
         when (target) {
-            is FirRegularClass -> {
-                error("should be resolved in doResolveWithoutLock")
-            }
-            else -> {
-                target.transformSingle(transformer, data = null)
-            }
+            is FirRegularClass -> error("should be resolved in doResolveWithoutLock")
+            // It is fine to call status transformer under lock, because declarations can't have a containing class
+            is FirScript -> target.forEachDependentDeclaration { it.transformSingle(transformer, data = null) }
+            else -> target.transformSingle(transformer, data = null)
         }
     }
 

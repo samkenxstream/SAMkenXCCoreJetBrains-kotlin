@@ -14,8 +14,10 @@ import org.jetbrains.kotlin.analysis.api.KtAnalysisApiInternals
 import org.jetbrains.kotlin.analysis.api.fir.KtFirAnalysisSessionProvider
 import org.jetbrains.kotlin.analysis.api.impl.base.references.HLApiReferenceProviderService
 import org.jetbrains.kotlin.analysis.api.session.KtAnalysisSessionProvider
+import org.jetbrains.kotlin.analysis.api.standalone.base.project.structure.KtStaticModuleDependentsProvider
 import org.jetbrains.kotlin.analysis.decompiled.light.classes.ClsJavaStubByVirtualFileCache
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.services.FirSealedClassInheritorsProcessorFactory
+import org.jetbrains.kotlin.analysis.project.structure.KotlinModuleDependentsProvider
 import org.jetbrains.kotlin.analysis.project.structure.KtModuleScopeProvider
 import org.jetbrains.kotlin.analysis.project.structure.KtModuleScopeProviderImpl
 import org.jetbrains.kotlin.analysis.project.structure.ProjectStructureProvider
@@ -70,11 +72,14 @@ public fun configureApplicationEnvironment(app: MockApplication) {
  *   * [SymbolKotlinAsJavaSupport]
  *   * [ClsJavaStubByVirtualFileCache]
  *   * [KotlinModificationTrackerFactory]
+ *   * [KotlinMessageBusProvider]
+ *   * [KotlinGlobalModificationService]
  *   * [KotlinAnnotationsResolverFactory]
- *   * [LLfirResolveSessionService]
+ *   * [org.jetbrains.kotlin.analysis.low.level.api.fir.LLFirResolveSessionService]
  *   * [FirSealedClassInheritorsProcessorFactory]
  *   * [KtModuleScopeProvider]
  *   * [ProjectStructureProvider]
+ *   * [KotlinModuleDependentsProvider]
  *   * [KotlinDeclarationProviderFactory]
  *   * [KotlinPackageProviderFactory]
  *   * [PackagePartProviderFactory]
@@ -95,14 +100,14 @@ public fun configureProjectEnvironment(
     compilerConfig: CompilerConfiguration,
     packagePartProvider: (GlobalSearchScope) -> PackagePartProvider,
 ) {
-    val ktFiles = getPsiFilesFromPaths<KtFile>(project, getSourceFilePaths(compilerConfig))
-    configureProjectEnvironment(project, compilerConfig, ktFiles, packagePartProvider)
+    val sourceKtFiles = getPsiFilesFromPaths<KtFile>(project, getSourceFilePaths(compilerConfig))
+    configureProjectEnvironment(project, compilerConfig, sourceKtFiles, packagePartProvider)
 }
 
 internal fun configureProjectEnvironment(
     project: MockProject,
     compilerConfig: CompilerConfiguration,
-    ktFiles: List<KtFile>,
+    sourceKtFiles: List<KtFile>,
     packagePartProvider: (GlobalSearchScope) -> PackagePartProvider,
 ) {
     reRegisterJavaElementFinder(project)
@@ -110,6 +115,16 @@ internal fun configureProjectEnvironment(
     project.registerService(
         KotlinModificationTrackerFactory::class.java,
         KotlinStaticModificationTrackerFactory()
+    )
+
+    project.registerService(
+        KotlinMessageBusProvider::class.java,
+        KotlinProjectMessageBusProvider(project),
+    )
+
+    project.registerService(
+        KotlinGlobalModificationService::class.java,
+        KotlinStaticGlobalModificationService(project),
     )
 
     // FIR LC
@@ -120,7 +135,7 @@ internal fun configureProjectEnvironment(
 
     project.registerService(
         KotlinAnnotationsResolverFactory::class.java,
-        KotlinStaticAnnotationsResolverFactory(ktFiles)
+        KotlinStaticAnnotationsResolverFactory(sourceKtFiles)
     )
 
     project.registerService(
@@ -146,17 +161,20 @@ internal fun configureProjectEnvironment(
         KtModuleScopeProviderImpl()
     )
 
+    val projectStructureProvider = buildKtModuleProviderByCompilerConfiguration(compilerConfig, project, sourceKtFiles)
     project.registerService(
         ProjectStructureProvider::class.java,
-        buildKtModuleProviderByCompilerConfiguration(
-            compilerConfig,
-            project,
-            ktFiles,
-        )
+        projectStructureProvider,
     )
+    val declarationProviderFactory = KotlinStaticDeclarationProviderFactory(project, sourceKtFiles)
+    project.registerService(
+        KotlinModuleDependentsProvider::class.java,
+        KtStaticModuleDependentsProvider(projectStructureProvider.allKtModules),
+    )
+
     project.registerService(
         KotlinDeclarationProviderFactory::class.java,
-        KotlinStaticDeclarationProviderFactory(project, ktFiles)
+        declarationProviderFactory
     )
     project.registerService(
         KotlinDeclarationProviderMerger::class.java,
@@ -164,7 +182,7 @@ internal fun configureProjectEnvironment(
     )
     project.registerService(
         KotlinPackageProviderFactory::class.java,
-        KotlinStaticPackageProviderFactory(project, ktFiles)
+        KotlinStaticPackageProviderFactory(project, sourceKtFiles + declarationProviderFactory.getAdditionalCreatedKtFiles())
     )
     project.registerService(
         PackagePartProviderFactory::class.java,

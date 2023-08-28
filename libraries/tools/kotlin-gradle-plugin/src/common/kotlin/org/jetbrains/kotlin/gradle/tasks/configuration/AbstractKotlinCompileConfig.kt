@@ -19,20 +19,15 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinTopLevelExtension
 import org.jetbrains.kotlin.gradle.dsl.topLevelExtension
 import org.jetbrains.kotlin.gradle.incremental.IncrementalModuleInfoBuildService
 import org.jetbrains.kotlin.gradle.internal.ClassLoadersCachingBuildService
-import org.jetbrains.kotlin.gradle.internal.KaptGenerateStubsTask
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
+import org.jetbrains.kotlin.gradle.plugin.internal.BuildIdService
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmAndroidCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMetadataTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.associateWithClosure
 import org.jetbrains.kotlin.gradle.plugin.mpp.internal
-import org.jetbrains.kotlin.gradle.plugin.sources.applyLanguageSettingsToCompilerOptions
-import org.jetbrains.kotlin.gradle.report.BuildMetricsService
 import org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompile
 import org.jetbrains.kotlin.gradle.tasks.KOTLIN_BUILD_DIR_NAME
-import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
 import org.jetbrains.kotlin.gradle.utils.providerWithLazyConvention
-import org.jetbrains.kotlin.project.model.LanguageSettings
 
 /**
  * Configuration for the base compile task, [org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompile].
@@ -42,33 +37,18 @@ import org.jetbrains.kotlin.project.model.LanguageSettings
  */
 internal abstract class AbstractKotlinCompileConfig<TASK : AbstractKotlinCompile<*>>(
     project: Project,
-    val ext: KotlinTopLevelExtension,
-    private val languageSettings: Provider<LanguageSettings>
+    val ext: KotlinTopLevelExtension
 ) : TaskConfigAction<TASK>(project) {
 
     init {
-        configureTaskProvider { taskProvider ->
-            project.launchInStage(KotlinPluginLifecycle.Stage.AfterFinaliseCompilations) {
-                taskProvider.configure {
-                    // KaptGenerateStubs will receive value from linked KotlinCompile task
-                    if (it is KaptGenerateStubsTask) return@configure
-
-                    applyLanguageSettingsToCompilerOptions(
-                        languageSettings.get(),
-                        (it as org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask<*>).compilerOptions,
-                    )
-                }
-            }
-        }
-
         val compilerSystemPropertiesService = CompilerSystemPropertiesService.registerIfAbsent(project)
-        val buildMetricsService = BuildMetricsService.registerIfAbsent(project)
         val incrementalModuleInfoProvider =
             IncrementalModuleInfoBuildService.registerIfAbsent(project, objectFactory.providerWithLazyConvention {
                 GradleCompilerRunner.buildModulesInfo(project.gradle)
             })
         val buildFinishedListenerService = BuildFinishedListenerService.registerIfAbsent(project)
         val cachedClassLoadersService = ClassLoadersCachingBuildService.registerIfAbsent(project)
+        val buildIdService = BuildIdService.registerIfAbsent(project)
         configureTask { task ->
             val propertiesProvider = project.kotlinPropertiesProvider
 
@@ -80,9 +60,6 @@ internal abstract class AbstractKotlinCompileConfig<TASK : AbstractKotlinCompile
                 .disallowChanges()
 
             task.localStateDirectories.from(task.taskBuildLocalStateDirectory).disallowChanges()
-            buildMetricsService?.also { metricsService ->
-                task.buildMetricsService.value(metricsService).disallowChanges()
-            }
             task.systemPropertiesService.value(compilerSystemPropertiesService).disallowChanges()
             task.incrementalModuleInfoProvider.value(incrementalModuleInfoProvider).disallowChanges()
 
@@ -113,10 +90,12 @@ internal abstract class AbstractKotlinCompileConfig<TASK : AbstractKotlinCompile
                 .convention(propertiesProvider.suppressExperimentalICOptimizationsWarning)
                 .finalizeValueOnRead()
             task.buildFinishedListenerService.value(buildFinishedListenerService).disallowChanges()
+            task.buildIdService.value(buildIdService).disallowChanges()
 
             task.incremental = false
             task.useModuleDetection.convention(false)
             if (propertiesProvider.useK2 == true) {
+                @Suppress("DEPRECATION")
                 task.compilerOptions.useK2.value(true)
             }
             task.runViaBuildToolsApi.convention(propertiesProvider.runKotlinCompilerViaBuildToolsApi).finalizeValueOnRead()
@@ -136,14 +115,13 @@ internal abstract class AbstractKotlinCompileConfig<TASK : AbstractKotlinCompile
 
     constructor(compilationInfo: KotlinCompilationInfo) : this(
         compilationInfo.project,
-        compilationInfo.project.topLevelExtension,
-        compilationInfo.project.provider { compilationInfo.languageSettings }
+        compilationInfo.project.topLevelExtension
     ) {
         configureTask { task ->
             task.friendPaths.from({ compilationInfo.friendPaths })
             compilationInfo.tcsOrNull?.compilation?.let { compilation ->
                 task.friendSourceSets
-                    .value(providers.provider { compilation.associateWithClosure.map { it.name } })
+                    .value(providers.provider { compilation.allAssociatedCompilations.map { it.name } })
                     .disallowChanges()
                 task.pluginClasspath.from(
                     compilation.internal.configurations.pluginConfiguration

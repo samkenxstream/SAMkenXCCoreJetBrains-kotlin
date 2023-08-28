@@ -24,7 +24,7 @@ dependencies {
 
     api project(':kotlin-test:kotlin-test-junit')
 
-    compileOnly kotlinStdlib()
+    compileOnly RepoDependencies.kotlinStdlib(project)
     compileOnly project(':compiler')
     compileOnly project(':compiler:plugin-api')
     compileOnly project(':compiler:cli-common')
@@ -35,7 +35,7 @@ dependencies {
     compileOnly project(':dependencies:intellij-core')
 }
 
-GradleCommonKt.configureCommonPublicationSettingsForGradle(project, false)
+GradleCommonKt.configureCommonPublicationSettingsForGradle(project, false, false)
 GradleCommonKt.configureKotlinCompileTasksGradleCompatibility(project)
 GradleCommonKt.excludeGradleCommonDependencies(project, sourceSets.main)
 TasksKt.optInToExperimentalCompilerApi(project)
@@ -53,12 +53,12 @@ def shadowJarTask = EmbeddableKt.embeddableCompilerDummyForDependenciesRewriting
     project,
     "${EmbeddableKt.EMBEDDABLE_COMPILER_TASK_NAME}${sourceSet.jarTaskName.capitalize()}"
 ) {
-    ArtifactsKt.setupPublicJar(
+    RepoArtifacts.setupPublicJar(
         it,
         jarTask.flatMap { it.archiveBaseName },
         jarTask.flatMap { it.archiveClassifier }
     )
-    ArtifactsKt.addEmbeddedRuntime(it)
+    RepoArtifacts.addEmbeddedRuntime(it)
     it.from(sourceSet.output)
 
     // When Gradle traverses the inputs, reject the shaded compiler JAR,

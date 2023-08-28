@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.DescriptorDerivedFromTypeAlias
 import org.jetbrains.kotlin.descriptors.impl.TypeAliasConstructorDescriptor
-import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.Call
 import org.jetbrains.kotlin.psi.KtElement
@@ -39,22 +38,49 @@ class DeprecationResolver(
 ) {
     private val deprecations: MemoizedFunctionToNotNull<DeclarationDescriptor, DeprecationInfo> =
         storageManager.createMemoizedFunction { descriptor ->
-            val deprecations = descriptor.getOwnDeprecations()
-            when {
-                deprecations.isNotEmpty() -> DeprecationInfo(deprecations, hasInheritedDeprecations = false)
-                descriptor is CallableMemberDescriptor -> {
-                    val inheritedDeprecations = listOfNotNull(deprecationByOverridden(descriptor))
-                    when (inheritedDeprecations.isNotEmpty()) {
-                        true -> when (languageVersionSettings.supportsFeature(LanguageFeature.StopPropagatingDeprecationThroughOverrides)) {
-                            true -> DeprecationInfo(emptyList(), hasInheritedDeprecations = true, inheritedDeprecations)
-                            false -> DeprecationInfo(inheritedDeprecations, hasInheritedDeprecations = true)
-                        }
-                        false -> DeprecationInfo.EMPTY
-                    }
-                }
-                else -> DeprecationInfo.EMPTY
-            }
+            computeDeprecation(descriptor)
         }
+
+    private fun computeDeprecation(descriptor: DeclarationDescriptor): DeprecationInfo {
+        val deprecations = descriptor.getOwnDeprecations()
+        return when {
+            deprecations.isNotEmpty() -> DeprecationInfo(deprecations, hasInheritedDeprecations = false)
+            descriptor is PropertyAccessorDescriptor && descriptor.correspondingProperty is SyntheticPropertyDescriptor -> {
+                val syntheticProperty = descriptor.correspondingProperty as SyntheticPropertyDescriptor
+                val originalMethod =
+                    if (descriptor is PropertyGetterDescriptor) syntheticProperty.getMethod else syntheticProperty.setMethod
+
+                @Suppress("FoldInitializerAndIfToElvis") // Wait until KTIJ-26450 is fixed
+                if (originalMethod == null) return DeprecationInfo.EMPTY
+                val originalMethodDeprecationInfo = deprecations(originalMethod)
+
+                // Limiting these new (they didn't exist before 1.9.10) deprecations only to WARNING and forcePropagationToOverrides
+                // (i.e., for overrides of NOT_CONSIDERED JDK members)
+                // is deliberate once we would like to reduce the scope of affected usages because otherwise
+                // it might be a big unexpected breaking change for users who are enabled -Werror flag.
+                val filteredDeprecations =
+                    originalMethodDeprecationInfo.deprecations.filter {
+                        it.deprecationLevel == DeprecationLevelValue.WARNING && it.forcePropagationToOverrides
+                    }
+                return originalMethodDeprecationInfo.copy(deprecations = filteredDeprecations)
+            }
+            descriptor is CallableMemberDescriptor -> {
+                val inheritedDeprecations = listOfNotNull(deprecationByOverridden(descriptor))
+                when (inheritedDeprecations.isNotEmpty()) {
+                    true -> when (languageVersionSettings.supportsFeature(LanguageFeature.StopPropagatingDeprecationThroughOverrides)) {
+                        true -> DeprecationInfo(
+                            inheritedDeprecations.filter { it.forcePropagationToOverrides },
+                            hasInheritedDeprecations = true,
+                            inheritedDeprecations
+                        )
+                        false -> DeprecationInfo(inheritedDeprecations, hasInheritedDeprecations = true)
+                    }
+                    false -> DeprecationInfo.EMPTY
+                }
+            }
+            else -> DeprecationInfo.EMPTY
+        }
+    }
 
     private data class DeprecationInfo(
         val deprecations: List<DescriptorBasedDeprecationInfo>,
@@ -167,7 +193,8 @@ class DeprecationResolver(
 
         traverse(root)
 
-        if (hasUndeprecatedOverridden || deprecations.isEmpty()) return null
+        if (deprecations.isEmpty()) return null
+        if (hasUndeprecatedOverridden && deprecations.none { it.forcePropagationToOverrides }) return null
 
         // We might've filtered out not-propagating deprecations already in the initializer of `deprecationsByAnnotation` in the code above.
         // But it would lead to treating Java overridden as not-deprecated at all that works controversially in case of mixed J/K override:
@@ -272,29 +299,13 @@ class DeprecationResolver(
         (target as? CallableDescriptor)?.getUserData(DEPRECATED_FUNCTION_KEY)
 
     private fun getDeprecationByVersionRequirement(target: DeclarationDescriptor): List<DeprecatedByVersionRequirement> {
-        fun createVersion(version: String): MavenComparableVersion? = try {
-            MavenComparableVersion(version)
-        } catch (e: Exception) {
-            null
-        }
-
         val versionRequirements =
             (target as? DeserializedMemberDescriptor)?.versionRequirements
                 ?: (target as? DeserializedClassDescriptor)?.versionRequirements
                 ?: return emptyList()
 
         return versionRequirements.mapNotNull { versionRequirement ->
-            val requiredVersion = createVersion(versionRequirement.version.asString())
-            val currentVersion = when (versionRequirement.kind) {
-                ProtoBuf.VersionRequirement.VersionKind.LANGUAGE_VERSION ->
-                    MavenComparableVersion(languageVersionSettings.languageVersion.versionString)
-                ProtoBuf.VersionRequirement.VersionKind.API_VERSION ->
-                    languageVersionSettings.apiVersion.version
-                ProtoBuf.VersionRequirement.VersionKind.COMPILER_VERSION ->
-                    KotlinCompilerVersion.getVersion()?.substringBefore('-')?.let(::createVersion)
-                else -> null
-            }
-            if (currentVersion != null && currentVersion < requiredVersion)
+            if (!versionRequirement.isFulfilled(this.languageVersionSettings))
                 DeprecatedByVersionRequirement(versionRequirement, target)
             else
                 null

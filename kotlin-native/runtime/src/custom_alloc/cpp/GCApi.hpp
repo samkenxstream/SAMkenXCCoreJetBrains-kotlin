@@ -6,31 +6,82 @@
 #ifndef CUSTOM_ALLOC_CPP_GCAPI_HPP_
 #define CUSTOM_ALLOC_CPP_GCAPI_HPP_
 
+#include <cinttypes>
 #include <cstdint>
-#include <inttypes.h>
+#include <cstdlib>
 #include <limits>
-#include <stdlib.h>
 
+#include "Alignment.hpp"
 #include "AtomicStack.hpp"
-#include "ConcurrentMarkAndSweep.hpp"
 #include "ExtraObjectData.hpp"
 #include "ExtraObjectPage.hpp"
+#include "GC.hpp"
 #include "GCStatistics.hpp"
+#include "Memory.h"
+#include "TypeLayout.hpp"
 
 namespace kotlin::alloc {
 
-// copied over from ObjectFactory
-
-using ObjectData = gc::ConcurrentMarkAndSweep::ObjectData;
-
 struct HeapObjHeader {
-    ObjectData gcData;
-    alignas(kObjectAlignment) ObjHeader object;
+    using descriptor = type_layout::Composite<HeapObjHeader, gc::GC::ObjectData, ObjHeader>;
+
+    static HeapObjHeader& from(gc::GC::ObjectData& objectData) noexcept { return *descriptor().fromField<0>(&objectData); }
+
+    static HeapObjHeader& from(ObjHeader* object) noexcept { return *descriptor().fromField<1>(object); }
+
+    gc::GC::ObjectData& objectData() noexcept { return *descriptor().field<0>(this).second; }
+
+    ObjHeader* object() noexcept { return descriptor().field<1>(this).second; }
+
+private:
+    HeapObjHeader() = delete;
+    ~HeapObjHeader() = delete;
 };
 
+struct HeapObject {
+    using descriptor = type_layout::Composite<HeapObject, HeapObjHeader, ObjectBody>;
+
+    static descriptor make_descriptor(const TypeInfo* typeInfo) noexcept {
+        return descriptor{{}, type_layout::descriptor_t<ObjectBody>{typeInfo}};
+    }
+
+    HeapObjHeader& header(descriptor descriptor) noexcept { return *descriptor.field<0>(this).second; }
+
+private:
+    HeapObject() = delete;
+    ~HeapObject() = delete;
+};
+
+// Needs to be kept compatible with `HeapObjHeader` just like `ArrayHeader` is compatible
+// with `ObjHeader`: the former can always be casted to the other.
 struct HeapArrayHeader {
-    ObjectData gcData;
-    alignas(kObjectAlignment) ArrayHeader array;
+    using descriptor = type_layout::Composite<HeapArrayHeader, gc::GC::ObjectData, ArrayHeader>;
+
+    static HeapArrayHeader& from(gc::GC::ObjectData& objectData) noexcept { return *descriptor().fromField<0>(&objectData); }
+
+    static HeapArrayHeader& from(ArrayHeader* array) noexcept { return *descriptor().fromField<1>(array); }
+
+    gc::GC::ObjectData& objectData() noexcept { return *descriptor().field<0>(this).second; }
+
+    ArrayHeader* array() noexcept { return descriptor().field<1>(this).second; }
+
+private:
+    HeapArrayHeader() = delete;
+    ~HeapArrayHeader() = delete;
+};
+
+struct HeapArray {
+    using descriptor = type_layout::Composite<HeapArray, HeapArrayHeader, ArrayBody>;
+
+    static descriptor make_descriptor(const TypeInfo* typeInfo, uint32_t size) noexcept {
+        return descriptor{{}, type_layout::descriptor_t<ArrayBody>{typeInfo, size}};
+    }
+
+    HeapArrayHeader& header(descriptor descriptor) noexcept { return *descriptor.field<0>(this).second; }
+
+private:
+    HeapArray() = delete;
+    ~HeapArray() = delete;
 };
 
 // Returns `true` if the `object` must be kept alive still.
@@ -44,6 +95,14 @@ void* SafeAlloc(uint64_t size) noexcept;
 void Free(void* ptr, size_t size) noexcept;
 
 size_t GetAllocatedBytes() noexcept;
+
+inline gc::GC::ObjectData& objectDataForObject(ObjHeader* object) noexcept {
+    return HeapObjHeader::from(object).objectData();
+}
+
+inline ObjHeader* objectForObjectData(gc::GC::ObjectData& objectData) noexcept {
+    return HeapObjHeader::from(objectData).object();
+}
 
 } // namespace kotlin::alloc
 

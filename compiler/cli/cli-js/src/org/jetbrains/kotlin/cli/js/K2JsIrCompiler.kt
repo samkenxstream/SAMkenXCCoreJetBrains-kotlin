@@ -33,7 +33,6 @@ import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.plugins.PluginCliParser
 import org.jetbrains.kotlin.config.*
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
@@ -41,13 +40,13 @@ import org.jetbrains.kotlin.incremental.js.IncrementalDataProvider
 import org.jetbrains.kotlin.incremental.js.IncrementalNextRoundChecker
 import org.jetbrains.kotlin.incremental.js.IncrementalResultsConsumer
 import org.jetbrains.kotlin.ir.backend.js.*
+import org.jetbrains.kotlin.ir.backend.js.dce.DceDumpNameCache
 import org.jetbrains.kotlin.ir.backend.js.dce.dumpDeclarationIrSizesIfNeed
 import org.jetbrains.kotlin.ir.backend.js.ic.*
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImplForJsIC
 import org.jetbrains.kotlin.ir.linkage.partial.setupPartialLinkageConfig
-import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.js.analyzer.JsAnalysisResult
 import org.jetbrains.kotlin.js.config.*
 import org.jetbrains.kotlin.konan.file.ZipFileSystemAccessor
@@ -169,6 +168,9 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
         configuration.put(JSConfigurationKeys.WASM_ENABLE_ARRAY_RANGE_CHECKS, arguments.wasmEnableArrayRangeChecks)
         configuration.put(JSConfigurationKeys.WASM_ENABLE_ASSERTS, arguments.wasmEnableAsserts)
         configuration.put(JSConfigurationKeys.WASM_GENERATE_WAT, arguments.wasmGenerateWat)
+        configuration.put(JSConfigurationKeys.WASM_USE_TRAPS_INSTEAD_OF_EXCEPTIONS, arguments.wasmUseTrapsInsteadOfExceptions)
+        configuration.putIfNotNull(JSConfigurationKeys.WASM_TARGET, arguments.wasmTarget?.let(WasmTarget::fromName))
+
         configuration.put(JSConfigurationKeys.OPTIMIZE_GENERATED_JS, arguments.optimizeGeneratedJs)
 
         val commonSourcesArray = arguments.commonSources
@@ -340,16 +342,17 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
             if (arguments.wasm) {
                 val (allModules, backendContext) = compileToLoweredIr(
                     depsDescriptors = module,
-                    phaseConfig = PhaseConfig(wasmPhases),
+                    phaseConfig = createPhaseConfig(wasmPhases, arguments, messageCollector),
                     irFactory = IrFactoryImpl,
                     exportedDeclarations = setOf(FqName("main")),
                     propertyLazyInitialization = arguments.irPropertyLazyInitialization,
                 )
+                val dceDumpNameCache = DceDumpNameCache()
                 if (arguments.irDce) {
-                    eliminateDeadDeclarations(allModules, backendContext)
+                    eliminateDeadDeclarations(allModules, backendContext, dceDumpNameCache)
                 }
 
-                dumpDeclarationIrSizesIfNeed(arguments.irDceDumpDeclarationIrSizesToFile, allModules)
+                dumpDeclarationIrSizesIfNeed(arguments.irDceDumpDeclarationIrSizesToFile, allModules, dceDumpNameCache)
 
                 val generateSourceMaps = configuration.getBoolean(JSConfigurationKeys.SOURCE_MAP)
 
@@ -415,6 +418,10 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
     ): ModulesStructure {
         lateinit var sourceModule: ModulesStructure
         do {
+            val analyzerFacade = when (arguments.wasm) {
+                true -> TopDownAnalyzerFacadeForWasm.facadeFor(environmentForJS.configuration.get(JSConfigurationKeys.WASM_TARGET))
+                else -> TopDownAnalyzerFacadeForJSIR
+            }
             sourceModule = prepareAnalyzedSourceModule(
                 environmentForJS.project,
                 environmentForJS.getSourceFiles(),
@@ -422,7 +429,7 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 libraries,
                 friendLibraries,
                 AnalyzerWithCompilerReport(environmentForJS.configuration),
-                analyzerFacade = if (arguments.wasm) TopDownAnalyzerFacadeForWasm else TopDownAnalyzerFacadeForJSIR
+                analyzerFacade = analyzerFacade
             )
             val result = sourceModule.jsFrontEndResult.jsAnalysisResult
             if (result is JsAnalysisResult.RetryWithAdditionalRoots) {
@@ -433,7 +440,6 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
         if (sourceModule.jsFrontEndResult.jsAnalysisResult.shouldGenerateCode && (arguments.irProduceKlibDir || arguments.irProduceKlibFile)) {
             val moduleSourceFiles = (sourceModule.mainModule as MainModule.SourceFiles).files
             val icData = environmentForJS.configuration.incrementalDataProvider?.getSerializedData(moduleSourceFiles) ?: emptyList()
-            val expectDescriptorToSymbol = mutableMapOf<DeclarationDescriptor, IrSymbol>()
 
             val (moduleFragment, _) = generateIrForKlibSerialization(
                 environmentForJS.project,
@@ -442,7 +448,6 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 sourceModule.jsFrontEndResult.jsAnalysisResult,
                 sourceModule.allDependencies,
                 icData,
-                expectDescriptorToSymbol,
                 IrFactoryImpl,
                 verifySignatures = true
             ) {
@@ -462,7 +467,6 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 nopack = arguments.irProduceKlibDir,
                 jsOutputName = arguments.irPerModuleOutputName,
                 icData = icData,
-                expectDescriptorToSymbol = expectDescriptorToSymbol,
                 moduleFragment = moduleFragment,
                 builtInsPlatform = if (arguments.wasm) BuiltInsPlatform.WASM else BuiltInsPlatform.JS
             ) { file ->
@@ -505,6 +509,7 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 diagnosticsReporter = diagnosticsReporter,
                 incrementalDataProvider = configuration[JSConfigurationKeys.INCREMENTAL_DATA_PROVIDER],
                 lookupTracker = lookupTracker,
+                useWasmPlatform = arguments.wasm,
             )
         } else {
             compileModuleToAnalyzedFirWithPsi(
@@ -515,6 +520,7 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 diagnosticsReporter = diagnosticsReporter,
                 incrementalDataProvider = configuration[JSConfigurationKeys.INCREMENTAL_DATA_PROVIDER],
                 lookupTracker = lookupTracker,
+                useWasmPlatform = arguments.wasm,
             )
         }
 
@@ -544,9 +550,11 @@ class K2JsIrCompiler : CLICompiler<K2JSCompilerArguments>() {
                 firOutputs = analyzedOutput.output,
                 fir2IrActualizedResult = fir2IrActualizedResult,
                 outputKlibPath = outputKlibPath,
+                nopack = arguments.irProduceKlibDir,
                 messageCollector = messageCollector,
                 diagnosticsReporter = diagnosticsReporter,
-                jsOutputName = arguments.irPerModuleOutputName
+                jsOutputName = arguments.irPerModuleOutputName,
+                useWasmPlatform = arguments.wasm
             )
         }
 

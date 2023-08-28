@@ -137,11 +137,21 @@ class BodyGenerator(
 
     override fun visitThrow(expression: IrThrow) {
         generateExpression(expression.value)
+        if (context.backendContext.configuration.getBoolean(JSConfigurationKeys.WASM_USE_TRAPS_INSTEAD_OF_EXCEPTIONS)) {
+            body.buildUnreachable(SourceLocation.NoLocation("Unreachable is inserted instead of a `throw` instruction"))
+            return
+        }
+
         body.buildThrow(functionContext.tagIdx, expression.getSourceLocation())
     }
 
     override fun visitTry(aTry: IrTry) {
         assert(aTry.isCanonical(irBuiltIns)) { "expected canonical try/catch" }
+
+        if (context.backendContext.configuration.getBoolean(JSConfigurationKeys.WASM_USE_TRAPS_INSTEAD_OF_EXCEPTIONS)) {
+            generateExpression(aTry.tryResult)
+            return
+        }
 
         val resultType = context.transformBlockResultType(aTry.type)
         body.buildTry(null, resultType)
@@ -297,7 +307,7 @@ class BodyGenerator(
             return
         }
 
-        body.buildRefNull(WasmHeapType.Simple.NullNone, location) // this = null
+        body.buildRefNull(WasmHeapType.Simple.None, location) // this = null
         generateCall(expression)
     }
 
@@ -532,23 +542,24 @@ class BodyGenerator(
                     val parameterLocal = functionContext.referenceLocal(SyntheticLocalType.IS_INTERFACE_PARAMETER)
                     body.buildSetLocal(parameterLocal, location)
                     body.buildBlock("isInterface", WasmI32) { outerLabel ->
-                        body.buildBlock("isInterface", WasmRefNullType(WasmHeapType.Simple.Struct)) { innerLabel ->
+                        body.buildBlock("isInterface") { innerLabel ->
                             body.buildGetLocal(parameterLocal, location)
                             body.buildStructGet(context.referenceGcType(irBuiltIns.anyClass), WasmSymbol(1), location)
 
-                            body.buildBrInstr(
-                                WasmOp.BR_ON_CAST_FAIL,
-                                innerLabel,
-                                classITable,
-                                location,
-                            )
+                            val tmpLocal = functionContext.referenceLocal(SyntheticLocalType.TMP_FOR_BR_ON_CAST_EMULATION)
+                            body.buildInstr(WasmOp.LOCAL_TEE, location, WasmImmediate.LocalIdx(tmpLocal))
+                            body.buildRefTestStatic(classITable, location)
+                            body.buildInstr(WasmOp.I32_EQZ, location)
+                            body.buildBrIf(innerLabel, location)
+
+                            body.buildGetLocal(tmpLocal, location)
+                            body.buildRefCastStatic(classITable, location)
 
                             body.buildStructGet(classITable, context.referenceClassITableInterfaceSlot(irInterface.symbol), location)
                             body.buildInstr(WasmOp.REF_IS_NULL, location)
                             body.buildInstr(WasmOp.I32_EQZ, location)
                             body.buildBr(outerLabel, location)
                         }
-                        body.buildDrop(location)
                         body.buildConstI32(0, location)
                     }
                 } else {
@@ -595,20 +606,23 @@ class BodyGenerator(
             }
 
             wasmSymbols.returnArgumentIfItIsKotlinAny -> {
-                body.buildBlock("returnIfAny", WasmAnyRef) { innerLabel ->
+                body.buildBlock("returnIfAny") { innerLabel ->
                     body.buildGetLocal(functionContext.referenceLocal(0), location)
                     body.buildInstr(WasmOp.EXTERN_INTERNALIZE, location)
 
-                    body.buildBrInstr(
-                        WasmOp.BR_ON_CAST_FAIL,
-                        innerLabel,
-                        context.referenceGcType(backendContext.irBuiltIns.anyClass),
-                        location,
-                    )
+                    val tmpLocal = functionContext.referenceLocal(SyntheticLocalType.TMP_FOR_BR_ON_CAST_EMULATION)
+                    body.buildInstr(WasmOp.LOCAL_TEE, location, WasmImmediate.LocalIdx(tmpLocal))
+
+                    val toType = context.referenceGcType(backendContext.irBuiltIns.anyClass)
+                    body.buildRefTestStatic(toType, location)
+                    body.buildInstr(WasmOp.I32_EQZ, location)
+                    body.buildBrIf(innerLabel, location)
+
+                    body.buildGetLocal(tmpLocal, location)
+                    body.buildRefCastStatic(toType, location)
 
                     body.buildInstr(WasmOp.RETURN, location)
                 }
-                body.buildDrop(location)
             }
 
             wasmSymbols.wasmArrayCopy -> {
@@ -652,6 +666,12 @@ class BodyGenerator(
         }
 
         if (expression is IrReturnableBlock) {
+            val inlineFunction = expression.symbol.owner.inlineFunction
+            val correspondingProperty = (inlineFunction as? IrSimpleFunction)?.correspondingPropertySymbol
+            val owner = correspondingProperty?.owner ?: inlineFunction
+            val name = owner?.fqNameWhenAvailable?.asString() ?: owner?.name?.asString() ?: "<UNKNOWN>"
+
+            body.commentGroupStart { "Inlined call of `$name`" }
             functionContext.defineNonLocalReturnLevel(
                 expression.symbol,
                 body.buildBlock(context.transformBlockResultType(expression.type))
@@ -675,6 +695,7 @@ class BodyGenerator(
 
         if (expression is IrReturnableBlock) {
             body.buildEnd()
+            body.commentGroupEnd()
         }
     }
 
@@ -738,8 +759,21 @@ class BodyGenerator(
         if (actualType.isNullableNothing() && expectedType.isNullable()) {
             if (expectedType.getClass()?.isExternal == true) {
                 body.buildDrop(location)
-                body.buildRefNull(WasmHeapType.Simple.NullNoExtern, location)
+                body.buildRefNull(WasmHeapType.Simple.NoExtern, location)
             }
+            return
+        }
+
+        // Type? -> Nothing? -> ref.cast null (none/noextern)
+        if (actualType.isNullable() && expectedType.isNullableNothing()) {
+            val type =
+                if (expectedType.getClass()?.isExternal == true)
+                    WasmHeapType.Simple.NoExtern
+                else
+                    WasmHeapType.Simple.None
+
+            body.buildInstr(WasmOp.REF_CAST_NULL, location, WasmImmediate.HeapType(type))
+
             return
         }
 
@@ -767,8 +801,8 @@ class BodyGenerator(
             return
         }
 
-        val expectedIsPrimitive = expectedTypeErased.isPrimitiveType()
-        val actualIsPrimitive = actualTypeErased.isPrimitiveType()
+        val expectedIsPrimitive = expectedTypeErased.isPrimitiveType() && !expectedType.isNullable()
+        val actualIsPrimitive = actualTypeErased.isPrimitiveType() && !actualType.isNullable()
 
         // PRIMITIVE -> REF -> FALSE
         // REF -> PRIMITIVE -> FALSE
@@ -781,7 +815,11 @@ class BodyGenerator(
         // REF -> REF -> REF_CAST
         if (!expectedIsPrimitive) {
             if (expectedClassErased.isSubclassOf(actualClassErased)) {
-                generateRefCast(actualTypeErased, expectedTypeErased, location)
+                if (expectedType.isNullable())
+                    generateRefNullCast(actualTypeErased, expectedTypeErased, location)
+                else
+                    generateRefCast(actualTypeErased, expectedTypeErased, location)
+                body.commentPreviousInstr { "to make verifier happy" }
             } else {
                 body.buildUnreachableForVerifier()
             }

@@ -108,6 +108,7 @@ fun KGPBaseTest.nativeProject(
     buildJdk: File? = null,
     localRepoDir: Path? = null,
     environmentVariables: EnvironmentalVariables = EnvironmentalVariables(),
+    configureSubProjects: Boolean = false,
     test: TestProject.() -> Unit = {},
 ): TestProject {
     val project = project(
@@ -123,7 +124,7 @@ fun KGPBaseTest.nativeProject(
         localRepoDir = localRepoDir,
         environmentVariables = environmentVariables,
     )
-    project.configureSingleNativeTarget()
+    project.configureSingleNativeTarget(configureSubProjects)
     project.test()
     return project
 }
@@ -417,8 +418,16 @@ private fun commonBuildSetup(
     gradleVersion: GradleVersion,
     kotlinDaemonDebugPort: Int? = null,
 ): List<String> {
+    // Following jdk system properties are provided via sub-project build.gradle.kts
+    val jdkPropNameRegex = Regex("jdk\\d+Home")
+    val jdkLocations = System.getProperties()
+        .filterKeys { it.toString().matches(jdkPropNameRegex) }
+        .values
+        .joinToString(separator = ",")
     return buildOptions.toArguments(gradleVersion) + buildArguments + listOfNotNull(
-        "--full-stacktrace",
+        // Required toolchains should be pre-installed via repo. Tests should not download any JDKs
+        "-Porg.gradle.java.installations.auto-download=false",
+        "-Porg.gradle.java.installations.paths=$jdkLocations",
         if (enableBuildCacheDebug) "-Dorg.gradle.caching.debug=true" else null,
         if (enableBuildScan) "--scan" else null,
         kotlinDaemonDebugPort?.let {
@@ -636,11 +645,27 @@ private fun GradleProject.addHeapDumpOptions() {
 private const val SINGLE_NATIVE_TARGET_PLACEHOLDER = "<SingleNativeTarget>"
 private const val LOCAL_REPOSITORY_PLACEHOLDER = "<localRepo>"
 
-private fun TestProject.configureSingleNativeTarget(preset: String = HostManager.host.presetName) {
+private fun TestProject.configureSingleNativeTarget(
+    configureSubProjects: Boolean = false,
+    preset: String = HostManager.host.presetName,
+) {
     val buildScript = if (buildGradle.exists()) buildGradle else buildGradleKts
     buildScript.modify {
         it.replace(SINGLE_NATIVE_TARGET_PLACEHOLDER, preset)
     }
+    if (configureSubProjects) {
+        configureSingleNativeTargetInSubFolders(preset)
+    }
+}
+
+private fun TestProject.configureSingleNativeTargetInSubFolders(preset: String = HostManager.host.presetName) {
+    projectPath.toFile().walk()
+        .filter { it.isFile && (it.name == "build.gradle.kts" || it.name == "build.gradle") }
+        .forEach { file ->
+            file.modify {
+                it.replace(SINGLE_NATIVE_TARGET_PLACEHOLDER, preset)
+            }
+        }
 }
 
 private fun TestProject.configureLocalRepository(localRepoDir: Path) {

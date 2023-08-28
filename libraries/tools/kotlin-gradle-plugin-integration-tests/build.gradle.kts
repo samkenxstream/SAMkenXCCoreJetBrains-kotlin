@@ -85,11 +85,11 @@ dependencies {
     testImplementation(kotlinStdlib("jdk8"))
     testImplementation(project(":kotlin-parcelize-compiler"))
     testImplementation(commonDependency("org.jetbrains.intellij.deps", "trove4j"))
-    testImplementation(commonDependency("io.ktor", "ktor-server-test-host"))
-    testImplementation(commonDependency("io.ktor", "ktor-server-core"))
-    testImplementation(commonDependency("io.ktor", "ktor-client-cio"))
-    testImplementation(commonDependency("io.ktor", "ktor-server-netty"))
-    testImplementation(commonDependency("io.ktor", "ktor-client-mock"))
+    testImplementation(libs.ktor.client.cio)
+    testImplementation(libs.ktor.client.mock)
+    testImplementation(libs.ktor.server.core)
+    testImplementation(libs.ktor.server.netty)
+    testImplementation(libs.ktor.server.test.host)
 
     testImplementation(gradleApi())
     testImplementation(gradleTestKit())
@@ -141,7 +141,7 @@ fun Test.includeTestsWithPattern(include: Boolean, patterns: (MutableSet<String>
 }
 
 fun Test.advanceGradleVersion() {
-    val gradleVersionForTests = "7.6"
+    val gradleVersionForTests = "8.1.1"
     systemProperty("kotlin.gradle.version.for.tests", gradleVersionForTests)
 }
 
@@ -358,6 +358,7 @@ tasks.withType<Test> {
     val mavenLocalRepo = project.providers.systemProperty("maven.repo.local").orNull
 
     // Query required JDKs paths only on execution phase to avoid triggering auto-download on project configuration phase
+    // names should follow "jdk\\d+Home" regex where number is a major JDK version
     doFirst {
         systemProperty("jdk8Home", jdk8Provider.get())
         systemProperty("jdk9Home", jdk9Provider.get())

@@ -14,7 +14,18 @@ data class Some<T : Any?> {
   }
 
   fun copy(value: T = <this>.#value): Some<T> {
-    return Some<Any>(value = value)
+    return Some<T>(value = value)
+  }
+
+  override fun toString(): String {
+    return "Some(" + "value=" + <this>.#value + ")"
+  }
+
+  override fun hashCode(): Int {
+    return when {
+      EQEQ(arg0 = <this>.#value, arg1 = null) -> 0
+      else -> <this>.#value.hashCode()
+    }
   }
 
   override operator fun equals(other: Any?): Boolean {
@@ -29,17 +40,6 @@ data class Some<T : Any?> {
       EQEQ(arg0 = <this>.#value, arg1 = tmp0_other_with_cast.#value).not() -> return false
     }
     return true
-  }
-
-  override fun hashCode(): Int {
-    return when {
-      EQEQ(arg0 = <this>.#value, arg1 = null) -> 0
-      else -> <this>.#value.hashCode()
-    }
-  }
-
-  override fun toString(): String {
-    return "Some(" + "value=" + <this>.#value + ")"
   }
 
 }
@@ -65,3 +65,4 @@ class FinalList : SomeList<String> {
   }
 
 }
+

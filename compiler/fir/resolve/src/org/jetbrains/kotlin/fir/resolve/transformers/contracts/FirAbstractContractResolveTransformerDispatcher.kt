@@ -25,14 +25,17 @@ import org.jetbrains.kotlin.fir.moduleData
 import org.jetbrains.kotlin.fir.references.builder.buildSimpleNamedReference
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
+import org.jetbrains.kotlin.fir.resolve.transformers.ReturnTypeCalculatorForFullBodyResolve
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.BodyResolveContext
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirAbstractBodyResolveTransformerDispatcher
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirDeclarationsResolveTransformer
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirExpressionsResolveTransformer
 import org.jetbrains.kotlin.fir.symbols.impl.FirAnonymousFunctionSymbol
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitTypeRefImplWithoutSource
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.fir.visitors.transformSingle
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 abstract class FirAbstractContractResolveTransformerDispatcher(
     session: FirSession,
@@ -43,6 +46,7 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
     FirResolvePhase.CONTRACTS,
     implicitTypeOnly = false,
     scopeSession,
+    returnTypeCalculator = ReturnTypeCalculatorForFullBodyResolve.Contract,
     outerBodyResolveContext = outerBodyResolveContext
 ) {
     final override val expressionsTransformer: FirExpressionsResolveTransformer =
@@ -152,7 +156,7 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
             val resolvedContractCall = withContractModeDisabled {
                 contractDescription.contractCall
                     .transformSingle(transformer, ResolutionMode.ContextIndependent)
-                    .apply { replaceTypeRef(session.builtinTypes.unitType) }
+                    .apply { replaceConeTypeOrNull(session.builtinTypes.unitType.type) }
             }
 
             if (resolvedContractCall.toResolvedCallableSymbol()?.callableId != FirContractsDslNames.CONTRACT) {
@@ -296,12 +300,14 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
             }
         }
 
+        override fun transformErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: ResolutionMode) =
+            transformConstructor(errorPrimaryConstructor, data)
+
         override fun transformEnumEntry(enumEntry: FirEnumEntry, data: ResolutionMode): FirEnumEntry {
             return enumEntry
         }
 
         private fun <T : FirContractDescriptionOwner> transformOwnerOfErrorContract(owner: T): T {
-            // TODO
             dataFlowAnalyzer.exitContractDescription()
             return owner
         }
@@ -314,13 +320,17 @@ abstract class FirAbstractContractResolveTransformerDispatcher(
 private val FirContractDescriptionOwner.valueParameters: List<FirValueParameter>
     get() = when (this) {
         is FirFunction -> valueParameters
-        else -> error()
+        else -> errorWithAttachment("Expected ${FirFunction::class.java} but ${this::class.java} found") {
+            withFirEntry("foundElement", this@valueParameters)
+        }
     }
 
 private val FirContractDescriptionOwner.body: FirBlock
     get() = when (this) {
         is FirFunction -> body!!
-        else -> error()
+        else ->  errorWithAttachment("Expected ${FirFunction::class.java} but ${this::class.java} found") {
+            withFirEntry("foundElement", this@body)
+        }
     }
 
 private fun FirContractDescriptionOwner.error(): Nothing = throw IllegalStateException("${this::class} can not be a contract owner")

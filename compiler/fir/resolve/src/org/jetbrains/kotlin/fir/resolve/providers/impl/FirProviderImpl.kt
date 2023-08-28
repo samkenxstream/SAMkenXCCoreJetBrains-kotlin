@@ -39,6 +39,10 @@ class FirProviderImpl(val session: FirSession, val kotlinScopeProvider: FirKotli
         return state.scriptContainerMap[symbol]
     }
 
+    override fun getFirScriptByFilePath(path: String): FirScriptSymbol? {
+        return state.scriptByFilePathMap[path]
+    }
+
     override fun getFirClassifierContainerFile(fqName: ClassId): FirFile {
         return state.classifierContainerFileMap[fqName] ?: error("Couldn't find container for $fqName")
     }
@@ -99,13 +103,6 @@ class FirProviderImpl(val session: FirSession, val kotlinScopeProvider: FirKotli
             }
         }
     }
-
-    private val FirDeclaration.file: FirFile
-        get() = when (this) {
-            is FirFile -> this
-            is FirRegularClass -> getFirClassifierContainerFile(this.symbol.classId)
-            else -> error("Should not be here")
-        }
 
     private fun recordFile(file: FirFile, state: State) {
         val packageName = file.packageFqName
@@ -191,6 +188,8 @@ class FirProviderImpl(val session: FirSession, val kotlinScopeProvider: FirKotli
         override fun visitScript(script: FirScript, data: FirRecorderData) {
             val symbol = script.symbol
             data.state.scriptContainerMap[symbol] = data.file
+            data.file.sourceFile?.path?.let { data.state.scriptByFilePathMap[it] = symbol }
+            script.acceptChildren(this, data)
         }
     }
 
@@ -208,6 +207,7 @@ class FirProviderImpl(val session: FirSession, val kotlinScopeProvider: FirKotli
         val constructorMap = mutableMapOf<CallableId, List<FirConstructorSymbol>>()
         val callableContainerMap = mutableMapOf<FirCallableSymbol<*>, FirFile>()
         val scriptContainerMap = mutableMapOf<FirScriptSymbol, FirFile>()
+        val scriptByFilePathMap = mutableMapOf<String, FirScriptSymbol>()
 
         fun setFrom(other: State) {
             fileMap.clear()
@@ -219,6 +219,7 @@ class FirProviderImpl(val session: FirSession, val kotlinScopeProvider: FirKotli
             constructorMap.clear()
             callableContainerMap.clear()
             scriptContainerMap.clear()
+            scriptByFilePathMap.clear()
 
             fileMap.putAll(other.fileMap)
             allSubPackages.addAll(other.allSubPackages)
@@ -229,6 +230,7 @@ class FirProviderImpl(val session: FirSession, val kotlinScopeProvider: FirKotli
             constructorMap.putAll(other.constructorMap)
             callableContainerMap.putAll(other.callableContainerMap)
             scriptContainerMap.putAll(other.scriptContainerMap)
+            scriptByFilePathMap.putAll(other.scriptByFilePathMap)
             classesInPackage.putAll(other.classesInPackage)
             classifierInPackage.putAll(other.classifierInPackage)
         }
@@ -321,9 +323,6 @@ class FirProviderImpl(val session: FirSession, val kotlinScopeProvider: FirKotli
         return state.classesInPackage[fqName] ?: emptySet()
     }
 
-    fun getAllFirFiles(): List<FirFile> {
-        return state.fileMap.values.flatten()
-    }
 }
 
 private const val rebuildIndex = true

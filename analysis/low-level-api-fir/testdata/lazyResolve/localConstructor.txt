@@ -1,6 +1,5 @@
 RAW_FIR:
 FILE: [ResolvedTo(RAW_FIR)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] class Q : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -13,7 +12,6 @@ FILE: [ResolvedTo(RAW_FIR)] localConstructor.kt
 
 IMPORTS:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] class Q : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -26,7 +24,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 COMPILER_REQUIRED_ANNOTATIONS:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] class Q : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -39,7 +36,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 COMPANION_GENERATION:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public? final? [ResolvedTo(RAW_FIR)] class Q : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -52,7 +48,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 SUPER_TYPES:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public? final? [ResolvedTo(SUPER_TYPES)] class Q : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -65,7 +60,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 TYPES:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public? final? [ResolvedTo(TYPES)] class Q : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -78,7 +72,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 STATUS:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public final [ResolvedTo(STATUS)] class Q : R|kotlin/Any| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -91,7 +84,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 EXPECT_ACTUAL_MATCHING:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public final [ResolvedTo(STATUS)] class Q : R|kotlin/Any| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -104,7 +96,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 ARGUMENTS_OF_ANNOTATIONS:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public final [ResolvedTo(STATUS)] class Q : R|kotlin/Any| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -117,7 +108,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 CONTRACTS:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? final? [ResolvedTo(RAW_FIR)] fun <[ResolvedTo(RAW_FIR)] T> magic(): T { LAZY_BLOCK }
     public final [ResolvedTo(STATUS)] class Q : R|kotlin/Any| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Q] constructor(): R|Q| {
@@ -126,8 +116,8 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
         public final [ResolvedTo(CONTRACTS)] fun <[ResolvedTo(CONTRACTS)] E, [ResolvedTo(CONTRACTS)] F> foo(): <implicit> {
             ^foo [ResolvedTo(RAW_FIR)] fun <implicit>.<anonymous>(): <implicit> <inline=Unknown>  {
-                local final? [ResolvedTo(RAW_FIR)] class C<[ResolvedTo(RAW_FIR)] G, [ResolvedTo(CONTRACTS)] E, [ResolvedTo(CONTRACTS)] F> : R|kotlin/Any| {
-                    public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=C] constructor<[ResolvedTo(RAW_FIR)] G>(): R|Q.C<G, E, F>| {
+                local final? [ResolvedTo(RAW_FIR)] class C<[ResolvedTo(RAW_FIR)] G, [ResolvedTo(CONTRACTS)] Outer(E), [ResolvedTo(CONTRACTS)] Outer(F)> : R|kotlin/Any| {
+                    public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=C] constructor<[ResolvedTo(RAW_FIR)] G>(): R|<local>/C<G, E, F>| {
                         super<R|kotlin/Any|>()
                     }
 
@@ -151,7 +141,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 IMPLICIT_TYPES_BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(CONTRACTS)] fun <[ResolvedTo(CONTRACTS)] T> magic(): R|T| {
         ^magic Null(null)!!
     }
@@ -160,10 +149,10 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
             LAZY_super<R|kotlin/Any|>
         }
 
-        public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] fun <[ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] E, [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] F> foo(): R|() -> Q.C<F, E, F>| {
-            ^foo [ResolvedTo(RAW_FIR)] fun <anonymous>(): R|Q.C<F, E, F>| <inline=Unknown>  {
-                local final [ResolvedTo(RAW_FIR)] class C<[ResolvedTo(RAW_FIR)] G, [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] E, [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] F> : R|kotlin/Any| {
-                    public [ResolvedTo(RAW_FIR)] [ContainingClassKey=C] constructor<[ResolvedTo(RAW_FIR)] G>(): R|Q.C<G, E, F>| {
+        public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] fun <[ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] E, [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] F> foo(): R|() -> <local>/C<F, E, F>| {
+            ^foo [ResolvedTo(RAW_FIR)] fun <anonymous>(): R|<local>/C<F, E, F>| <inline=Unknown>  {
+                local final [ResolvedTo(RAW_FIR)] class C<[ResolvedTo(RAW_FIR)] G, [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] Outer(E), [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] Outer(F)> : R|kotlin/Any| {
+                    public [ResolvedTo(RAW_FIR)] [ContainingClassKey=C] constructor<[ResolvedTo(RAW_FIR)] G>(): R|<local>/C<G, E, F>| {
                         super<R|kotlin/Any|>()
                     }
 
@@ -178,7 +167,7 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
                 }
 
-                ^ R|SubstitutionOverride<<local>/Q.C.C>|<R|F|>()
+                ^ R|SubstitutionOverride<<local>/C.C>|<R|F|>()
             }
 
         }
@@ -187,7 +176,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 ANNOTATIONS_ARGUMENTS_MAPPING:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(CONTRACTS)] fun <[ResolvedTo(CONTRACTS)] T> magic(): R|T| {
         ^magic Null(null)!!
     }
@@ -196,10 +184,10 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
             LAZY_super<R|kotlin/Any|>
         }
 
-        public final [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] fun <[ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] E, [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] F> foo(): R|() -> Q.C<F, E, F>| {
-            ^foo [ResolvedTo(RAW_FIR)] fun <anonymous>(): R|Q.C<F, E, F>| <inline=Unknown>  {
-                local final [ResolvedTo(RAW_FIR)] class C<[ResolvedTo(RAW_FIR)] G, [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] E, [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] F> : R|kotlin/Any| {
-                    public [ResolvedTo(RAW_FIR)] [ContainingClassKey=C] constructor<[ResolvedTo(RAW_FIR)] G>(): R|Q.C<G, E, F>| {
+        public final [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] fun <[ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] E, [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] F> foo(): R|() -> <local>/C<F, E, F>| {
+            ^foo [ResolvedTo(RAW_FIR)] fun <anonymous>(): R|<local>/C<F, E, F>| <inline=Unknown>  {
+                local final [ResolvedTo(RAW_FIR)] class C<[ResolvedTo(RAW_FIR)] G, [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] Outer(E), [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] Outer(F)> : R|kotlin/Any| {
+                    public [ResolvedTo(RAW_FIR)] [ContainingClassKey=C] constructor<[ResolvedTo(RAW_FIR)] G>(): R|<local>/C<G, E, F>| {
                         super<R|kotlin/Any|>()
                     }
 
@@ -214,7 +202,7 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
                 }
 
-                ^ R|SubstitutionOverride<<local>/Q.C.C>|<R|F|>()
+                ^ R|SubstitutionOverride<<local>/C.C>|<R|F|>()
             }
 
         }
@@ -223,7 +211,6 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
 BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(CONTRACTS)] fun <[ResolvedTo(CONTRACTS)] T> magic(): R|T| {
         ^magic Null(null)!!
     }
@@ -232,10 +219,10 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
             LAZY_super<R|kotlin/Any|>
         }
 
-        public final [ResolvedTo(BODY_RESOLVE)] fun <[ResolvedTo(BODY_RESOLVE)] E, [ResolvedTo(BODY_RESOLVE)] F> foo(): R|() -> Q.C<F, E, F>| {
-            ^foo [ResolvedTo(BODY_RESOLVE)] fun <anonymous>(): R|Q.C<F, E, F>| <inline=Unknown>  {
-                local final [ResolvedTo(BODY_RESOLVE)] class C<[ResolvedTo(BODY_RESOLVE)] G, [ResolvedTo(BODY_RESOLVE)] E, [ResolvedTo(BODY_RESOLVE)] F> : R|kotlin/Any| {
-                    public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=C] constructor<[ResolvedTo(BODY_RESOLVE)] G>(): R|Q.C<G, E, F>| {
+        public final [ResolvedTo(BODY_RESOLVE)] fun <[ResolvedTo(BODY_RESOLVE)] E, [ResolvedTo(BODY_RESOLVE)] F> foo(): R|() -> <local>/C<F, E, F>| {
+            ^foo [ResolvedTo(BODY_RESOLVE)] fun <anonymous>(): R|<local>/C<F, E, F>| <inline=Unknown>  {
+                local final [ResolvedTo(BODY_RESOLVE)] class C<[ResolvedTo(BODY_RESOLVE)] G, [ResolvedTo(BODY_RESOLVE)] Outer(E), [ResolvedTo(BODY_RESOLVE)] Outer(F)> : R|kotlin/Any| {
+                    public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=C] constructor<[ResolvedTo(BODY_RESOLVE)] G>(): R|<local>/C<G, E, F>| {
                         super<R|kotlin/Any|>()
                     }
 
@@ -250,7 +237,7 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
                 }
 
-                ^ R|SubstitutionOverride<<local>/Q.C.C>|<R|F|>()
+                ^ R|SubstitutionOverride<<local>/C.C>|<R|F|>()
             }
 
         }
@@ -258,8 +245,7 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
     }
 
 FILE RAW TO BODY:
-FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
+FILE: [ResolvedTo(BODY_RESOLVE)] localConstructor.kt
     public final [ResolvedTo(BODY_RESOLVE)] fun <[ResolvedTo(BODY_RESOLVE)] T> magic(): R|T| {
         ^magic Null(null)!!
     }
@@ -268,10 +254,10 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
             super<R|kotlin/Any|>()
         }
 
-        public final [ResolvedTo(BODY_RESOLVE)] fun <[ResolvedTo(BODY_RESOLVE)] E, [ResolvedTo(BODY_RESOLVE)] F> foo(): R|() -> Q.C<F, E, F>| {
-            ^foo [ResolvedTo(BODY_RESOLVE)] fun <anonymous>(): R|Q.C<F, E, F>| <inline=Unknown>  {
-                local final [ResolvedTo(BODY_RESOLVE)] class C<[ResolvedTo(BODY_RESOLVE)] G, [ResolvedTo(BODY_RESOLVE)] E, [ResolvedTo(BODY_RESOLVE)] F> : R|kotlin/Any| {
-                    public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=C] constructor<[ResolvedTo(BODY_RESOLVE)] G>(): R|Q.C<G, E, F>| {
+        public final [ResolvedTo(BODY_RESOLVE)] fun <[ResolvedTo(BODY_RESOLVE)] E, [ResolvedTo(BODY_RESOLVE)] F> foo(): R|() -> <local>/C<F, E, F>| {
+            ^foo [ResolvedTo(BODY_RESOLVE)] fun <anonymous>(): R|<local>/C<F, E, F>| <inline=Unknown>  {
+                local final [ResolvedTo(BODY_RESOLVE)] class C<[ResolvedTo(BODY_RESOLVE)] G, [ResolvedTo(BODY_RESOLVE)] Outer(E), [ResolvedTo(BODY_RESOLVE)] Outer(F)> : R|kotlin/Any| {
+                    public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=C] constructor<[ResolvedTo(BODY_RESOLVE)] G>(): R|<local>/C<G, E, F>| {
                         super<R|kotlin/Any|>()
                     }
 
@@ -286,7 +272,7 @@ FILE: [ResolvedTo(IMPORTS)] localConstructor.kt
 
                 }
 
-                ^ R|SubstitutionOverride<<local>/Q.C.C>|<R|F|>()
+                ^ R|SubstitutionOverride<<local>/C.C>|<R|F|>()
             }
 
         }

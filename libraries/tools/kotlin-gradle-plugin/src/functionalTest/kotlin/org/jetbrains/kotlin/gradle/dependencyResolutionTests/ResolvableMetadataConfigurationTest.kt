@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.gradle.idea.tcs.IdeaKotlinBinaryDependency
 import org.jetbrains.kotlin.gradle.idea.testFixtures.tcs.assertMatches
 import org.jetbrains.kotlin.gradle.idea.testFixtures.tcs.binaryCoordinates
 import org.jetbrains.kotlin.gradle.plugin.ide.kotlinIdeMultiplatformImport
+import org.jetbrains.kotlin.gradle.plugin.kotlinToolingVersion
 import org.jetbrains.kotlin.gradle.plugin.mpp.resolvableMetadataConfiguration
 import org.jetbrains.kotlin.gradle.plugin.sources.internal
 import org.jetbrains.kotlin.gradle.util.applyMultiplatformPlugin
@@ -29,9 +30,15 @@ class ResolvableMetadataConfigurationTest {
     @Test
     fun `test - resolves consistent in project`() {
         val project = buildProject {
-            enableDefaultStdlibDependency(false)
+            enableDefaultStdlibDependency(true)
             enableDependencyVerification(false)
             applyMultiplatformPlugin()
+
+            repositories.mavenLocal { repo ->
+                repo.mavenContent { content ->
+                    content.includeGroupByRegex(".*jetbrains.*")
+                }
+            }
             repositories.mavenCentralCacheRedirector()
         }
 
@@ -77,8 +84,8 @@ class ResolvableMetadataConfigurationTest {
         /* Check IDE resolution for commonMain */
         project.kotlinIdeMultiplatformImport.resolveDependencies("commonMain")
             .assertMatches(
-                binaryCoordinates(Regex("com.squareup.okio:okio(-.*)?:3.3.0:.*")),
-                binaryCoordinates(Regex("org.jetbrains.kotlin.*"))
+                binaryCoordinates(Regex("com.squareup.okio:okio(-.*)?:.*:3.3.0")),
+                binaryCoordinates("org.jetbrains.kotlin:kotlin-stdlib:commonMain:${project.kotlinToolingVersion}")
             )
 
         /* Check IDE resolution for nativeMain */
@@ -86,8 +93,8 @@ class ResolvableMetadataConfigurationTest {
             .filterIsInstance<IdeaKotlinBinaryDependency>()
             .filter { it.coordinates?.group.orEmpty() in setOf("com.squareup.okio", "com.arkivanov.mvikotlin") }
             .assertMatches(
-                binaryCoordinates(Regex("com.squareup.okio:okio(-.*)?:3.3.0:.*")),
-                binaryCoordinates(Regex("com.arkivanov.mvikotlin:mvikotlin(-*)?:3.0.2:.*")),
+                binaryCoordinates(Regex("com.squareup.okio:okio(-.*)?:.*:3.3.0")),
+                binaryCoordinates(Regex("com.arkivanov.mvikotlin:mvikotlin(-*)?:.*:3.0.2")),
             )
     }
 }

@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.fir.resolve.FirSamResolver
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.inference.InferenceComponents
 import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.name.StandardClassIds.Byte
@@ -29,6 +30,7 @@ import org.jetbrains.kotlin.resolve.calls.results.*
 import org.jetbrains.kotlin.types.model.KotlinTypeMarker
 import org.jetbrains.kotlin.types.model.requireOrDescribe
 import org.jetbrains.kotlin.utils.addIfNotNull
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 abstract class AbstractConeCallConflictResolver(
     private val specificityComparator: TypeSpecificityComparator,
@@ -120,7 +122,9 @@ abstract class AbstractConeCallConflictResolver(
             is FirVariable -> createFlatSignature(call, declaration)
             is FirClass -> createFlatSignature(call, declaration)
             is FirTypeAlias -> createFlatSignature(call, declaration)
-            else -> error("Not supported: $declaration")
+            else -> errorWithAttachment("Not supported: ${declaration::class.java}") {
+                withFirEntry("declaration", declaration)
+            }
         }
     }
 
@@ -134,7 +138,7 @@ abstract class AbstractConeCallConflictResolver(
             hasVarargs = false,
             numDefaults = 0,
             isExpect = (variable as? FirProperty)?.isExpect == true,
-            isSyntheticMember = false // TODO
+            isSyntheticMember = false
         )
     }
 
@@ -149,7 +153,7 @@ abstract class AbstractConeCallConflictResolver(
             hasVarargs = constructor.valueParameters.any { it.isVararg },
             numDefaults = call.numDefaults,
             isExpect = constructor.isExpect,
-            isSyntheticMember = false // TODO
+            isSyntheticMember = false
         )
     }
 
@@ -163,7 +167,7 @@ abstract class AbstractConeCallConflictResolver(
             hasVarargs = function.valueParameters.any { it.isVararg },
             numDefaults = call.numDefaults,
             isExpect = function.isExpect,
-            isSyntheticMember = false // TODO
+            isSyntheticMember = false
         )
     }
 
@@ -226,7 +230,7 @@ abstract class AbstractConeCallConflictResolver(
             (klass as? FirTypeParameterRefsOwner)?.typeParameters?.map { it.symbol.toLookupTag() }.orEmpty(),
             emptyList(),
             hasExtensionReceiver = false,
-            0, // TODO
+            0,
             hasVarargs = false,
             numDefaults = 0,
             isExpect = (klass as? FirRegularClass)?.isExpect == true,

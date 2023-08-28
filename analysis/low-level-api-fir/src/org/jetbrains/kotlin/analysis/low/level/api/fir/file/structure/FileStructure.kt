@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.element.builder.getNonLoc
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.findSourceByTraversingWholeTree
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.findSourceNonLocalFirDeclaration
-import org.jetbrains.kotlin.analysis.utils.printer.getElementTextInContext
 import org.jetbrains.kotlin.diagnostics.KtPsiDiagnostic
 import org.jetbrains.kotlin.fir.declarations.FirDanglingModifierList
 import org.jetbrains.kotlin.fir.declarations.FirFile
@@ -25,8 +24,11 @@ import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.isAncestor
 import java.util.concurrent.ConcurrentHashMap
 import org.jetbrains.kotlin.analysis.low.level.api.fir.element.builder.canBePartOfParentDeclaration
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.codeFragment
 import org.jetbrains.kotlin.fir.correspondingProperty
 import org.jetbrains.kotlin.fir.declarations.impl.FirPrimaryConstructor
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal class FileStructure private constructor(
     private val ktFile: KtFile,
@@ -88,23 +90,32 @@ internal class FileStructure private constructor(
     }
 
     private fun getStructureElementForDeclaration(declaration: KtElement): FileStructureElement {
-        @Suppress("CANNOT_CHECK_FOR_ERASED")
-        val structureElement = structureElements.compute(declaration) { _, structureElement ->
-            when {
-                structureElement == null -> createStructureElement(declaration)
-                structureElement is ReanalyzableStructureElement<KtDeclaration, *> && !structureElement.isUpToDate() -> {
-                    structureElement.reanalyze(newKtDeclaration = declaration as KtDeclaration)
-                }
-                else -> structureElement
-            }
+        val elementFromCache = structureElements[declaration]
+        if (elementFromCache == null) {
+            val newElement = createStructureElement(declaration)
+            return structureElements.putIfAbsent(declaration, newElement) ?: newElement
         }
-        return structureElement
-            ?: error("FileStructureElement for was not defined for \n${declaration.getElementTextInContext()}")
+
+        if (elementFromCache !is ReanalyzableStructureElement<*, *> || elementFromCache.isUpToDate()) {
+            return elementFromCache
+        }
+
+        val reanalyzedElement = elementFromCache.reanalyze()
+        return structureElements.merge(declaration, reanalyzedElement) { _, oldElement ->
+            if (oldElement === elementFromCache) {
+                reanalyzedElement
+            } else {
+                // Another thread already reanalyzed the declaration
+                oldElement
+            }
+        } ?: errorWithFirSpecificEntries(
+            "${reanalyzedElement::class.simpleName} for ${declaration::class.simpleName} is gone",
+            psi = declaration,
+        )
     }
 
     fun getAllDiagnosticsForFile(diagnosticCheckerFilter: DiagnosticCheckerFilter): Collection<KtPsiDiagnostic> {
         val structureElements = getAllStructureElements()
-
         return buildList {
             collectDiagnosticsFromStructureElements(structureElements, diagnosticCheckerFilter)
         }
@@ -112,7 +123,7 @@ internal class FileStructure private constructor(
 
     private fun MutableCollection<KtPsiDiagnostic>.collectDiagnosticsFromStructureElements(
         structureElements: Collection<FileStructureElement>,
-        diagnosticCheckerFilter: DiagnosticCheckerFilter
+        diagnosticCheckerFilter: DiagnosticCheckerFilter,
     ) {
         structureElements.forEach { structureElement ->
             structureElement.diagnostics.forEach(diagnosticCheckerFilter) { diagnostics ->
@@ -149,9 +160,8 @@ internal class FileStructure private constructor(
 
     private fun createDeclarationStructure(declaration: KtDeclaration): FileStructureElement {
         val firDeclaration = declaration.findSourceNonLocalFirDeclaration(
-            moduleComponents.firFileBuilder,
+            firFile,
             firProvider,
-            firFile
         )
 
         firDeclaration.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
@@ -180,20 +190,30 @@ internal class FileStructure private constructor(
     }
 
     private fun createStructureElement(container: KtElement): FileStructureElement = when {
+        container is KtCodeFragment -> {
+            val firCodeFragment = firFile.codeFragment
+            firCodeFragment.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
+
+            ReanalyzableCodeFragmentStructureElement(firFile, container, firCodeFragment.symbol, moduleComponents)
+        }
         container is KtFile -> {
             val firFile = moduleComponents.firFileBuilder.buildRawFirFileWithCaching(ktFile)
             firFile.lazyResolveToPhase(FirResolvePhase.IMPORTS)
 
-            moduleComponents.firModuleLazyDeclarationResolver.lazyResolve(
-                target = firFile.annotationsContainer,
-                scopeSession = moduleComponents.scopeSessionProvider.getScopeSession(),
-                FirResolvePhase.BODY_RESOLVE,
-            )
+            firFile.annotationsContainer?.let {
+                moduleComponents.firModuleLazyDeclarationResolver.lazyResolve(
+                    target = it,
+                    scopeSession = moduleComponents.scopeSessionProvider.getScopeSession(),
+                    FirResolvePhase.BODY_RESOLVE,
+                )
+            }
 
             RootStructureElement(firFile, container, moduleComponents)
         }
         container is KtDeclaration -> createDeclarationStructure(container)
         container is KtModifierList && container.nextSibling is PsiErrorElement -> createDanglingModifierListStructure(container)
-        else -> error("Invalid container $container")
+        else -> errorWithAttachment("Invalid container ${container::class}") {
+            withPsiEntry("container", container)
+        }
     }
 }

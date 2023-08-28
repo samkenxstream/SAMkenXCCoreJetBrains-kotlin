@@ -10,6 +10,7 @@
 
 #include "KAssert.h"
 #include "Utils.hpp"
+#include "std_support/Vector.hpp"
 
 namespace kotlin::alloc {
 
@@ -24,7 +25,7 @@ public:
     AtomicStack& operator=(AtomicStack&& other) noexcept {
         // Not using swap idiom, because implementing swap of two atomics requires DCAS or locks.
         auto newHead = other.stack_.exchange(nullptr, std::memory_order_acq_rel);
-        stack_.store(newHead, std::memory_order_acq_rel);
+        stack_.store(newHead, std::memory_order_release);
         return *this;
     }
 
@@ -34,14 +35,21 @@ public:
     // freeing pages during STW.
     T* Pop() noexcept {
         T* elm = stack_.load(std::memory_order_acquire);
-        while (elm && !stack_.compare_exchange_weak(elm, elm->next_, std::memory_order_acq_rel)) {}
-        return elm;
+        while (true) {
+            if (!elm) {
+                return nullptr;
+            }
+            auto* elmNext = elm->next_.load(std::memory_order_relaxed);
+            if (stack_.compare_exchange_weak(elm, elmNext, std::memory_order_acq_rel)) {
+                return elm;
+            }
+        }
     }
 
     void Push(T* elm) noexcept {
         T* head = nullptr;
         do {
-            elm->next_ = head;
+            elm->next_.store(head, std::memory_order_relaxed);
         } while (!stack_.compare_exchange_weak(head, elm, std::memory_order_acq_rel));
     }
 
@@ -57,14 +65,14 @@ public:
         }
         // `this` stack is not empty. Find the tail of `other`. If no deletions are performed, this is safe.
         T* otherTail = otherHead;
-        while (otherTail->next_) otherTail = otherTail->next_;
+        while (auto* next = otherTail->next_.load(std::memory_order_relaxed)) otherTail = next;
         // can't be because of the loop above
-        RuntimeAssert(otherTail->next_ == nullptr, "otherTail->next_ must be a tail");
+        RuntimeAssert(otherTail->next_.load(std::memory_order_relaxed) == nullptr, "otherTail->next_ must be a tail");
         // Now make `otherTail->next_` point to the current head of `this` and
         // simultaneously make `otherHead` the new current head.
         do {
-            otherTail->next_ = thisHead;
-        } while (!stack_.compare_exchange_weak(thisHead, otherHead, std::memory_order_acq_rel));
+            otherTail->next_.store(thisHead, std::memory_order_relaxed);
+        } while (!stack_.compare_exchange_weak(thisHead, otherHead, std::memory_order_release, std::memory_order_relaxed));
     }
 
     bool isEmpty() const noexcept { return stack_.load(std::memory_order_relaxed) == nullptr; }
@@ -80,6 +88,17 @@ public:
 
     ~AtomicStack() {
         RuntimeAssert(isEmpty(), "AtomicStack must be empty on destruction");
+    }
+
+    // Test method
+    std_support::vector<T*> GetElements() {
+        std_support::vector<T*> elements;
+        T* elm = stack_.load();
+        while (elm) {
+            elements.push_back(elm);
+            elm = elm->next_;
+        }
+        return elements;
     }
 
 private:

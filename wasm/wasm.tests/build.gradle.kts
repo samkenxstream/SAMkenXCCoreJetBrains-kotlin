@@ -11,7 +11,7 @@ repositories {
     ivy {
         url = URI("https://archive.mozilla.org/pub/firefox/nightly/")
         patternLayout {
-            artifact("2023/05/[revision]/[artifact]-[classifier].[ext]")
+            artifact("2023/07/[revision]/[artifact]-[classifier].[ext]")
         }
         metadataSources { artifact() }
         content { includeModule("org.mozilla", "jsshell") }
@@ -44,7 +44,7 @@ val currentOsType = run {
 }
 
 
-val jsShellVersion = "2023-05-12-09-49-14-mozilla-central"
+val jsShellVersion = "2023-07-24-09-16-21-mozilla-central"
 val jsShellSuffix = when (currentOsType) {
     OsType(OsName.LINUX, OsArch.X86_32) -> "linux-i686"
     OsType(OsName.LINUX, OsArch.X86_64) -> "linux-x86_64"
@@ -76,6 +76,7 @@ dependencies {
 val generationRoot = projectDir.resolve("tests-gen")
 
 useD8Plugin()
+useNodeJsPlugin()
 optInToExperimentalCompilerApi()
 
 sourceSets {
@@ -86,11 +87,11 @@ sourceSets {
     }
 }
 
-fun Test.setupWasmStdlib() {
-    dependsOn(":kotlin-stdlib-wasm:compileKotlinWasm")
-    systemProperty("kotlin.wasm.stdlib.path", "libraries/stdlib/wasm/build/classes/kotlin/wasm/main")
-    dependsOn(":kotlin-test:kotlin-test-wasm:compileKotlinWasm")
-    systemProperty("kotlin.wasm.kotlin.test.path", "libraries/kotlin.test/wasm/build/classes/kotlin/wasm/main")
+fun Test.setupWasmStdlib(target: String) {
+    dependsOn(":kotlin-stdlib-wasm-$target:compileKotlinWasm")
+    systemProperty("kotlin.wasm-$target.stdlib.path", "libraries/stdlib/wasm/$target/build/classes/kotlin/wasm/main")
+    dependsOn(":kotlin-test:kotlin-test-wasm-$target:compileKotlinWasm")
+    systemProperty("kotlin.wasm-$target.kotlin.test.path", "libraries/kotlin.test/wasm/$target/build/classes/kotlin/wasm/main")
 }
 
 fun Test.setupGradlePropertiesForwarding() {
@@ -144,9 +145,11 @@ fun Project.wasmProjectTest(
     ) {
         workingDir = rootDir
         setupV8()
+        setupNodeJs()
         setupSpiderMonkey()
         useJUnitPlatform()
-        setupWasmStdlib()
+        setupWasmStdlib("js")
+        setupWasmStdlib("wasi")
         setupGradlePropertiesForwarding()
         systemProperty("kotlin.wasm.test.root.out.dir", "$buildDir/")
         body()

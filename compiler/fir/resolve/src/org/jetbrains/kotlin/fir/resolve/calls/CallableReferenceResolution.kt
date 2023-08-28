@@ -17,16 +17,15 @@ import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirNamedArgumentExpression
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.expressions.builder.buildNamedArgumentExpression
-import org.jetbrains.kotlin.fir.resolve.BodyResolveComponents
-import org.jetbrains.kotlin.fir.resolve.DoubleColonLHS
-import org.jetbrains.kotlin.fir.resolve.createFunctionType
+import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnsupportedCallableReferenceTarget
 import org.jetbrains.kotlin.fir.resolve.inference.extractInputOutputTypesFromCallableReferenceExpectedType
 import org.jetbrains.kotlin.fir.resolve.inference.model.ConeArgumentConstraintPosition
-import org.jetbrains.kotlin.fir.resolve.scope
 import org.jetbrains.kotlin.fir.scopes.FakeOverrideTypeCalculator
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.utils.exceptions.withConeTypeEntry
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.FirVisitor
 import org.jetbrains.kotlin.name.StandardClassIds
@@ -35,6 +34,7 @@ import org.jetbrains.kotlin.resolve.calls.inference.runTransaction
 import org.jetbrains.kotlin.resolve.calls.tower.isSuccess
 import org.jetbrains.kotlin.types.expressions.CoercionStrategy
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 
 internal object CheckCallableReferenceExpectedType : CheckerStage() {
@@ -248,10 +248,14 @@ private fun BodyResolveComponents.getCallableReferenceAdaptation(
         }
     }
 
-    val coercionStrategy = if (returnExpectedType.isUnitOrFlexibleUnit && !function.returnTypeRef.isUnit)
-        CoercionStrategy.COERCION_TO_UNIT
-    else
-        CoercionStrategy.NO_COERCION
+    val returnTypeRef = function.returnTypeRef
+    val coercionStrategy =
+        if (returnExpectedType.isUnitOrFlexibleUnit &&
+            returnTypeRef.coneTypeSafe<ConeKotlinType>()?.fullyExpandedType(session)?.isUnit != true
+        )
+            CoercionStrategy.COERCION_TO_UNIT
+        else
+            CoercionStrategy.NO_COERCION
 
     val adaptedArguments = if (expectedType.isBaseTypeForNumberedReferenceTypes)
         emptyMap()
@@ -304,7 +308,11 @@ private fun varargParameterTypeByExpectedParameter(
     varargMappingState: VarargMappingState,
 ): Pair<ConeKotlinType?, VarargMappingState> {
     val elementType = substitutedParameter.returnTypeRef.coneType.arrayElementType()
-        ?: error("Vararg parameter $substitutedParameter does not have vararg type")
+        ?: errorWithAttachment("Vararg parameter ${substitutedParameter::class.java} does not have vararg type") {
+            withConeTypeEntry("expectedParameterType", expectedParameterType)
+            withFirEntry("substitutedParameter", substitutedParameter)
+            withEntry("varargMappingState", varargMappingState.toString())
+        }
 
     return when (varargMappingState) {
         VarargMappingState.UNMAPPED -> {
@@ -396,18 +404,18 @@ private fun createFakeArgumentsForReference(
 }
 
 class FirFakeArgumentForCallableReference(
-    val index: Int
+    val index: Int,
 ) : FirExpression() {
     override val source: KtSourceElement?
         get() = null
 
-    override val typeRef: FirTypeRef
+    override val coneTypeOrNull: ConeKotlinType
         get() = shouldNotBeCalled()
 
     override val annotations: List<FirAnnotation>
         get() = shouldNotBeCalled()
 
-    override fun replaceTypeRef(newTypeRef: FirTypeRef) {
+    override fun replaceConeTypeOrNull(newConeTypeOrNull: ConeKotlinType?) {
         shouldNotBeCalled()
     }
 

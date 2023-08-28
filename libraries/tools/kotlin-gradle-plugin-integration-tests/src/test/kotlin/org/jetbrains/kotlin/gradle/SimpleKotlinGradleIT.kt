@@ -217,14 +217,23 @@ class SimpleKotlinGradleIT : KGPBaseTest() {
 
     @DisplayName("Proper Gradle plugin variant is used")
     @GradleTestVersions(
-        additionalVersions = [TestVersions.Gradle.G_7_0, TestVersions.Gradle.G_7_1, TestVersions.Gradle.G_7_3, TestVersions.Gradle.G_7_4, TestVersions.Gradle.G_7_5],
-        maxVersion = TestVersions.Gradle.G_7_6
+        additionalVersions = [
+            TestVersions.Gradle.G_7_0,
+            TestVersions.Gradle.G_7_1,
+            TestVersions.Gradle.G_7_3,
+            TestVersions.Gradle.G_7_4,
+            TestVersions.Gradle.G_7_5,
+            TestVersions.Gradle.G_7_6,
+            TestVersions.Gradle.G_8_0,
+        ],
     )
     @GradleTest
     internal fun pluginVariantIsUsed(gradleVersion: GradleVersion) {
         project("kotlinProject", gradleVersion) {
-            build("tasks") {
+            build("help") {
                 val expectedVariant = when (gradleVersion) {
+                    in GradleVersion.version(TestVersions.Gradle.G_8_1)..GradleVersion.version(TestVersions.Gradle.G_8_2) -> "gradle81"
+                    GradleVersion.version(TestVersions.Gradle.G_8_0) -> "gradle80"
                     GradleVersion.version(TestVersions.Gradle.G_7_6) -> "gradle76"
                     GradleVersion.version(TestVersions.Gradle.G_7_5) -> "gradle75"
                     GradleVersion.version(TestVersions.Gradle.G_7_4) -> "gradle74"
@@ -238,46 +247,11 @@ class SimpleKotlinGradleIT : KGPBaseTest() {
         }
     }
 
-    @DisplayName("Validate Gradle plugins inputs")
-    // TODO(Dmitrii Krasnov): validate-external-gradle-plugin has been removed in Gradle 8.0,
-    //  so this test should be removed after correct configuring k-g-p and k-g-p-api tasks
-    @GradleTestVersions(
-        minVersion = TestVersions.Gradle.G_7_6,
-        maxVersion = TestVersions.Gradle.G_7_6
-    ) // Always should use only latest Gradle version
-    @GradleTest
-    internal fun validatePluginInputs(gradleVersion: GradleVersion) {
-        project("kotlinProject", gradleVersion) {
-            buildGradle.modify {
-                """
-                plugins {
-                    id "validate-external-gradle-plugin"
-                ${it.substringAfter("plugins {")}
-                """.trimIndent()
-            }
-
-            build("validateExternalPlugins")
-        }
-    }
-
     @DisplayName("Accessing Kotlin SourceSet in KotlinDSL")
     @GradleTestVersions(maxVersion = TestVersions.Gradle.G_7_1)
     @GradleTest
     internal fun kotlinDslSourceSets(gradleVersion: GradleVersion) {
         project("sourceSetsKotlinDsl", gradleVersion) {
-            build("assemble")
-        }
-    }
-
-    @DisplayName("KT-53402: ignore non project source changes")
-    @GradleTest
-    fun ignoreNonProjectSourceChanges(gradleVersion: GradleVersion) {
-        project("simpleProject", gradleVersion) {
-            val resources = projectPath.resolve("src/main/resources").createDirectories()
-            val resourceKts = resources.resolve("resource.kts").createFile()
-            resourceKts.appendText("lkdfjgkjs invalid something")
-            build("assemble")
-            resourceKts.appendText("kajhgfkh invalid something")
             build("assemble")
         }
     }
@@ -325,43 +299,6 @@ class SimpleKotlinGradleIT : KGPBaseTest() {
                 ZipFile(projectPath.resolve("build/libs/simpleProject.jar").toFile()).use { jar ->
                     assert(jar.entries().asSequence().count { it.name == "demo/KotlinGreetingJoiner.class" } == 1) {
                         "The jar should contain one entry `demo/KotlinGreetingJoiner.class` with no duplicates\n" +
-                                jar.entries().asSequence().map { it.name }.joinToString()
-                    }
-                }
-            }
-        }
-    }
-
-    @DisplayName("KT-36904: Adding resources to Kotlin source set should work")
-    @GradleTest
-    internal fun addResourcesKotlinSourceSet(gradleVersion: GradleVersion) {
-        project("simpleProject", gradleVersion) {
-            val mainResDir = projectPath.resolve("src/main/resources").apply { createDirectories() }
-            val mainResFile = mainResDir.resolve("main.txt").apply { writeText("Yay, Kotlin!") }
-
-            val additionalResDir = projectPath.resolve("additionalRes").apply { createDirectory() }
-            val additionalResFile = additionalResDir.resolve("test.txt").apply { writeText("Kotlin!") }
-
-            buildGradle.appendText(
-                //language=groovy
-                """
-                |
-                |kotlin {
-                |    sourceSets.main.resources.srcDir("additionalRes")
-                |}
-                """.trimMargin()
-            )
-
-            build("jar") {
-                assertFileInProjectExists("build/libs/simpleProject.jar")
-                ZipFile(projectPath.resolve("build/libs/simpleProject.jar").toFile()).use { jar ->
-                    assert(jar.entries().asSequence().count { it.name == mainResFile.name } == 1) {
-                        "The jar should contain one entry `${mainResFile.name}` with no duplicates\n" +
-                                jar.entries().asSequence().map { it.name }.joinToString()
-                    }
-
-                    assert(jar.entries().asSequence().count { it.name == additionalResFile.name } == 1) {
-                        "The jar should contain one entry `${additionalResFile.name}` with no duplicates\n" +
                                 jar.entries().asSequence().map { it.name }.joinToString()
                     }
                 }

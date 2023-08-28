@@ -5,12 +5,17 @@ apply plugin: 'kotlin-platform-js'
 configurations {
     distJs
     distLibrary
+    [compileClasspath, runtimeClasspath, testCompileClasspath, testRuntimeClasspath].forEach {
+        it.attributes {
+            attribute(org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute.jsCompilerAttribute, org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute.legacy)
+        }
+    }
 }
 
 dependencies {
     expectedBy project(':kotlin-test:kotlin-test-common')
     expectedBy project(':kotlin-test:kotlin-test-annotations-common')
-    api kotlinStdlib("js")
+    api RepoDependencies.kotlinStdlib(project, "mpp")
 }
 
 compileKotlin2Js {
@@ -49,7 +54,7 @@ tasks.register("libraryJarWithoutIr", Jar) {
     archiveClassifier.set(null)
     destinationDirectory = file("$buildDir/lib/dist")
     from("$buildDir/classes/main")
-    manifestAttributes(manifest, project, 'Test')
+    LibrariesCommon.manifestAttributes(project, manifest, 'Test')
 }
 
 tasks.register("libraryJarWithIr", Zip) {
@@ -86,6 +91,5 @@ artifacts {
     }
 }
 
-configureSourcesJar()
-
-configureJavadocJar()
+RepoArtifacts.sourcesJar(project)
+RepoArtifacts.javadocJar(project)

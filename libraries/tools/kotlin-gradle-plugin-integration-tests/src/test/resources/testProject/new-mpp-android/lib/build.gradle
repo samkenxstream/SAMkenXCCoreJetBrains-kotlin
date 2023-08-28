@@ -87,7 +87,7 @@ kotlin {
             publishAllLibraryVariants()
         }
         fromPreset(presets.jvm, 'jvmLib')
-        fromPreset(presets.js, 'jsLib')
+        fromPreset(presets.jsIr, 'jsLib')
     }
 }
 
@@ -97,8 +97,4 @@ publishing {
             url = uri("$buildDir/repo")
         }
 	}
-}
-
-tasks.withType(org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile) {
-    kotlinOptions.freeCompilerArgs += "-Xforce-deprecated-legacy-compiler-usage"
 }

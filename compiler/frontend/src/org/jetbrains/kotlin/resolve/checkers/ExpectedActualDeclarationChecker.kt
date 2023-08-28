@@ -21,11 +21,15 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
+import org.jetbrains.kotlin.mpp.MppJavaImplicitActualizatorMarker
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.hasActualModifier
 import org.jetbrains.kotlin.resolve.*
+import org.jetbrains.kotlin.resolve.calls.mpp.AbstractExpectActualAnnotationMatchChecker
 import org.jetbrains.kotlin.resolve.constants.ConstantValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.isAnnotationConstructor
 import org.jetbrains.kotlin.resolve.descriptorUtil.isPrimaryConstructorOfInlineClass
@@ -37,6 +41,8 @@ import org.jetbrains.kotlin.resolve.source.KotlinSourceElement
 import org.jetbrains.kotlin.resolve.source.PsiSourceFile
 import org.jetbrains.kotlin.types.KotlinType
 import java.io.File
+
+private val implicitlyActualizedAnnotationFqn = FqName("kotlin.jvm.ImplicitlyActualizedByJvmDeclaration")
 
 class ExpectedActualDeclarationChecker(
     val moduleStructureOracle: ModuleStructureOracle,
@@ -62,8 +68,9 @@ class ExpectedActualDeclarationChecker(
         if (descriptor.isExpect) {
             checkExpectedDeclarationHasProperActuals(
                 declaration, descriptor, context.trace,
-                checkActualModifier, context.expectActualTracker
+                checkActualModifier, context
             )
+            checkOptInAnnotation(declaration, descriptor, descriptor, context.trace)
         }
         if (descriptor.isActualOrSomeContainerIsActual()) {
             val allDependsOnModules = moduleStructureOracle.findAllDependsOnPaths(descriptor.module).flatMap { it.nodes }.toHashSet()
@@ -90,7 +97,7 @@ class ExpectedActualDeclarationChecker(
         descriptor: MemberDescriptor,
         trace: BindingTrace,
         checkActualModifier: Boolean,
-        expectActualTracker: ExpectActualTracker
+        context: DeclarationCheckerContext
     ) {
         val allActualizationPaths = moduleStructureOracle.findAllReversedDependsOnPaths(descriptor.module)
         val allLeafModules = allActualizationPaths.map { it.nodes.last() }.toSet()
@@ -99,12 +106,38 @@ class ExpectedActualDeclarationChecker(
             val actuals = ExpectedActualResolver.findActualForExpected(descriptor, leafModule) ?: return@forEach
 
             checkExpectedDeclarationHasAtLeastOneActual(
-                reportOn, descriptor, actuals, trace, leafModule, checkActualModifier, expectActualTracker
+                reportOn, descriptor, actuals, trace, leafModule, checkActualModifier, context.expectActualTracker
             )
+
+            checkImplicitJavaActualization(reportOn, descriptor, actuals, leafModule, context)
 
             checkExpectedDeclarationHasAtMostOneActual(
                 reportOn, descriptor, actuals, allActualizationPaths, trace
             )
+        }
+    }
+
+    private fun checkImplicitJavaActualization(
+        expectPsi: KtNamedDeclaration,
+        expect: MemberDescriptor,
+        actuals: ActualsMap,
+        module: ModuleDescriptor,
+        context: DeclarationCheckerContext
+    ) {
+        val actualMembers = actuals
+            .filter { (compatibility, _) -> compatibility.isCompatibleOrWeakCompatible() }
+            .flatMap { (_, members) -> members }
+            .takeIf(List<MemberDescriptor>::isNotEmpty)
+            ?: return
+
+        if (actualMembers.any {
+                it is MppJavaImplicitActualizatorMarker &&
+                        with(OptInUsageChecker) {
+                            !expectPsi.isDeclarationAnnotatedWith(implicitlyActualizedAnnotationFqn, context.trace.bindingContext)
+                        }
+            }
+        ) {
+            context.trace.report(Errors.IMPLICIT_JVM_ACTUALIZATION.on(expectPsi, expect, module))
         }
     }
 
@@ -263,7 +296,8 @@ class ExpectedActualDeclarationChecker(
         trace: BindingTrace,
         moduleVisibilityFilter: ModuleFilter
     ) {
-        val compatibility = ExpectedActualResolver.findExpectedForActual(descriptor, moduleVisibilityFilter)
+        val compatibility = ExpectedActualResolver
+            .findExpectedForActual(descriptor, moduleVisibilityFilter, shouldCheckAbsenceOfDefaultParamsInActual = true)
             ?: return
 
         checkAmbiguousExpects(compatibility, trace, reportOn, descriptor)
@@ -323,7 +357,12 @@ class ExpectedActualDeclarationChecker(
             assert(compatibility.keys.all { it is Incompatible })
             @Suppress("UNCHECKED_CAST")
             val incompatibility = compatibility as Map<Incompatible<MemberDescriptor>, Collection<MemberDescriptor>>
-            trace.report(Errors.ACTUAL_WITHOUT_EXPECT.on(reportOn, descriptor, incompatibility))
+            // A nicer diagnostic for functions with default params
+            if (reportOn is KtFunction && incompatibility.keys.any { it is Incompatible.ActualFunctionWithDefaultParameters }) {
+                trace.report(Errors.ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS.on(reportOn))
+            } else {
+                trace.report(Errors.ACTUAL_WITHOUT_EXPECT.on(reportOn, descriptor, incompatibility))
+            }
         } else {
             val expected = compatibility[Compatible]!!.first()
             if (expected is ClassDescriptor && expected.kind == ClassKind.ANNOTATION_CLASS) {
@@ -334,11 +373,14 @@ class ExpectedActualDeclarationChecker(
                 if (expectedConstructor != null && actualConstructor != null) {
                     checkAnnotationConstructors(expectedConstructor, actualConstructor, trace, reportOn)
                 }
+                checkOptInAnnotation(reportOn, descriptor, expected, trace)
             }
         }
-        val expectSingleCandidate = compatibility.values.singleOrNull()?.singleOrNull()
+        // We want to report errors even if a candidate is incompatible, but it's single
+        val expectSingleCandidate = (compatibility[Compatible] ?: compatibility.values.singleOrNull())?.singleOrNull()
         if (expectSingleCandidate != null) {
             checkIfExpectHasDefaultArgumentsAndActualizedWithTypealias(expectSingleCandidate, reportOn, trace)
+            checkAnnotationsMatch(expectSingleCandidate, descriptor, reportOn, trace)
         }
     }
 
@@ -426,13 +468,46 @@ class ExpectedActualDeclarationChecker(
         return null
     }
 
+    private fun checkOptInAnnotation(
+        reportOn: KtNamedDeclaration,
+        descriptor: MemberDescriptor,
+        expectDescriptor: MemberDescriptor,
+        trace: BindingTrace,
+    ) {
+        if (descriptor is ClassDescriptor &&
+            descriptor.kind == ClassKind.ANNOTATION_CLASS &&
+            descriptor.annotations.hasAnnotation(OptInNames.REQUIRES_OPT_IN_FQ_NAME) &&
+            !expectDescriptor.annotations.hasAnnotation(OptionalAnnotationUtil.OPTIONAL_EXPECTATION_FQ_NAME)
+        ) {
+            trace.report(Errors.EXPECT_ACTUAL_OPT_IN_ANNOTATION.on(reportOn))
+        }
+    }
+
+    private fun checkAnnotationsMatch(
+        expectDescriptor: MemberDescriptor,
+        actualDescriptor: MemberDescriptor,
+        reportOn: KtNamedDeclaration,
+        trace: BindingTrace
+    ) {
+        val context = ClassicExpectActualMatchingContext(actualDescriptor.module)
+        val incompatibility =
+            AbstractExpectActualAnnotationMatchChecker.areAnnotationsCompatible(expectDescriptor, actualDescriptor, context) ?: return
+        trace.report(
+            Errors.ACTUAL_ANNOTATIONS_NOT_MATCH_EXPECT.on(
+                reportOn,
+                incompatibility.expectSymbol as DeclarationDescriptor,
+                incompatibility.actualSymbol as DeclarationDescriptor,
+                incompatibility.type.mapAnnotationType { it.annotationSymbol as AnnotationDescriptor }
+            )
+        )
+    }
+
     companion object {
         fun Map<out ExpectActualCompatibility<MemberDescriptor>, Collection<MemberDescriptor>>.allStrongIncompatibilities(): Boolean =
-            this.keys.all { it is Incompatible && it.kind == IncompatibilityKind.STRONG }
+            this.keys.all { it is Incompatible.StrongIncompatible }
 
         internal fun ExpectActualCompatibility<MemberDescriptor>.isCompatibleOrWeakCompatible() =
-            this is Compatible ||
-                    this is Incompatible && kind == IncompatibilityKind.WEAK
+            this is Compatible || this is Incompatible.WeakIncompatible
     }
 }
 

@@ -37,6 +37,10 @@ class ConeCannotInferValueParameterType(
     override val reason: String = "Cannot infer type for parameter ${valueParameter.name}"
 ) : ConeDiagnostic
 
+class ConeCannotInferReceiverParameterType(
+    override val reason: String = "Cannot infer type for receiver parameter"
+) : ConeDiagnostic
+
 class ConeTypeVariableTypeIsNotInferred(
     val typeVariableType: ConeTypeVariableType,
     override val reason: String = "Type for ${typeVariableType.lookupTag.debugName} is not inferred"
@@ -69,6 +73,18 @@ object ConeDanglingModifierOnTopLevel : ConeDiagnostic {
 class ConeAmbiguousFunctionTypeKinds(val kinds: List<FunctionTypeKind>) : ConeDiagnostic {
     override val reason: String
         get() = "There are multiple function kinds for functional type ref"
+}
+
+object ConeUnsupportedClassLiteralsWithEmptyLhs : ConeDiagnostic {
+    override val reason: String get() = "No receiver in class literal"
+}
+
+object ConeNoConstructorError : ConeDiagnostic {
+    override val reason: String get() = "This type does not have a constructor"
+}
+
+object ConeMissingConstructorKeyword : ConeDiagnostic {
+    override val reason: String get() = "Use the 'constructor' keyword after the modifiers of the primary constructor."
 }
 
 enum class DiagnosticKind {

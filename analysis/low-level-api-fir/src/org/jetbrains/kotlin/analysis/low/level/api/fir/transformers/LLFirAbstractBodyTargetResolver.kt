@@ -10,14 +10,18 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirResolveT
 import org.jetbrains.kotlin.analysis.low.level.api.fir.element.builder.LLFirReturnTypeCalculatorWithJump
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirLockProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.FirLazyBodiesCalculator
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.isScriptStatement
+import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.transformers.ReturnTypeCalculator
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirAbstractBodyResolveTransformerDispatcher
-import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirTowerDataContextCollector
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirResolveContextCollector
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.ImplicitBodyResolveComputationSession
+import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.transformSingle
 
 internal abstract class LLFirAbstractBodyTargetResolver(
@@ -26,15 +30,15 @@ internal abstract class LLFirAbstractBodyTargetResolver(
     private val scopeSession: ScopeSession,
     resolvePhase: FirResolvePhase,
     protected val implicitBodyResolveComputationSession: ImplicitBodyResolveComputationSession = ImplicitBodyResolveComputationSession(),
-    isJumpingPhase: Boolean = false
+    isJumpingPhase: Boolean = false,
 ) : LLFirTargetResolver(resolveTarget, lockProvider, resolvePhase, isJumpingPhase) {
     protected fun createReturnTypeCalculator(
-        towerDataContextCollector: FirTowerDataContextCollector?,
+        firResolveContextCollector: FirResolveContextCollector?,
     ): ReturnTypeCalculator = LLFirReturnTypeCalculatorWithJump(
         scopeSession,
         implicitBodyResolveComputationSession,
         lockProvider,
-        towerDataContextCollector,
+        firResolveContextCollector,
     )
 
     abstract val transformer: FirAbstractBodyResolveTransformerDispatcher
@@ -45,34 +49,51 @@ internal abstract class LLFirAbstractBodyTargetResolver(
         }
     }
 
+    override fun withScript(firScript: FirScript, action: () -> Unit) {
+        transformer.context.withScopesForScript(firScript, transformer.components, action)
+    }
+
     override fun withFile(firFile: FirFile, action: () -> Unit) {
-        transformer.context.withFile(firFile, transformer.components) {
-            action()
-        }
+        transformer.context.withFile(firFile, transformer.components, action)
     }
 
     @Deprecated("Should never be called directly, only for override purposes, please use withRegularClass", level = DeprecationLevel.ERROR)
     override fun withRegularClassImpl(firClass: FirRegularClass, action: () -> Unit) {
-        transformer.declarationsTransformer.context.withContainingClass(firClass) {
-            transformer.declarationsTransformer.withRegularClass(firClass) {
+        transformer.declarationsTransformer?.context?.withContainingClass(firClass) {
+            transformer.declarationsTransformer?.withRegularClass(firClass) {
                 action()
                 firClass
             }
         }
     }
 
-    protected fun calculateLazyBodies(declaration: FirElementWithResolveState) {
-        val firDesignation = FirDesignationWithFile(nestedClassesStack, declaration, resolveTarget.firFile)
-        FirLazyBodiesCalculator.calculateBodies(firDesignation)
-    }
-
-    protected fun <T : FirElementWithResolveState> resolve(target: T, keeper: StateKeeper<T>) {
-        resolveWithKeeper(target, keeper, ::calculateLazyBodies) {
+    protected fun <T : FirElementWithResolveState> resolve(target: T, keeper: StateKeeper<T, FirDesignationWithFile>) {
+        val firDesignation = FirDesignationWithFile(nestedClassesStack, target, resolveTarget.firFile)
+        resolveWithKeeper(target, firDesignation, keeper, { FirLazyBodiesCalculator.calculateBodies(firDesignation) }) {
             rawResolve(target)
         }
     }
 
     protected open fun rawResolve(target: FirElementWithResolveState) {
         target.transformSingle(transformer, ResolutionMode.ContextIndependent)
+    }
+
+    protected fun resolveScript(script: FirScript) {
+        transformer.declarationsTransformer?.withScript(script) {
+            script.parameters.forEach { it.transformSingle(transformer, ResolutionMode.ContextIndependent) }
+            script.transformStatements(
+                transformer = object : FirTransformer<Any?>() {
+                    override fun <E : FirElement> transformElement(element: E, data: Any?): E {
+                        if (element !is FirStatement || !element.isScriptStatement) return element
+
+                        transformer.firResolveContextCollector?.addStatementContext(element, transformer.context)
+                        return element.transformSingle(transformer, ResolutionMode.ContextIndependent)
+                    }
+                },
+                data = null,
+            )
+
+            script
+        }
     }
 }

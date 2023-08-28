@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.test.TestJdkKind
 import org.junit.Assert
 import java.io.File
 import java.nio.file.Files
-import kotlin.io.path.*
 import kotlin.script.experimental.annotations.KotlinScript
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration

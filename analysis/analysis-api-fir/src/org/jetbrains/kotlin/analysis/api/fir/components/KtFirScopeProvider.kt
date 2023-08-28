@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLFirResolveSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirFile
 import org.jetbrains.kotlin.analysis.utils.errors.unexpectedElementError
-import org.jetbrains.kotlin.analysis.utils.printer.getElementTextInContext
+import org.jetbrains.kotlin.psi.psiUtil.getElementTextWithContext
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
@@ -45,11 +45,14 @@ import org.jetbrains.kotlin.fir.scopes.impl.*
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhaseWithCallableMembers
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.utils.addToStdlib.applyIf
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal class KtFirScopeProvider(
     override val analysisSession: KtFirAnalysisSession,
@@ -160,16 +163,17 @@ internal class KtFirScopeProvider(
         return KtCompositeScope.create(subScopes, token)
     }
 
-    override fun getTypeScope(type: KtType): KtTypeScope? = getFirTypeScope(type)?.let { convertToKtTypeScope(it) }
+    override fun getTypeScope(type: KtType): KtTypeScope? {
+        check(type is KtFirType) { "KtFirScopeProvider can only work with KtFirType, but ${type::class} was provided" }
+        return getFirTypeScope(type)
+            ?.withSyntheticPropertiesScopeOrSelf(type.coneType)
+            ?.let { convertToKtTypeScope(it) }
+    }
 
     override fun getSyntheticJavaPropertiesScope(type: KtType): KtTypeScope? {
         check(type is KtFirType) { "KtFirScopeProvider can only work with KtFirType, but ${type::class} was provided" }
-        val firTypeScope = getFirTypeScope(type) ?: return null
-        return FirSyntheticPropertiesScope.createIfSyntheticNamesProviderIsDefined(
-            firResolveSession.useSiteFirSession,
-            type.coneType,
-            firTypeScope
-        )?.let { convertToKtTypeScope(it) }
+        val typeScope = getFirTypeScope(type) ?: return null
+        return getFirSyntheticPropertiesScope(type.coneType, typeScope)?.let { convertToKtTypeScope(it) }
     }
 
     override fun getImportingScopeContext(file: KtFile): KtScopeContext {
@@ -192,7 +196,9 @@ internal class KtFirScopeProvider(
     ): KtScopeContext {
         val towerDataContext =
             analysisSession.firResolveSession.getTowerContextProvider(originalFile).getClosestAvailableParentContext(positionInFakeFile)
-                ?: error("Cannot find enclosing declaration for ${positionInFakeFile.getElementTextInContext()}")
+                ?: errorWithAttachment("Cannot find enclosing declaration for ${positionInFakeFile::class}") {
+                    withPsiEntry("positionInFakeFile", positionInFakeFile)
+                }
         val towerDataElementsIndexed = towerDataContext.towerDataElements.asReversed().withIndex()
 
         val implicitReceivers = towerDataElementsIndexed.flatMap { (index, towerDataElement) ->
@@ -209,7 +215,9 @@ internal class KtFirScopeProvider(
         }
 
         val firScopes = towerDataElementsIndexed.flatMap { (index, towerDataElement) ->
-            val availableScopes = towerDataElement.getAvailableScopes().flatMap { flattenFirScope(it) }
+            val availableScopes = towerDataElement
+                .getAvailableScopes { coneType -> withSyntheticPropertiesScopeOrSelf(coneType) }
+                .flatMap { flattenFirScope(it) }
             availableScopes.map { IndexedValue(index, it) }
         }
         val ktScopesWithKinds = createScopesWithKind(firScopes)
@@ -233,6 +241,7 @@ internal class KtFirScopeProvider(
         return when (firScope) {
             is FirAbstractSimpleImportingScope -> KtFirNonStarImportingScope(firScope, builder)
             is FirAbstractStarImportingScope -> KtFirStarImportingScope(firScope, analysisSession)
+            is FirDefaultStarImportingScope -> KtFirDefaultStarImportingScope(firScope, analysisSession)
             is FirPackageMemberScope -> createPackageScope(firScope.fqName)
             is FirContainingNamesAwareScope -> KtFirDelegatingNamesAwareScope(firScope, builder)
             else -> TODO(firScope::class.toString())
@@ -241,10 +250,9 @@ internal class KtFirScopeProvider(
 
     private fun getScopeKind(firScope: FirScope, indexInTower: Int): KtScopeKind = when (firScope) {
         is FirNameAwareOnlyCallablesScope -> getScopeKind(firScope.delegate, indexInTower)
-        is FirNameAwareOnlyClassifiersScope -> getScopeKind(firScope.delegate, indexInTower)
 
         is FirLocalScope -> KtScopeKind.LocalScope(indexInTower)
-        is FirTypeScope -> KtScopeKind.SimpleTypeScope(indexInTower)
+        is FirTypeScope -> KtScopeKind.TypeScope(indexInTower)
         is FirTypeParameterScope -> KtScopeKind.TypeParameterScope(indexInTower)
         is FirPackageMemberScope -> KtScopeKind.PackageMemberScope(indexInTower)
 
@@ -274,14 +282,23 @@ internal class KtFirScopeProvider(
         }
     }
 
-    private fun getFirTypeScope(type: KtType): FirTypeScope? {
-        check(type is KtFirType) { "KtFirScopeProvider can only work with KtFirType, but ${type::class} was provided" }
-        return type.coneType.scope(
+    private fun getFirTypeScope(type: KtFirType): FirTypeScope? = type.coneType.scope(
+        firResolveSession.useSiteFirSession,
+        getScopeSession(),
+        FakeOverrideTypeCalculator.Forced,
+        requiredMembersPhase = FirResolvePhase.STATUS,
+    )
+
+    private fun getFirSyntheticPropertiesScope(coneType: ConeKotlinType, typeScope: FirTypeScope): FirSyntheticPropertiesScope? =
+        FirSyntheticPropertiesScope.createIfSyntheticNamesProviderIsDefined(
             firResolveSession.useSiteFirSession,
-            getScopeSession(),
-            FakeOverrideTypeCalculator.Forced,
-            requiredMembersPhase = FirResolvePhase.STATUS,
+            coneType,
+            typeScope
         )
+
+    private fun FirTypeScope.withSyntheticPropertiesScopeOrSelf(coneType: ConeKotlinType): FirTypeScope {
+        val syntheticPropertiesScope = getFirSyntheticPropertiesScope(coneType, this) ?: return this
+        return FirTypeScopeWithSyntheticProperties(typeScope = this, syntheticPropertiesScope)
     }
 
     private fun buildJavaEnhancementDeclaredMemberScope(
@@ -306,6 +323,43 @@ internal class KtFirScopeProvider(
                 )
             )
         }
+    }
+}
+
+private class FirTypeScopeWithSyntheticProperties(
+    val typeScope: FirTypeScope,
+    val syntheticPropertiesScope: FirSyntheticPropertiesScope,
+) : FirTypeScope() {
+    override fun getCallableNames(): Set<Name> = typeScope.getCallableNames() + syntheticPropertiesScope.getCallableNames()
+    override fun getClassifierNames(): Set<Name> = typeScope.getClassifierNames()
+    override fun mayContainName(name: Name): Boolean = typeScope.mayContainName(name) || syntheticPropertiesScope.mayContainName(name)
+    override val scopeOwnerLookupNames: List<String> get() = typeScope.scopeOwnerLookupNames
+
+    override fun processDirectOverriddenFunctionsWithBaseScope(
+        functionSymbol: FirNamedFunctionSymbol,
+        processor: (FirNamedFunctionSymbol, FirTypeScope) -> ProcessorAction,
+    ): ProcessorAction = typeScope.processDirectOverriddenFunctionsWithBaseScope(functionSymbol, processor)
+
+    override fun processDirectOverriddenPropertiesWithBaseScope(
+        propertySymbol: FirPropertySymbol,
+        processor: (FirPropertySymbol, FirTypeScope) -> ProcessorAction,
+    ): ProcessorAction = typeScope.processDirectOverriddenPropertiesWithBaseScope(propertySymbol, processor)
+
+    override fun processClassifiersByNameWithSubstitution(name: Name, processor: (FirClassifierSymbol<*>, ConeSubstitutor) -> Unit) {
+        typeScope.processClassifiersByNameWithSubstitution(name, processor)
+    }
+
+    override fun processFunctionsByName(name: Name, processor: (FirNamedFunctionSymbol) -> Unit) {
+        typeScope.processFunctionsByName(name, processor)
+    }
+
+    override fun processPropertiesByName(name: Name, processor: (FirVariableSymbol<*>) -> Unit) {
+        typeScope.processPropertiesByName(name, processor)
+        syntheticPropertiesScope.processPropertiesByName(name, processor)
+    }
+
+    override fun processDeclaredConstructors(processor: (FirConstructorSymbol) -> Unit) {
+        typeScope.processDeclaredConstructors(processor)
     }
 }
 

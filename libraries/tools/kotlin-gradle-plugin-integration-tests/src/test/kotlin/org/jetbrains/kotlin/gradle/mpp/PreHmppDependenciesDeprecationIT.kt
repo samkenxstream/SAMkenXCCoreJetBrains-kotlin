@@ -61,34 +61,34 @@ class PreHmppDependenciesDeprecationIT : KGPBaseTest() {
     }
 
     @GradleTest
+    fun testNoWarningsOnKotlinTestIfAddedInCommonMain(gradleVersion: GradleVersion) {
+        checkDiagnostics(gradleVersion, "noWarningsOnKotlinTestIfAddedInCommonMain")
+    }
+
+    @GradleTest
     fun testNoWarningsOnProjectDependencies(gradleVersion: GradleVersion) {
-        checkDiagnostics(gradleVersion, "noWarningsOnProjectDependencies", taskToCall = ":consumer:dependencies")
+        checkDiagnostics(gradleVersion, "noWarningsOnProjectDependencies", projectPathToCheck = ":consumer")
     }
 
     @GradleTest
-    fun testNoWarningsInPlatformSpecificSourceSets(gradleVersion: GradleVersion) {
-        checkDiagnostics(gradleVersion, "noWarningsInPlatformSpecificSourceSets")
-    }
-
-    @GradleTest
-    fun testNoWarningsInPreHmppProjects(gradleVersion: GradleVersion, @TempDir tempDir: Path) {
+    fun testNoWarningsInPlatformSpecificSourceSetsOrTests(gradleVersion: GradleVersion, @TempDir tempDir: Path) {
         publishLibrary("preHmppLibrary", gradleVersion, tempDir)
-        checkDiagnostics(gradleVersion, "simpleReport", tempDir) {
-            gradleProperties.writeText("kotlin.internal.mpp.hierarchicalStructureByDefault=false")
-        }
+        checkDiagnostics(gradleVersion, "noWarningsInPlatformSpecificSourceSetsOrTests", tempDir)
     }
 
     private fun checkDiagnostics(
         gradleVersion: GradleVersion,
         projectName: String,
         tempDir: Path? = null,
-        taskToCall: String = "dependencies",
+        projectPathToCheck: String = "", // empty means rootProject
         expectReportForDependency: String? = null,
         preBuildAction: TestProject.() -> Unit = {}
     ) {
         project("preHmppDependenciesDeprecation/$projectName", gradleVersion, localRepoDir = tempDir?.resolve("repo")) {
             preBuildAction()
-            build(taskToCall) {
+            build("$projectPathToCheck:dependencies") {
+                // all dependencies should be resolved, Gradle won't fail the 'dependencies' task on its own
+                assertOutputDoesNotContain("FAILED")
                 if (expectReportForDependency != null) {
                     output.assertHasDiagnostic(
                         KotlinToolingDiagnostics.PreHmppDependenciesUsedInBuild

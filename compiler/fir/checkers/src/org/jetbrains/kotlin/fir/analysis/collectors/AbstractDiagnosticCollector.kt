@@ -17,7 +17,6 @@ import org.jetbrains.kotlin.fir.resolve.SessionHolder
 import org.jetbrains.kotlin.fir.symbols.lazyDeclarationResolver
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.coneType
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 
 abstract class AbstractDiagnosticCollector(
@@ -25,9 +24,14 @@ abstract class AbstractDiagnosticCollector(
     override val scopeSession: ScopeSession = ScopeSession(),
     protected val createComponents: (DiagnosticReporter) -> DiagnosticCollectorComponents,
 ) : SessionHolder {
+
+    fun collectDiagnosticsInSettings(reporter: DiagnosticReporter) {
+        val visitor = createVisitor(createComponents(reporter))
+        visitor.checkSettings()
+    }
+
     fun collectDiagnostics(firDeclaration: FirDeclaration, reporter: DiagnosticReporter) {
-        val components = createComponents(reporter)
-        val visitor = createVisitor(components)
+        val visitor = createVisitor(createComponents(reporter))
         session.lazyDeclarationResolver.disableLazyResolveContractChecksInside {
             firDeclaration.accept(visitor, null)
         }
@@ -40,8 +44,6 @@ abstract class AbstractDiagnosticCollector(
         const val SUPPRESS_ALL_WARNINGS = "warnings"
         const val SUPPRESS_ALL_ERRORS = "errors"
 
-        private val SUPPRESS_NAMES_NAME = Name.identifier("names")
-
         private fun correctDiagnosticCase(diagnostic: String): String = when (diagnostic) {
             SUPPRESS_ALL_INFOS, SUPPRESS_ALL_WARNINGS, SUPPRESS_ALL_ERRORS -> diagnostic
             else -> diagnostic.uppercase()
@@ -53,7 +55,9 @@ abstract class AbstractDiagnosticCollector(
             for (annotation in annotationContainer.annotations) {
                 val type = annotation.annotationTypeRef.coneType as? ConeClassLikeType ?: continue
                 if (type.lookupTag.classId != StandardClassIds.Annotations.Suppress) continue
-                val argumentValues = annotation.findArgumentByName(SUPPRESS_NAMES_NAME)?.unwrapVarargValue() ?: continue
+                val argumentValues =
+                    annotation.findArgumentByName(StandardClassIds.Annotations.ParameterNames.suppressNames)?.unwrapVarargValue()
+                        ?: continue
 
                 for (argumentValue in argumentValues) {
                     val value = (argumentValue as? FirConstExpression<*>)?.value as? String ?: continue

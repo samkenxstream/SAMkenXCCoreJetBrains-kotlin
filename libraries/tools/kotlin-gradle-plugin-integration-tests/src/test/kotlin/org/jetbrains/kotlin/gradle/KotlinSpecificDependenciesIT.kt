@@ -16,6 +16,8 @@ import java.nio.file.Path
 import java.util.*
 import java.util.stream.Stream
 import kotlin.io.path.appendText
+import kotlin.io.path.createDirectories
+import kotlin.io.path.writeText
 import kotlin.streams.asStream
 import kotlin.streams.toList
 import kotlin.test.assertFalse
@@ -30,7 +32,26 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
     fun testStdlibByDefaultJvm(gradleVersion: GradleVersion) {
         project("simpleProject", gradleVersion) {
             removeDependencies(buildGradle)
-            checkTaskCompileClasspath("compileKotlin", listOf("kotlin-stdlib"))
+            checkTaskCompileClasspath("compileKotlin", listOf("kotlin-stdlib"), listOf("kotlin-stdlib-jdk7", "kotlin-stdlib-jdk8"))
+        }
+    }
+
+    @GradleTest
+    @DisplayName("JVM: add pre-1.9.20 kotlin-stdlib dependency")
+    @JvmGradlePluginTests
+    fun testStdlibByDefaultPre1920Jvm(gradleVersion: GradleVersion) {
+        project("simpleProject", gradleVersion) {
+            removeDependencies(buildGradle)
+
+            buildGradle.appendText(
+                //language=groovy
+                """
+                |
+                |kotlin.coreLibrariesVersion = "1.9.0"
+                """.trimMargin()
+            )
+
+            checkTaskCompileClasspath("compileKotlin", listOf("kotlin-stdlib", "kotlin-stdlib-jdk7", "kotlin-stdlib-jdk8"))
         }
     }
 
@@ -86,6 +107,9 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
             gradleProperties.appendText(
                 "\nkotlin.stdlib.default.dependency=false"
             )
+            gradleProperties.appendText(
+                "\nkotlin.js.stdlib.dom.api.included=false"
+            )
             checkTaskCompileClasspath(
                 "compileKotlinJs",
                 listOf(),
@@ -112,7 +136,11 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
             buildJdk = jdkVersion.location
         ) {
             removeDependencies(buildGradle)
-            checkTaskCompileClasspath("compileDebugKotlin", listOf("kotlin-stdlib"))
+            checkTaskCompileClasspath(
+                "compileDebugKotlin",
+                listOf("kotlin-stdlib"),
+                listOf("kotlin-stdlib-jdk7", "kotlin-stdlib-jdk8")
+            )
         }
     }
 
@@ -209,6 +237,59 @@ class KotlinSpecificDependenciesIT : KGPBaseTest() {
                 "compileKotlin",
                 listOf("kotlin-stdlib-${defaultBuildOptions.kotlinVersion}"),
                 listOf("kotlin-stdlib-jdk8")
+            )
+        }
+    }
+
+    @MppGradlePluginTests
+    @DisplayName("Stdlib should be added into compilation not depending on common")
+    @GradleTest
+    fun testStdlibAddedIntoCompilationNotUsingCommon(gradleVersion: GradleVersion) {
+        project("hierarchical-all-native", gradleVersion) {
+            buildGradleKts.modify {
+                it.substringBefore("kotlin {")
+                    .plus(
+                        """
+                        |
+                        |kotlin {
+                        |    js()
+                        |    jvm("standalone") {
+                        |        compilations.register("jvmAllAlone")
+                        |    }
+                        |}
+                        """.trimMargin()
+                    )
+            }
+
+            kotlinSourcesDir("standaloneJvmAllAlone").also {
+                it.createDirectories()
+                it.resolve("main.kt").writeText(
+                    """
+                    |fun main() {
+                    |    println("Hello")
+                    |}
+                    """.trimIndent()
+                )
+            }
+
+            checkTaskCompileClasspath(
+                "compileJvmAllAloneKotlinStandalone",
+                listOf("kotlin-stdlib"),
+                isBuildGradleKts = true
+            )
+        }
+    }
+
+    @JsGradlePluginTests
+    @DisplayName("Stdlib should be added into wasm compilations")
+    @GradleTest
+    fun testStdlibAddedIntoWasmCompilationDependencies(gradleVersion: GradleVersion) {
+        project("wasm-d8-simple-project", gradleVersion) {
+            checkTaskCompileClasspath(
+                "compileKotlinWasmJs",
+                checkModulesInClasspath = listOf("kotlin-stdlib-wasm-js"),
+                checkModulesNotInClasspath = listOf("kotlin-stdlib-wasm-wasi"),
+                isBuildGradleKts = true
             )
         }
     }

@@ -10,18 +10,21 @@ package org.jetbrains.kotlin.gradle.plugin.mpp
 
 import org.gradle.api.Project
 import org.jetbrains.kotlin.compilerRunner.konanHome
+import org.jetbrains.kotlin.gradle.DeprecatedTargetPresetApi
 import org.jetbrains.kotlin.gradle.plugin.*
+import org.jetbrains.kotlin.gradle.targets.android.internal.InternalKotlinTargetPreset
 import org.jetbrains.kotlin.gradle.targets.native.internal.*
 import org.jetbrains.kotlin.gradle.utils.SingleActionPerProject
 import org.jetbrains.kotlin.gradle.utils.setupNativeCompiler
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
+@DeprecatedTargetPresetApi
 abstract class AbstractKotlinNativeTargetPreset<T : KotlinNativeTarget>(
     private val name: String,
     val project: Project,
     val konanTarget: KonanTarget
-) : KotlinTargetPreset<T> {
+) : InternalKotlinTargetPreset<T> {
 
     init {
         // This is required to obtain Kotlin/Native home in IDE plugin:
@@ -39,12 +42,13 @@ abstract class AbstractKotlinNativeTargetPreset<T : KotlinNativeTarget>(
 
     protected abstract fun instantiateTarget(name: String): T
 
-    override fun createTarget(name: String): T {
+    override fun createTargetInternal(name: String): T {
         project.setupNativeCompiler(konanTarget)
 
         val result = instantiateTarget(name).apply {
             targetName = name
             disambiguationClassifier = name
+            @Suppress("DEPRECATION")
             preset = this@AbstractKotlinNativeTargetPreset
 
             val compilationFactory = KotlinNativeCompilationFactory(this)
@@ -73,6 +77,7 @@ abstract class AbstractKotlinNativeTargetPreset<T : KotlinNativeTarget>(
 
 }
 
+@DeprecatedTargetPresetApi
 open class KotlinNativeTargetPreset(name: String, project: Project, konanTarget: KonanTarget) :
     AbstractKotlinNativeTargetPreset<KotlinNativeTarget>(name, project, konanTarget) {
 
@@ -84,6 +89,7 @@ open class KotlinNativeTargetPreset(name: String, project: Project, konanTarget:
     }
 }
 
+@DeprecatedTargetPresetApi
 open class KotlinNativeTargetWithHostTestsPreset(name: String, project: Project, konanTarget: KonanTarget) :
     AbstractKotlinNativeTargetPreset<KotlinNativeTargetWithHostTests>(name, project, konanTarget) {
 
@@ -94,6 +100,7 @@ open class KotlinNativeTargetWithHostTestsPreset(name: String, project: Project,
         project.objects.newInstance(KotlinNativeTargetWithHostTests::class.java, project, konanTarget)
 }
 
+@DeprecatedTargetPresetApi
 open class KotlinNativeTargetWithSimulatorTestsPreset(name: String, project: Project, konanTarget: KonanTarget) :
     AbstractKotlinNativeTargetPreset<KotlinNativeTargetWithSimulatorTests>(name, project, konanTarget) {
 

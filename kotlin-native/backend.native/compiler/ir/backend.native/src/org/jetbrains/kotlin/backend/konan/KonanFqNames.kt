@@ -7,10 +7,10 @@ package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.NativeRuntimeNames
 
 internal const val NATIVE_PTR_NAME = "NativePtr"
 internal const val NON_NULL_NATIVE_PTR_NAME = "NonNullNativePtr"
-internal const val VECTOR128 = "Vector128"
 internal const val IMMUTABLE_BLOB_OF = "immutableBlobOf"
 
 object KonanFqNames {
@@ -20,7 +20,7 @@ object KonanFqNames {
     val internalPackageName = FqName("kotlin.native.internal")
     val nativePtr = internalPackageName.child(Name.identifier(NATIVE_PTR_NAME)).toUnsafe()
     val nonNullNativePtr = internalPackageName.child(Name.identifier(NON_NULL_NATIVE_PTR_NAME)).toUnsafe()
-    val Vector128 = packageName.child(Name.identifier(VECTOR128))
+    val Vector128 = FqName("kotlinx.cinterop.Vector128")
     val throws = FqName("kotlin.Throws")
     val cancellationException = FqName("kotlin.coroutines.cancellation.CancellationException")
     val threadLocal = FqName("kotlin.native.concurrent.ThreadLocal")
@@ -35,7 +35,7 @@ object KonanFqNames {
     val objCMethod = FqName("kotlinx.cinterop.ObjCMethod")
     val hasFinalizer = FqName("kotlin.native.internal.HasFinalizer")
     val hasFreezeHook = FqName("kotlin.native.internal.HasFreezeHook")
-    val gcUnsafeCall = FqName("kotlin.native.internal.GCUnsafeCall")
+    val gcUnsafeCall = NativeRuntimeNames.Annotations.gcUnsafeCallClassId.asSingleFqName()
     val eagerInitialization = FqName("kotlin.native.EagerInitialization")
     val noReorderFields = FqName("kotlin.native.internal.NoReorderFields")
     val objCName = FqName("kotlin.native.ObjCName")

@@ -14,6 +14,8 @@ import org.jetbrains.kotlin.psi
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
 import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal fun FirDeclaration.getKtDeclarationForFirElement(): KtDeclaration {
     require(this !is FirFile)
@@ -57,11 +59,14 @@ internal fun declarationCanBeLazilyResolved(declaration: KtDeclaration): Boolean
         when (val parent = declaration.parent) {
             is KtFile -> true
             is KtClassBody -> (parent.parent as? KtClassOrObject)?.isLocal == false
+            is KtBlockExpression -> parent.parent is KtScript
             else -> false
         }
     }
     !is KtNamedDeclaration -> false
     is KtClassOrObject -> !declaration.isLocal
     is KtTypeAlias -> declaration.isTopLevel() || declaration.getClassId() != null
-    else -> error("Unexpected ${declaration::class.qualifiedName}")
+    else -> errorWithAttachment("Unexpected ${declaration::class}") {
+        withPsiEntry("declaration", declaration)
+    }
 }

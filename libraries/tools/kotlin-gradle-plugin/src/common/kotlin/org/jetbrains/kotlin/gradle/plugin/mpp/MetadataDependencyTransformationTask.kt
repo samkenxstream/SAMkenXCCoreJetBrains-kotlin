@@ -95,6 +95,7 @@ open class MetadataDependencyTransformationTask
         .fileProperty()
         .apply { set(outputsDir.resolve("${kotlinSourceSet.name}.visibleSourceSets")) }
 
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFiles
     protected val parentVisibleSourceSetFiles: FileCollection = project.filesProvider {
         parentTransformationTasks.map { taskProvider ->
@@ -104,6 +105,7 @@ open class MetadataDependencyTransformationTask
         }
     }
 
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:InputFiles
     protected val parentTransformedLibraries: FileCollection = project.filesProvider {
         parentTransformationTasks.map { taskProvider ->
@@ -184,7 +186,7 @@ private typealias SerializableComponentIdentifierKey = String
  */
 private val ComponentIdentifier.serializableUniqueKey
     get(): SerializableComponentIdentifierKey = when (this) {
-        is ProjectComponentIdentifier -> "project ${build.name}$projectPath"
+        is ProjectComponentIdentifier -> "project ${build.buildPathCompat}$projectPath"
         is ModuleComponentIdentifier -> "module $group:$module:$version"
         else -> error("Unexpected Component Identifier: '$this' of type ${this.javaClass}")
     }

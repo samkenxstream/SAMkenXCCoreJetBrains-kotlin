@@ -15,6 +15,8 @@ import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.builder.buildContextReceiver
 import org.jetbrains.kotlin.fir.declarations.builder.buildValueParameter
+import org.jetbrains.kotlin.fir.diagnostics.ConeCannotInferReceiverParameterType
+import org.jetbrains.kotlin.fir.diagnostics.ConeCannotInferValueParameterType
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.resolve.ResolutionMode
 import org.jetbrains.kotlin.fir.resolve.calls.*
@@ -33,7 +35,6 @@ import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.visitors.transformSingle
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.calls.inference.addEqualityConstraintIfCompatible
 import org.jetbrains.kotlin.resolve.calls.inference.addSubtypeConstraintIfCompatible
 import org.jetbrains.kotlin.resolve.calls.inference.buildAbstractResultingSubstitutor
@@ -54,21 +55,17 @@ class FirCallCompleter(
 
     val completer = ConstraintSystemCompleter(components, transformer.context)
 
-
-    data class CompletionResult<T>(val result: T, val callCompleted: Boolean)
-
-    fun <T> completeCall(call: T, resolutionMode: ResolutionMode): CompletionResult<T> where T : FirResolvable, T : FirStatement {
+    fun <T> completeCall(call: T, resolutionMode: ResolutionMode): T where T : FirResolvable, T : FirStatement {
         val typeRef = components.typeFromCallee(call)
 
-        val reference = call.calleeReference as? FirNamedReferenceWithCandidate ?: return CompletionResult(call, true)
+        val reference = call.calleeReference as? FirNamedReferenceWithCandidate ?: return call
 
         val candidate = reference.candidate
         val initialType = typeRef.initialTypeOfCandidate(candidate)
 
         if (call is FirExpression) {
-            val resolvedTypeRef = typeRef.resolvedTypeFromPrototype(initialType)
-            call.resultType = resolvedTypeRef
-            session.lookupTracker?.recordTypeResolveAsLookup(resolvedTypeRef, call.source, components.context.file.source)
+            call.resultType = initialType
+            session.lookupTracker?.recordTypeResolveAsLookup(initialType, call.source, components.context.file.source)
         }
 
         addConstraintFromExpectedType(
@@ -99,15 +96,16 @@ class FirCallCompleter(
                             session.typeApproximator,
                             components.dataFlowAnalyzer,
                             components.integerLiteralAndOperatorApproximationTransformer,
-                            components.context
+                            components.samResolver,
+                            components.context,
                         ),
                         null
                     )
                     inferenceSession.addCompletedCall(completedCall, candidate)
-                    CompletionResult(completedCall, true)
+                    completedCall
                 } else {
                     inferenceSession.addPartiallyResolvedCall(call)
-                    CompletionResult(call, false)
+                    call
                 }
             }
 
@@ -115,12 +113,12 @@ class FirCallCompleter(
                 runCompletionForCall(candidate, completionMode, call, initialType, analyzer)
 
                 // Add top-level delegate call as partially resolved to inference session
-                if (resolutionMode is ResolutionMode.ContextDependentDelegate) {
+                if (resolutionMode is ResolutionMode.ContextDependent.Delegate) {
                     require(inferenceSession is FirDelegatedPropertyInferenceSession)
                     inferenceSession.addPartiallyResolvedCall(call)
                 }
 
-                CompletionResult(call, false)
+                call
             }
 
             ConstraintSystemCompletionMode.UNTIL_FIRST_LAMBDA -> throw IllegalStateException()
@@ -217,8 +215,9 @@ class FirCallCompleter(
             session.typeApproximator,
             components.dataFlowAnalyzer,
             components.integerLiteralAndOperatorApproximationTransformer,
+            components.samResolver,
             components.context,
-            mode
+            mode,
         )
     }
 
@@ -267,9 +266,9 @@ class FirCallCompleter(
                         containingFunctionSymbol = lambdaArgument.symbol
                         moduleData = session.moduleData
                         origin = FirDeclarationOrigin.Source
-                        returnTypeRef = itType.approximateLambdaInputType().toFirResolvedTypeRef()
                         this.name = name
                         symbol = FirValueParameterSymbol(name)
+                        returnTypeRef = itType.approximateLambdaInputType(symbol).toFirResolvedTypeRef()
                         defaultValue = null
                         isCrossinline = false
                         isNoinline = false
@@ -281,12 +280,16 @@ class FirCallCompleter(
 
             val expectedReturnTypeRef = expectedReturnType?.let { lambdaArgument.returnTypeRef.resolvedTypeFromPrototype(it) }
 
-            if (receiverType == null) {
-                lambdaArgument.replaceReceiverParameter(null)
-            } else {
-                lambdaArgument.receiverParameter?.apply {
-                    replaceTypeRef(typeRef.resolvedTypeFromPrototype(receiverType.approximateLambdaInputType()))
+            when {
+                receiverType == null -> lambdaArgument.replaceReceiverParameter(null)
+                !lambdaAtom.coerceFirstParameterToExtensionReceiver -> {
+                    lambdaArgument.receiverParameter?.apply {
+                        val type = receiverType.approximateLambdaInputType(valueParameter = null)
+                        val source = source?.fakeElement(KtFakeSourceElementKind.ImplicitTypeRef)
+                        replaceTypeRef(typeRef.resolvedTypeFromPrototype(type, source))
+                    }
                 }
+                else -> lambdaArgument.replaceReceiverParameter(null)
             }
 
             if (contextReceivers.isNotEmpty()) {
@@ -303,8 +306,15 @@ class FirCallCompleter(
 
             val lookupTracker = session.lookupTracker
             val fileSource = components.file.source
+            val theParameters = when {
+                lambdaAtom.coerceFirstParameterToExtensionReceiver -> when (receiverType) {
+                    null -> error("Coercion to extension receiver while no receiver present")
+                    else -> listOf(receiverType) + parameters
+                }
+                else -> parameters
+            }
             lambdaArgument.valueParameters.forEachIndexed { index, parameter ->
-                val newReturnType = parameters[index].approximateLambdaInputType()
+                val newReturnType = theParameters[index].approximateLambdaInputType(parameter.symbol)
                 val newReturnTypeRef = if (parameter.returnTypeRef is FirImplicitTypeRef) {
                     newReturnType.toFirResolvedTypeRef(parameter.source?.fakeElement(KtFakeSourceElementKind.ImplicitReturnTypeOfLambdaValueParameter))
                 } else parameter.returnTypeRef.resolvedTypeFromPrototype(newReturnType)
@@ -339,16 +349,25 @@ class FirCallCompleter(
             }
             transformer.context.dropContextForAnonymousFunction(lambdaArgument)
 
-            val returnArguments = components.dataFlowAnalyzer.returnExpressionsOfAnonymousFunction(lambdaArgument)
+            val returnArguments = components.dataFlowAnalyzer.returnExpressionsOfAnonymousFunction(lambdaArgument).map { it.expression }
 
             return ReturnArgumentsAnalysisResult(returnArguments, builderInferenceSession)
         }
     }
 
-    private fun ConeKotlinType.approximateLambdaInputType(): ConeKotlinType =
-        session.typeApproximator.approximateToSuperType(
+    private fun ConeKotlinType.approximateLambdaInputType(valueParameter: FirValueParameterSymbol?): ConeKotlinType {
+        // We only run lambda completion from ConstraintSystemCompletionContext.analyzeRemainingNotAnalyzedPostponedArgument when they are
+        // left uninferred.
+        // Currently, we use stub types for builder inference, so CANNOT_INFER_PARAMETER_TYPE is the only possible result here.
+        if (this is ConeTypeVariableType) {
+            val diagnostic = valueParameter?.let(::ConeCannotInferValueParameterType) ?: ConeCannotInferReceiverParameterType()
+            return ConeErrorType(diagnostic)
+        }
+
+        return session.typeApproximator.approximateToSuperType(
             this, TypeApproximatorConfiguration.FinalApproximationAfterResolutionAndInference
         ) ?: this
+    }
 }
 
 private fun Candidate.isFunctionForExpectTypeFromCastFeature(): Boolean {

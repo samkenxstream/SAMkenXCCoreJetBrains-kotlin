@@ -21,12 +21,15 @@ import org.jetbrains.kotlin.ir.builders.declarations.buildFun
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
+import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
+import org.jetbrains.kotlin.ir.symbols.IrReturnableBlockSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.util.irCall
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.*
+import org.jetbrains.kotlin.ir.util.*
 
 object IR_DECLARATION_ORIGIN_VOLATILE : IrDeclarationOriginImpl("VOLATILE")
 
@@ -203,11 +206,26 @@ internal class VolatileFieldsLowering(val context: Context) : FileLoweringPass {
                     IntrinsicType.GET_AND_ADD_FIELD to ::getAndAddFunction,
             )
 
+            private val IrBlock.singleExpressionOrNull get() = statements.singleOrNull() as? IrExpression
+
+            private tailrec fun getConstPropertyReference(expression: IrExpression?, expectedReturn: IrReturnableBlockSymbol?) : IrPropertyReference? {
+                return when {
+                    expression == null -> null
+                    expectedReturn == null && expression is IrPropertyReference -> expression
+                    expectedReturn == null && expression is IrReturnableBlock -> getConstPropertyReference(expression.singleExpressionOrNull, expression.symbol)
+                    expression is IrReturn && expression.returnTargetSymbol == expectedReturn -> getConstPropertyReference(expression.value, null)
+                    expression is IrBlock -> getConstPropertyReference(expression.singleExpressionOrNull, expectedReturn)
+                    else -> null
+                }
+            }
+
             override fun visitCall(expression: IrCall): IrExpression {
                 expression.transformChildrenVoid(this)
-                val intrinsicType = tryGetIntrinsicType(expression).takeIf { it in intrinsicMap } ?: return expression
+                val intrinsicType = tryGetIntrinsicType(expression).takeIf {
+                    it in intrinsicMap || it == IntrinsicType.ATOMIC_GET_FIELD || it == IntrinsicType.ATOMIC_SET_FIELD
+                } ?: return expression
                 builder.at(expression)
-                val reference = expression.extensionReceiver as? IrPropertyReference
+                val reference = getConstPropertyReference(expression.extensionReceiver, null)
                         ?: return unsupported("Only compile-time known IrProperties supported for $intrinsicType")
                 val property = reference.symbol.owner
                 val backingField = property.backingField
@@ -217,14 +235,20 @@ internal class VolatileFieldsLowering(val context: Context) : FileLoweringPass {
                 if (backingField?.hasAnnotation(KonanFqNames.volatile) != true) {
                     return unsupported("Only volatile properties are supported for $intrinsicType")
                 }
-                val function = intrinsicMap[intrinsicType]!!(backingField)
+                val function = when(intrinsicType) {
+                    IntrinsicType.ATOMIC_GET_FIELD -> property.getter ?: error("Getter is not defined for the property: ${property.render()}")
+                    IntrinsicType.ATOMIC_SET_FIELD -> property.setter ?: error("Setter is not defined for the property: ${property.render()}")
+                    else -> intrinsicMap[intrinsicType]!!(backingField)
+                }
                 return builder.irCall(function).apply {
                     dispatchReceiver = reference.dispatchReceiver
-                    putValueArgument(0, expression.getValueArgument(0))
-                    if (intrinsicType == IntrinsicType.COMPARE_AND_SET_FIELD || intrinsicType == IntrinsicType.COMPARE_AND_EXCHANGE_FIELD) {
-                        putValueArgument(1, expression.getValueArgument(1))
+                    for (index in 0 until expression.valueArgumentsCount) {
+                        putValueArgument(index, expression.getValueArgument(index))
                     }
                 }.let {
+                    if (intrinsicType == IntrinsicType.ATOMIC_GET_FIELD || intrinsicType == IntrinsicType.ATOMIC_SET_FIELD) {
+                        return it
+                    }
                     if (backingField.requiresBooleanConversion()) {
                         for (arg in 0 until it.valueArgumentsCount) {
                             it.putValueArgument(arg, builder.irBoolToByte(it.getValueArgument(arg)!!))

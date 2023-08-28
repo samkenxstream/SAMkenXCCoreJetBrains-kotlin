@@ -12,11 +12,11 @@ import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.cgen.CBridgeOrigin
 import org.jetbrains.kotlin.backend.konan.descriptors.ClassGlobalHierarchyInfo
 import org.jetbrains.kotlin.backend.konan.ir.*
-import org.jetbrains.kotlin.backend.konan.llvm.KonanBinaryInterface.symbolName
 import org.jetbrains.kotlin.backend.konan.llvm.ThreadState.Native
 import org.jetbrains.kotlin.backend.konan.llvm.ThreadState.Runnable
 import org.jetbrains.kotlin.backend.konan.llvm.objc.*
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.ForeignExceptionMode
@@ -324,7 +324,7 @@ internal fun CodeGenerator.getVirtualFunctionTrampoline(irFunction: IrSimpleFunc
 private fun CodeGenerator.getVirtualFunctionTrampolineImpl(irFunction: IrSimpleFunction) =
         generationState.virtualFunctionTrampolines.getOrPut(irFunction) {
             val targetName = if (irFunction.isExported())
-                irFunction.symbolName
+                irFunction.computeSymbolName()
             else
                 irFunction.computePrivateSymbolName(irFunction.parentAsClass.fqNameForIrSerialization.asString())
             val proto = LlvmFunctionProto(
@@ -335,12 +335,29 @@ private fun CodeGenerator.getVirtualFunctionTrampolineImpl(irFunction: IrSimpleF
             )
             if (isExternal(irFunction))
                 llvm.externalFunction(proto)
-            else generateFunction(this, proto, needSafePoint = false) {
-                val args = proto.signature.parameterTypes.indices.map { param(it) }
-                val receiver = param(0)
-                val callee = with(VirtualTablesLookup) { getVirtualImpl(receiver, irFunction) }
-                val result = call(callee, args, exceptionHandler = ExceptionHandler.Caller, verbatim = true)
-                ret(result)
+            else {
+                val offset = irFunction.startOffset.takeIf { it != UNDEFINED_OFFSET }
+                        ?: irFunction.parentAsClass.startOffset.takeIf { it != UNDEFINED_OFFSET }
+                val file = irFunction.fileOrNull.takeIf {
+                    offset != null && context.shouldContainLocationDebugInfo()
+                }
+                val diFunctionScope = file?.let {
+                    with(generationState.debugInfo) {
+                        irFunction.diFunctionScope(it, proto.name, it.fileEntry.line(offset!!), false)
+                    }
+                }
+                @Suppress("UNCHECKED_CAST") val location = diFunctionScope?.let {
+                    LocationInfo(it as DIScopeOpaqueRef, file.fileEntry.line(offset!!), file.fileEntry.column(offset))
+                }
+                generateFunction(this, proto, needSafePoint = false, startLocation = location, endLocation = location) {
+                    val args = proto.signature.parameterTypes.indices.map { param(it) }
+                    val receiver = param(0)
+                    val callee = with(VirtualTablesLookup) { getVirtualImpl(receiver, irFunction) }
+                    val result = call(callee, args, exceptionHandler = ExceptionHandler.Caller, verbatim = true)
+                    ret(result)
+                }.also { llvmFunction ->
+                    diFunctionScope?.let { llvmFunction.addDebugInfoSubprogram(it) }
+                }
             }
         }
 

@@ -9,15 +9,13 @@ import org.gradle.api.Project
 import org.gradle.api.invocation.Gradle
 import org.gradle.api.logging.Logger
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.bundling.AbstractArchiveTask
 import org.gradle.api.tasks.bundling.Zip
 import org.gradle.jvm.tasks.Jar
 import org.gradle.workers.WorkQueue
 import org.gradle.workers.WorkerExecutor
-import org.jetbrains.kotlin.build.report.metrics.BuildMetricsReporter
-import org.jetbrains.kotlin.build.report.metrics.BuildPerformanceMetric
-import org.jetbrains.kotlin.build.report.metrics.BuildTime
-import org.jetbrains.kotlin.build.report.metrics.measure
+import org.jetbrains.kotlin.build.report.metrics.*
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.compilerRunner.btapi.GradleBuildToolsApiCompilerRunner
@@ -32,8 +30,10 @@ import org.jetbrains.kotlin.gradle.dsl.multiplatformExtensionOrNull
 import org.jetbrains.kotlin.gradle.internal.ClassLoadersCachingBuildService
 import org.jetbrains.kotlin.gradle.logging.kotlinDebug
 import org.jetbrains.kotlin.gradle.logging.kotlinInfo
+import org.jetbrains.kotlin.gradle.plugin.BuildFinishedListenerService
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.getKotlinPluginVersion
+import org.jetbrains.kotlin.gradle.plugin.internal.BuildIdService
 import org.jetbrains.kotlin.gradle.plugin.internal.JavaSourceSetsAccessor
 import org.jetbrains.kotlin.gradle.plugin.internal.state.TaskLoggers
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinWithJavaTarget
@@ -60,10 +60,12 @@ internal fun createGradleCompilerRunner(
     taskProvider: GradleCompileTaskProvider,
     toolsJar: File?,
     compilerExecutionSettings: CompilerExecutionSettings,
-    buildMetricsReporter: BuildMetricsReporter,
+    buildMetricsReporter: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>,
     workerExecutor: WorkerExecutor,
     runViaBuildToolsApi: Boolean,
-    cachedClassLoadersService: Property<ClassLoadersCachingBuildService>
+    cachedClassLoadersService: Property<ClassLoadersCachingBuildService>,
+    buildFinishedListenerService: Provider<BuildFinishedListenerService>,
+    buildIdService: Provider<BuildIdService>,
 ): GradleCompilerRunner {
     return if (runViaBuildToolsApi) {
         GradleBuildToolsApiCompilerRunner(
@@ -73,6 +75,8 @@ internal fun createGradleCompilerRunner(
             buildMetricsReporter,
             workerExecutor,
             cachedClassLoadersService,
+            buildFinishedListenerService,
+            buildIdService,
         )
     } else {
         GradleCompilerRunnerWithWorkers(
@@ -94,7 +98,7 @@ internal open class GradleCompilerRunner(
     protected val taskProvider: GradleCompileTaskProvider,
     protected val jdkToolsJar: File?,
     protected val compilerExecutionSettings: CompilerExecutionSettings,
-    protected val buildMetrics: BuildMetricsReporter,
+    protected val buildMetrics: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>,
 ) {
 
     internal val pathProvider = taskProvider.path.get()
@@ -239,24 +243,18 @@ internal open class GradleCompilerRunner(
         )
     }
 
-    //Copy of CommonCompilerArguments.parseOrConfigureLanguageVersion to avoid direct dependency
-    private fun parseLanguageVersion(languageVersion: String?, useK2: Boolean): KotlinVersion {
-        val explicitVersion = languageVersion?.let { KotlinVersion.fromVersion(languageVersion) } ?: KotlinVersion.DEFAULT
-        return if (useK2 && (explicitVersion < KotlinVersion.KOTLIN_2_0)) KotlinVersion.KOTLIN_2_0 else explicitVersion
-    }
-
     protected open fun runCompilerAsync(
         workArgs: GradleKotlinCompilerWorkArguments,
         taskOutputsBackup: TaskOutputsBackup?
     ): WorkQueue? {
         try {
-            buildMetrics.addTimeMetric(BuildPerformanceMetric.CALL_WORKER)
+            buildMetrics.addTimeMetric(GradleBuildPerformanceMetric.CALL_WORKER)
             val kotlinCompilerRunnable = GradleKotlinCompilerWork(workArgs)
             kotlinCompilerRunnable.run()
         } catch (e: FailedCompilationException) {
             // Restore outputs only for CompilationErrorException or OOMErrorException (see GradleKotlinCompilerWorkAction.execute)
             if (taskOutputsBackup != null && (e is CompilationErrorException || e is OOMErrorException)) {
-                buildMetrics.measure(BuildTime.RESTORE_OUTPUT_FROM_BACKUP) {
+                buildMetrics.measure(GradleBuildTime.RESTORE_OUTPUT_FROM_BACKUP) {
                     taskOutputsBackup.restoreOutputs()
                 }
             }
@@ -393,7 +391,6 @@ internal open class GradleCompilerRunner(
             }
 
             return IncrementalModuleInfo(
-                projectRoot = gradle.rootProject.projectDir,
                 rootProjectBuildDir = gradle.rootProject.buildDir,
                 dirToModule = dirToModule,
                 nameToModules = nameToModules,

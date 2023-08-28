@@ -137,6 +137,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             runTest("compiler/testData/ir/irText/classes/enumWithSecondaryCtor.kt");
         }
 
+        @TestMetadata("fakeOverridesForAnyMembers.kt")
+        public void testFakeOverridesForAnyMembers() throws Exception {
+            runTest("compiler/testData/ir/irText/classes/fakeOverridesForAnyMembers.kt");
+        }
+
         @TestMetadata("initBlock.kt")
         public void testInitBlock() throws Exception {
             runTest("compiler/testData/ir/irText/classes/initBlock.kt");
@@ -272,6 +277,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             @TestMetadata("dataClassesGeneric.kt")
             public void testDataClassesGeneric() throws Exception {
                 runTest("compiler/testData/ir/irText/classes/dataClasses/dataClassesGeneric.kt");
+            }
+
+            @TestMetadata("dataObject.kt")
+            public void testDataObject() throws Exception {
+                runTest("compiler/testData/ir/irText/classes/dataClasses/dataObject.kt");
             }
 
             @TestMetadata("delegationInSealed.kt")
@@ -774,6 +784,29 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
                 public void testMonoidSum() throws Exception {
                     runTest("compiler/testData/ir/irText/declarations/contextReceivers/fromKEEP/monoidSum.kt");
                 }
+            }
+        }
+
+        @TestMetadata("compiler/testData/ir/irText/declarations/delegate")
+        @TestDataPath("$PROJECT_ROOT")
+        @RunWith(JUnit3RunnerWithInners.class)
+        public static class Delegate extends AbstractKlibIrTextTestCase {
+            private void runTest(String testDataFilePath) throws Exception {
+                KotlinTestUtils.runTestWithCustomIgnoreDirective(this::doTest, TargetBackend.JS_IR, testDataFilePath, "// IGNORE_BACKEND_KLIB: ");
+            }
+
+            public void testAllFilesPresentInDelegate() throws Exception {
+                KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/ir/irText/declarations/delegate"), Pattern.compile("^(.+)\\.kt$"), null, TargetBackend.JS_IR, true);
+            }
+
+            @TestMetadata("delegationEvaluationOrder1.kt")
+            public void testDelegationEvaluationOrder1() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/delegate/delegationEvaluationOrder1.kt");
+            }
+
+            @TestMetadata("delegationEvaluationOrder2.kt")
+            public void testDelegationEvaluationOrder2() throws Exception {
+                runTest("compiler/testData/ir/irText/declarations/delegate/delegationEvaluationOrder2.kt");
             }
         }
 
@@ -1965,6 +1998,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
             runTest("compiler/testData/ir/irText/firProblems/ArrayMap.kt");
         }
 
+        @TestMetadata("AssignmentOperator.kt")
+        public void testAssignmentOperator() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/AssignmentOperator.kt");
+        }
+
         @TestMetadata("candidateSymbol.kt")
         public void testCandidateSymbol() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/candidateSymbol.kt");
@@ -1973,11 +2011,6 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
         @TestMetadata("cannotCastToFunction.kt")
         public void testCannotCastToFunction() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/cannotCastToFunction.kt");
-        }
-
-        @TestMetadata("dataObject.kt")
-        public void testDataObject() throws Exception {
-            runTest("compiler/testData/ir/irText/firProblems/dataObject.kt");
         }
 
         @TestMetadata("DeepCopyIrTree.kt")
@@ -1998,6 +2031,11 @@ public class KlibIrTextTestCaseGenerated extends AbstractKlibIrTextTestCase {
         @TestMetadata("ErrorInDefaultValue.kt")
         public void testErrorInDefaultValue() throws Exception {
             runTest("compiler/testData/ir/irText/firProblems/ErrorInDefaultValue.kt");
+        }
+
+        @TestMetadata("explicitIncrement.kt")
+        public void testExplicitIncrement() throws Exception {
+            runTest("compiler/testData/ir/irText/firProblems/explicitIncrement.kt");
         }
 
         @TestMetadata("FakeOverrideInAnonymousWithDelegation.kt")

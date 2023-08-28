@@ -189,7 +189,7 @@ object KotlinTypes {
     val map by CollectionClassifier
 
     val nativePtr by InteropType
-    val vector128 by KotlinNativeType
+    val vector128 by InteropType
 
     val cOpaque by InteropType
     val cOpaquePointer by InteropType
@@ -223,6 +223,8 @@ object KotlinTypes {
     val objCNotImplementedVar by InteropClassifier
 
     val cValue by InteropClassifier
+
+    val experimentalForeignApi by InteropClassifier
 
     private open class ClassifierAtPackage(val pkg: String) {
         operator fun getValue(thisRef: KotlinTypes, property: KProperty<*>): Classifier =

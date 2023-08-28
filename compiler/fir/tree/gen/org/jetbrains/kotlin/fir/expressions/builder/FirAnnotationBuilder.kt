@@ -3,7 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("DuplicatedCode")
+@file:Suppress("DuplicatedCode", "unused")
 
 package org.jetbrains.kotlin.fir.expressions.builder
 
@@ -17,8 +17,10 @@ import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationArgumentMapping
 import org.jetbrains.kotlin.fir.expressions.builder.FirExpressionBuilder
 import org.jetbrains.kotlin.fir.expressions.impl.FirAnnotationImpl
+import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
 import org.jetbrains.kotlin.fir.types.FirTypeRef
+import org.jetbrains.kotlin.fir.types.coneTypeOrNull
 import org.jetbrains.kotlin.fir.visitors.*
 
 /*
@@ -45,8 +47,8 @@ class FirAnnotationBuilder : FirAnnotationContainerBuilder, FirExpressionBuilder
     }
 
 
-    @Deprecated("Modification of 'typeRef' has no impact for FirAnnotationBuilder", level = DeprecationLevel.HIDDEN)
-    override var typeRef: FirTypeRef
+    @Deprecated("Modification of 'coneTypeOrNull' has no impact for FirAnnotationBuilder", level = DeprecationLevel.HIDDEN)
+    override var coneTypeOrNull: ConeKotlinType?
         get() = throw IllegalStateException()
         set(_) {
             throw IllegalStateException()
@@ -62,4 +64,18 @@ inline fun buildAnnotation(init: FirAnnotationBuilder.() -> Unit): FirAnnotation
         callsInPlace(init, kotlin.contracts.InvocationKind.EXACTLY_ONCE)
     }
     return FirAnnotationBuilder().apply(init).build()
+}
+
+@OptIn(ExperimentalContracts::class)
+inline fun buildAnnotationCopy(original: FirAnnotation, init: FirAnnotationBuilder.() -> Unit): FirAnnotation {
+    contract {
+        callsInPlace(init, kotlin.contracts.InvocationKind.EXACTLY_ONCE)
+    }
+    val copyBuilder = FirAnnotationBuilder()
+    copyBuilder.source = original.source
+    copyBuilder.useSiteTarget = original.useSiteTarget
+    copyBuilder.annotationTypeRef = original.annotationTypeRef
+    copyBuilder.argumentMapping = original.argumentMapping
+    copyBuilder.typeArguments.addAll(original.typeArguments)
+    return copyBuilder.apply(init).build()
 }

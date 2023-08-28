@@ -86,9 +86,10 @@ val outputJar = fileFrom(buildDir, "libs", "$compilerBaseName.jar")
 val compilerModules: Array<String> by rootProject.extra
 
 val distLibraryProjects = listOfNotNull(
-    ":kotlin-annotation-processing",
+    ":kotlin-annotation-processing-compiler",
     ":kotlin-annotation-processing-cli",
     ":kotlin-annotation-processing-runtime",
+    ":kotlin-annotation-processing",
     ":kotlin-annotations-jvm",
     ":kotlin-ant",
     ":kotlin-daemon",
@@ -166,7 +167,8 @@ dependencies {
 
     libraries(kotlinStdlib("jdk8"))
     if (!kotlinBuildProperties.isInJpsBuildIdeaSync) {
-        libraries(kotlinStdlib("js", "distLibrary"))
+        libraries(kotlinStdlib(classifier = "distJsJar"))
+        libraries(kotlinStdlib(classifier = "distJsKlib"))
         libraries(project(":kotlin-test:kotlin-test-js", configuration = "distLibrary"))
     }
 
@@ -201,20 +203,22 @@ dependencies {
     if (kotlinBuildProperties.isInJpsBuildIdeaSync) {
         sources(kotlinStdlib(classifier = "sources"))
         sources("org.jetbrains.kotlin:kotlin-reflect:$bootstrapKotlinVersion:sources")
+        distCommonContents(kotlinStdlib(classifier = "common"))
+        distCommonContents(kotlinStdlib(classifier = "common-sources"))
     } else {
         sources(project(":kotlin-stdlib", configuration = "distSources"))
-        sources(project(":kotlin-stdlib-js", configuration = "distSources"))
+        sources(project(":kotlin-stdlib", configuration = "distJsSourcesJar"))
         sources(project(":kotlin-reflect", configuration = "sources"))
         sources(project(":kotlin-test", "combinedJvmSourcesJar"))
 
         distStdlibMinimalForTests(project(":kotlin-stdlib-jvm-minimal-for-test"))
 
-        distJSContents(project(":kotlin-stdlib-js", configuration = "distJs"))
+        distJSContents(project(":kotlin-stdlib", configuration = "distJsContent"))
         distJSContents(project(":kotlin-test:kotlin-test-js", configuration = "distJs"))
-    }
 
-    distCommonContents(kotlinStdlib(suffix = "common"))
-    distCommonContents(kotlinStdlib(suffix = "common", classifier = "sources"))
+        distCommonContents(project(":kotlin-stdlib", configuration = "commonMainMetadataElements"))
+        distCommonContents(project(":kotlin-stdlib", configuration = "metadataSourcesElements"))
+    }
 
     distMavenContents(kotlinStdlib(classifier = "sources"))
 
@@ -235,8 +239,9 @@ dependencies {
     fatJarContents(commonDependency("org.jetbrains.intellij.deps.fastutil:intellij-deps-fastutil")) { isTransitive = false }
     fatJarContents(commonDependency("org.lz4:lz4-java")) { isTransitive = false }
     fatJarContents(commonDependency("org.jetbrains.intellij.deps:asm-all")) { isTransitive = false }
-    fatJarContents(commonDependency("com.google.guava:guava")) { isTransitive = false }
-    fatJarContents(commonDependency("com.google.code.gson:gson")) { isTransitive = false}
+    fatJarContents(libs.guava) { isTransitive = false }
+    //Gson is needed for kotlin-build-statistics. Build statistics could be enabled for JPS and Gradle builds. Gson will come from inteliij or KGP.
+    proguardLibraries(commonDependency("com.google.code.gson:gson")) { isTransitive = false}
 
     fatJarContentsStripServices(commonDependency("com.fasterxml:aalto-xml")) { isTransitive = false }
     fatJarContents(commonDependency("org.codehaus.woodstox:stax2-api")) { isTransitive = false }
@@ -423,7 +428,13 @@ val distKotlinc = distTask<Sync>("distKotlinc") {
 
 val distCommon = distTask<Sync>("distCommon") {
     destinationDir = File("$distDir/common")
-    from(distCommonContents)
+    from(distCommonContents) {
+        rename { name ->
+            name
+                .replace("-metadata.jar", "-common.jar")
+                .replace("-metadata-sources.jar", "-common-sources.jar")
+        }
+    }
 }
 
 val distMaven = distTask<Sync>("distMaven") {

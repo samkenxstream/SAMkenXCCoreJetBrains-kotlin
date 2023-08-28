@@ -29,7 +29,9 @@ import org.jetbrains.kotlin.gradle.plugin.internal.artifactTypeAttribute
 import org.jetbrains.kotlin.gradle.plugin.mpp.*
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsTarget
+import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetAttribute
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTarget
+import org.jetbrains.kotlin.gradle.targets.js.toAttribute
 import org.jetbrains.kotlin.gradle.targets.jvm.KotlinJvmTarget
 import org.jetbrains.kotlin.gradle.tasks.locateOrRegisterTask
 import org.jetbrains.kotlin.gradle.tasks.registerTask
@@ -99,7 +101,8 @@ abstract class AbstractKotlinTargetConfigurator<KotlinTargetType : KotlinTarget>
 
     override fun configureSourceSet(target: KotlinTargetType) {
         target.compilations.all { compilation ->
-            compilation.source(compilation.defaultSourceSet) // also adds dependencies, requires the configurations for target and source set to exist at this point
+            @Suppress("DEPRECATION")
+            compilation.addSourceSet(compilation.defaultSourceSet) // also adds dependencies, requires the configurations for target and source set to exist at this point
         }
     }
 
@@ -207,7 +210,7 @@ abstract class AbstractKotlinTargetConfigurator<KotlinTargetType : KotlinTarget>
             isCanBeResolved = false
             isCanBeConsumed = true
             configureSourcesPublicationAttributes(target)
-            project.whenEvaluated { isCanBeConsumed = target.internal.isSourcesPublishable }
+            project.launch { isCanBeConsumed = target.internal.isSourcesPublishableFuture.await() }
         }
 
         if (createTestCompilation) {
@@ -312,6 +315,10 @@ abstract class KotlinOnlyTargetConfigurator<KotlinCompilationType : KotlinCompil
             it.from(target.compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME).output.allOutputs)
             it.isPreserveFileTimestamps = false
             it.isReproducibleFileOrder = true
+
+            target.disambiguationClassifier?.let { classifier ->
+                it.archiveAppendix.set(classifier.toLowerCaseAsciiOnly())
+            }
         }
     }
 
@@ -321,12 +328,6 @@ abstract class KotlinOnlyTargetConfigurator<KotlinCompilationType : KotlinCompil
         val mainCompilation = target.compilations.getByName(KotlinCompilation.MAIN_COMPILATION_NAME)
 
         val task = createArchiveTasks(target)
-
-        target.disambiguationClassifier?.let { classifier ->
-            task.configure { taskInstance ->
-                taskInstance.archiveAppendix.set(classifier.toLowerCaseAsciiOnly())
-            }
-        }
 
         // Workaround: adding the artifact during configuration seems to interfere with the Java plugin, which results into missing
         // task dependency 'assemble -> jar' if the Java plugin is applied after this steps
@@ -434,8 +435,12 @@ fun Configuration.usesPlatformOf(target: KotlinTarget): Configuration {
         attributes.attribute(KotlinJsCompilerAttribute.jsCompilerAttribute, KotlinJsCompilerAttribute.legacy)
     }
 
-    if (publishJsCompilerAttribute && target is KotlinJsIrTarget && target.platformType == KotlinPlatformType.js) {
-        attributes.attribute(KotlinJsCompilerAttribute.jsCompilerAttribute, KotlinJsCompilerAttribute.ir)
+    if (publishJsCompilerAttribute && target is KotlinJsIrTarget) {
+        if (target.platformType == KotlinPlatformType.js) {
+            attributes.attribute(KotlinJsCompilerAttribute.jsCompilerAttribute, KotlinJsCompilerAttribute.ir)
+        } else {
+            attributes.attribute(KotlinWasmTargetAttribute.wasmTargetAttribute, target.wasmTargetType!!.toAttribute())
+        }
     }
 
     // TODO: Provide an universal way to copy attributes from the target.

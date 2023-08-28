@@ -7,12 +7,16 @@ package org.jetbrains.kotlin.compilerRunner
 
 import org.gradle.api.Project
 import org.gradle.api.file.FileCollection
+import org.jetbrains.kotlin.build.report.metrics.BuildMetricsReporter
+import org.jetbrains.kotlin.build.report.metrics.GradleBuildPerformanceMetric
+import org.jetbrains.kotlin.build.report.metrics.GradleBuildTime
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
 import org.jetbrains.kotlin.gradle.dsl.NativeCacheKind
 import org.jetbrains.kotlin.gradle.dsl.NativeCacheOrchestration
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.useXcodeMessageStyle
 import org.jetbrains.kotlin.gradle.plugin.mpp.nativeUseEmbeddableCompilerJar
+import org.jetbrains.kotlin.gradle.report.GradleBuildMetricsReporter
 import org.jetbrains.kotlin.gradle.targets.native.KonanPropertiesBuildService
 import org.jetbrains.kotlin.gradle.utils.NativeCompilerDownloader
 import org.jetbrains.kotlin.konan.properties.resolvablePropertyString
@@ -27,7 +31,8 @@ private val Project.jvmArgs
     get() = PropertiesProvider(this).nativeJvmArgs?.split("\\s+".toRegex()).orEmpty()
 
 internal val Project.konanHome: String
-    get() = PropertiesProvider(this).nativeHome?.let { file(it).absolutePath }
+    get() = PropertiesProvider(this).konanDataDir?.let { NativeCompilerDownloader(project).compilerDirectory.absolutePath }
+        ?: PropertiesProvider(this).nativeHome?.let { file(it).absolutePath }
         ?: NativeCompilerDownloader(project).compilerDirectory.absolutePath
 
 internal val Project.disableKonanDaemon: Boolean
@@ -36,6 +41,9 @@ internal val Project.disableKonanDaemon: Boolean
 internal val Project.konanVersion: String
     get() = PropertiesProvider(this).nativeVersion
         ?: NativeCompilerDownloader.DEFAULT_KONAN_VERSION
+
+internal val Project.konanDataDir: String?
+    get() = PropertiesProvider(this).konanDataDir
 
 internal fun Project.getKonanCacheKind(target: KonanTarget): NativeCacheKind {
     val commonCacheKind = PropertiesProvider(this).nativeCacheKind
@@ -69,8 +77,9 @@ private val Project.kotlinNativeCompilerJar: String
 internal abstract class KotlinNativeToolRunner(
     protected val toolName: String,
     private val settings: Settings,
-    executionContext: GradleExecutionContext
-) : KotlinToolRunner(executionContext) {
+    executionContext: GradleExecutionContext,
+    metricsReporter: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>
+) : KotlinToolRunner(executionContext, metricsReporter) {
 
     class Settings(
         val konanVersion: String,
@@ -78,16 +87,18 @@ internal abstract class KotlinNativeToolRunner(
         val konanPropertiesFile: File,
         val useXcodeMessageStyle: Boolean,
         val jvmArgs: List<String>,
-        val classpath: FileCollection
+        val classpath: FileCollection,
+        val konanDataDir: String?,
     ) {
         companion object {
-            fun fromProject(project: Project) = Settings(
+            fun of(konanHome: String, konanDataDir: String?, project: Project) = Settings(
                 konanVersion = project.konanVersion,
-                konanHome = project.konanHome,
-                konanPropertiesFile = project.file("${project.konanHome}/konan/konan.properties"),
+                konanHome = konanHome,
+                konanPropertiesFile = project.file("${konanHome}/konan/konan.properties"),
                 useXcodeMessageStyle = project.useXcodeMessageStyle,
                 jvmArgs = project.jvmArgs,
-                classpath = project.files(project.kotlinNativeCompilerJar, "${project.konanHome}/konan/lib/trove4j.jar")
+                classpath = project.files(project.kotlinNativeCompilerJar, "${konanHome}/konan/lib/trove4j.jar"),
+                konanDataDir = konanDataDir
             )
         }
     }
@@ -131,14 +142,23 @@ internal abstract class KotlinNativeToolRunner(
     override fun transformArgs(args: List<String>) = listOf(toolName) + args
 
     final override fun getCustomJvmArgs() = settings.jvmArgs
+
+    final override fun run(args: List<String>) {
+        super.run(args + extractArgsFromSettings())
+    }
+
+    protected open fun extractArgsFromSettings(): List<String> {
+        return settings.konanDataDir?.let { listOf("-Xkonan-data-dir=$it") } ?: emptyList()
+    }
 }
 
 /** A common ancestor for all runners that run the cinterop tool. */
 internal abstract class AbstractKotlinNativeCInteropRunner(
     toolName: String,
-    settings: Settings,
-    executionContext: GradleExecutionContext
-) : KotlinNativeToolRunner(toolName, settings, executionContext) {
+    private val settings: Settings,
+    executionContext: GradleExecutionContext,
+    metricsReporter: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>
+) : KotlinNativeToolRunner(toolName, settings, executionContext, metricsReporter) {
 
     override val mustRunViaExec get() = true
 
@@ -152,6 +172,10 @@ internal abstract class AbstractKotlinNativeCInteropRunner(
         result
     }
 
+    override fun extractArgsFromSettings(): List<String> {
+        return settings.konanDataDir?.let { listOf("-Xkonan-data-dir", it) } ?: emptyList()
+    }
+
     private val llvmExecutablesPath: String? by lazy {
         if (HostManager.host == KonanTarget.MINGW_X64) {
             // TODO: Read it from Platform properties when it is accessible.
@@ -160,7 +184,7 @@ internal abstract class AbstractKotlinNativeCInteropRunner(
             }
 
             konanProperties.resolvablePropertyString("llvmHome.mingw_x64")?.let { toolchainDir ->
-                DependencyDirectories.defaultDependenciesRoot
+                DependencyDirectories.getDependenciesRoot(settings.konanDataDir)
                     .resolve("$toolchainDir/bin")
                     .absolutePath
             }
@@ -174,17 +198,19 @@ internal class KotlinNativeCInteropRunner
 private constructor(
     private val settings: Settings,
     gradleExecutionContext: GradleExecutionContext,
-) : AbstractKotlinNativeCInteropRunner("cinterop", settings, gradleExecutionContext) {
+    metricsReporter: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>
+) : AbstractKotlinNativeCInteropRunner("cinterop", settings, gradleExecutionContext, metricsReporter) {
 
     interface ExecutionContext {
         val runnerSettings: Settings
         val gradleExecutionContext: GradleExecutionContext
+        val metricsReporter: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>
         fun runWithContext(action: () -> Unit)
     }
 
     companion object {
         fun ExecutionContext.run(args: List<String>) {
-            val runner = KotlinNativeCInteropRunner(runnerSettings, gradleExecutionContext)
+            val runner = KotlinNativeCInteropRunner(runnerSettings, gradleExecutionContext, metricsReporter)
             runWithContext { runner.run(args) }
         }
     }
@@ -193,15 +219,16 @@ private constructor(
 /** Kotlin/Native compiler runner */
 internal class KotlinNativeCompilerRunner(
     private val settings: Settings,
-    executionContext: GradleExecutionContext
-) : KotlinNativeToolRunner("konanc", settings.parent, executionContext) {
+    executionContext: GradleExecutionContext,
+    metricsReporter: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>
+) : KotlinNativeToolRunner("konanc", settings.parent, executionContext, metricsReporter) {
     class Settings(
         val parent: KotlinNativeToolRunner.Settings,
         val disableKonanDaemon: Boolean,
     ) {
         companion object {
-            fun fromProject(project: Project) = Settings(
-                parent = KotlinNativeToolRunner.Settings.fromProject(project),
+            fun of(konanHome: String, konanDataDir: String?, project: Project) = Settings(
+                parent = KotlinNativeToolRunner.Settings.of(konanHome, konanDataDir, project),
                 disableKonanDaemon = project.disableKonanDaemon,
             )
         }
@@ -231,14 +258,16 @@ internal class KotlinNativeCompilerRunner(
 /** Platform libraries generation tool. Runs the cinterop tool under the hood. */
 internal class KotlinNativeLibraryGenerationRunner(
     private val settings: Settings,
-    executionContext: GradleExecutionContext
+    executionContext: GradleExecutionContext,
+    metricsReporter: BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>
 ) :
-    AbstractKotlinNativeCInteropRunner("generatePlatformLibraries", settings, executionContext) {
+    AbstractKotlinNativeCInteropRunner("generatePlatformLibraries", settings, executionContext, metricsReporter) {
 
     companion object {
         fun fromProject(project: Project) = KotlinNativeLibraryGenerationRunner(
-            settings = Settings.fromProject(project),
-            executionContext = GradleExecutionContext.fromProject(project)
+            settings = Settings.of(project.konanHome, project.konanDataDir, project),
+            executionContext = GradleExecutionContext.fromProject(project),
+            metricsReporter = GradleBuildMetricsReporter()
         )
     }
 

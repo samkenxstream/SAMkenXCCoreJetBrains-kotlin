@@ -7,17 +7,19 @@ package org.jetbrains.kotlin.gradle.testbase
 
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.configuration.WarningMode
+import org.gradle.internal.logging.LoggingConfigurationBuildOptions.StacktraceOption
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.cli.common.CompilerSystemProperties.COMPILE_INCREMENTAL_WITH_ARTIFACT_TRANSFORM
 import org.jetbrains.kotlin.gradle.BaseGradleIT
 import org.jetbrains.kotlin.gradle.dsl.NativeCacheKind
-import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompilerExecutionStrategy
 import org.jetbrains.kotlin.gradle.report.BuildReportType
 import org.junit.jupiter.api.condition.OS
 import java.util.*
 
 data class BuildOptions(
     val logLevel: LogLevel = LogLevel.INFO,
+    val stacktraceMode: String? = StacktraceOption.FULL_STACKTRACE_LONG_OPTION,
     val kotlinVersion: String = TestVersions.Kotlin.CURRENT,
     val warningMode: WarningMode = WarningMode.Fail,
     val configurationCache: Boolean = false,
@@ -43,8 +45,11 @@ data class BuildOptions(
     val usePreciseOutputsBackup: Boolean? = null,
     val keepIncrementalCompilationCachesInMemory: Boolean? = null,
     val useDaemonFallbackStrategy: Boolean = false,
-    val verboseDiagnostics: Boolean = true,
+    val useParsableDiagnosticsFormatting: Boolean = true,
+    val showDiagnosticsStacktrace: Boolean? = false, // false by default to not clutter the testdata + stacktraces change often
     val nativeOptions: NativeOptions = NativeOptions(),
+    val compilerExecutionStrategy: KotlinCompilerExecutionStrategy? = null,
+    val runViaBuildToolsApi: Boolean? = null,
 ) {
     val safeAndroidVersion: String
         get() = androidVersion ?: error("AGP version is expected to be set")
@@ -57,12 +62,9 @@ data class BuildOptions(
     )
 
     data class JsOptions(
-        val useIrBackend: Boolean? = null,
-        val jsCompilerType: KotlinJsCompilerType? = null,
         val incrementalJs: Boolean? = null,
         val incrementalJsKlib: Boolean? = null,
-        val incrementalJsIr: Boolean? = null,
-        val compileNoWarn: Boolean = true,
+        val incrementalJsIr: Boolean? = null
     )
 
     data class NativeOptions(
@@ -77,6 +79,7 @@ data class BuildOptions(
         val restrictedDistribution: Boolean? = null,
         val useXcodeMessageStyle: Boolean? = null,
         val version: String? = null,
+        val cacheOrchestration: String? = null,
     )
 
     fun toArguments(
@@ -141,14 +144,6 @@ data class BuildOptions(
             jsOptions.incrementalJs?.let { arguments.add("-Pkotlin.incremental.js=$it") }
             jsOptions.incrementalJsKlib?.let { arguments.add("-Pkotlin.incremental.js.klib=$it") }
             jsOptions.incrementalJsIr?.let { arguments.add("-Pkotlin.incremental.js.ir=$it") }
-            jsOptions.useIrBackend?.let { arguments.add("-Pkotlin.js.useIrBackend=$it") }
-            jsOptions.jsCompilerType?.let { arguments.add("-Pkotlin.js.compiler=$it") }
-            // because we have legacy compiler tests, we need nowarn for compiler testing
-            if (jsOptions.compileNoWarn) {
-                arguments.add("-Pkotlin.js.compiler.nowarn=true")
-            }
-        } else {
-            arguments.add("-Pkotlin.js.compiler.nowarn=true")
         }
 
         if (androidVersion != null) {
@@ -184,8 +179,24 @@ data class BuildOptions(
 
         arguments.add("-Pkotlin.daemon.useFallbackStrategy=$useDaemonFallbackStrategy")
 
-        if (verboseDiagnostics) {
-            arguments.add("-Pkotlin.internal.verboseDiagnostics=$verboseDiagnostics")
+        if (useParsableDiagnosticsFormatting) {
+            arguments.add("-Pkotlin.internal.diagnostics.useParsableFormatting=$useParsableDiagnosticsFormatting")
+        }
+
+        if (compilerExecutionStrategy != null) {
+            arguments.add("-Pkotlin.compiler.execution.strategy=${compilerExecutionStrategy.propertyValue}")
+        }
+
+        if (runViaBuildToolsApi != null) {
+            arguments.add("-Pkotlin.compiler.runViaBuildToolsApi=$runViaBuildToolsApi")
+        }
+
+        if (showDiagnosticsStacktrace != null) {
+            arguments.add("-Pkotlin.internal.diagnostics.showStacktrace=$showDiagnosticsStacktrace")
+        }
+
+        if (stacktraceMode != null) {
+            arguments.add("--$stacktraceMode")
         }
 
         arguments.addAll(freeArgs)
@@ -229,6 +240,9 @@ data class BuildOptions(
         }
         nativeOptions.version?.let {
             arguments.add("-Pkotlin.native.version=${it}")
+        }
+        nativeOptions.cacheOrchestration?.let {
+            arguments.add("-Pkotlin.native.cacheOrchestration=${it}")
         }
 
     }

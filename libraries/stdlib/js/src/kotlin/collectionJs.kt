@@ -32,33 +32,14 @@ internal fun <T> copyToArray(collection: Collection<T>): Array<T> {
     return if (collection.asDynamic().toArray !== undefined)
         collection.asDynamic().toArray().unsafeCast<Array<T>>()
     else
-        copyToArrayImpl(collection).unsafeCast<Array<T>>()
+        collectionToArray(collection).unsafeCast<Array<T>>()
 }
 
-@JsName("copyToArrayImpl")
-internal actual fun copyToArrayImpl(collection: Collection<*>): Array<Any?> {
-    val array = emptyArray<Any?>()
-    val iterator = collection.iterator()
-    while (iterator.hasNext())
-        array.asDynamic().push(iterator.next())
-    return array
-}
+internal actual fun collectionToArray(collection: Collection<*>): Array<Any?> = collectionToArrayCommonImpl(collection)
 
-@JsName("copyToExistingArrayImpl")
-internal actual fun <T> copyToArrayImpl(collection: Collection<*>, array: Array<T>): Array<T> {
-    if (array.size < collection.size)
-        return copyToArrayImpl(collection).unsafeCast<Array<T>>()
+internal actual fun <T> collectionToArray(collection: Collection<*>, array: Array<T>): Array<T> = collectionToArrayCommonImpl(collection, array)
 
-    val iterator = collection.iterator()
-    var index = 0
-    while (iterator.hasNext()) {
-        array[index++] = iterator.next().unsafeCast<T>()
-    }
-    if (index < array.size) {
-        array[index] = null.unsafeCast<T>()
-    }
-    return array
-}
+internal actual fun <T> terminateCollectionToArray(collectionSize: Int, array: Array<T>): Array<T> = array
 
 /**
  * Returns a new read-only list containing only the specified object [element].

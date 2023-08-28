@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.builtins.functions.FunctionTypeKind
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.declarations.impl.FirOuterClassTypeParameterRef
+import org.jetbrains.kotlin.fir.declarations.FirOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.utils.isEnumClass
 import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.diagnostics.*
@@ -103,7 +103,7 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
             }
 
             if (resolveDeprecations) {
-                val deprecation = symbol.getDeprecation(session, useSiteFile)
+                val deprecation = symbol.getOwnDeprecation(session, useSiteFile)
                 if (deprecation != null && deprecation.deprecationLevel == DeprecationLevelValue.HIDDEN) {
                     symbolApplicability = minOf(CandidateApplicability.HIDDEN, symbolApplicability)
                     diagnostic = null
@@ -412,7 +412,6 @@ class FirTypeResolverImpl(private val session: FirSession) : FirTypeResolver() {
         userTypeRef: FirUserTypeRef,
         qualifierPartArgumentsCount: Int?
     ): ConeErrorType? {
-        // TODO: It should be TYPE_ARGUMENTS_NOT_ALLOWED diagnostics when parameterClass is null
         val actualTypeParametersCount = getActualTypeParametersCount(parameterClass ?: symbol.fir)
 
         if (qualifierPartArgumentsCount == null || actualTypeParametersCount != qualifierPartArgumentsCount) {

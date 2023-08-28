@@ -187,7 +187,7 @@ abstract class AbstractAnnotationDeserializer(
         val classId = nameResolver.getClassId(proto.id)
         return buildAnnotation {
             annotationTypeRef = buildResolvedTypeRef {
-                type = classId.toLookupTag().constructClassType(emptyArray(), isNullable = false)
+                type = classId.toLookupTag().constructClassType(ConeTypeProjection.EMPTY_ARRAY, isNullable = false)
             }
             session.lazyDeclarationResolver.disableLazyResolveContractChecksInside {
                 this.argumentMapping = createArgumentMapping(proto, classId, nameResolver)
@@ -271,16 +271,14 @@ abstract class AbstractAnnotationDeserializer(
                 val classId = nameResolver.getClassId(value.classId)
                 val lookupTag = classId.toLookupTag()
                 val referencedType = lookupTag.constructType(emptyArray(), isNullable = false)
-                val resolvedTypeRef = buildResolvedTypeRef {
-                    type = StandardClassIds.KClass.constructClassLikeType(arrayOf(referencedType), false)
-                }
+                val resolvedType = StandardClassIds.KClass.constructClassLikeType(arrayOf(referencedType), false)
                 argumentList = buildUnaryArgumentList(
                     buildClassReferenceExpression {
                         classTypeRef = buildResolvedTypeRef { type = referencedType }
-                        typeRef = resolvedTypeRef
+                        coneTypeOrNull = resolvedType
                     }
                 )
-                typeRef = resolvedTypeRef
+                coneTypeOrNull = resolvedType
             }
             ENUM -> buildPropertyAccessExpression {
                 val classId = nameResolver.getClassId(value.classId)
@@ -300,18 +298,16 @@ abstract class AbstractAnnotationDeserializer(
                     name = entryName
                 }
                 if (enumEntrySymbol != null) {
-                    typeRef = enumEntrySymbol.returnTypeRef
+                    coneTypeOrNull = enumEntrySymbol.returnTypeRef.coneTypeOrNull
                 }
             }
             ARRAY -> {
                 val expectedArrayElementType = expectedType()?.arrayElementType() ?: session.builtinTypes.anyType.type
-                buildArrayOfCall {
+                buildArrayLiteral {
                     argumentList = buildArgumentList {
                         value.arrayElementList.mapTo(arguments) { resolveValue(it, nameResolver) { expectedArrayElementType } }
                     }
-                    typeRef = buildResolvedTypeRef {
-                        type = expectedArrayElementType.createArrayType()
-                    }
+                    coneTypeOrNull = expectedArrayElementType.createArrayType()
                 }
             }
 
@@ -320,6 +316,6 @@ abstract class AbstractAnnotationDeserializer(
     }
 
     private fun <T> const(kind: ConstantValueKind<T>, value: T, typeRef: FirResolvedTypeRef): FirConstExpression<T> {
-        return buildConstExpression(null, kind, value, setType = true).apply { this.replaceTypeRef(typeRef) }
+        return buildConstExpression(null, kind, value, setType = true).apply { this.replaceConeTypeOrNull(typeRef.coneType) }
     }
 }

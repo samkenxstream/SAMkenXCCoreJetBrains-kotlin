@@ -5,12 +5,10 @@
 
 package org.jetbrains.kotlin.gradle.plugin.diagnostics
 
-import org.gradle.api.InvalidUserCodeException
 import org.gradle.api.Project
 import org.gradle.api.provider.Provider
 import org.gradle.api.services.BuildService
 import org.gradle.api.services.BuildServiceParameters
-import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.utils.registerClassLoaderScopedBuildService
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -30,31 +28,29 @@ internal abstract class KotlinToolingDiagnosticsCollector : BuildService<BuildSe
     private val reportedIds: MutableSet<ToolingDiagnosticId> = Collections.newSetFromMap(ConcurrentHashMap())
 
     fun getDiagnosticsForProject(project: Project): Collection<ToolingDiagnostic> {
-        val rawDiagnostics = rawDiagnosticsFromProject[project.path] ?: return emptyList()
-        val options = ToolingDiagnosticRenderingOptions.forProject(project)
-        return rawDiagnostics.withoutSuppressed(options)
+        return rawDiagnosticsFromProject[project.path] ?: return emptyList()
     }
 
     fun report(project: Project, diagnostic: ToolingDiagnostic) {
-        saveDiagnostic(project, diagnostic)
+        handleDiagnostic(project, diagnostic)
     }
 
     fun report(task: UsesKotlinToolingDiagnostics, diagnostic: ToolingDiagnostic) {
         val options = task.diagnosticRenderingOptions.get()
         if (!diagnostic.isSuppressed(options)) {
-            renderReportedDiagnostic(diagnostic, task.logger, options.isVerbose)
+            renderReportedDiagnostic(diagnostic, task.logger, options)
         }
     }
 
     fun reportOncePerGradleProject(fromProject: Project, diagnostic: ToolingDiagnostic, key: ToolingDiagnosticId = diagnostic.id) {
         if (reportedIds.add("${fromProject.path}#$key")) {
-            saveDiagnostic(fromProject, diagnostic)
+            handleDiagnostic(fromProject, diagnostic)
         }
     }
 
     fun reportOncePerGradleBuild(fromProject: Project, diagnostic: ToolingDiagnostic, key: ToolingDiagnosticId = diagnostic.id) {
         if (reportedIds.add(":#$key")) {
-            saveDiagnostic(fromProject, diagnostic)
+            handleDiagnostic(fromProject, diagnostic)
         }
     }
 
@@ -62,17 +58,21 @@ internal abstract class KotlinToolingDiagnosticsCollector : BuildService<BuildSe
         isTransparent = true
     }
 
-    private fun saveDiagnostic(project: Project, diagnostic: ToolingDiagnostic) {
+    private fun handleDiagnostic(project: Project, diagnostic: ToolingDiagnostic) {
+        val options = ToolingDiagnosticRenderingOptions.forProject(project)
+        if (diagnostic.isSuppressed(options)) return
+
         if (isTransparent) {
-            renderReportedDiagnostic(diagnostic, project.logger, project.kotlinPropertiesProvider.internalVerboseDiagnostics)
+            renderReportedDiagnostic(diagnostic, project.logger, options)
             return
         }
 
-        if (diagnostic.severity == ToolingDiagnostic.Severity.FATAL) {
-            throw InvalidUserCodeException(diagnostic.message)
-        }
         rawDiagnosticsFromProject.compute(project.path) { _, previousListIfAny ->
             previousListIfAny?.apply { add(diagnostic) } ?: mutableListOf(diagnostic)
+        }
+
+        if (diagnostic.severity == ToolingDiagnostic.Severity.FATAL) {
+            throw diagnostic.createAnExceptionForFatalDiagnostic(options)
         }
     }
 }

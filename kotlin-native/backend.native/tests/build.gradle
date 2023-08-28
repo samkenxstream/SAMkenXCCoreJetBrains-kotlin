@@ -36,7 +36,7 @@ configurations {
 
 dependencies {
     // TODO: upgrade coroutines to common version
-    api DependenciesKt.commonDependency(project, "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7")
+    api RepoDependencies.commonDependency(project, "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7")
 }
 ext.testOutputRoot = rootProject.file("test.output").absolutePath
 
@@ -1042,6 +1042,14 @@ standaloneTest("atomic1") {
     // Note: This test reproduces a race, so it'll start flaking if problem is reintroduced.
     enabled = false // Needs USE_CYCLIC_GC, which is disabled.
     source = "runtime/atomics/atomic1.kt"
+}
+
+tasks.register("atomicArraySmokeTest", KonanLocalTest) {
+    source = "runtime/atomics/atomic_array_smoke.kt"
+}
+
+tasks.register("atomicArrayStressTest", KonanLocalTest) {
+    source = "runtime/atomics/atomic_array_stress.kt"
 }
 
 tasks.register("lazy0", KonanLocalTest) {
@@ -3142,8 +3150,7 @@ standaloneTest("stress_gc_allocations") {
         (project.testTarget != "watchos_simulator_arm64") &&
         !isNoopGC &&
         !isAggressiveGC && // TODO: Investigate why too slow
-        !runtimeAssertionsPanic && // New allocator with assertions makes this test very slow
-        (project.testTarget != "mingw_x64") // TODO: Fix on mingw.
+        !runtimeAssertionsPanic // New allocator with assertions makes this test very slow
     source = "runtime/memory/stress_gc_allocations.kt"
     flags = ['-tr', '-opt-in=kotlin.native.internal.InternalForKotlinNative']
 }
@@ -4023,6 +4030,16 @@ createInterop("cForwardDeclarationsTwoLibs2") {
 }
 
 if (PlatformInfo.isAppleTarget(project)) {
+    createInterop("forwardDeclarationsCastA") {
+        it.defFile "interop/forwardDeclarationsCast/a.def"
+    }
+
+    createInterop("forwardDeclarationsCastB") {
+        it.defFile "interop/forwardDeclarationsCast/b.def"
+        it.headers "$projectDir/interop/forwardDeclarationsCast/b.h"
+        it.extraOpts "-Xcompile-source", "$projectDir/interop/forwardDeclarationsCast/b.m"
+    }
+
     createInterop("objcSmoke") {
         it.defFile 'interop/objc/objcSmoke.def'
         it.headers "$projectDir/interop/objc/smoke.h"
@@ -4129,6 +4146,10 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.defFile 'interop/objc/kt56402/objclib.def'
         it.headers "$projectDir/interop/objc/kt56402/objclib.h"
     }
+    createInterop("objc_friendly_dealloc") {
+        it.defFile 'interop/objc/objc_friendly_dealloc/objclib.def'
+        it.headers "$projectDir/interop/objc/objc_friendly_dealloc/objclib.h"
+    }
     createInterop("objCAction") {
         it.defFile 'interop/objc/objCAction/objclib.def'
         it.headers "$projectDir/interop/objc/objCAction/objclib.h"
@@ -4155,7 +4176,7 @@ createInterop("exceptions_cCallback") {
 /**
  * Creates a task for the interop test. Configures runner and adds library and test build tasks.
  */
-Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> configureClosure) {
+Task interopTestBase(String name, boolean multiFile, boolean interop2ForMainOnly, Closure<KonanInteropTest> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanInteropTest) { task ->
         task.configure(configureClosure)
         if (task.enabled) {
@@ -4173,7 +4194,7 @@ Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> c
                     library(lib, targets: [targetName]) {
                         libraries {
                             artifact interopLib
-                            if (interopLib2 != null) artifact interopLib2
+                            if (interopLib2 != null && !interop2ForMainOnly) artifact interopLib2
                         }
                         srcFiles task.lib
                         baseDir  "$testOutputLocal/$name"
@@ -4202,11 +4223,11 @@ Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> c
 }
 
 Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
-    return interopTestBase(name, false, configureClosure)
+    return interopTestBase(name, false, false, configureClosure)
 }
 
 Task interopTestMultifile(String name, Closure<KonanInteropTest> configureClosure) {
-    return interopTestBase(name, true, configureClosure)
+    return interopTestBase(name, true, false, configureClosure)
 }
 
 standaloneTest("interop_objc_allocException") {
@@ -4277,7 +4298,6 @@ interopTest("interop_globals") {
 }
 
 interopTest("interop_macros") {
-    disabled = isK2(project) // KT-56041
     source = "interop/basics/macros.kt"
     interop = 'cmacros'
 }
@@ -4447,6 +4467,14 @@ interopTest("interop_kt51925") {
     useGoldenData = true
 }
 
+interopTestBase("interop_forwardDeclarationsCast", false, true) {
+    enabled = isAppleTarget(project)
+    interop = 'forwardDeclarationsCastA'
+    interop2 = 'forwardDeclarationsCastB'
+    lib = 'interop/forwardDeclarationsCast/lib.kt'
+    source = 'interop/forwardDeclarationsCast/main.kt'
+}
+
 dynamicTest("interop_kt43502") {
     interop = "kt43502"
     source = "interop/kt43502/main.kt"
@@ -4558,7 +4586,6 @@ if (PlatformInfo.isAppleTarget(project)) {
         enabled = !isNoopGC
         source = "interop/objc/smoke.kt"
         interop = 'objcSmoke'
-        verifyIr = false  // KT-57716
         doBeforeBuild {
             mkdir(buildDir)
             project.extensions.execClang.execClangForCompilerTests(project.target) {
@@ -4656,14 +4683,11 @@ if (PlatformInfo.isAppleTarget(project)) {
         UtilsKt.dependsOnPlatformLibs(it)
     }
 
-    interopTest("interop_kt49034_objcprotocol") {
-        disabled = isK2(project) // KT-56028
-        interop = 'kt49034_objcprotocol'
-        source = 'interop/objc/kt49034/objcprotocol/main.kt'
-
-        // The test depends on collision between kt49034.__darwin_fp_control and platform.darwin.__darwin_fp_control
+    standaloneTest("interop_objc_kt61441") {
+        source = "interop/objc/kt61441.kt"
         UtilsKt.dependsOnPlatformLibs(it)
     }
+
 
     interopTest("interop_objc_global_initializer") {
         useGoldenData = true
@@ -4917,6 +4941,7 @@ if (PlatformInfo.isAppleTarget(project)) {
             mkdir(buildDir)
             project.extensions.execClang.execClangForCompilerTests(project.target) {
                 args "$projectDir/interop/objc/kt56402/objclib.m"
+                args "-g"
                 args "-lobjc", '-fobjc-arc'
                 args '-fPIC', '-shared', '-o', "$buildDir/libobjc_kt56402.dylib"
                 args '-framework', 'AppKit'
@@ -4925,6 +4950,26 @@ if (PlatformInfo.isAppleTarget(project)) {
                 UtilsKt.codesign(project, "$buildDir/libobjc_kt56402.dylib")
             }
         }
+    }
+
+    interopTest("interop_objc_friendly_dealloc") {
+        enabled = !isNoopGC // requires some GC
+        source = 'interop/objc/objc_friendly_dealloc/main.kt'
+        interop = "objc_friendly_dealloc"
+        flags = ["-tr"]
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            project.extensions.execClang.execClangForCompilerTests(project.target) {
+                args "$projectDir/interop/objc/objc_friendly_dealloc/objclib.m"
+                args "-lobjc", '-fno-objc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libobjc_friendly_dealloc.dylib"
+            }
+            if (UtilsKt.isSimulatorTarget(project, project.target)) {
+                UtilsKt.codesign(project, "$buildDir/libobjc_friendly_dealloc.dylib")
+            }
+        }
+        UtilsKt.dependsOnPlatformLibs(it)
     }
 
     interopTest("interop_objCAction") {
@@ -5332,7 +5377,8 @@ Task objcExportTest(
             opts += [
                     "-Xexport-kdoc",
                     "-Xbinary=bundleId=foo.bar",
-                    "-Xexport-library=test-no-enum-entries-${libraryName}.klib"
+                    "-Xexport-library=test-no-enum-entries-${libraryName}.klib",
+                    "-module-name", "Kt"
             ]
             opts += frameworkOpts
         }
@@ -5575,6 +5621,9 @@ if (isAppleTarget(project)) {
             sources = ['framework/kt56233']
         }
         swiftSources = ['framework/kt56233']
+        if (isAggressiveGC) {
+            swiftExtraOpts += ["-D", "AGGRESSIVE_GC"]
+        }
     }
 
     frameworkTest("testKt57791Framework") {
@@ -6206,8 +6255,8 @@ fileCheckTest("filecheck_signext_zeroext_interop") {
 fileCheckTest("filecheck_signext_zeroext_objc_export") {
     annotatedSource = project.file('filecheck/signext_zeroext_objc_export.kt')
     generateFramework = true
-    enabled = target.family.appleFamily
-            && !isK2(project) // KT-58863
+//    enabled = target.family.appleFamily
+    enabled = false // KT-58863
 }
 
 fileCheckTest("filecheck_function_attributes_at_callsite") {
@@ -6246,7 +6295,7 @@ dependencies {
 
     implementation kotlinCompilerModule
     api project(path: ':kotlin-native:backend.native', configuration: 'cli_bcApiElements')
-    api DependenciesKt.commonDependency(project, "junit")
+    api RepoDependencies.commonDependency(project, "junit")
 }
 
 // Configure build for iOS device targets.

@@ -11,31 +11,27 @@ import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiElementFinder
 import com.intellij.psi.search.ProjectScope
 import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
-import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.cli.jvm.compiler.PsiBasedProjectFileSearchScope
 import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.cli.jvm.compiler.VfsBasedProjectEnvironment
 import org.jetbrains.kotlin.cli.jvm.config.jvmClasspathRoots
 import org.jetbrains.kotlin.cli.jvm.config.jvmModularRoots
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.LanguageFeature
-import org.jetbrains.kotlin.constant.EvaluatedConstTracker
 import org.jetbrains.kotlin.container.topologicalSort
 import org.jetbrains.kotlin.fir.*
-import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
 import org.jetbrains.kotlin.fir.checkers.registerExtendedCommonCheckers
 import org.jetbrains.kotlin.fir.deserialization.ModuleDataProvider
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.java.FirProjectSessionProvider
-import org.jetbrains.kotlin.fir.lightTree.toKotlinParsingErrorListener
 import org.jetbrains.kotlin.fir.session.FirCommonSessionFactory
 import org.jetbrains.kotlin.fir.session.FirJvmSessionFactory
 import org.jetbrains.kotlin.fir.session.FirNativeSessionFactory
 import org.jetbrains.kotlin.fir.session.FirSessionConfigurator
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectEnvironment
-import org.jetbrains.kotlin.test.services.configuration.NativeEnvironmentConfigurator
+import org.jetbrains.kotlin.js.config.JSConfigurationKeys
+import org.jetbrains.kotlin.js.config.WasmTarget
 import org.jetbrains.kotlin.load.kotlin.PackageAndMetadataPartProvider
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.platform.TargetPlatform
@@ -56,6 +52,7 @@ import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.runners.lightTreeSyntaxDiagnosticsReporterHolder
 import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.NativeEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.WasmEnvironmentConfigurator
 import java.nio.file.Paths
 
@@ -154,7 +151,8 @@ open class FirFrontendFacade(
                 dependsOnModules,
                 friendModules,
                 mainModule.targetPlatform,
-                mainModule.targetPlatform.getAnalyzerServices()
+                mainModule.targetPlatform.getAnalyzerServices(),
+                isCommon = module.targetPlatform.isCommon(),
             )
 
             moduleInfoProvider.registerModuleData(module, moduleData)
@@ -224,7 +222,6 @@ open class FirFrontendFacade(
                     testServices,
                     configuration,
                     extensionRegistrars,
-                    languageVersionSettings,
                     registerExtraComponents = ::registerExtraComponents,
                 )
             }
@@ -273,7 +270,6 @@ open class FirFrontendFacade(
         val sessionProvider = moduleInfoProvider.firSessionProvider
 
         val project = compilerConfigurationProvider.getProject(module)
-        val compilerConfiguration = compilerConfigurationProvider.getCompilerConfiguration(module)
 
         PsiElementFinder.EP.getPoint(project).unregisterExtension(JavaElementFinder::class.java)
 
@@ -281,12 +277,7 @@ open class FirFrontendFacade(
 
         val (ktFiles, lightTreeFiles) = when (parser) {
             FirParser.LightTree -> {
-                emptyList<KtFile>() to testServices.sourceFileProvider.getLightTreeFilesForSourceFiles(module.files) {
-                    testServices.lightTreeSyntaxDiagnosticsReporterHolder?.reporter?.toKotlinParsingErrorListener(
-                        it,
-                        module.languageVersionSettings
-                    )
-                }.values
+                emptyList<KtFile>() to testServices.sourceFileProvider.getKtSourceFilesForSourceFiles(module.files).values
             }
             FirParser.Psi -> testServices.sourceFileProvider.getKtFilesForSourceFiles(module.files, project).values to emptyList()
         }
@@ -310,21 +301,11 @@ open class FirFrontendFacade(
             ktFiles
         )
 
-        val enablePluginPhases = FirDiagnosticsDirectives.ENABLE_PLUGIN_PHASES in module.directives
         val firAnalyzerFacade = FirAnalyzerFacade(
             moduleBasedSession,
-            Fir2IrConfiguration(
-                languageVersionSettings = module.languageVersionSettings,
-                linkViaSignatures = compilerConfiguration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES),
-                evaluatedConstTracker = compilerConfiguration
-                    .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
-                inlineConstTracker = compilerConfiguration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
-            ),
             ktFiles,
             lightTreeFiles,
-            IrGenerationExtension.getInstances(project),
             parser,
-            enablePluginPhases,
             testServices.lightTreeSyntaxDiagnosticsReporterHolder?.reporter,
         )
         val firFiles = firAnalyzerFacade.runResolution()
@@ -380,7 +361,7 @@ open class FirFrontendFacade(
                     moduleData,
                     sessionProvider,
                     extensionRegistrars,
-                    languageVersionSettings,
+                    testServices.compilerConfigurationProvider.getCompilerConfiguration(module),
                     null,
                     registerExtraComponents = ::registerExtraComponents,
                     sessionConfigurator,
@@ -441,7 +422,9 @@ open class FirFrontendFacade(
                         friendDependencies(friendLibraries.map { it.toPath().toAbsolutePath() })
                     }
                     targetPlatform.isWasm() -> {
-                        val runtimeKlibsPaths = WasmEnvironmentConfigurator.getRuntimePathsForModule()
+                        val runtimeKlibsPaths = WasmEnvironmentConfigurator.getRuntimePathsForModule(
+                            configuration.get(JSConfigurationKeys.WASM_TARGET, WasmTarget.JS)
+                        )
                         val (transitiveLibraries, friendLibraries) = getTransitivesAndFriends(mainModule, testServices)
                         dependencies(runtimeKlibsPaths.map { Paths.get(it).toAbsolutePath() })
                         dependencies(transitiveLibraries.map { it.toPath().toAbsolutePath() })

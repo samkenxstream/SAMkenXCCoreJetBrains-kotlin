@@ -35,7 +35,7 @@ class KotlinJvmAndroidCompilationFactory internal constructor(
             )
         ),
         compilationAssociator = KotlinAndroidCompilationAssociator,
-        compilationSourceSetsContainerFactory = AndroidCompilationSourceSetsContainerFactory(target, variant)
+        compilationSourceSetsContainerFactory = AndroidCompilationSourceSetsContainerFactory(target, variant),
     )
 
     override fun create(name: String): KotlinJvmAndroidCompilation {

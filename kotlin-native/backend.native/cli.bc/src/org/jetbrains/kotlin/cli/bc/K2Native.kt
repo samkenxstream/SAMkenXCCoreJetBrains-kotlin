@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.cli.common.*
 import org.jetbrains.kotlin.cli.common.arguments.K2NativeCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.parseCommandLineArguments
-import org.jetbrains.kotlin.cli.common.config.kotlinSourceRoots
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.common.messages.MessageRenderer
@@ -21,17 +20,15 @@ import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.cli.jvm.plugins.PluginCliParser
 import org.jetbrains.kotlin.config.*
+import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageConfig
 import org.jetbrains.kotlin.ir.linkage.partial.partialLinkageConfig
 import org.jetbrains.kotlin.ir.linkage.partial.setupPartialLinkageConfig
 import org.jetbrains.kotlin.ir.util.IrMessageLogger
-import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.library.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.util.profile
 import org.jetbrains.kotlin.utils.KotlinPaths
-import java.util.*
 
 
 private class K2NativeCompilerPerformanceManager: CommonCompilerPerformanceManager("Kotlin to Native Compiler")
@@ -66,56 +63,6 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
         if (!enoughArguments) {
             messageCollector.report(ERROR, "You have not specified any compilation arguments. No output has been produced.")
         }
-        if (configuration.get(KonanConfigKeys.PRODUCE) != CompilerOutputKind.LIBRARY &&
-                configuration.getBoolean(CommonConfigurationKeys.USE_FIR) &&
-                configuration.kotlinSourceRoots.isNotEmpty()) {
-            // K2/Native backend cannot produce binary directly from FIR frontend output, since descriptors, deserialized from KLib, are needed
-            // So, such compilation is split to two stages:
-            // - source files are compiled to intermediate KLib by FIR frontend
-            // - intermediate Klib is compiled to binary by K2/Native backend
-            // In this implementation, 'arguments' is not changed accordingly to changes in `firstStageConfiguration` and `configuration`,
-            // since values of fields `produce`, `output`, `freeArgs`, `includes` does not seem to matter downstream in prepareEnvironment()
-
-            if (configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)
-                            ?.getFeatureSupport(LanguageFeature.MultiPlatformProjects) == LanguageFeature.State.ENABLED)
-                messageCollector.report(ERROR,
-                        """
-                            Producing a multiplatform library directly from sources is not allowed.
-                        
-                            If you use the command-line compiler, then first compile the sources to a KLIB with
-                            the `-p library` compiler flag. Then, use '-Xinclude=<klib>' to pass the KLIB to
-                            the compiler to produce the required type of binary artifact.
-                        """.trimIndent())
-
-            val firstStageConfiguration = configuration.copy()
-            // For the first stage, use "-p library" produce mode
-            firstStageConfiguration.put(KonanConfigKeys.PRODUCE, CompilerOutputKind.LIBRARY)
-            // For the first stage, construct a temporary file name for an intermediate KLib
-            val intermediateKLib = File(System.getProperty("java.io.tmpdir"), "${UUID.randomUUID()}.klib").also {
-                require(!it.exists) { "Collision writing intermediate KLib $it"}
-                it.deleteOnExit()
-            }
-            firstStageConfiguration.put(KonanConfigKeys.OUTPUT, intermediateKLib.absolutePath)
-
-            val firstStageExitCode = executeStage(firstStageConfiguration, arguments, rootDisposable)
-            if (firstStageExitCode != ExitCode.OK)
-                return firstStageExitCode
-
-            // For the second stage, remove already compiled source files from the configuration
-            configuration.put(CLIConfigurationKeys.CONTENT_ROOTS, listOf())
-            // For the second stage, provide just compiled intermediate KLib as "-Xinclude=" param
-            require(intermediateKLib.exists) { "Intermediate KLib $intermediateKLib must have been created by successful first compilation stage" }
-            configuration.put(KonanConfigKeys.INCLUDED_LIBRARIES, listOf(intermediateKLib.absolutePath))
-            // Now, `configuration` param is prepared for the second stage of compilation, and `arguments` param does not need changes, as noted above.
-        }
-        return executeStage(configuration, arguments, rootDisposable)
-    }
-
-    private fun executeStage(
-            configuration: CompilerConfiguration,
-            arguments: K2NativeCompilerArguments,
-            rootDisposable: Disposable
-    ): ExitCode {
         val environment = prepareEnvironment(arguments, configuration, rootDisposable)
 
         try {
@@ -170,20 +117,37 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
             environment: KotlinCoreEnvironment,
             rootDisposable: Disposable
     ) {
-        val konanDriver = KonanDriver(environment.project, environment, configuration) { args, setupConfiguration ->
-            val spawnedArguments = K2NativeCompilerArguments()
-            parseCommandLineArguments(args, spawnedArguments)
-            val spawnedConfiguration = CompilerConfiguration()
+        val konanDriver = KonanDriver(environment.project, environment, configuration, object : CompilationSpawner {
+            override fun spawn(configuration: CompilerConfiguration) {
+                val spawnedArguments = K2NativeCompilerArguments()
+                parseCommandLineArguments(emptyList(), spawnedArguments)
+                val spawnedEnvironment = KotlinCoreEnvironment.createForProduction(
+                        rootDisposable, configuration, EnvironmentConfigFiles.NATIVE_CONFIG_FILES)
 
-            spawnedConfiguration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, configuration.getNotNull(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY))
-            spawnedConfiguration.put(IrMessageLogger.IR_MESSAGE_LOGGER, configuration.getNotNull(IrMessageLogger.IR_MESSAGE_LOGGER))
-            spawnedConfiguration.setupCommonArguments(spawnedArguments, this::createMetadataVersion)
-            spawnedConfiguration.setupFromArguments(spawnedArguments)
-            spawnedConfiguration.setupPartialLinkageConfig(configuration.partialLinkageConfig)
-            spawnedConfiguration.setupConfiguration()
-            val spawnedEnvironment = prepareEnvironment(spawnedArguments, spawnedConfiguration, rootDisposable)
-            runKonanDriver(spawnedConfiguration, spawnedEnvironment, rootDisposable)
-        }
+                runKonanDriver(configuration, spawnedEnvironment, rootDisposable)
+            }
+
+            override fun spawn(arguments: List<String>, setupConfiguration: CompilerConfiguration.() -> Unit) {
+                val spawnedArguments = K2NativeCompilerArguments()
+                parseCommandLineArguments(arguments, spawnedArguments)
+                val spawnedConfiguration = CompilerConfiguration()
+
+                spawnedConfiguration.put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, configuration.getNotNull(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY))
+                spawnedConfiguration.put(IrMessageLogger.IR_MESSAGE_LOGGER, configuration.getNotNull(IrMessageLogger.IR_MESSAGE_LOGGER))
+                spawnedConfiguration.setupCommonArguments(spawnedArguments, this@K2Native::createMetadataVersion)
+                spawnedConfiguration.setupFromArguments(spawnedArguments)
+                spawnedConfiguration.setupPartialLinkageConfig(configuration.partialLinkageConfig)
+                configuration.get(CommonConfigurationKeys.USE_FIR)?.let {
+                    spawnedConfiguration.put(CommonConfigurationKeys.USE_FIR, it)
+                }
+                configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)?.let {
+                    spawnedConfiguration.put(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS, it)
+                }
+                spawnedConfiguration.setupConfiguration()
+                val spawnedEnvironment = prepareEnvironment(spawnedArguments, spawnedConfiguration, rootDisposable)
+                runKonanDriver(spawnedConfiguration, spawnedEnvironment, rootDisposable)
+            }
+        })
         konanDriver.run()
     }
 

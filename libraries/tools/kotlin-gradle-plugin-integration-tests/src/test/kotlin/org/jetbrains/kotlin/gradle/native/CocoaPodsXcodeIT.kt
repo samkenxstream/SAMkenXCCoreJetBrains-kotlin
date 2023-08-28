@@ -18,6 +18,8 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.io.path.name
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import kotlin.test.fail
 
 @OsCondition(supportedOn = [OS.MAC], enabledOnCI = [OS.MAC])
 @DisplayName("K/N tests cocoapods with xcodebuild")
@@ -255,9 +257,14 @@ private fun TestProject.gradlePodInstall(taskPrefix: String, @Suppress("UNUSED_P
 private fun TestProject.manualPodInstall(taskPrefix: String, iosAppPath: Path) {
     build("$taskPrefix:$DUMMY_FRAMEWORK_TASK_NAME", buildOptions = buildOptions)
 
-    runProcess(
-        cmd = listOf("pod", "install"),
-        environmentVariables = environmentVariables.environmentalVariables,
-        workingDir = iosAppPath.toFile(),
-    )
+    val environmentalVariables = environmentVariables.environmentalVariables.toMutableMap()
+    environmentalVariables.getOrPut("LC_ALL") { "en_US.UTF-8" }
+
+    assertProcessRunResult(
+        runProcess(
+            cmd = listOf("env", "pod", "install"),
+            environmentVariables = environmentalVariables,
+            workingDir = iosAppPath.toFile(),
+        )
+    ) { assertTrue(isSuccessful) }
 }

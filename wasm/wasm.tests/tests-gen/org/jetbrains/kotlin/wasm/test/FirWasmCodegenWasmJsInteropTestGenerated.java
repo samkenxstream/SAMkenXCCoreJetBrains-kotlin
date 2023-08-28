@@ -116,6 +116,18 @@ public class FirWasmCodegenWasmJsInteropTestGenerated extends AbstractFirWasmCod
     }
 
     @Test
+    @TestMetadata("kt59082.kt")
+    public void testKt59082() throws Exception {
+        runTest("compiler/testData/codegen/boxWasmJsInterop/kt59082.kt");
+    }
+
+    @Test
+    @TestMetadata("kt59084.kt")
+    public void testKt59084() throws Exception {
+        runTest("compiler/testData/codegen/boxWasmJsInterop/kt59084.kt");
+    }
+
+    @Test
     @TestMetadata("lambdaAdapterNameClash.kt")
     public void testLambdaAdapterNameClash() throws Exception {
         runTest("compiler/testData/codegen/boxWasmJsInterop/lambdaAdapterNameClash.kt");
@@ -134,6 +146,12 @@ public class FirWasmCodegenWasmJsInteropTestGenerated extends AbstractFirWasmCod
     }
 
     @Test
+    @TestMetadata("noExceptions.kt")
+    public void testNoExceptions() throws Exception {
+        runTest("compiler/testData/codegen/boxWasmJsInterop/noExceptions.kt");
+    }
+
+    @Test
     @TestMetadata("nullableExternRefs.kt")
     public void testNullableExternRefs() throws Exception {
         runTest("compiler/testData/codegen/boxWasmJsInterop/nullableExternRefs.kt");
@@ -149,6 +167,12 @@ public class FirWasmCodegenWasmJsInteropTestGenerated extends AbstractFirWasmCod
     @TestMetadata("vararg.kt")
     public void testVararg() throws Exception {
         runTest("compiler/testData/codegen/boxWasmJsInterop/vararg.kt");
+    }
+
+    @Test
+    @TestMetadata("wasmExport.kt")
+    public void testWasmExport() throws Exception {
+        runTest("compiler/testData/codegen/boxWasmJsInterop/wasmExport.kt");
     }
 
     @Test

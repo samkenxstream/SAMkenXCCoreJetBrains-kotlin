@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.analysis.api.fir.components
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtRealSourceElementKind
 import org.jetbrains.kotlin.analysis.api.components.KtImportOptimizer
 import org.jetbrains.kotlin.analysis.api.components.KtImportOptimizerResult
 import org.jetbrains.kotlin.analysis.api.fir.getCandidateSymbols
 import org.jetbrains.kotlin.analysis.api.fir.isImplicitDispatchReceiver
-import org.jetbrains.kotlin.analysis.api.fir.utils.FirBodyReanalyzingVisitorVoid
 import org.jetbrains.kotlin.analysis.api.fir.utils.computeImportableName
 import org.jetbrains.kotlin.analysis.api.lifetime.KtLifetimeToken
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLFirResolveSession
@@ -18,11 +18,13 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirFile
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirFile
+import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.realPsi
 import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
+import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeAmbiguityError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedNameError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedReferenceError
@@ -34,6 +36,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.types.FirErrorTypeRef
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.classId
+import org.jetbrains.kotlin.fir.visitors.FirVisitorVoid
 import org.jetbrains.kotlin.name.*
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.getCallNameExpression
@@ -42,6 +45,8 @@ import org.jetbrains.kotlin.psi.psiUtil.unwrapNullability
 import org.jetbrains.kotlin.resolve.ImportPath
 import org.jetbrains.kotlin.resolve.calls.util.getCalleeExpressionIfAny
 import org.jetbrains.kotlin.util.OperatorNameConventions
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal class KtFirImportOptimizer(
     override val token: KtLifetimeToken,
@@ -52,7 +57,7 @@ internal class KtFirImportOptimizer(
 
     override fun analyseImports(file: KtFile): KtImportOptimizerResult {
         val existingImports = file.importDirectives
-        if (existingImports.isEmpty()) return KtImportOptimizerResult(emptySet())
+        if (existingImports.isEmpty()) return KtImportOptimizerResult()
 
         val firFile = file.getOrBuildFirFile(firResolveSession).apply { lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE) }
 
@@ -63,12 +68,15 @@ internal class KtFirImportOptimizer(
             .map { it.fqName }
             .toSet()
 
-        val (usedImports, unresolvedNames) = collectReferencedEntities(firFile)
+        val (usedDeclarations, unresolvedNames) = collectReferencedEntities(firFile)
 
-        val referencesEntities = usedImports
+        // TODO remove unused imports computing code completely
+        val referencesEntities = usedDeclarations
             .filterNot { (fqName, referencedByNames) ->
-                // when referenced by more than one name, we need to keep the imports with same package
-                fqName.parentOrNull() == file.packageFqName && referencedByNames.size == 1
+                val fromCurrentPackage = fqName.parentOrNull() == file.packageFqName
+                val noAliasedImports = referencedByNames.singleOrNull() == fqName.shortName()
+
+                fromCurrentPackage && noAliasedImports
             }
 
         val requiredStarImports = referencesEntities.keys
@@ -97,7 +105,7 @@ internal class KtFirImportOptimizer(
             }
         }
 
-        return KtImportOptimizerResult(unusedImports)
+        return KtImportOptimizerResult(unusedImports, usedDeclarations, unresolvedNames)
     }
 
     private data class ReferencedEntitiesResult(
@@ -109,7 +117,7 @@ internal class KtFirImportOptimizer(
         val usedImports = mutableMapOf<FqName, MutableSet<Name>>()
         val unresolvedNames = mutableSetOf<Name>()
 
-        firFile.accept(object : FirBodyReanalyzingVisitorVoid(firResolveSession) {
+        firFile.accept(object : FirVisitorVoid() {
             override fun visitElement(element: FirElement) {
                 element.acceptChildren(this)
             }
@@ -122,6 +130,11 @@ internal class KtFirImportOptimizer(
             override fun visitImplicitInvokeCall(implicitInvokeCall: FirImplicitInvokeCall) {
                 processImplicitFunctionCall(implicitInvokeCall)
                 super.visitImplicitInvokeCall(implicitInvokeCall)
+            }
+
+            override fun visitProperty(property: FirProperty) {
+                if (property.name == SpecialNames.UNDERSCORE_FOR_UNUSED_VAR) return
+                super.visitProperty(property)
             }
 
             override fun visitComponentCall(componentCall: FirComponentCall) {
@@ -295,9 +308,10 @@ internal class KtFirImportOptimizer(
 }
 
 private val FirErrorNamedReference.unresolvedName: Name?
-    get() {
-        val diagnostic = diagnostic as? ConeUnresolvedError ?: return null
-        return diagnostic.unresolvedName
+    get() = when (val diagnostic = diagnostic) {
+        is ConeUnresolvedError -> diagnostic.unresolvedName
+        is ConeAmbiguityError -> diagnostic.name
+        else -> null
     }
 
 private val ConeUnresolvedError.unresolvedName: Name?
@@ -442,7 +456,9 @@ private sealed interface TypeQualifier {
             }
 
             qualifier.getCalleeExpressionIfAny() as? KtNameReferenceExpression
-                ?: error("Cannot get referenced name from '${qualifier.text}'")
+                ?: errorWithAttachment("Cannot get referenced name from '${qualifier::class}'") {
+                    withPsiEntry("qualifier", qualifier)
+                }
         }
 
         override val referencedByName: Name
@@ -467,7 +483,9 @@ private sealed interface TypeQualifier {
 
         override val referencedByName: Name
             get() = qualifier.referenceExpression?.getReferencedNameAsName()
-                ?: error("Cannot get referenced name from '${qualifier.text}'")
+                ?: errorWithAttachment("Cannot get referenced name from '${qualifier::class}'") {
+                    withPsiEntry("qualifier", qualifier)
+                }
 
         override val isQualified: Boolean
             get() = qualifier.qualifier != null
@@ -482,8 +500,16 @@ private sealed interface TypeQualifier {
     }
 
     companion object {
+        val FirResolvedQualifier.isPresentInSource: Boolean
+            get() = when (source?.kind) {
+                is KtRealSourceElementKind -> true
+                is KtFakeSourceElementKind.ImplicitInvokeCall -> true
+
+                else -> false
+            }
+
         fun createFor(qualifier: FirResolvedQualifier): TypeQualifier? {
-            if (qualifier.source?.kind !is KtRealSourceElementKind) return null
+            if (!qualifier.isPresentInSource) return null
 
             val wholeClassId = qualifier.classId ?: return null
             val psi = qualifier.psi as? KtExpression ?: return null
@@ -497,7 +523,17 @@ private sealed interface TypeQualifier {
             return KtDotExpressionTypeQualifier(wholeClassId, wholeQualifier)
         }
 
+        private val FirResolvedTypeRef.isPresentInSource: Boolean
+            get() = when (source?.kind) {
+                is KtRealSourceElementKind -> true
+                is KtFakeSourceElementKind.ArrayTypeFromVarargParameter -> true
+
+                else -> false
+            }
+
         fun createFor(typeRef: FirResolvedTypeRef): TypeQualifier? {
+            if (!typeRef.isPresentInSource) return null
+
             val wholeClassId = typeRef.resolvedClassId ?: return null
             val psi = typeRef.psi as? KtTypeReference ?: return null
 

@@ -25,31 +25,36 @@ import org.gradle.api.logging.Logging
 import org.gradle.api.model.ObjectFactory
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import org.jetbrains.kotlin.compilerRunner.maybeCreateCommonizerClasspathConfiguration
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.*
 import org.jetbrains.kotlin.gradle.internal.KOTLIN_BUILD_TOOLS_API_IMPL
 import org.jetbrains.kotlin.gradle.internal.KOTLIN_COMPILER_EMBEDDABLE
 import org.jetbrains.kotlin.gradle.internal.KOTLIN_MODULE_GROUP
 import org.jetbrains.kotlin.gradle.logging.kotlinDebug
 import org.jetbrains.kotlin.gradle.plugin.KotlinMultiplatformAndroidGradlePluginCompatibilityHealthCheck.runMultiplatformAndroidGradlePluginCompatibilityHealthCheckWhenAndroidIsApplied
-import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.Companion.kotlinPropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.*
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.ToolingDiagnosticRenderingOptions
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.UsesKotlinToolingDiagnostics
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.kotlinToolingDiagnosticsCollectorProvider
+import org.jetbrains.kotlin.gradle.plugin.diagnostics.launchKotlinGradleProjectCheckers
 import org.jetbrains.kotlin.gradle.plugin.internal.*
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMultiplatformPlugin
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.KotlinPm20GradlePlugin
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.KotlinPm20ProjectExtension
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultKotlinSourceSetFactory
+import org.jetbrains.kotlin.gradle.plugin.statistics.BuildFlowService
 import org.jetbrains.kotlin.gradle.plugin.statistics.KotlinBuildStatsService
 import org.jetbrains.kotlin.gradle.report.BuildMetricsService
-import org.jetbrains.kotlin.gradle.plugin.statistics.BuildFlowService
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
 import org.jetbrains.kotlin.gradle.targets.js.KotlinJsPlugin
+import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetAttribute
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.DefaultUnameExecutorVariantFactory
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.UnameExecutor
 import org.jetbrains.kotlin.gradle.targets.js.npm.addNpmDependencyExtension
 import org.jetbrains.kotlin.gradle.targets.metadata.isKotlinGranularMetadataEnabled
 import org.jetbrains.kotlin.gradle.targets.native.internal.CInteropKlibLibraryElements
+import org.jetbrains.kotlin.gradle.targets.native.internal.CInteropCommonizerArtifactTypeAttribute
+import org.jetbrains.kotlin.gradle.targets.native.internal.CommonizerTargetAttribute
 import org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompileTool
 import org.jetbrains.kotlin.gradle.testing.internal.KotlinTestsRegistry
 import org.jetbrains.kotlin.gradle.tooling.registerBuildKotlinToolingMetadataTask
@@ -198,8 +203,11 @@ abstract class DefaultKotlinBasePlugin : KotlinBasePlugin {
         KotlinPlatformType.setupAttributesMatchingStrategy(this)
         KotlinUsages.setupAttributesMatchingStrategy(this, isKotlinGranularMetadata)
         KotlinJsCompilerAttribute.setupAttributesMatchingStrategy(project.dependencies.attributesSchema)
+        KotlinWasmTargetAttribute.setupAttributesMatchingStrategy(project.dependencies.attributesSchema)
         ProjectLocalConfigurations.setupAttributesMatchingStrategy(this)
         CInteropKlibLibraryElements.setupAttributesMatchingStrategy(this)
+        CommonizerTargetAttribute.setupAttributesMatchingStrategy(this)
+        CInteropCommonizerArtifactTypeAttribute.setupTransform(project)
     }
 
     open fun whenBuildEvaluated(project: Project) {
@@ -266,24 +274,30 @@ abstract class KotlinBasePluginWrapper : DefaultKotlinBasePlugin() {
 }
 
 private fun Project.setupDiagnosticsChecksAndReporting() {
+    val collectorProvider = kotlinToolingDiagnosticsCollectorProvider
+    val diagnosticRenderingOptions = ToolingDiagnosticRenderingOptions.forProject(this)
+
     // Setup reporting from tasks
     tasks.withType(UsesKotlinToolingDiagnostics::class.java).configureEach {
-        it.usesService(kotlinToolingDiagnosticsCollectorProvider)
-        it.toolingDiagnosticsCollector.value(kotlinToolingDiagnosticsCollectorProvider)
-        it.diagnosticRenderingOptions.set(ToolingDiagnosticRenderingOptions.forProject(this))
+        it.usesService(collectorProvider)
+        it.toolingDiagnosticsCollector.value(collectorProvider)
+        it.diagnosticRenderingOptions.set(diagnosticRenderingOptions)
     }
 
     // Launch checkers. Note that they are invoked eagerly to give them a fine-grained
     // control over the lifecycle
-    project.launchKotlinGradleProjectCheckers()
+    launchKotlinGradleProjectCheckers()
+
+    // Setup a task that will abort the build if errors will be reported. This task should be the first in the taskgraph
+    project.locateOrRegisterCheckKotlinGradlePluginErrorsTask()
 
     // Schedule diagnostics rendering
-    project.launch {
-        project.configurationResult.await()
+    launch {
+        configurationResult.await()
         renderReportedDiagnostics(
-            project.kotlinToolingDiagnosticsCollector.getDiagnosticsForProject(project),
-            project.logger,
-            project.kotlinPropertiesProvider.internalVerboseDiagnostics
+            collectorProvider.get().getDiagnosticsForProject(project),
+            logger,
+            diagnosticRenderingOptions
         )
     }
 
@@ -291,7 +305,7 @@ private fun Project.setupDiagnosticsChecksAndReporting() {
     // after projects are evaluated will be transparently rendered right away instead of being
     // silently swallowed
     gradle.projectsEvaluated {
-        kotlinToolingDiagnosticsCollector.switchToTransparentMode()
+        collectorProvider.get().switchToTransparentMode()
     }
 }
 
@@ -410,7 +424,6 @@ fun getKotlinPluginVersion(logger: Logger): String {
     return kotlinPluginVersionFromResources.value
 }
 
-@ExperimentalKotlinGradlePluginApi
 val Project.kotlinToolingVersion: KotlinToolingVersion
     get() = extensions.extraProperties.getOrPut("kotlinToolingVersion") {
         KotlinToolingVersion(getKotlinPluginVersion())

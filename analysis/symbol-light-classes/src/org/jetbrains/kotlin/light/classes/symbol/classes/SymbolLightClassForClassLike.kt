@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.light.classes.symbol.classes
 
+import com.intellij.openapi.util.ModificationTracker
 import com.intellij.psi.*
 import com.intellij.psi.impl.InheritanceImplUtil
 import com.intellij.psi.impl.PsiClassImplUtil
@@ -56,6 +57,10 @@ abstract class SymbolLightClassForClassLike<SType : KtClassOrObjectSymbol> prote
         manager = manager,
     )
 
+    override fun modificationTrackerForClassInnerStuff(): List<ModificationTracker> {
+        return classOrObjectDeclaration?.modificationTrackerForClassInnerStuff() ?: super.modificationTrackerForClassInnerStuff()
+    }
+
     override val kotlinOrigin: KtClassOrObject? get() = classOrObjectDeclaration
 
     internal inline fun <T> withClassOrObjectSymbol(crossinline action: KtAnalysisSession.(SType) -> T): T =
@@ -93,7 +98,8 @@ abstract class SymbolLightClassForClassLike<SType : KtClassOrObjectSymbol> prote
         }
     }
 
-    override fun hasTypeParameters(): Boolean = hasTypeParameters(ktModule, classOrObjectDeclaration, classOrObjectSymbolPointer)
+    override fun hasTypeParameters(): Boolean =
+        hasTypeParameters(ktModule, classOrObjectDeclaration, classOrObjectSymbolPointer)
 
     override fun getTypeParameterList(): PsiTypeParameterList? = _typeParameterList
 

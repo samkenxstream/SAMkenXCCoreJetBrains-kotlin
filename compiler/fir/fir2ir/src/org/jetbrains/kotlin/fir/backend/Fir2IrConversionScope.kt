@@ -11,51 +11,98 @@ import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirPropertyAccessor
 import org.jetbrains.kotlin.fir.expressions.FirReturnExpression
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
+import org.jetbrains.kotlin.ir.symbols.IrSymbol
+import org.jetbrains.kotlin.ir.symbols.IrSymbolInternals
 import org.jetbrains.kotlin.ir.util.isSetter
 import org.jetbrains.kotlin.ir.util.parentClassOrNull
+import org.jetbrains.kotlin.ir.util.render
+import org.jetbrains.kotlin.types.AbstractTypeChecker
+import org.jetbrains.kotlin.util.PrivateForInline
 
-class Fir2IrConversionScope {
-    private val parentStack = mutableListOf<IrDeclarationParent>()
+@OptIn(PrivateForInline::class)
+class Fir2IrConversionScope(val configuration: Fir2IrConfiguration) {
+    @PublishedApi
+    @PrivateForInline
+    internal val parentStack = mutableListOf<IrDeclarationParent>()
 
-    private val containingFirClassStack = mutableListOf<FirClass>()
-    private val currentlyGeneratedDelegatedConstructors = mutableMapOf<IrClass, IrConstructor>()
+    @PublishedApi
+    @PrivateForInline
+    internal val containingFirClassStack = mutableListOf<FirClass>()
 
-    fun <T : IrDeclarationParent?> withParent(parent: T, f: T.() -> Unit): T {
-        if (parent == null) return parent
+    @PublishedApi
+    @PrivateForInline
+    internal val currentlyGeneratedDelegatedConstructors = mutableMapOf<IrClassSymbol, IrConstructor>()
+
+    inline fun <T : IrDeclarationParent, R> withParent(parent: T, f: T.() -> R): R {
         parentStack += parent
-        parent.f()
-        parentStack.removeAt(parentStack.size - 1)
-        return parent
+        try {
+            return parent.f()
+        } finally {
+            parentStack.removeAt(parentStack.size - 1)
+        }
     }
 
-    fun <T> forDelegatingConstructorCall(constructor: IrConstructor, irClass: IrClass, f: () -> T): T {
-        currentlyGeneratedDelegatedConstructors[irClass] = constructor
-        val result = f()
-        currentlyGeneratedDelegatedConstructors.remove(irClass)
-        return result
+    internal fun <T> forDelegatingConstructorCall(constructor: IrConstructor, irClass: IrClass, f: () -> T): T {
+        currentlyGeneratedDelegatedConstructors[irClass.symbol] = constructor
+        try {
+            return f()
+        } finally {
+            currentlyGeneratedDelegatedConstructors.remove(irClass.symbol)
+        }
     }
 
-    fun getConstructorForCurrentlyGeneratedDelegatedConstructor(itClass: IrClass): IrConstructor? =
-        currentlyGeneratedDelegatedConstructors[itClass]
+    fun getConstructorForCurrentlyGeneratedDelegatedConstructor(itClassSymbol: IrClassSymbol): IrConstructor? =
+        currentlyGeneratedDelegatedConstructors[itClassSymbol]
 
     fun containingFileIfAny(): IrFile? = parentStack.getOrNull(0) as? IrFile
 
-    fun withContainingFirClass(containingFirClass: FirClass, f: () -> Unit) {
+    inline fun withContainingFirClass(containingFirClass: FirClass, f: () -> Unit) {
         containingFirClassStack += containingFirClass
-        f()
-        containingFirClassStack.removeAt(containingFirClassStack.size - 1)
+        try {
+            f()
+        } finally {
+            containingFirClassStack.removeAt(containingFirClassStack.size - 1)
+        }
     }
 
     fun parentFromStack(): IrDeclarationParent = parentStack.last()
 
-    fun parentAccessorOfPropertyFromStack(property: IrProperty): IrSimpleFunction? {
+    fun parentAccessorOfPropertyFromStack(propertySymbol: IrPropertySymbol): IrSimpleFunction {
+        // It is safe to access an owner of property symbol here, because this function may be called
+        // only from property accessor of corresponding property
+        // We inside accessor -> accessor is built -> property is built
+        @OptIn(IrSymbolInternals::class)
+        val property = propertySymbol.owner
         for (parent in parentStack.asReversed()) {
             when (parent) {
-                property.getter -> return property.getter
-                property.setter -> return property.setter
+                property.getter -> return parent as IrSimpleFunction
+                property.setter -> return parent as IrSimpleFunction
             }
         }
-        return null
+        error("Accessor of property ${property.render()} not found on parent stack")
+    }
+
+    @OptIn(IrSymbolInternals::class)
+    @Suppress("INVISIBLE_REFERENCE", "INVISIBLE_MEMBER")
+    inline fun <reified D : IrDeclaration> findDeclarationInParentsStack(symbol: IrSymbol): @kotlin.internal.NoInfer D {
+        if (!AbstractTypeChecker.RUN_SLOW_ASSERTIONS) {
+            return symbol.owner as D
+        }
+        for (parent in parentStack.asReversed()) {
+            if ((parent as? IrDeclaration)?.symbol == symbol) {
+                return parent as D
+            }
+        }
+        /*
+         * In case of IDE (when allowNonCachedDeclarations is set to true) we may be in scope of some already compiled class,
+         *   for which we have Fir2IrLazyClass in symbol
+         */
+        if (configuration.allowNonCachedDeclarations) {
+            return symbol.owner as D
+        }
+        error("Declaration with symbol $symbol is not found in parents stack")
     }
 
     fun <T : IrDeclaration> applyParentFromStackTo(declaration: T): T {
@@ -65,48 +112,69 @@ class Fir2IrConversionScope {
 
     fun containerFirClass(): FirClass? = containingFirClassStack.lastOrNull()
 
-    private val functionStack = mutableListOf<IrFunction>()
+    @PublishedApi
+    @PrivateForInline
+    internal val functionStack = mutableListOf<IrFunction>()
 
-    fun <T : IrFunction> withFunction(function: T, f: T.() -> Unit): T {
+    inline fun <T : IrFunction, R> withFunction(function: T, f: T.() -> R): R {
         functionStack += function
-        function.f()
-        functionStack.removeAt(functionStack.size - 1)
-        return function
+        try {
+            return function.f()
+        } finally {
+            functionStack.removeAt(functionStack.size - 1)
+        }
     }
 
-    private val propertyStack = mutableListOf<Pair<IrProperty, FirProperty?>>()
+    @PublishedApi
+    @PrivateForInline
+    internal val propertyStack = mutableListOf<Pair<IrProperty, FirProperty?>>()
 
-    fun withProperty(property: IrProperty, firProperty: FirProperty? = null, f: IrProperty.() -> Unit): IrProperty {
+    inline fun <R> withProperty(property: IrProperty, firProperty: FirProperty? = null, f: IrProperty.() -> R): R {
         propertyStack += (property to firProperty)
-        property.f()
-        propertyStack.removeAt(propertyStack.size - 1)
-        return property
+        try {
+            return property.f()
+        } finally {
+            propertyStack.removeAt(propertyStack.size - 1)
+        }
     }
 
-    private val classStack = mutableListOf<IrClass>()
+    @PublishedApi
+    @PrivateForInline
+    internal val classStack = mutableListOf<IrClass>()
 
-    fun withClass(klass: IrClass, f: IrClass.() -> Unit): IrClass {
+    inline fun <R> withClass(klass: IrClass, f: IrClass.() -> R): R {
         classStack += klass
-        klass.f()
-        classStack.removeAt(classStack.size - 1)
-        return klass
+        return try {
+            klass.f()
+        } finally {
+            classStack.removeAt(classStack.size - 1)
+        }
     }
 
-    private val whenSubjectVariableStack = mutableListOf<IrVariable>()
-    private val safeCallSubjectVariableStack = mutableListOf<IrVariable>()
+    @PublishedApi
+    @PrivateForInline
+    internal val whenSubjectVariableStack = mutableListOf<IrVariable>()
 
-    fun <T> withWhenSubject(subject: IrVariable?, f: () -> T): T {
+    @PublishedApi
+    @PrivateForInline
+    internal val safeCallSubjectVariableStack = mutableListOf<IrVariable>()
+
+    inline fun <T> withWhenSubject(subject: IrVariable?, f: () -> T): T {
         if (subject != null) whenSubjectVariableStack += subject
-        val result = f()
-        if (subject != null) whenSubjectVariableStack.removeAt(whenSubjectVariableStack.size - 1)
-        return result
+        try {
+            return f()
+        } finally {
+            if (subject != null) whenSubjectVariableStack.removeAt(whenSubjectVariableStack.size - 1)
+        }
     }
 
-    fun <T> withSafeCallSubject(subject: IrVariable?, f: () -> T): T {
+    inline fun <T> withSafeCallSubject(subject: IrVariable?, f: () -> T): T {
         if (subject != null) safeCallSubjectVariableStack += subject
-        val result = f()
-        if (subject != null) safeCallSubjectVariableStack.removeAt(safeCallSubjectVariableStack.size - 1)
-        return result
+        try {
+            return f()
+        } finally {
+            if (subject != null) safeCallSubjectVariableStack.removeAt(safeCallSubjectVariableStack.size - 1)
+        }
     }
 
     fun returnTarget(expression: FirReturnExpression, declarationStorage: Fir2IrDeclarationStorage): IrFunction {
@@ -135,8 +203,8 @@ class Fir2IrConversionScope {
 
     fun parent(): IrDeclarationParent? = parentStack.lastOrNull()
 
-    fun defaultConversionTypeContext(): ConversionTypeContext =
-        if ((parent() as? IrFunction)?.isSetter == true) ConversionTypeContext.IN_SETTER else ConversionTypeContext.DEFAULT
+    fun defaultConversionTypeOrigin(): ConversionTypeOrigin =
+        if ((parent() as? IrFunction)?.isSetter == true) ConversionTypeOrigin.SETTER else ConversionTypeOrigin.DEFAULT
 
     fun dispatchReceiverParameter(irClass: IrClass): IrValueParameter? {
         for (function in functionStack.asReversed()) {

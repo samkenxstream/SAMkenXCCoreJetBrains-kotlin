@@ -50,8 +50,7 @@ class NamedArgumentNotAllowed(
 
 class ArgumentPassedTwice(
     override val argument: FirExpression,
-    val valueParameter: FirValueParameter,
-    val firstOccurrence: ResolvedCallArgument
+    val valueParameter: FirValueParameter
 ) : InapplicableArgumentDiagnostic()
 
 class VarargArgumentOutsideParentheses(
@@ -72,12 +71,12 @@ class NameNotFound(
 ) : ResolutionDiagnostic(INAPPLICABLE_ARGUMENTS_MAPPING_ERROR)
 
 class NameForAmbiguousParameter(
-    val argument: FirNamedArgumentExpression,
-    val matchedParameter: FirValueParameter,
-    val anotherParameter: FirValueParameter
+    val argument: FirNamedArgumentExpression
 ) : ResolutionDiagnostic(INAPPLICABLE_ARGUMENTS_MAPPING_ERROR)
 
 object InapplicableCandidate : ResolutionDiagnostic(INAPPLICABLE)
+
+object UnsuccessfulCallableReferenceAtom : ResolutionDiagnostic(INAPPLICABLE)
 
 object ErrorTypeInArguments : ResolutionDiagnostic(INAPPLICABLE)
 
@@ -115,7 +114,7 @@ class ArgumentTypeMismatch(
 ) : ResolutionDiagnostic(INAPPLICABLE)
 
 class NullForNotNullType(
-    val argument: FirExpression
+    val argument: FirExpression, val expectedType: ConeKotlinType
 ) : ResolutionDiagnostic(INAPPLICABLE)
 
 class ManyLambdaExpressionArguments(
@@ -126,7 +125,7 @@ class InfixCallOfNonInfixFunction(val function: FirNamedFunctionSymbol) : Resolu
 class OperatorCallOfNonOperatorFunction(val function: FirNamedFunctionSymbol) : ResolutionDiagnostic(CONVENTION_ERROR)
 
 class InferenceError(val constraintError: ConstraintSystemError) : ResolutionDiagnostic(constraintError.applicability)
-class Unsupported(val message: String, val source: KtSourceElement? = null) : ResolutionDiagnostic(K2_UNSUPPORTED)
+class Unsupported(val message: String, val source: KtSourceElement?) : ResolutionDiagnostic(K2_UNSUPPORTED)
 
 object PropertyAsOperator : ResolutionDiagnostic(K2_PROPERTY_AS_OPERATOR)
 
@@ -137,6 +136,8 @@ class MultipleContextReceiversApplicableForExtensionReceivers : ResolutionDiagno
 class NoApplicableValueForContextReceiver(
     val expectedContextReceiverType: ConeKotlinType
 ) : ResolutionDiagnostic(INAPPLICABLE)
+
+object UnsupportedContextualDeclarationCall : ResolutionDiagnostic(INAPPLICABLE)
 
 class AmbiguousValuesForContextReceiverParameter(
     val expectedContextReceiverType: ConeKotlinType,

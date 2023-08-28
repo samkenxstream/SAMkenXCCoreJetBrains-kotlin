@@ -12,6 +12,7 @@
 #include "AtomicStack.hpp"
 #include "ExtraObjectPage.hpp"
 #include "GCStatistics.hpp"
+#include "std_support/Vector.hpp"
 
 namespace kotlin::alloc {
 
@@ -43,13 +44,16 @@ public:
 
     bool Sweep(GCSweepScope& sweepHandle, FinalizerQueue& finalizerQueue) noexcept;
 
+    // Testing method
+    std_support::vector<uint8_t*> GetAllocatedBlocks() noexcept;
+
 private:
     explicit FixedBlockPage(uint32_t blockSize) noexcept;
 
     friend class AtomicStack<FixedBlockPage>;
 
     // Used for linking pages together in `pages` queue or in `unswept` queue.
-    FixedBlockPage* next_;
+    std::atomic<FixedBlockPage*> next_;
     FixedCellRange nextFree_;
     uint32_t blockSize_;
     uint32_t end_;

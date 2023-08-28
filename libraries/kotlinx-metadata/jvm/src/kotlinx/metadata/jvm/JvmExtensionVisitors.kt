@@ -2,7 +2,7 @@
  * Copyright 2010-2018 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
-@file:Suppress("DEPRECATION")
+@file:Suppress("DEPRECATION_ERROR") // delegate implementation
 
 package kotlinx.metadata.jvm
 
@@ -12,8 +12,8 @@ import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
 /**
  * A visitor containing the common code to visit JVM extensions for Kotlin declaration containers, such as classes and package fragments.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-abstract class JvmDeclarationContainerExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public abstract class JvmDeclarationContainerExtensionVisitor @JvmOverloads constructor(
     protected open val delegate: JvmDeclarationContainerExtensionVisitor? = null
 ) : KmDeclarationContainerExtensionVisitor {
     /**
@@ -32,13 +32,13 @@ abstract class JvmDeclarationContainerExtensionVisitor @JvmOverloads constructor
      * @param setterFlags property accessor flags, consisting of [Flag.HAS_ANNOTATIONS], visibility flag, modality flag
      *   and [Flag.PropertyAccessor] flags
      */
-    open fun visitLocalDelegatedProperty(flags: Int, name: String, getterFlags: Int, setterFlags: Int): KmPropertyVisitor? =
+    public open fun visitLocalDelegatedProperty(flags: Int, name: String, getterFlags: Int, setterFlags: Int): KmPropertyVisitor? =
         delegate?.visitLocalDelegatedProperty(flags, name, getterFlags, setterFlags)
 
     /**
      * Visits the name of the module where this container is declared.
      */
-    open fun visitModuleName(name: String) {
+    public open fun visitModuleName(name: String) {
         delegate?.visitModuleName(name)
     }
 }
@@ -46,8 +46,8 @@ abstract class JvmDeclarationContainerExtensionVisitor @JvmOverloads constructor
 /**
  * A visitor to visit JVM extensions for a class.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-open class JvmClassExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public open class JvmClassExtensionVisitor @JvmOverloads constructor(
     delegate: JvmClassExtensionVisitor? = null
 ) : KmClassExtensionVisitor, JvmDeclarationContainerExtensionVisitor(delegate) {
     override val delegate: JvmClassExtensionVisitor?
@@ -60,40 +60,40 @@ open class JvmClassExtensionVisitor @JvmOverloads constructor(
      * Visits the JVM internal name of the original class this anonymous object is copied from. This method is called for
      * anonymous objects copied from bodies of inline functions to the use site by the Kotlin compiler.
      */
-    open fun visitAnonymousObjectOriginName(internalName: String) {
+    public open fun visitAnonymousObjectOriginName(internalName: String) {
         delegate?.visitAnonymousObjectOriginName(internalName)
     }
 
     /**
      * Visits the JVM-specific flags of the class, consisting of [JvmFlag.Class] flags.
      */
-    open fun visitJvmFlags(flags: Int) {
+    public open fun visitJvmFlags(flags: Int) {
         delegate?.visitJvmFlags(flags)
     }
 
     /**
      * Visits the end of JVM extensions for the class.
      */
-    open fun visitEnd() {
+    public open fun visitEnd() {
         delegate?.visitEnd()
     }
 
-    companion object {
+    public companion object {
         /**
          * The type of this extension visitor.
          *
          * @see KmExtensionType
          */
         @JvmField
-        val TYPE: KmExtensionType = KmExtensionType(JvmClassExtensionVisitor::class)
+        public val TYPE: KmExtensionType = KmExtensionType(JvmClassExtensionVisitor::class)
     }
 }
 
 /**
  * A visitor to visit JVM extensions for a package fragment.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-open class JvmPackageExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public open class JvmPackageExtensionVisitor @JvmOverloads constructor(
     delegate: JvmPackageExtensionVisitor? = null
 ) : KmPackageExtensionVisitor, JvmDeclarationContainerExtensionVisitor(delegate) {
     override val delegate: JvmPackageExtensionVisitor?
@@ -105,26 +105,26 @@ open class JvmPackageExtensionVisitor @JvmOverloads constructor(
     /**
      * Visits the end of JVM extensions for the package fragment.
      */
-    open fun visitEnd() {
+    public open fun visitEnd() {
         delegate?.visitEnd()
     }
 
-    companion object {
+    public companion object {
         /**
          * The type of this extension visitor.
          *
          * @see KmExtensionType
          */
         @JvmField
-        val TYPE: KmExtensionType = KmExtensionType(JvmPackageExtensionVisitor::class)
+        public val TYPE: KmExtensionType = KmExtensionType(JvmPackageExtensionVisitor::class)
     }
 }
 
 /**
  * A visitor to visit JVM extensions for a function.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-open class JvmFunctionExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public open class JvmFunctionExtensionVisitor @JvmOverloads constructor(
     private val delegate: JvmFunctionExtensionVisitor? = null
 ) : KmFunctionExtensionVisitor {
     final override val type: KmExtensionType
@@ -137,7 +137,7 @@ open class JvmFunctionExtensionVisitor @JvmOverloads constructor(
      *
      * @param signature the signature of the function
      */
-    open fun visit(signature: JvmMethodSignature?) {
+    public open fun visit(signature: JvmMethodSignature?) {
         delegate?.visit(signature)
     }
 
@@ -145,33 +145,33 @@ open class JvmFunctionExtensionVisitor @JvmOverloads constructor(
      * Visits the JVM internal name of the original class the lambda class for this function is copied from.
      * This information is present for lambdas copied from bodies of inline functions to the use site by the Kotlin compiler.
      */
-    open fun visitLambdaClassOriginName(internalName: String) {
+    public open fun visitLambdaClassOriginName(internalName: String) {
         delegate?.visitLambdaClassOriginName(internalName)
     }
 
     /**
      * Visits the end of JVM extensions for the function.
      */
-    open fun visitEnd() {
+    public open fun visitEnd() {
         delegate?.visitEnd()
     }
 
-    companion object {
+    public companion object {
         /**
          * The type of this extension visitor.
          *
          * @see KmExtensionType
          */
         @JvmField
-        val TYPE: KmExtensionType = KmExtensionType(JvmFunctionExtensionVisitor::class)
+        public val TYPE: KmExtensionType = KmExtensionType(JvmFunctionExtensionVisitor::class)
     }
 }
 
 /**
  * A visitor to visit JVM extensions for a property.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-open class JvmPropertyExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public open class JvmPropertyExtensionVisitor @JvmOverloads constructor(
     private val delegate: JvmPropertyExtensionVisitor? = null
 ) : KmPropertyExtensionVisitor {
     final override val type: KmExtensionType
@@ -188,7 +188,7 @@ open class JvmPropertyExtensionVisitor @JvmOverloads constructor(
      * @param setterSignature the signature of the property setter, or `null` if this property has no setter or its signature is unknown.
      *                        Example: `JvmMethodSignature("setX", "(Ljava/lang/Object;)V")`
      */
-    open fun visit(
+    public open fun visit(
         jvmFlags: Int,
         fieldSignature: JvmFieldSignature?,
         getterSignature: JvmMethodSignature?,
@@ -205,7 +205,7 @@ open class JvmPropertyExtensionVisitor @JvmOverloads constructor(
         level = DeprecationLevel.ERROR,
         replaceWith = ReplaceWith("visit(flagsOf(), fieldSignature, getterSignature, setterSignature)", "kotlinx.metadata.flagsOf")
     )
-    open fun visit(
+    public open fun visit(
         fieldSignature: JvmFieldSignature?,
         getterSignature: JvmMethodSignature?,
         setterSignature: JvmMethodSignature?
@@ -221,7 +221,7 @@ open class JvmPropertyExtensionVisitor @JvmOverloads constructor(
      *
      * @param signature the signature of the synthetic method
      */
-    open fun visitSyntheticMethodForAnnotations(signature: JvmMethodSignature?) {
+    public open fun visitSyntheticMethodForAnnotations(signature: JvmMethodSignature?) {
         delegate?.visitSyntheticMethodForAnnotations(signature)
     }
 
@@ -234,33 +234,33 @@ open class JvmPropertyExtensionVisitor @JvmOverloads constructor(
      *
      * @param signature the signature of the synthetic method
      */
-    open fun visitSyntheticMethodForDelegate(signature: JvmMethodSignature?) {
+    public open fun visitSyntheticMethodForDelegate(signature: JvmMethodSignature?) {
         delegate?.visitSyntheticMethodForDelegate(signature)
     }
 
     /**
      * Visits the end of JVM extensions for the property.
      */
-    open fun visitEnd() {
+    public open fun visitEnd() {
         delegate?.visitEnd()
     }
 
-    companion object {
+    public companion object {
         /**
          * The type of this extension visitor.
          *
          * @see KmExtensionType
          */
         @JvmField
-        val TYPE: KmExtensionType = KmExtensionType(JvmPropertyExtensionVisitor::class)
+        public val TYPE: KmExtensionType = KmExtensionType(JvmPropertyExtensionVisitor::class)
     }
 }
 
 /**
  * A visitor to visit JVM extensions for a constructor.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-open class JvmConstructorExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public open class JvmConstructorExtensionVisitor @JvmOverloads constructor(
     private val delegate: JvmConstructorExtensionVisitor? = null
 ) : KmConstructorExtensionVisitor {
     final override val type: KmExtensionType
@@ -273,26 +273,26 @@ open class JvmConstructorExtensionVisitor @JvmOverloads constructor(
      *
      * @param signature the signature of the constructor
      */
-    open fun visit(signature: JvmMethodSignature?) {
+    public open fun visit(signature: JvmMethodSignature?) {
         delegate?.visit(signature)
     }
 
-    companion object {
+    public companion object {
         /**
          * The type of this extension visitor.
          *
          * @see KmExtensionType
          */
         @JvmField
-        val TYPE: KmExtensionType = KmExtensionType(JvmConstructorExtensionVisitor::class)
+        public val TYPE: KmExtensionType = KmExtensionType(JvmConstructorExtensionVisitor::class)
     }
 }
 
 /**
  * A visitor to visit JVM extensions for a type parameter.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-open class JvmTypeParameterExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public open class JvmTypeParameterExtensionVisitor @JvmOverloads constructor(
     private val delegate: JvmTypeParameterExtensionVisitor? = null
 ) : KmTypeParameterExtensionVisitor {
     final override val type: KmExtensionType
@@ -303,33 +303,33 @@ open class JvmTypeParameterExtensionVisitor @JvmOverloads constructor(
      *
      * @param annotation the annotation on the type parameter
      */
-    open fun visitAnnotation(annotation: KmAnnotation) {
+    public open fun visitAnnotation(annotation: KmAnnotation) {
         delegate?.visitAnnotation(annotation)
     }
 
     /**
      * Visits the end of JVM extensions for the type parameter.
      */
-    open fun visitEnd() {
+    public open fun visitEnd() {
         delegate?.visitEnd()
     }
 
-    companion object {
+    public companion object {
         /**
          * The type of this extension visitor.
          *
          * @see KmExtensionType
          */
         @JvmField
-        val TYPE: KmExtensionType = KmExtensionType(JvmTypeParameterExtensionVisitor::class)
+        public val TYPE: KmExtensionType = KmExtensionType(JvmTypeParameterExtensionVisitor::class)
     }
 }
 
 /**
  * A visitor to visit JVM extensions for a type.
  */
-@Deprecated(VISITOR_API_MESSAGE)
-open class JvmTypeExtensionVisitor @JvmOverloads constructor(
+@Deprecated(VISITOR_API_MESSAGE, level = DeprecationLevel.ERROR)
+public open class JvmTypeExtensionVisitor @JvmOverloads constructor(
     private val delegate: JvmTypeExtensionVisitor? = null
 ) : KmTypeExtensionVisitor {
     final override val type: KmExtensionType
@@ -340,7 +340,7 @@ open class JvmTypeExtensionVisitor @JvmOverloads constructor(
      *
      * @param isRaw whether the type is seen as a raw type in Java
      */
-    open fun visit(isRaw: Boolean) {
+    public open fun visit(isRaw: Boolean) {
         delegate?.visit(isRaw)
     }
 
@@ -349,31 +349,31 @@ open class JvmTypeExtensionVisitor @JvmOverloads constructor(
      *
      * @param annotation the annotation on the type
      */
-    open fun visitAnnotation(annotation: KmAnnotation) {
+    public open fun visitAnnotation(annotation: KmAnnotation) {
         delegate?.visitAnnotation(annotation)
     }
 
     /**
      * Visits the end of JVM extensions for the type parameter.
      */
-    open fun visitEnd() {
+    public open fun visitEnd() {
         delegate?.visitEnd()
     }
 
-    companion object {
+    public companion object {
         /**
          * The type of this extension visitor.
          *
          * @see KmExtensionType
          */
         @JvmField
-        val TYPE: KmExtensionType = KmExtensionType(JvmTypeExtensionVisitor::class)
+        public val TYPE: KmExtensionType = KmExtensionType(JvmTypeExtensionVisitor::class)
 
         /**
          * The type flexibility id, signifying that the visited type is a JVM platform type.
          *
          * @see KmTypeVisitor.visitFlexibleTypeUpperBound
          */
-        const val PLATFORM_TYPE_ID = JvmProtoBufUtil.PLATFORM_TYPE_ID // TODO: move out of deprecated visitor
+        public const val PLATFORM_TYPE_ID: String = JvmProtoBufUtil.PLATFORM_TYPE_ID // TODO: move out of deprecated visitor
     }
 }

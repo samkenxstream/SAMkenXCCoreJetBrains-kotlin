@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.transformers
 
+import org.jetbrains.kotlin.analysis.low.level.api.fir.api.FirDesignationWithFile
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirResolveTarget
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.throwUnexpectedFirElementError
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirLockProvider
-import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.LLFirPhaseUpdater
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkPhase
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.blockGuard
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkContractDescriptionIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.isCallableWithSpecialBody
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.FirFileAnnotationsContainer
@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.contracts.FirRawContractDescription
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirTowerDataContextCollector
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirResolveContextCollector
 import org.jetbrains.kotlin.fir.resolve.transformers.contracts.FirContractResolveTransformer
 
 internal object LLFirContractsLazyResolver : LLFirLazyResolver(FirResolvePhase.CONTRACTS) {
@@ -27,22 +27,15 @@ internal object LLFirContractsLazyResolver : LLFirLazyResolver(FirResolvePhase.C
         lockProvider: LLFirLockProvider,
         session: FirSession,
         scopeSession: ScopeSession,
-        towerDataContextCollector: FirTowerDataContextCollector?,
+        towerDataContextCollector: FirResolveContextCollector?,
     ) {
         val resolver = LLFirContractsTargetResolver(target, lockProvider, session, scopeSession)
         resolver.resolveDesignation()
     }
 
-    override fun updatePhaseForDeclarationInternals(target: FirElementWithResolveState) {
-        LLFirPhaseUpdater.updateDeclarationInternalsPhase(target, resolverPhase, updateForLocalDeclarations = false)
-    }
-
-    override fun checkIsResolved(target: FirElementWithResolveState) {
-        target.checkPhase(resolverPhase)
-        if (target is FirContractDescriptionOwner) {
-            // TODO checkContractDescriptionIsResolved(declaration)
-        }
-        checkNestedDeclarationsAreResolved(target)
+    override fun phaseSpecificCheckIsResolved(target: FirElementWithResolveState) {
+        if (target !is FirContractDescriptionOwner) return
+        checkContractDescriptionIsResolved(target)
     }
 }
 
@@ -70,9 +63,12 @@ private class LLFirContractsTargetResolver(
             is FirVariable,
             is FirFunction,
             is FirAnonymousInitializer,
+            is FirFile,
             is FirScript,
+            is FirCodeFragment,
             is FirFileAnnotationsContainer,
-            is FirDanglingModifierList -> {
+            is FirDanglingModifierList,
+            -> {
                 // No contracts here
                 check(target !is FirContractDescriptionOwner) {
                     "Unexpected contract description owner: $target (${target.javaClass.name})"
@@ -84,11 +80,11 @@ private class LLFirContractsTargetResolver(
 }
 
 private object ContractStateKeepers {
-    private val CONTRACT_DESCRIPTION_OWNER: StateKeeper<FirContractDescriptionOwner> = stateKeeper {
+    private val CONTRACT_DESCRIPTION_OWNER: StateKeeper<FirContractDescriptionOwner, FirDesignationWithFile> = stateKeeper { _, _ ->
         add(FirContractDescriptionOwner::contractDescription, FirContractDescriptionOwner::replaceContractDescription)
     }
 
-    private val BODY_OWNER: StateKeeper<FirFunction> = stateKeeper { declaration ->
+    private val BODY_OWNER: StateKeeper<FirFunction, FirDesignationWithFile> = stateKeeper { declaration, _ ->
         if (declaration is FirContractDescriptionOwner && declaration.contractDescription is FirRawContractDescription) {
             // No need to change the body, contract is declared separately
             return@stateKeeper
@@ -99,23 +95,23 @@ private object ContractStateKeepers {
         }
     }
 
-    val SIMPLE_FUNCTION: StateKeeper<FirSimpleFunction> = stateKeeper {
-        add(CONTRACT_DESCRIPTION_OWNER)
-        add(BODY_OWNER)
+    val SIMPLE_FUNCTION: StateKeeper<FirSimpleFunction, FirDesignationWithFile> = stateKeeper { _, designation ->
+        add(CONTRACT_DESCRIPTION_OWNER, designation)
+        add(BODY_OWNER, designation)
     }
 
-    val CONSTRUCTOR: StateKeeper<FirConstructor> = stateKeeper {
-        add(CONTRACT_DESCRIPTION_OWNER)
-        add(BODY_OWNER)
+    val CONSTRUCTOR: StateKeeper<FirConstructor, FirDesignationWithFile> = stateKeeper { _, designation ->
+        add(CONTRACT_DESCRIPTION_OWNER, designation)
+        add(BODY_OWNER, designation)
     }
 
-    val PROPERTY_ACCESSOR: StateKeeper<FirPropertyAccessor> = stateKeeper {
-        add(CONTRACT_DESCRIPTION_OWNER)
-        add(BODY_OWNER)
+    val PROPERTY_ACCESSOR: StateKeeper<FirPropertyAccessor, FirDesignationWithFile> = stateKeeper { _, designation ->
+        add(CONTRACT_DESCRIPTION_OWNER, designation)
+        add(BODY_OWNER, designation)
     }
 
-    val PROPERTY: StateKeeper<FirProperty> = stateKeeper { property ->
-        entity(property.getter, PROPERTY_ACCESSOR)
-        entity(property.setter, PROPERTY_ACCESSOR)
+    val PROPERTY: StateKeeper<FirProperty, FirDesignationWithFile> = stateKeeper { property, designation ->
+        entity(property.getter, PROPERTY_ACCESSOR, designation)
+        entity(property.setter, PROPERTY_ACCESSOR, designation)
     }
 }

@@ -11,7 +11,9 @@ import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.HandlersStepBuilder
 import org.jetbrains.kotlin.test.TestJdkKind
 import org.jetbrains.kotlin.test.backend.handlers.*
+import org.jetbrains.kotlin.test.backend.ir.IrActualizerAndPluginsFacade
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
+import org.jetbrains.kotlin.test.bind
 import org.jetbrains.kotlin.test.builders.*
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives
 import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.DUMP_SMAP
@@ -39,6 +41,7 @@ fun <F : ResultingArtifact.FrontendOutput<F>, B : ResultingArtifact.BackendInput
     classicFrontendHandlersStep()
     firHandlersStep()
     facadeStep(frontendToBackendConverter)
+    actualizersAndPluginsFacadeStepIfNeeded(targetFrontend)
     irHandlersStep(init = {})
     facadeStep(backendFacade)
     jvmArtifactsHandlersStep(init = {})
@@ -148,50 +151,64 @@ fun TestConfigurationBuilder.commonHandlersForCodegenTest() {
     }
 }
 
-fun HandlersStepBuilder<IrBackendInput>.dumpHandlersForConverterStep() {
-    useHandlers(::IrTreeVerifierHandler, ::IrTextDumpHandler, ::IrMangledNameAndSignatureDumpHandler)
+fun <InputArtifactKind> HandlersStepBuilder<IrBackendInput, InputArtifactKind>.dumpHandlersForConverterStep()
+        where InputArtifactKind : BackendKind<IrBackendInput> {
+    useHandlers(
+        ::IrTreeVerifierHandler,
+        ::IrTextDumpHandler,
+        ::IrMangledNameAndSignatureDumpHandler,
+    )
 }
 
-fun HandlersStepBuilder<BinaryArtifacts.Jvm>.dumpHandlersForBackendStep() {
+fun HandlersStepBuilder<BinaryArtifacts.Jvm, ArtifactKinds.Jvm>.dumpHandlersForBackendStep() {
     useHandlers(::BytecodeListingHandler)
 }
 
-fun HandlersStepBuilder<BinaryArtifacts.Jvm>.boxHandlersForBackendStep() {
-    useHandlers(::JvmBoxRunner)
+fun HandlersStepBuilder<BinaryArtifacts.Jvm, ArtifactKinds.Jvm>.boxHandlersForBackendStep() {
+    useHandlers(
+        ::JvmBoxRunner
+    )
 }
 
-fun HandlersStepBuilder<BinaryArtifacts.Jvm>.steppingHandlersForBackendStep() {
+fun HandlersStepBuilder<BinaryArtifacts.Jvm, ArtifactKinds.Jvm>.steppingHandlersForBackendStep() {
     useHandlers(::SteppingDebugRunner)
 }
 
-fun HandlersStepBuilder<BinaryArtifacts.Jvm>.localVariableHandlersForBackendStep() {
+fun HandlersStepBuilder<BinaryArtifacts.Jvm, ArtifactKinds.Jvm>.localVariableHandlersForBackendStep() {
     useHandlers(::LocalVariableDebugRunner)
 }
 
-fun HandlersStepBuilder<ClassicFrontendOutputArtifact>.commonClassicFrontendHandlersForCodegenTest() {
+fun HandlersStepBuilder<ClassicFrontendOutputArtifact, FrontendKinds.ClassicFrontend>.commonClassicFrontendHandlersForCodegenTest() {
     useHandlers(
         ::NoCompilationErrorsHandler,
     )
 }
 
-fun HandlersStepBuilder<FirOutputArtifact>.commonFirHandlersForCodegenTest() {
+fun HandlersStepBuilder<FirOutputArtifact, FrontendKinds.FIR>.commonFirHandlersForCodegenTest() {
     useHandlers(
         ::NoFirCompilationErrorsHandler,
     )
 }
 
-fun HandlersStepBuilder<BinaryArtifacts.Jvm>.commonBackendHandlersForCodegenTest() {
+fun HandlersStepBuilder<BinaryArtifacts.Jvm, ArtifactKinds.Jvm>.commonBackendHandlersForCodegenTest() {
     useHandlers(
+        ::JvmBackendDiagnosticsHandler,
         ::NoJvmSpecificCompilationErrorsHandler,
         ::DxCheckerHandler,
     )
 }
 
-fun HandlersStepBuilder<BinaryArtifacts.Jvm>.inlineHandlers() {
+fun HandlersStepBuilder<BinaryArtifacts.Jvm, ArtifactKinds.Jvm>.inlineHandlers() {
     useHandlers(
         ::BytecodeInliningHandler,
         ::SMAPDumpHandler
     )
+}
+
+fun TestConfigurationBuilder.actualizersAndPluginsFacadeStepIfNeeded(targetFrontend: FrontendKind<*>) {
+    if (targetFrontend == FrontendKinds.FIR) {
+        facadeStep(::IrActualizerAndPluginsFacade)
+    }
 }
 
 fun TestConfigurationBuilder.configureModernJavaTest(jdkKind: TestJdkKind, jvmTarget: JvmTarget) {

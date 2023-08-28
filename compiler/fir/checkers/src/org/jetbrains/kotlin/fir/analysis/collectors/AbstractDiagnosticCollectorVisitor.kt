@@ -7,10 +7,13 @@ package org.jetbrains.kotlin.fir.analysis.collectors
 
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirElement
-import org.jetbrains.kotlin.fir.PrivateForInline
+import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContextForProvider
+import org.jetbrains.kotlin.fir.analysis.checkers.declaration.createInlineFunctionBodyContext
+import org.jetbrains.kotlin.fir.contracts.FirContractDescription
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.builder.buildReceiverParameter
+import org.jetbrains.kotlin.fir.declarations.utils.isInline
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirContractCallBlock
 import org.jetbrains.kotlin.fir.resolve.defaultType
@@ -32,6 +35,8 @@ abstract class AbstractDiagnosticCollectorVisitor(
     }
 
     protected abstract fun checkElement(element: FirElement)
+
+    open fun checkSettings() {}
 
     override fun visitElement(element: FirElement, data: Nothing?) {
         when (element) {
@@ -94,9 +99,20 @@ abstract class AbstractDiagnosticCollectorVisitor(
         }
     }
 
+    override fun visitScript(script: FirScript, data: Nothing?) {
+        withAnnotationContainer(script) {
+            checkElement(script)
+            withDeclaration(script) {
+                visitNestedElements(script)
+            }
+        }
+    }
+
     override fun visitSimpleFunction(simpleFunction: FirSimpleFunction, data: Nothing?) {
         withAnnotationContainer(simpleFunction) {
-            visitWithDeclarationAndReceiver(simpleFunction, simpleFunction.name, simpleFunction.receiverParameter)
+            withInlineFunctionBodyIfApplicable(simpleFunction, simpleFunction.isInline) {
+                visitWithDeclarationAndReceiver(simpleFunction, simpleFunction.name, simpleFunction.receiverParameter)
+            }
         }
     }
 
@@ -105,6 +121,9 @@ abstract class AbstractDiagnosticCollectorVisitor(
             visitWithDeclaration(constructor)
         }
     }
+
+    override fun visitErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: Nothing?) =
+        visitConstructor(errorPrimaryConstructor, data)
 
     override fun visitAnonymousFunctionExpression(anonymousFunctionExpression: FirAnonymousFunctionExpression, data: Nothing?) {
         visitAnonymousFunction(anonymousFunctionExpression.anonymousFunction, data)
@@ -136,7 +155,9 @@ abstract class AbstractDiagnosticCollectorVisitor(
     override fun visitPropertyAccessor(propertyAccessor: FirPropertyAccessor, data: Nothing?) {
         val property = context.containingDeclarations.last() as FirProperty
         withAnnotationContainer(propertyAccessor) {
-            visitWithDeclarationAndReceiver(propertyAccessor, property.name, property.receiverParameter)
+            withInlineFunctionBodyIfApplicable(propertyAccessor, propertyAccessor.isInline || property.isInline) {
+                visitWithDeclarationAndReceiver(propertyAccessor, property.name, property.receiverParameter)
+            }
         }
     }
 
@@ -180,6 +201,12 @@ abstract class AbstractDiagnosticCollectorVisitor(
         }
     }
 
+    override fun visitContractDescription(contractDescription: FirContractDescription, data: Nothing?) {
+        suppressInlineFunctionBodyContext {
+            visitElement(contractDescription, data)
+        }
+    }
+
     override fun visitTypeRef(typeRef: FirTypeRef, data: Nothing?) {
         if (typeRef.source?.kind?.shouldSkipErrorTypeReporting == false) {
             withTypeRefAnnotationContainer(typeRef) {
@@ -216,23 +243,27 @@ abstract class AbstractDiagnosticCollectorVisitor(
     }
 
     override fun visitFunctionCall(functionCall: FirFunctionCall, data: Nothing?) {
-        visitWithQualifiedAccessOrAnnotationCall(functionCall)
+        visitWithCallOrAssignment(functionCall)
     }
 
     override fun visitQualifiedAccessExpression(qualifiedAccessExpression: FirQualifiedAccessExpression, data: Nothing?) {
-        visitWithQualifiedAccessOrAnnotationCall(qualifiedAccessExpression)
+        visitWithCallOrAssignment(qualifiedAccessExpression)
     }
 
     override fun visitPropertyAccessExpression(propertyAccessExpression: FirPropertyAccessExpression, data: Nothing?) {
-        visitWithQualifiedAccessOrAnnotationCall(propertyAccessExpression)
+        visitWithCallOrAssignment(propertyAccessExpression)
     }
 
     override fun visitAnnotationCall(annotationCall: FirAnnotationCall, data: Nothing?) {
-        visitWithQualifiedAccessOrAnnotationCall(annotationCall)
+        visitWithCallOrAssignment(annotationCall)
     }
 
     override fun visitVariableAssignment(variableAssignment: FirVariableAssignment, data: Nothing?) {
-        visitWithQualifiedAccessOrAnnotationCall(variableAssignment)
+        visitWithCallOrAssignment(variableAssignment)
+    }
+
+    override fun visitDelegatedConstructorCall(delegatedConstructorCall: FirDelegatedConstructorCall, data: Nothing?) {
+        visitWithCallOrAssignment(delegatedConstructorCall)
     }
 
     override fun visitGetClassCall(getClassCall: FirGetClassCall, data: Nothing?) {
@@ -273,9 +304,23 @@ abstract class AbstractDiagnosticCollectorVisitor(
         }
     }
 
-    private fun visitWithQualifiedAccessOrAnnotationCall(qualifiedAccessOrAnnotationCall: FirStatement) {
-        return withQualifiedAccessOrAnnotationCall(qualifiedAccessOrAnnotationCall) {
-            visitElement(qualifiedAccessOrAnnotationCall, null)
+    @OptIn(PrivateForInline::class)
+    private inline fun <T> withInlineFunctionBodyIfApplicable(function: FirFunction, isInline: Boolean, block: () -> T): T {
+        return try {
+            if (isInline) {
+                context = context.setInlineFunctionBodyContext(createInlineFunctionBodyContext(function, context.session))
+            }
+            block()
+        } finally {
+            if (isInline) {
+                context = context.unsetInlineFunctionBodyContext()
+            }
+        }
+    }
+
+    private fun visitWithCallOrAssignment(callOrAssignment: FirStatement) {
+        return withCallOrAssignment(callOrAssignment) {
+            visitElement(callOrAssignment, null)
         }
     }
 
@@ -286,15 +331,15 @@ abstract class AbstractDiagnosticCollectorVisitor(
     }
 
     @OptIn(PrivateForInline::class)
-    inline fun <R> withQualifiedAccessOrAnnotationCall(qualifiedAccessOrAnnotationCall: FirStatement, block: () -> R): R {
+    inline fun <R> withCallOrAssignment(callOrAssignment: FirStatement, block: () -> R): R {
         val existingContext = context
-        context = context.addQualifiedAccessOrAnnotationCall(qualifiedAccessOrAnnotationCall)
+        context = context.addCallOrAssignment(callOrAssignment)
         try {
-            return whileAnalysing(context.session, qualifiedAccessOrAnnotationCall) {
+            return whileAnalysing(context.session, callOrAssignment) {
                 block()
             }
         } finally {
-            existingContext.dropQualifiedAccessOrAnnotationCall()
+            existingContext.dropCallOrAssignment()
             context = existingContext
         }
     }
@@ -393,6 +438,20 @@ abstract class AbstractDiagnosticCollectorVisitor(
                     existingContext.dropAnnotationContainer()
                 }
                 context = existingContext
+            }
+        }
+    }
+
+    @OptIn(PrivateForInline::class)
+    private inline fun <R> suppressInlineFunctionBodyContext(block: () -> R): R {
+        val oldInlineFunctionBodyContext = context.inlineFunctionBodyContext?.also {
+            context = context.unsetInlineFunctionBodyContext()
+        }
+        return try {
+            block()
+        } finally {
+            oldInlineFunctionBodyContext?.let {
+                context = context.setInlineFunctionBodyContext(it)
             }
         }
     }

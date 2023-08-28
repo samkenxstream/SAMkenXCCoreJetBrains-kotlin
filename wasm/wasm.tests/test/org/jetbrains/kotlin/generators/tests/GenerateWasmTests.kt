@@ -55,6 +55,10 @@ fun main(args: Array<String>) {
             testClass<AbstractFirWasmCodegenWasmJsInteropTest> {
                 model("codegen/boxWasmJsInterop")
             }
+
+            testClass<AbstractFirWasmSteppingTest> {
+                model("debug/stepping")
+            }
         }
 
         testGroup("wasm/wasm.tests/tests-gen", "js/js.translator/testData", testRunnerMethodName = "runTest0") {
@@ -79,6 +83,14 @@ fun main(args: Array<String>) {
 
             testClass<AbstractK1WasmCodegenWasmJsInteropTest> {
                 model("codegen/boxWasmJsInterop")
+            }
+
+            testClass<AbstractK1WasmWasiCodegenBoxTest> {
+                model("codegen/boxWasmWasi")
+            }
+
+            testClass<AbstractK1WasmSteppingTest> {
+                model("debug/stepping")
             }
         }
     }

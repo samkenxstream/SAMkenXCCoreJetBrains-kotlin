@@ -14,6 +14,7 @@ import org.gradle.api.artifacts.Dependency
 import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.Usage
 import org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.internal.plugins.DefaultArtifactPublicationSet
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.provider.Provider
@@ -34,14 +35,9 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.apple.registerEmbedAndSignAppleFra
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.version
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.GradleKpmVariant
 import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.copyAttributes
-import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
 import org.jetbrains.kotlin.gradle.targets.metadata.isKotlinGranularMetadataEnabled
 import org.jetbrains.kotlin.gradle.targets.native.*
 import org.jetbrains.kotlin.gradle.targets.native.internal.*
-import org.jetbrains.kotlin.gradle.targets.native.internal.commonizeCInteropTask
-import org.jetbrains.kotlin.gradle.targets.native.internal.createCInteropApiElementsKlibArtifact
-import org.jetbrains.kotlin.gradle.targets.native.internal.locateOrCreateCInteropApiElementsConfiguration
-import org.jetbrains.kotlin.gradle.targets.native.internal.locateOrCreateCInteropDependencyConfiguration
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeHostTest
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeSimulatorTest
 import org.jetbrains.kotlin.gradle.targets.native.tasks.KotlinNativeTest
@@ -50,6 +46,7 @@ import org.jetbrains.kotlin.gradle.testing.internal.configureConventions
 import org.jetbrains.kotlin.gradle.testing.internal.kotlinTestRegistry
 import org.jetbrains.kotlin.gradle.testing.testTaskName
 import org.jetbrains.kotlin.gradle.utils.XcodeUtils
+import org.jetbrains.kotlin.gradle.utils.named
 import org.jetbrains.kotlin.gradle.utils.newInstance
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -94,14 +91,11 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
     }
 
     private fun Project.syncLanguageSettingsToLinkTask(binary: NativeBinary) {
-        tasks.named(binary.linkTaskName, KotlinNativeLink::class.java).configure {
+        tasks.named<KotlinNativeLink>(binary.linkTaskName).configure { linkTask ->
             // We propagate compilation free args to the link task for now (see KT-33717).
-            val defaultLanguageSettings = binary.compilation.defaultSourceSet.languageSettings as? DefaultLanguageSettingsBuilder
-            if (defaultLanguageSettings != null && defaultLanguageSettings.freeCompilerArgsForNonImport.isNotEmpty()) {
-                it.toolOptions.freeCompilerArgs.addAll(
-                    defaultLanguageSettings.freeCompilerArgsForNonImport
-                )
-            }
+            linkTask.toolOptions.freeCompilerArgs.addAll(
+                binary.compilation.compilerOptions.options.freeCompilerArgs
+            )
         }
     }
 
@@ -124,7 +118,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
     // FIXME support creating interop tasks for PM20
     private fun Project.createCInteropTasks(
         compilation: KotlinNativeCompilation,
-        cinterops: NamedDomainObjectCollection<DefaultCInteropSettings>
+        cinterops: NamedDomainObjectCollection<DefaultCInteropSettings>,
     ) {
         val compilationInfo = KotlinCompilationInfo(compilation)
         cinterops.all { interop ->
@@ -142,7 +136,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
             )
 
             val interopTask = registerTask<CInteropProcess>(interop.interopProcessingTaskName, listOf(params)) {
-                it.destinationDir = provider { klibOutputDirectory(compilationInfo).resolve("cinterop") }
+                it.destinationDir = klibOutputDirectory(compilationInfo).dir("cinterop").map { it.asFile }
                 it.group = INTEROP_GROUP
                 it.description = "Generates Kotlin/Native interop library '${interop.name}' " +
                         "for compilation '${compilation.compilationName}'" +
@@ -160,8 +154,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
 
             val interopOutput = project.files(interopTask.map { it.outputFileProvider })
             with(compilation) {
-                // Register the interop library as a dependency of the compilation to make IDE happy.
-                project.dependencies.add(compileDependencyConfigurationName, interopOutput)
+                compileDependencyFiles += interopOutput
                 if (isMain()) {
                     // Add interop library to special CInteropApiElements configuration
                     createCInteropApiElementsKlibArtifact(compilation.target, interop, interopTask)
@@ -179,7 +172,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
                     // IDE doesn't see this library in module dependencies. So we have to manually add
                     // main interop libraries in dependencies of the default test compilation.
                     target.compilations.findByName(TEST_COMPILATION_NAME)?.let { testCompilation ->
-                        project.dependencies.add(testCompilation.compileDependencyConfigurationName, interopOutput)
+                        testCompilation.compileDependencyFiles += interopOutput
                         testCompilation.cinterops.all {
                             it.dependencyFiles += interopOutput
                         }
@@ -248,11 +241,6 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
         project.runOnceAfterEvaluated("Sync language settings for NativeLinkTask") {
             target.binaries.all { binary ->
                 project.syncLanguageSettingsToLinkTask(binary)
-            }
-        }
-        project.launchInStage(KotlinPluginLifecycle.Stage.FinaliseCompilations) {
-            target.compilations.all { compilation ->
-                compilation.compilerOptions.syncLanguageSettings(compilation.defaultSourceSet.languageSettings)
             }
         }
 
@@ -387,7 +375,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
 
         internal fun createKlibCompilationTask(
             compilationInfo: KotlinCompilationInfo,
-            konanTarget: KonanTarget
+            konanTarget: KonanTarget,
         ): TaskProvider<KotlinNativeCompile> {
             val project = compilationInfo.project
             val ext = project.topLevelExtension
@@ -403,12 +391,11 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
                         "compilation in target '${compilationInfo.targetDisambiguationClassifier}'."
                 it.enabled = konanTarget.enabledOnCurrentHost
 
-                it.destinationDirectory.set(project.klibOutputDirectory(compilationInfo).resolve("klib"))
+                it.destinationDirectory.set(project.klibOutputDirectory(compilationInfo).dir("klib"))
                 val propertiesProvider = PropertiesProvider(project)
                 if (propertiesProvider.useK2 == true) {
                     it.compilerOptions.useK2.set(true)
                 }
-                it.compilerOptions.useK2.disallowChanges()
                 it.runViaBuildToolsApi.value(false).disallowChanges() // K/N is not yet supported
 
                 it.explicitApiMode
@@ -424,6 +411,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
                         }
                     )
                     .finalizeValueOnRead()
+
             }
 
             compilationInfo.classesDirs.from(compileTaskProvider.map { it.outputFile })
@@ -455,10 +443,12 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
         }
 
         private fun Project.klibOutputDirectory(
-            compilation: KotlinCompilationInfo
-        ): File {
+            compilation: KotlinCompilationInfo,
+        ): DirectoryProperty {
             val targetSubDirectory = compilation.targetDisambiguationClassifier?.let { "$it/" }.orEmpty()
-            return buildDir.resolve("classes/kotlin/$targetSubDirectory${compilation.compilationName}")
+            return project.objects.directoryProperty().value(
+                layout.buildDirectory.dir("classes/kotlin/$targetSubDirectory${compilation.compilationName}")
+            )
         }
 
         private fun addCompilerPlugins(compilation: AbstractKotlinNativeCompilation) {
@@ -478,7 +468,7 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
         internal fun createRegularKlibArtifact(
             compilation: KotlinCompilationInfo,
             konanTarget: KonanTarget,
-            compileTask: TaskProvider<out KotlinNativeCompile>
+            compileTask: TaskProvider<out KotlinNativeCompile>,
         ) = createKlibArtifact(compilation, konanTarget, compileTask.map { it.outputFile.get() }, null, compileTask)
 
         private fun createKlibArtifact(
@@ -517,7 +507,8 @@ open class KotlinNativeTargetConfigurator<T : KotlinNativeTarget> : AbstractKotl
 abstract class KotlinNativeTargetWithTestsConfigurator<
         TargetType : KotlinNativeTargetWithTests<TestRunType>,
         TestRunType : KotlinNativeBinaryTestRun,
-        TaskType : KotlinNativeTest>(
+        TaskType : KotlinNativeTest,
+        >(
 ) : KotlinNativeTargetConfigurator<TargetType>(),
     KotlinTargetWithTestsConfigurator<TestRunType, TargetType> {
 
@@ -571,7 +562,7 @@ class KotlinNativeTargetWithHostTestsConfigurator() :
 
     override fun createTestRun(
         name: String,
-        target: KotlinNativeTargetWithHostTests
+        target: KotlinNativeTargetWithHostTests,
     ): KotlinNativeHostTestRun =
         DefaultHostTestRun(name, target).apply { configureTestRun(target, this) }
 }
@@ -605,7 +596,7 @@ class KotlinNativeTargetWithSimulatorTestsConfigurator :
 
     override fun createTestRun(
         name: String,
-        target: KotlinNativeTargetWithSimulatorTests
+        target: KotlinNativeTargetWithSimulatorTests,
     ): KotlinNativeSimulatorTestRun =
         DefaultSimulatorTestRun(name, target).apply { configureTestRun(target, this) }
 }

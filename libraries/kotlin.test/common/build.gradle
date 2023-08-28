@@ -5,16 +5,16 @@ apply plugin: 'kotlin-platform-common'
 JvmToolchain.updateJvmTarget(project, "1.8")
 
 dependencies {
-    api kotlinStdlib("common")
+    api RepoDependencies.kotlinStdlib(project, "mpp")
     testApi project(":kotlin-test:kotlin-test-annotations-common")
 }
 
 jar {
-    manifestAttributes(manifest, project, 'Test')
+    LibrariesCommon.manifestAttributes(project, manifest, 'Test')
 }
 
-configureSourcesJar()
-configureJavadocJar()
+RepoArtifacts.sourcesJar(project)
+RepoArtifacts.javadocJar(project)
 
 tasks.withType(org.jetbrains.kotlin.gradle.dsl.KotlinCompile) {
     kotlinOptions.freeCompilerArgs += ["-Xallow-kotlin-package", "-opt-in=kotlin.RequiresOptIn"]

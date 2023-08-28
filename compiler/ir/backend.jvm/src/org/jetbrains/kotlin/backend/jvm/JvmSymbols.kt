@@ -74,7 +74,7 @@ class JvmSymbols(
     // (they are expected to be provided at run-time by the corresponding bootstrap method).
     val kotlinJvmInternalInvokeDynamicPackage: IrPackageFragment = createPackage(FqName("kotlin.jvm.internal.invokeDynamic"))
 
-    private val generateOptimizedCallableReferenceSuperClasses = context.state.generateOptimizedCallableReferenceSuperClasses
+    private val generateOptimizedCallableReferenceSuperClasses = context.config.generateOptimizedCallableReferenceSuperClasses
 
     private fun createPackage(fqName: FqName): IrPackageFragment =
         IrExternalPackageFragmentImpl.createEmptyExternalPackageFragment(context.state.module, fqName)
@@ -937,14 +937,14 @@ class JvmSymbols(
             throw AssertionError("Array type expected: ${arrayType.render()}")
     }
 
-    private val javaLangInteger: IrClassSymbol = createJavaPrimitiveClass(FqName("java.lang.Integer"), irBuiltIns.intType)
+    private val javaLangInteger: IrClassSymbol = createJavaPrimitiveClassWithUnsignedUtils(FqName("java.lang.Integer"), irBuiltIns.intType)
 
     val compareUnsignedInt: IrSimpleFunctionSymbol = javaLangInteger.functionByName("compareUnsigned")
     val divideUnsignedInt: IrSimpleFunctionSymbol = javaLangInteger.functionByName("divideUnsigned")
     val remainderUnsignedInt: IrSimpleFunctionSymbol = javaLangInteger.functionByName("remainderUnsigned")
     val toUnsignedStringInt: IrSimpleFunctionSymbol = javaLangInteger.functionByName("toUnsignedString")
 
-    private val javaLangLong: IrClassSymbol = createJavaPrimitiveClass(FqName("java.lang.Long"), irBuiltIns.longType)
+    private val javaLangLong: IrClassSymbol = createJavaPrimitiveClassWithUnsignedUtils(FqName("java.lang.Long"), irBuiltIns.longType)
 
     val compareUnsignedLong: IrSimpleFunctionSymbol = javaLangLong.functionByName("compareUnsigned")
     val divideUnsignedLong: IrSimpleFunctionSymbol = javaLangLong.functionByName("divideUnsigned")
@@ -965,7 +965,7 @@ class JvmSymbols(
             returnType = irBuiltIns.intType
         }.symbol
 
-    private fun createJavaPrimitiveClass(fqName: FqName, type: IrType): IrClassSymbol = createClass(fqName) { klass ->
+    private fun createJavaPrimitiveClassWithUnsignedUtils(fqName: FqName, type: IrType): IrClassSymbol = createClass(fqName) { klass ->
         klass.addFunction("compareUnsigned", irBuiltIns.intType, isStatic = true).apply {
             addValueParameter("x", type)
             addValueParameter("y", type)

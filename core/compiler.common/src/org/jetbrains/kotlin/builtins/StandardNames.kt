@@ -31,10 +31,14 @@ object StandardNames {
     @JvmField val DATA_CLASS_COMPONENT_PREFIX = "component"
 
     @JvmField val HASHCODE_NAME = Name.identifier("hashCode")
+    @JvmField val TO_STRING_NAME = Name.identifier("toString")
+    @JvmField val EQUALS_NAME = Name.identifier("equals")
 
     @JvmField val CHAR_CODE = Name.identifier("code")
 
     @JvmField val NAME = Name.identifier("name")
+
+    @JvmField val MAIN = Name.identifier("main")
 
     @JvmField val NEXT_CHAR = Name.identifier("nextChar")
 

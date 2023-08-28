@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.fir.lazy
 
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
 import org.jetbrains.kotlin.fir.backend.contextReceiversForFunctionOrContainingProperty
-import org.jetbrains.kotlin.fir.backend.generateOverriddenFunctionSymbols
+import org.jetbrains.kotlin.fir.backend.generators.generateOverriddenFunctionSymbols
 import org.jetbrains.kotlin.fir.backend.toIrType
 import org.jetbrains.kotlin.fir.declarations.FirFunction
 import org.jetbrains.kotlin.fir.declarations.FirRegularClass
@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 import org.jetbrains.kotlin.ir.declarations.lazy.lazyVar
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrSymbolInternals
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
@@ -65,7 +66,7 @@ class Fir2IrLazySimpleFunction(
     override var contextReceiverParametersCount: Int = fir.contextReceiversForFunctionOrContainingProperty().size
 
     override var valueParameters: List<IrValueParameter> by lazyVar(lock) {
-        declarationStorage.enterScope(this)
+        declarationStorage.enterScope(this.symbol)
 
         buildList {
             declarationStorage.addContextReceiverParametersTo(
@@ -82,7 +83,7 @@ class Fir2IrLazySimpleFunction(
                 }
             }
         }.apply {
-            declarationStorage.leaveScope(this@Fir2IrLazySimpleFunction)
+            declarationStorage.leaveScope(this@Fir2IrLazySimpleFunction.symbol)
         }
     }
 
@@ -101,6 +102,7 @@ class Fir2IrLazySimpleFunction(
         fir.generateOverriddenFunctionSymbols(firParent)
     }
 
+    @OptIn(IrSymbolInternals::class)
     override val initialSignatureFunction: IrFunction? by lazy {
         (fir.initialSignatureAttr as? FirFunction)?.symbol?.let { declarationStorage.getIrFunctionSymbol(it).owner }?.takeIf { it !== this }
     }

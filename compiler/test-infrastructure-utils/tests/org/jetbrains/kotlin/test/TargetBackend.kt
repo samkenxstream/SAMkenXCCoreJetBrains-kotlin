@@ -11,7 +11,6 @@ enum class TargetBackend(
 ) {
     ANY(false),
     JVM(false),
-    JVM_OLD(false, JVM),
     JVM_IR(true, JVM),
     JVM_MULTI_MODULE_IR_AGAINST_OLD(true, JVM_IR),
     JVM_MULTI_MODULE_OLD_AGAINST_IR(false, JVM),
@@ -20,6 +19,7 @@ enum class TargetBackend(
     JS_IR(true, JS),
     JS_IR_ES6(true, JS_IR),
     WASM(true),
+    WASM_WASI(true),
     ANDROID(false, JVM),
     ANDROID_IR(true, JVM_IR),
     NATIVE(true),

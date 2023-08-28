@@ -58,6 +58,12 @@ public class LldbTestGenerated extends AbstractNativeBlackBoxTest {
     }
 
     @Test
+    @TestMetadata("canInspectStrings.kt")
+    public void testCanInspectStrings() throws Exception {
+        runTest("native/native.tests/testData/lldb/canInspectStrings.kt");
+    }
+
+    @Test
     @TestMetadata("canInspectValuesOfPrimitiveTypes.kt")
     public void testCanInspectValuesOfPrimitiveTypes() throws Exception {
         runTest("native/native.tests/testData/lldb/canInspectValuesOfPrimitiveTypes.kt");
@@ -109,5 +115,11 @@ public class LldbTestGenerated extends AbstractNativeBlackBoxTest {
     @TestMetadata("kt47198WithBody.kt")
     public void testKt47198WithBody() throws Exception {
         runTest("native/native.tests/testData/lldb/kt47198WithBody.kt");
+    }
+
+    @Test
+    @TestMetadata("kt61131.kt")
+    public void testKt61131() throws Exception {
+        runTest("native/native.tests/testData/lldb/kt61131.kt");
     }
 }

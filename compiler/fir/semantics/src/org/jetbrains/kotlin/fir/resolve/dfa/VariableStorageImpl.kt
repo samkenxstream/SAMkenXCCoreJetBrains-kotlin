@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.fir.resolve.dfa
 
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousObject
@@ -14,6 +15,7 @@ import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyAccessor
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
 import org.jetbrains.kotlin.fir.declarations.utils.modality
+import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.impl.FirNoReceiverExpression
 import org.jetbrains.kotlin.fir.moduleData
@@ -25,6 +27,10 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
 import org.jetbrains.kotlin.fir.types.coneTypeSafe
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirSymbolEntry
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.requireWithAttachment
 
 @OptIn(DfaInternals::class)
 class VariableStorageImpl(private val session: FirSession) : VariableStorage() {
@@ -45,7 +51,12 @@ class VariableStorageImpl(private val session: FirSession) : VariableStorage() {
         val realFir = fir.unwrapElement()
         val identifier = getIdentifierBySymbol(flow, symbol, realFir)
         val stability = symbol.getStability(fir)
-        requireNotNull(stability) { "Stability for initialized variable always should be computable" }
+        requireWithAttachment(stability != null, { "Stability for initialized variable always should be computable" }) {
+            withFirSymbolEntry("symbol", symbol)
+            withFirEntry("fir", fir)
+            withEntry("identifier", identifier.toString())
+        }
+
         return _realVariables[identifier] ?: createReal(flow, identifier, realFir, stability)
     }
 
@@ -162,14 +173,17 @@ class VariableStorageImpl(private val session: FirSession) : VariableStorage() {
             property.isVar -> PropertyStability.MUTABLE_PROPERTY
             property.receiverParameter != null -> PropertyStability.PROPERTY_WITH_GETTER
             property.getter.let { it != null && it !is FirDefaultPropertyAccessor } -> PropertyStability.PROPERTY_WITH_GETTER
+            property.visibility == Visibilities.Private -> PropertyStability.STABLE_VALUE
             property.modality != Modality.FINAL -> {
                 val dispatchReceiver = (originalFir.unwrapElement() as? FirQualifiedAccessExpression)?.dispatchReceiver ?: return null
-                val receiverType = dispatchReceiver.typeRef.coneTypeSafe<ConeClassLikeType>()?.fullyExpandedType(session) ?: return null
+                val receiverType = dispatchReceiver.coneTypeSafe<ConeClassLikeType>()?.fullyExpandedType(session) ?: return null
                 val receiverSymbol = receiverType.lookupTag.toSymbol(session) ?: return null
                 when (val receiverFir = receiverSymbol.fir) {
                     is FirAnonymousObject -> PropertyStability.STABLE_VALUE
                     is FirRegularClass -> if (receiverFir.modality == Modality.FINAL) PropertyStability.STABLE_VALUE else PropertyStability.PROPERTY_WITH_GETTER
-                    else -> throw IllegalStateException("Should not be here: $receiverFir")
+                    else -> errorWithAttachment("Should not be here: $${receiverFir::class.simpleName}") {
+                        withFirEntry("fir", receiverFir)
+                    }
                 }
             }
             else -> {

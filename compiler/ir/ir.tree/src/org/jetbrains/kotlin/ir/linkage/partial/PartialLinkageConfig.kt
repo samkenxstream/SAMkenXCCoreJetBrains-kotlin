@@ -26,7 +26,7 @@ enum class PartialLinkageMode(val isEnabled: Boolean) {
         val DEFAULT = ENABLE
 
         fun resolveMode(key: String): PartialLinkageMode? =
-            values().firstOrNull { entry -> key == entry.name.lowercase() }
+            values().firstOrNull { entry -> entry.name.equals(key, ignoreCase = true) }
     }
 }
 
@@ -34,7 +34,7 @@ enum class PartialLinkageLogLevel {
     INFO, WARNING, ERROR;
 
     companion object {
-        val DEFAULT = WARNING
+        val DEFAULT = INFO
 
         fun resolveLogLevel(key: String): PartialLinkageLogLevel? =
             values().firstOrNull { entry -> entry.name.equals(key, ignoreCase = true) }

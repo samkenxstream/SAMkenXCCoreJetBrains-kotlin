@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
 import org.jetbrains.kotlin.fir.symbols.impl.FirValueParameterSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.isEquals
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitAnyTypeRef
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -53,7 +52,10 @@ object FirValueClassDeclarationChecker : FirRegularClassChecker() {
             reporter.reportOn(declaration.source, FirErrors.VALUE_CLASS_NOT_FINAL, context)
         }
 
-        // TODO check absence of context receivers when FIR infrastructure is ready
+        if (declaration.contextReceivers.isNotEmpty()) {
+            reporter.reportOn(declaration.source, FirErrors.VALUE_CLASS_CANNOT_HAVE_CONTEXT_RECEIVERS, context)
+        }
+
 
         for (supertypeEntry in declaration.superTypeRefs) {
             if (supertypeEntry !is FirImplicitAnyTypeRef && supertypeEntry.toRegularClassSymbol(context.session)?.isInterface != true) {
@@ -189,7 +191,7 @@ object FirValueClassDeclarationChecker : FirRegularClassChecker() {
                     )
                 }
 
-                primaryConstructorParameter.returnTypeRef.isInapplicableParameterType() -> {
+                primaryConstructorParameter.returnTypeRef.isInapplicableParameterType(context.session) -> {
                     reporter.reportOn(
                         primaryConstructorParameter.returnTypeRef.source,
                         FirErrors.VALUE_CLASS_HAS_INAPPLICABLE_PARAMETER_TYPE,
@@ -206,7 +208,7 @@ object FirValueClassDeclarationChecker : FirRegularClassChecker() {
                 }
 
                 declaration.multiFieldValueClassRepresentation != null && primaryConstructorParameter.defaultValue != null -> {
-                    // todo fix when inline arguments are supported
+                    // TODO, KT-50113: Fix when inline arguments are supported.
                     reporter.reportOn(
                         primaryConstructorParameter.defaultValue!!.source,
                         FirErrors.MULTI_FIELD_VALUE_CLASS_PRIMARY_CONSTRUCTOR_DEFAULT_PARAMETER,
@@ -224,7 +226,7 @@ object FirValueClassDeclarationChecker : FirRegularClassChecker() {
                     if (it !is FirSimpleFunction) {
                         return@forEach
                     }
-                    if (it.isEquals()) equalsFromAnyOverriding = it
+                    if (it.isEquals(context.session)) equalsFromAnyOverriding = it
                     if (it.isTypedEqualsInValueClass(context.session)) typedEquals = it
                 }
                 equalsFromAnyOverriding to typedEquals
@@ -265,8 +267,8 @@ object FirValueClassDeclarationChecker : FirRegularClassChecker() {
         return isVararg || !primaryConstructorProperty.isVal || isOpen
     }
 
-    private fun FirTypeRef.isInapplicableParameterType() =
-        isUnit || isNothing
+    private fun FirTypeRef.isInapplicableParameterType(session: FirSession): Boolean =
+        coneType.fullyExpandedType(session).let { it.isUnit || it.isNothing }
 
     private fun ConeKotlinType.isGenericArrayOfTypeParameter(): Boolean {
         if (this.typeArguments.firstOrNull() is ConeStarProjection || !isPotentiallyArray())

@@ -16,7 +16,6 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFirOfType
 import org.jetbrains.kotlin.analysis.low.level.api.fir.resolver.ResolutionParameters
 import org.jetbrains.kotlin.analysis.low.level.api.fir.resolver.SingleCandidateResolutionMode
 import org.jetbrains.kotlin.analysis.low.level.api.fir.resolver.SingleCandidateResolver
-import org.jetbrains.kotlin.analysis.utils.printer.getElementTextInContext
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.FirVariable
@@ -31,6 +30,8 @@ import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.KtSafeQualifiedExpression
 import org.jetbrains.kotlin.psi.KtSimpleNameExpression
 import org.jetbrains.kotlin.psi.psiUtil.getQualifiedExpressionForReceiver
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal class KtFirCompletionCandidateChecker(
     override val analysisSession: KtFirAnalysisSession,
@@ -90,11 +91,16 @@ internal class KtFirCompletionCandidateChecker(
     ): Sequence<ImplicitReceiverValue<*>?> {
         val towerDataContext = analysisSession.firResolveSession.getTowerContextProvider(originalFile)
             .getClosestAvailableParentContext(fakeNameExpression)
-            ?: error("Cannot find enclosing declaration for ${fakeNameExpression.getElementTextInContext()}")
+            ?: errorWithAttachment("Cannot find enclosing declaration for ${fakeNameExpression::class}") {
+                withPsiEntry("fakeNameExpression", fakeNameExpression)
+            }
 
         return sequence {
             yield(null) // otherwise explicit receiver won't be checked when there are no implicit receivers in completion position
             yieldAll(towerDataContext.implicitReceiverStack)
+            for (towerDataElement in towerDataContext.towerDataElements) {
+                yieldAll(towerDataElement.contextReceiverGroup.orEmpty())
+            }
         }
     }
 

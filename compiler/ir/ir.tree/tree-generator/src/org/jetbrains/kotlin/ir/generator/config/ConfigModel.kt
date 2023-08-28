@@ -37,6 +37,18 @@ class ElementConfig(
 
     var ownsChildren = true // If false, acceptChildren/transformChildren will NOT be generated.
 
+    var generateIrFactoryMethod = category == Category.Declaration
+    val additionalIrFactoryMethodParameters = mutableListOf<FieldConfig>()
+    val fieldsToSkipInIrFactoryMethod = hashSetOf<String>()
+
+    /**
+     * Set this to `true` if the element should be a leaf semantically, but technically it's not.
+     *
+     * For example, we only generate [IrFactory] methods for leaf elements. If we want to generate a method for this element, but it has
+     * subclasses, it can be done by setting this property to `true`.
+     */
+    var isForcedLeaf = false
+
     var typeKind: TypeKind? = null
 
     var generationCallback: (TypeSpec.Builder.() -> Unit)? = null
@@ -83,6 +95,13 @@ class ElementConfigRef(
     override fun toString() = element.name
 }
 
+sealed class UseFieldAsParameterInIrFactoryStrategy {
+
+    data object No : UseFieldAsParameterInIrFactoryStrategy()
+
+    data class Yes(val defaultValue: CodeBlock?) : UseFieldAsParameterInIrFactoryStrategy()
+}
+
 sealed class FieldConfig(
     val name: String,
     val isChild: Boolean,
@@ -91,6 +110,21 @@ sealed class FieldConfig(
     var baseGetter: CodeBlock? = null
     var printProperty = true
     var strictCastInTransformChildren = false
+
+    internal var useFieldInIrFactoryStrategy: UseFieldAsParameterInIrFactoryStrategy =
+        if (isChild) UseFieldAsParameterInIrFactoryStrategy.No else UseFieldAsParameterInIrFactoryStrategy.Yes(null)
+
+    fun useFieldInIrFactory(defaultValue: CodeBlock? = null) {
+        useFieldInIrFactoryStrategy = UseFieldAsParameterInIrFactoryStrategy.Yes(defaultValue)
+    }
+
+    fun useFieldInIrFactory(defaultValue: Boolean) {
+        useFieldInIrFactoryStrategy = UseFieldAsParameterInIrFactoryStrategy.Yes(code("%L", defaultValue))
+    }
+
+    fun skipInIrFactory() {
+        useFieldInIrFactoryStrategy = UseFieldAsParameterInIrFactoryStrategy.No
+    }
 
     var kdoc: String? = null
 

@@ -32,7 +32,7 @@ public class ScriptCodegenTestGenerated extends AbstractScriptCodegenTest {
     }
 
     public void testAllFilesPresentInScript() throws Exception {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/script"), Pattern.compile("^(.+)\\.kts$"), null, TargetBackend.JVM, true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/script"), Pattern.compile("^(.+)\\.kts$"), Pattern.compile("^(.+)\\.(reversed|fir|ll)\\.kts?$"), TargetBackend.JVM, true);
     }
 
     @TestMetadata("classLiteralInsideFunction.kts")
@@ -190,6 +190,11 @@ public class ScriptCodegenTestGenerated extends AbstractScriptCodegenTest {
         runTest("compiler/testData/codegen/script/topLevelTypealias.kts");
     }
 
+    @TestMetadata("twoDestructuringDeclarations.kts")
+    public void testTwoDestructuringDeclarations() throws Exception {
+        runTest("compiler/testData/codegen/script/twoDestructuringDeclarations.kts");
+    }
+
     @TestMetadata("compiler/testData/codegen/script/scriptInstanceCapturing")
     @TestDataPath("$PROJECT_ROOT")
     @RunWith(JUnit3RunnerWithInners.class)
@@ -199,7 +204,7 @@ public class ScriptCodegenTestGenerated extends AbstractScriptCodegenTest {
         }
 
         public void testAllFilesPresentInScriptInstanceCapturing() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/script/scriptInstanceCapturing"), Pattern.compile("^(.+)\\.kts$"), null, TargetBackend.JVM, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("compiler/testData/codegen/script/scriptInstanceCapturing"), Pattern.compile("^(.+)\\.kts$"), Pattern.compile("^(.+)\\.(reversed|fir|ll)\\.kts?$"), TargetBackend.JVM, true);
         }
 
         @TestMetadata("anonymousObjectCapturesProperty.kts")

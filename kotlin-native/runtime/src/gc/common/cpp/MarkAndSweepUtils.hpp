@@ -7,6 +7,7 @@
 #define RUNTIME_GC_COMMON_MARK_AND_SWEEP_UTILS_H
 
 #include "ExtraObjectData.hpp"
+#include "ExtraObjectDataFactory.hpp"
 #include "FinalizerHooks.hpp"
 #include "GlobalData.hpp"
 #include "GCStatistics.hpp"
@@ -35,25 +36,20 @@ void processFieldInMark(void* state, ObjHeader* field) noexcept {
 
 template <typename Traits>
 void processObjectInMark(void* state, ObjHeader* object) noexcept {
-    auto* typeInfo = object->type_info();
-    RuntimeAssert(typeInfo != theArrayTypeInfo, "Must not be an array of objects");
-    for (int i = 0; i < typeInfo->objOffsetsCount_; ++i) {
-        auto* field = *reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(object) + typeInfo->objOffsets_[i]);
-        if (!field) continue;
-        processFieldInMark<Traits>(state, field);
-    }
+    traverseClassObjectFields(object, [state] (ObjHeader** fieldLocation) noexcept {
+        if (auto field = *fieldLocation) {
+            processFieldInMark<Traits>(state, field);
+        }
+    });
 }
 
 template <typename Traits>
 void processArrayInMark(void* state, ArrayHeader* array) noexcept {
-    RuntimeAssert(array->type_info() == theArrayTypeInfo, "Must be an array of objects");
-    auto* begin = ArrayAddressOfElementAt(array, 0);
-    auto* end = ArrayAddressOfElementAt(array, array->count_);
-    for (auto* it = begin; it != end; ++it) {
-        auto* field = *it;
-        if (!field) continue;
-        processFieldInMark<Traits>(state, field);
-    }
+    traverseArrayOfObjectsElements(array, [state] (ObjHeader** elemLocation) noexcept {
+        if (auto elem = *elemLocation) {
+            processFieldInMark<Traits>(state, elem);
+        }
+    });
 }
 
 template <typename Traits>
@@ -81,7 +77,7 @@ void processExtraObjectData(GCHandle::GCMarkScope& markHandle, typename Traits::
         // Do not schedule RegularWeakReferenceImpl but process it right away.
         // This will skip markQueue interaction.
         if (Traits::tryMark(weakReference)) {
-            markHandle.addObject(mm::GetAllocatedHeapSize(weakReference));
+            markHandle.addObject();
             // RegularWeakReferenceImpl is empty, but keeping this just in case.
             Traits::processInMark(markQueue, weakReference);
         }
@@ -93,10 +89,13 @@ void processExtraObjectData(GCHandle::GCMarkScope& markHandle, typename Traits::
 template <typename Traits>
 void Mark(GCHandle handle, typename Traits::MarkQueue& markQueue) noexcept {
     auto markHandle = handle.mark();
+    Mark<Traits>(markHandle, markQueue);
+}
+
+template <typename Traits>
+void Mark(GCHandle::GCMarkScope& markHandle, typename Traits::MarkQueue& markQueue) noexcept {
     while (ObjHeader* top = Traits::tryDequeue(markQueue)) {
-        // TODO: Consider moving it to the sweep phase to make this loop more tight.
-        //       This, however, requires care with scheduler interoperation.
-        markHandle.addObject(mm::GetAllocatedHeapSize(top));
+        markHandle.addObject();
 
         Traits::processInMark(markQueue, top);
 
@@ -166,10 +165,23 @@ typename Traits::ObjectFactory::FinalizerQueue Sweep(GCHandle handle, typename T
     return Sweep<Traits>(handle, iter);
 }
 
+template <typename T>
+struct DefaultSweepTraits {
+    using ObjectFactory = T;
+    using ExtraObjectsFactory = mm::ExtraObjectDataFactory;
+
+    static bool IsMarkedByExtraObject(mm::ExtraObjectData& object) noexcept {
+        auto* baseObject = object.GetBaseObject();
+        if (!baseObject->heap()) return true;
+        return gc::isMarked(baseObject);
+    }
+
+    static bool TryResetMark(typename ObjectFactory::NodeRef node) noexcept { return gc::tryResetMark(node.ObjectData()); }
+};
+
 template <typename Traits>
 void collectRootSetForThread(GCHandle gcHandle, typename Traits::MarkQueue& markQueue, mm::ThreadData& thread) {
     auto handle = gcHandle.collectThreadRoots(thread);
-    thread.gcScheduler().OnStoppedForGC();
     // TODO: Remove useless mm::ThreadRootSet abstraction.
     for (auto value : mm::ThreadRootSet(thread)) {
         if (internal::collectRoot<Traits>(markQueue, value.object)) {
@@ -220,7 +232,7 @@ template <typename Traits>
 void processWeaks(GCHandle gcHandle, mm::SpecialRefRegistry& registry) noexcept {
     auto handle = gcHandle.processWeaks();
     for (auto& object : registry.lockForIter()) {
-        auto* obj = object;
+        auto* obj = object.load(std::memory_order_relaxed);
         if (!obj) {
             // We already processed it at some point.
             handle.addUndisposed();
@@ -233,10 +245,14 @@ void processWeaks(GCHandle gcHandle, mm::SpecialRefRegistry& registry) noexcept 
             continue;
         }
         // Object is not alive. Clear it out.
-        object = nullptr;
+        object.store(nullptr, std::memory_order_relaxed);
         handle.addNulled();
     }
 }
+
+struct DefaultProcessWeaksTraits {
+    static bool IsMarked(ObjHeader* obj) noexcept { return gc::isMarked(obj); }
+};
 
 } // namespace gc
 } // namespace kotlin

@@ -67,9 +67,14 @@ class IncrementalCompilationOptions(
     /**
      * Directories that should be cleared when IC decides to rebuild
      */
-    val outputFiles: List<File>,
-    val multiModuleICSettings: MultiModuleICSettings,
-    val modulesInfo: IncrementalModuleInfo,
+    val outputFiles: Collection<File>? = null,
+    val multiModuleICSettings: MultiModuleICSettings? = null,
+    val modulesInfo: IncrementalModuleInfo? = null,
+
+    // rootProjectDir and buildDir are used to resolve relative paths
+    val rootProjectDir: File?,
+    val buildDir: File?,
+
     kotlinScriptExtensions: Array<String>? = null,
     val withAbiSnapshot: Boolean = false,
     val preciseCompilationResultsBackup: Boolean = false,
@@ -83,7 +88,7 @@ class IncrementalCompilationOptions(
     kotlinScriptExtensions
 ) {
     companion object {
-        const val serialVersionUID: Long = 2
+        const val serialVersionUID: Long = 3
     }
 
     override fun toString(): String {

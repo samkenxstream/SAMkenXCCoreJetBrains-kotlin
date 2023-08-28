@@ -7,11 +7,11 @@ plugins {
 kotlin {
     js(IR) {
         nodejs {
-            testTask {
+            testTask(Action {
                 useMocha {
                     timeout = "10s"
                 }
-            }
+            })
         }
     }
 }
@@ -118,8 +118,11 @@ kotlin {
         }
         named("jsMain") {
             kotlin.srcDir(files(jsMainSources.map { it.destinationDir }))
+            if (!kotlinBuildProperties.isInIdeaSync)
             kotlin.srcDir("builtins")
+            if (!kotlinBuildProperties.isInIdeaSync)
             kotlin.srcDir("runtime")
+            if (!kotlinBuildProperties.isInIdeaSync)
             kotlin.srcDir("src")
         }
         named("commonTest") {

@@ -7,8 +7,10 @@ package org.jetbrains.kotlin.gradle.testbase
 
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import java.lang.StringBuilder
 import java.nio.file.Files
 import java.nio.file.Path
+import java.util.zip.ZipFile
 import kotlin.io.path.exists
 import kotlin.io.path.isDirectory
 import kotlin.io.path.readLines
@@ -158,6 +160,43 @@ fun assertDirectoriesExist(
     }
 }
 
+private const val appendIndentationIncrement = 2U
+private fun StringBuilder.appendDirectory(dirPath: Path, indentation: UInt = 0U) {
+    Files.newDirectoryStream(dirPath).use { stream ->
+        for (entry in stream) {
+            append("${"–".repeat(indentation.toInt())} ${entry.fileName}")
+            val isDirectory = Files.isDirectory(entry)
+            appendLine(if (isDirectory) " \\" else " (file)")
+            if (isDirectory) {
+                appendDirectory(entry, indentation + appendIndentationIncrement)
+            }
+        }
+        appendLine()
+    }
+}
+
+fun GradleProject.assertDirectoryInProjectDoesNotExist(
+    dirName: String,
+) {
+    assertDirectoryDoesNotExist(projectPath.resolve(dirName))
+}
+
+fun assertDirectoryDoesNotExist(
+    dirPath: Path,
+) {
+    assert(!Files.exists(dirPath)) {
+        buildString {
+            append("Directory $dirPath is expected to not exist. ")
+            if (Files.isDirectory(dirPath)) {
+                appendLine("The directory contents: ")
+                appendDirectory(dirPath)
+            } else {
+                append("However, it is not even a directory.")
+            }
+        }
+    }
+}
+
 /**
  * Asserts file under [pathToFile] relative to the test project exists and contains all the lines from [expectedText]
  */
@@ -288,4 +327,17 @@ fun assertGradleVariant(gradleModuleFile: Path, variantName: String, code: Gradl
     }
 
     GradleVariantAssertions(variantJson.asJsonObject).apply(code)
+}
+
+fun Path.assertZipArchiveContainsFilesOnce(
+    fileNames: List<String>
+) {
+    ZipFile(toFile()).use { zip ->
+        fileNames.forEach { fileName ->
+            assert(zip.entries().asSequence().count { it.name == fileName } == 1) {
+                "The jar should contain one entry `$fileName` with no duplicates\n" +
+                        zip.entries().asSequence().map { it.name }.joinToString()
+            }
+        }
+    }
 }

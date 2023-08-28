@@ -5,11 +5,13 @@
 
 package test.collections
 
-import test.assertIsNegativeZero
-import test.assertIsPositiveZero
-import test.assertStaticAndRuntimeTypeIs
+import test.*
 import kotlin.test.*
 import test.collections.behaviors.*
+import test.collections.js.linkedStringMapOf
+import test.collections.js.linkedStringSetOf
+import test.collections.js.stringMapOf
+import test.collections.js.stringSetOf
 import test.comparisons.STRING_CASE_INSENSITIVE_ORDER
 import kotlin.math.pow
 import kotlin.random.Random
@@ -1211,17 +1213,72 @@ class CollectionTest {
         compare(linkedSetOf<Int>(), setOf<Int>()) { setBehavior() }
         compare(hashSetOf<Double>(), emptySet<Double>()) { setBehavior() }
         compare(listOf("value").toMutableSet(), setOf("value")) { setBehavior() }
+        compare(stringSetOf("value"), setOf("value")) { setBehavior() }
+        compare(linkedStringSetOf("value"), setOf("value")) { setBehavior() }
     }
 
     @Test fun specialMaps() {
         compare(hashMapOf<String, Int>(), mapOf<String, Int>()) { mapBehavior() }
         compare(linkedMapOf<Int, String>(), emptyMap<Int, String>()) { mapBehavior() }
         compare(linkedMapOf(2 to 3), mapOf(2 to 3)) { mapBehavior() }
+        compare(stringMapOf("2" to 3), mapOf("2" to 3)) { mapBehavior() }
+        compare(linkedStringMapOf("2" to 3), mapOf("2" to 3)) { mapBehavior() }
     }
 
     @Test fun toStringTest() {
         // we need toString() inside pattern because of KT-8666
         assertEquals("[1, a, null, ${Long.MAX_VALUE.toString()}]", listOf(1, "a", null, Long.MAX_VALUE).toString())
+    }
+
+    @Test fun toStringContainingThis() = testExceptOn(TestPlatform.Js) {
+        // resulting string is platform-dependent, but shouldn't throw
+        arrayOf<Any>("a", "b", "c").apply { this[1] = this }.toString()
+
+        assertEquals(
+            "[a, (this Collection), c]",
+            arrayListOf<Any>("a", "b", "c").apply { this[1] = this }.toString()
+        )
+        assertEquals(
+            "[a, (this Collection), c]",
+            buildList<Any> {
+                addAll(listOf("a", "b", "c"))
+                this[1] = this
+            }.toString()
+        )
+
+        assertEquals(
+            "[a, (this Collection), c]",
+            linkedSetOf<Any>().apply {
+                add("a")
+                add(this)
+                add("c")
+            }.toString()
+        )
+        assertEquals(
+            "[a, (this Collection), c]",
+            buildSet<Any> {
+                add("a")
+                add(this)
+                add("c")
+            }.toString()
+        )
+
+        assertEquals(
+            "{a=1, (this Map)=(this Map), c=3}",
+            linkedMapOf<Any, Any>().apply {
+                put("a", "1")
+                put(this, this)
+                put("c", "3")
+            }.toString()
+        )
+        assertEquals(
+            "{a=1, (this Map)=(this Map), c=3}",
+            buildMap<Any, Any> {
+                put("a", "1")
+                put(this, this)
+                put("c", "3")
+            }.toString()
+        )
     }
 
     @Test fun randomAccess() {
@@ -1254,7 +1311,12 @@ class CollectionTest {
         assertTrue("toArray1" in coll.invocations || "toArray2" in coll.invocations)
 
         val arr2: Array<String> = coll.toArray(Array(coll.size + 1) { "" })
-        assertEquals(data + listOf(null), arr2.asList())
+        testOnlyOn(TestPlatform.Jvm) {
+            assertEquals(data + listOf(null), arr2.asList())
+        }
+        testExceptOn(TestPlatform.Jvm) {
+            assertEquals(data + listOf(""), arr2.asList())
+        }
     }
 
     @Test

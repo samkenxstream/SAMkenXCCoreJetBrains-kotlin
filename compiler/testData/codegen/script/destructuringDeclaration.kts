@@ -1,3 +1,5 @@
+// DUMP_IR
+
 val (abc, def) = A()
 
 val rv = abc + def

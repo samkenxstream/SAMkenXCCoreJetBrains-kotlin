@@ -32,14 +32,15 @@ sourceSets {
 }
 
 val copySources by task<Sync> {
-    val stdlibProjectDir = project(":kotlin-stdlib").projectDir
+    val stdlibProjectDir = file("$rootDir/libraries/stdlib/jvm")
 
     from(stdlibProjectDir.resolve("runtime"))
         .include("kotlin/TypeAliases.kt",
                  "kotlin/text/TypeAliases.kt")
     from(stdlibProjectDir.resolve("src"))
         .include("kotlin/collections/TypeAliases.kt",
-                 "kotlin/enums/EnumEntriesSerializationProxy.kt")
+                 "kotlin/enums/EnumEntriesSerializationProxy.kt",
+                 "kotlin/enums/EnumEntriesJVM.kt")
     from(stdlibProjectDir.resolve("../src"))
         .include("kotlin/util/Standard.kt",
                  "kotlin/internal/Annotations.kt",
@@ -52,16 +53,27 @@ val copySources by task<Sync> {
     into(File(buildDir, "src"))
 }
 
-tasks.withType<KotlinCompile> {
+
+
+tasks.compileKotlin {
     dependsOn(copySources)
+    val commonSources = listOf(
+        "kotlin/enums/EnumEntries.kt"
+    ).map { copySources.get().destinationDir.resolve(it) }
     kotlinOptions {
         freeCompilerArgs += listOf(
             "-Xallow-kotlin-package",
             "-Xmulti-platform",
             "-opt-in=kotlin.RequiresOptIn",
-            "-opt-in=kotlin.contracts.ExperimentalContracts"
+            "-opt-in=kotlin.contracts.ExperimentalContracts",
+            "-opt-in=kotlin.ExperimentalMultiplatform",
         )
         moduleName = "kotlin-stdlib"
+    }
+    doFirst {
+        kotlinOptions.freeCompilerArgs += listOf(
+            "-Xcommon-sources=${commonSources.joinToString(File.pathSeparator)}",
+        )
     }
 }
 

@@ -23,8 +23,8 @@ import org.jetbrains.kotlin.build.report.debug
 import org.jetbrains.kotlin.build.report.info
 import org.jetbrains.kotlin.build.report.metrics.BuildAttribute
 import org.jetbrains.kotlin.build.report.metrics.BuildAttribute.*
-import org.jetbrains.kotlin.build.report.metrics.BuildPerformanceMetric
-import org.jetbrains.kotlin.build.report.metrics.BuildTime
+import org.jetbrains.kotlin.build.report.metrics.GradleBuildPerformanceMetric
+import org.jetbrains.kotlin.build.report.metrics.GradleBuildTime
 import org.jetbrains.kotlin.build.report.metrics.measure
 import org.jetbrains.kotlin.build.report.warn
 import org.jetbrains.kotlin.cli.common.*
@@ -38,6 +38,8 @@ import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.incremental.components.ExpectActualTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.incremental.parsing.classesFqNames
+import org.jetbrains.kotlin.incremental.storage.FileLocations
+import org.jetbrains.kotlin.incremental.storage.FileToAbsolutePathConverter
 import org.jetbrains.kotlin.incremental.util.BufferingMessageCollector
 import org.jetbrains.kotlin.incremental.util.ExceptionLocation
 import org.jetbrains.kotlin.incremental.util.reportException
@@ -55,8 +57,8 @@ abstract class IncrementalCompilerRunner<
         >(
     private val workingDir: File,
     cacheDirName: String,
-    protected val reporter: BuildReporter,
-    protected val buildHistoryFile: File,
+    protected val reporter: BuildReporter<GradleBuildTime, GradleBuildPerformanceMetric>,
+    protected val buildHistoryFile: File?,
 
     /**
      * Output directories of the compilation. These include:
@@ -85,11 +87,12 @@ abstract class IncrementalCompilerRunner<
      * Creates an instance of [IncrementalCompilationContext] that holds common incremental compilation context mostly required for [CacheManager]
      */
     private fun createIncrementalCompilationContext(
-        projectDir: File?,
-        transaction: CompilationTransaction
+        fileLocations: FileLocations?,
+        transaction: CompilationTransaction,
     ) = IncrementalCompilationContext(
+        pathConverterForSourceFiles = fileLocations?.let { it.getRelocatablePathConverterForSourceFiles() } ?: FileToAbsolutePathConverter,
+        pathConverterForOutputFiles = fileLocations?.let { it.getRelocatablePathConverterForOutputFiles() } ?: FileToAbsolutePathConverter,
         transaction = transaction,
-        rootProjectDir = projectDir,
         reporter = reporter,
         trackChangesInLookupCache = shouldTrackChangesInLookupCache,
         storeFullFqNamesInLookupCache = shouldStoreFullFqNamesInLookupCache,
@@ -107,12 +110,10 @@ abstract class IncrementalCompilerRunner<
         allSourceFiles: List<File>,
         args: Args,
         messageCollector: MessageCollector,
-        // when `changedFiles` is not null, changes are provided by external system (e.g. Gradle)
-        // otherwise we track source files changes ourselves.
-        changedFiles: ChangedFiles?,
-        projectDir: File? = null
-    ): ExitCode = reporter.measure(BuildTime.INCREMENTAL_COMPILATION_DAEMON) {
-        return when (val result = tryCompileIncrementally(allSourceFiles, changedFiles, args, projectDir, messageCollector)) {
+        changedFiles: ChangedFiles?, // When not-null, changes are provided by the build system; otherwise, the IC will need to track them
+        fileLocations: FileLocations? = null, // Must be not-null if the build system needs to support build cache relocatability
+    ): ExitCode = reporter.measure(GradleBuildTime.INCREMENTAL_COMPILATION_DAEMON) {
+        return when (val result = tryCompileIncrementally(allSourceFiles, changedFiles, args, fileLocations, messageCollector)) {
             is ICResult.Completed -> {
                 reporter.debug { "Incremental compilation completed" }
                 result.exitCode
@@ -122,7 +123,7 @@ abstract class IncrementalCompilerRunner<
                 reporter.addAttribute(result.reason)
 
                 compileNonIncrementally(
-                    result.reason, allSourceFiles, args, projectDir, trackChangedFiles = changedFiles == null, messageCollector
+                    result.reason, allSourceFiles, args, fileLocations, trackChangedFiles = changedFiles == null, messageCollector
                 )
             }
             is ICResult.Failed -> {
@@ -141,7 +142,7 @@ abstract class IncrementalCompilerRunner<
                 reporter.addAttribute(result.reason)
 
                 compileNonIncrementally(
-                    result.reason, allSourceFiles, args, projectDir, trackChangedFiles = changedFiles == null, messageCollector
+                    result.reason, allSourceFiles, args, fileLocations, trackChangedFiles = changedFiles == null, messageCollector
                 )
             }
         }
@@ -175,8 +176,8 @@ abstract class IncrementalCompilerRunner<
         allSourceFiles: List<File>,
         changedFiles: ChangedFiles?,
         args: Args,
-        projectDir: File?,
-        messageCollector: MessageCollector
+        fileLocations: FileLocations?,
+        messageCollector: MessageCollector,
     ): ICResult {
         if (changedFiles is ChangedFiles.Unknown) {
             return ICResult.RequiresRebuild(UNKNOWN_CHANGES_IN_GRADLE_INPUTS)
@@ -184,7 +185,7 @@ abstract class IncrementalCompilerRunner<
         changedFiles as ChangedFiles.Known?
 
         return createTransaction().runWithin(::incrementalCompilationExceptionTransformer) { transaction ->
-            val icContext = createIncrementalCompilationContext(projectDir, transaction)
+            val icContext = createIncrementalCompilationContext(fileLocations, transaction)
             val caches = createCacheManager(icContext, args).also {
                 // this way we make the transaction to be responsible for closing the caches manager
                 transaction.cachesManager = it
@@ -202,7 +203,7 @@ abstract class IncrementalCompilerRunner<
 
                 // Step 2: Compute files to recompile
                 val compilationMode = try {
-                    reporter.measure(BuildTime.IC_CALCULATE_INITIAL_DIRTY_SET) {
+                    reporter.measure(GradleBuildTime.IC_CALCULATE_INITIAL_DIRTY_SET) {
                         calculateSourcesToCompile(caches, knownChangedFiles, args, messageCollector, classpathAbiSnapshot ?: emptyMap())
                     }
                 } catch (e: Throwable) {
@@ -255,11 +256,11 @@ abstract class IncrementalCompilerRunner<
         rebuildReason: BuildAttribute,
         allSourceFiles: List<File>,
         args: Args,
-        projectDir: File?,
+        fileLocations: FileLocations?,
         trackChangedFiles: Boolean, // Whether we need to track changes to the source files or the build system already handles it
         messageCollector: MessageCollector,
     ): ExitCode {
-        reporter.measure(BuildTime.CLEAR_OUTPUT_ON_REBUILD) {
+        reporter.measure(GradleBuildTime.CLEAR_OUTPUT_ON_REBUILD) {
             val mainOutputDirs = setOf(destinationDir(args), workingDir)
             val outputDirsToClean = outputDirs?.also {
                 check(it.containsAll(mainOutputDirs)) { "outputDirs is missing classesDir and workingDir: $it" }
@@ -268,7 +269,7 @@ abstract class IncrementalCompilerRunner<
             reporter.debug { "Cleaning ${outputDirsToClean.size} output directories" }
             cleanOrCreateDirectories(outputDirsToClean)
         }
-        val icContext = createIncrementalCompilationContext(projectDir, NonRecoverableCompilationTransaction())
+        val icContext = createIncrementalCompilationContext(fileLocations, NonRecoverableCompilationTransaction())
         return createCacheManager(icContext, args).use { caches ->
             if (trackChangedFiles) {
                 caches.inputsCache.sourceSnapshotMap.compareAndUpdate(allSourceFiles)
@@ -284,7 +285,7 @@ abstract class IncrementalCompilerRunner<
     private class AbiSnapshotData(val snapshot: AbiSnapshot, val classpathAbiSnapshot: Map<String, AbiSnapshot>)
 
     private fun getClasspathAbiSnapshot(args: Args): Map<String, AbiSnapshot> {
-        return reporter.measure(BuildTime.SET_UP_ABI_SNAPSHOTS) {
+        return reporter.measure(GradleBuildTime.SET_UP_ABI_SNAPSHOTS) {
             setupJarDependencies(args, reporter)
         }
     }
@@ -330,7 +331,7 @@ abstract class IncrementalCompilerRunner<
         classpathAbiSnapshots: Map<String, AbiSnapshot>
     ): CompilationMode
 
-    protected open fun setupJarDependencies(args: Args, reporter: BuildReporter): Map<String, AbiSnapshot> = emptyMap()
+    protected open fun setupJarDependencies(args: Args, reporter: BuildReporter<GradleBuildTime, GradleBuildPerformanceMetric>): Map<String, AbiSnapshot> = emptyMap()
 
     protected fun initDirtyFiles(dirtyFiles: DirtyFilesContainer, changedFiles: ChangedFiles.Known) {
         dirtyFiles.add(changedFiles.modified, "was modified since last time")
@@ -415,12 +416,12 @@ abstract class IncrementalCompilerRunner<
     }
 
     private fun collectMetrics() {
-        reporter.measure(BuildTime.CALCULATE_OUTPUT_SIZE) {
+        reporter.measure(GradleBuildTime.CALCULATE_OUTPUT_SIZE) {
             reporter.addMetric(
-                BuildPerformanceMetric.SNAPSHOT_SIZE,
-                buildHistoryFile.length() + lastBuildInfoFile.length() + abiSnapshotFile.length()
+                GradleBuildPerformanceMetric.SNAPSHOT_SIZE,
+                (buildHistoryFile?.length() ?: 0) + lastBuildInfoFile.length() + abiSnapshotFile.length()
             )
-            reporter.addMetric(BuildPerformanceMetric.CACHE_DIRECTORY_SIZE, cacheDirectory.walk().sumOf { it.length() })
+            reporter.addMetric(GradleBuildPerformanceMetric.CACHE_DIRECTORY_SIZE, cacheDirectory.walk().sumOf { it.length() })
         }
     }
 
@@ -472,7 +473,7 @@ abstract class IncrementalCompilerRunner<
             val bufferingMessageCollector = BufferingMessageCollector()
             val messageCollectorAdapter = MessageCollectorToOutputItemsCollectorAdapter(bufferingMessageCollector, transactionOutputsRegistrar)
 
-            val compiledSources = reporter.measure(BuildTime.COMPILATION_ROUND) {
+            val compiledSources = reporter.measure(GradleBuildTime.COMPILATION_ROUND) {
                 runCompiler(
                     sourcesToCompile, args, caches, services, messageCollectorAdapter,
                     allKotlinSources, compilationMode is CompilationMode.Incremental
@@ -509,7 +510,7 @@ abstract class IncrementalCompilerRunner<
             transaction.deleteFile(dirtySourcesSinceLastTimeFile.toPath())
 
             val changesCollector = ChangesCollector()
-            reporter.measure(BuildTime.IC_UPDATE_CACHES) {
+            reporter.measure(GradleBuildTime.IC_UPDATE_CACHES) {
                 caches.platformCache.updateComplementaryFiles(dirtySources, expectActualTracker)
                 caches.inputsCache.registerOutputForSourceFiles(generatedFiles)
                 caches.lookupCache.update(lookupTracker, sourcesToCompile, removedKotlinSources)
@@ -557,7 +558,7 @@ abstract class IncrementalCompilerRunner<
         }
 
         if (exitCode == ExitCode.OK) {
-            reporter.measure(BuildTime.STORE_BUILD_INFO) {
+            reporter.measure(GradleBuildTime.STORE_BUILD_INFO) {
                 BuildInfo.write(icContext, currentBuildInfo, lastBuildInfoFile)
 
                 //write abi snapshot
@@ -610,16 +611,19 @@ abstract class IncrementalCompilerRunner<
         compilationMode: CompilationMode,
         currentBuildInfo: BuildInfo,
         dirtyData: DirtyData,
-    ) = reporter.measure(BuildTime.IC_WRITE_HISTORY_FILE) {
-        val prevDiffs = BuildDiffsStorage.readFromFile(buildHistoryFile, reporter)?.buildDiffs ?: emptyList()
-        val newDiff = if (compilationMode is CompilationMode.Incremental) {
-            BuildDifference(currentBuildInfo.startTS, true, dirtyData)
-        } else {
-            val emptyDirtyData = DirtyData()
-            BuildDifference(currentBuildInfo.startTS, false, emptyDirtyData)
-        }
+    ) {
+        if (buildHistoryFile == null) return
+        reporter.measure(GradleBuildTime.IC_WRITE_HISTORY_FILE) {
+            val prevDiffs = BuildDiffsStorage.readFromFile(buildHistoryFile, reporter)?.buildDiffs ?: emptyList()
+            val newDiff = if (compilationMode is CompilationMode.Incremental) {
+                BuildDifference(currentBuildInfo.startTS, true, dirtyData)
+            } else {
+                val emptyDirtyData = DirtyData()
+                BuildDifference(currentBuildInfo.startTS, false, emptyDirtyData)
+            }
 
-        BuildDiffsStorage.writeToFile(icContext, buildHistoryFile, BuildDiffsStorage(prevDiffs + newDiff))
+            BuildDiffsStorage.writeToFile(icContext, buildHistoryFile, BuildDiffsStorage(prevDiffs + newDiff))
+        }
     }
 
     companion object {
@@ -636,22 +640,22 @@ abstract class IncrementalCompilerRunner<
     protected fun reportPerformanceData(defaultPerformanceManager: CommonCompilerPerformanceManager) {
         defaultPerformanceManager.getMeasurementResults().forEach {
             when (it) {
-                is CompilerInitializationMeasurement -> reporter.addTimeMetricMs(BuildTime.COMPILER_INITIALIZATION, it.milliseconds)
+                is CompilerInitializationMeasurement -> reporter.addTimeMetricMs(GradleBuildTime.COMPILER_INITIALIZATION, it.milliseconds)
                 is CodeAnalysisMeasurement -> {
-                    reporter.addTimeMetricMs(BuildTime.CODE_ANALYSIS, it.milliseconds)
+                    reporter.addTimeMetricMs(GradleBuildTime.CODE_ANALYSIS, it.milliseconds)
                     it.lines?.apply {
-                        reporter.addMetric(BuildPerformanceMetric.ANALYZED_LINES_NUMBER, this.toLong())
+                        reporter.addMetric(GradleBuildPerformanceMetric.ANALYZED_LINES_NUMBER, this.toLong())
                         if (it.milliseconds > 0) {
-                            reporter.addMetric(BuildPerformanceMetric.ANALYSIS_LPS, this * 1000 / it.milliseconds)
+                            reporter.addMetric(GradleBuildPerformanceMetric.ANALYSIS_LPS, this * 1000 / it.milliseconds)
                         }
                     }
                 }
                 is CodeGenerationMeasurement -> {
-                    reporter.addTimeMetricMs(BuildTime.CODE_GENERATION, it.milliseconds)
+                    reporter.addTimeMetricMs(GradleBuildTime.CODE_GENERATION, it.milliseconds)
                     it.lines?.apply {
-                        reporter.addMetric(BuildPerformanceMetric.CODE_GENERATED_LINES_NUMBER, this.toLong())
+                        reporter.addMetric(GradleBuildPerformanceMetric.CODE_GENERATED_LINES_NUMBER, this.toLong())
                         if (it.milliseconds > 0) {
-                            reporter.addMetric(BuildPerformanceMetric.CODE_GENERATION_LPS, this * 1000 / it.milliseconds)
+                            reporter.addMetric(GradleBuildPerformanceMetric.CODE_GENERATION_LPS, this * 1000 / it.milliseconds)
                         }
                     }
                 }

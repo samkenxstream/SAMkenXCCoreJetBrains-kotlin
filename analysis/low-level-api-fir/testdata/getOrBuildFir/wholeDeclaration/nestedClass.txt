@@ -8,13 +8,12 @@ public final [ResolvedTo(BODY_RESOLVE)] class X : R|kotlin/Any| {
         super<R|kotlin/Any|>()
     }
 
-    public final [ResolvedTo(BODY_RESOLVE)] fun y(): R|kotlin/String|
+    public final [ResolvedTo(STATUS)] fun y(): R|kotlin/String|
 
 }
 
 FIR FILE:
 FILE: [ResolvedTo(IMPORTS)] nestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public final [ResolvedTo(STATUS)] class Y : R|kotlin/Any| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=Y] constructor(): R|Y| {
             LAZY_super<R|kotlin/Any|>
@@ -25,7 +24,7 @@ FILE: [ResolvedTo(IMPORTS)] nestedClass.kt
                 super<R|kotlin/Any|>()
             }
 
-            public final [ResolvedTo(BODY_RESOLVE)] fun y(): R|kotlin/String|
+            public final [ResolvedTo(STATUS)] fun y(): R|kotlin/String|
 
         }
 

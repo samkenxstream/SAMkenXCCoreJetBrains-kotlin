@@ -10,9 +10,11 @@ import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.callRes
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.callResolver.AbstractResolveCallTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.callResolver.AbstractResolveCandidatesTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.compileTimeConstantProvider.AbstractCompileTimeConstantEvaluatorTest
+import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.compilerFacility.AbstractCompilerFacilityTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.containingDeclarationProvider.AbstractContainingDeclarationProviderByDelegatedMemberScopeTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.containingDeclarationProvider.AbstractContainingDeclarationProviderByMemberScopeTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.containingDeclarationProvider.AbstractContainingDeclarationProviderByPsiTest
+import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.diagnosticProvider.AbstractCodeFragmentCollectDiagnosticsTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.diagnosticProvider.AbstractCollectDiagnosticsTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.expressionInfoProvider.AbstractIsUsedAsExpressionTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.expressionInfoProvider.AbstractReturnTargetSymbolTest
@@ -25,6 +27,7 @@ import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.multipl
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.psiTypeProvider.AbstractAnalysisApiExpressionPsiTypeProviderTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.psiTypeProvider.AbstractAnalysisApiPsiTypeProviderTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.referenceResolveProvider.AbstractIsImplicitCompanionReferenceTest
+import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.resolveExtensionInfoProvider.AbstractResolveExtensionInfoProviderTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.scopeProvider.*
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.signatureSubstitution.AbstractAnalysisApiSignatureContractsTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.signatureSubstitution.AbstractAnalysisApiSignatureSubstitutionTest
@@ -43,7 +46,10 @@ import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.typeInf
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.typeProvider.AbstractAnalysisApiGetSuperTypesTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.typeProvider.AbstractHasCommonSubtypeTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.components.typeProvider.AbstractTypeReferenceTest
-import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.references.*
+import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.references.AbstractReferenceResolveTest
+import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.references.AbstractReferenceResolveWithResolveExtensionTest
+import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.references.AbstractReferenceShortenerForWholeFileTest
+import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.references.AbstractReferenceShortenerTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.symbols.*
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.types.AbstractAnalysisApiSubstitutorsTest
 import org.jetbrains.kotlin.analysis.api.impl.base.test.cases.types.AbstractTypeByDeclarationReturnTypeTest
@@ -90,12 +96,8 @@ private fun AnalysisApiTestGroup.generateResolveExtensionsTests() {
                 frontendIs(FrontendKind.Fir) and
                 testModuleKindIs(TestModuleKind.Source)
     ) {
-        test(AbstractSingleModuleReferenceResolveWithResolveExtensionTest::class) {
+        test(AbstractReferenceResolveWithResolveExtensionTest::class) {
             model("referenceResolve")
-        }
-
-        test(AbstractMultiModuleReferenceResolveWithResolveExtensionTest::class) {
-            model("multiModule/referenceResolve")
         }
     }
 }
@@ -106,12 +108,20 @@ private fun AnalysisApiTestGroup.generateAnalysisApiNonComponentsTests() {
             model("symbolByPsi")
         }
 
-        test(AbstractSingleSymbolByPsi::class) {
+        test(AbstractSymbolByJavaPsiTest::class, filter = frontendIs(FrontendKind.Fir)) {
+            model("symbolByJavaPsi")
+        }
+
+        test(AbstractSingleSymbolByPsiTest::class) {
             model("singleSymbolByPsi")
         }
 
         test(AbstractSymbolRestoreFromDifferentModuleTest::class) {
             model("symbolRestoreFromDifferentModule")
+        }
+
+        test(AbstractMultiModuleSymbolByPsiTest::class) {
+            model("multiModuleSymbolByPsi")
         }
 
         test(
@@ -210,6 +220,17 @@ private fun AnalysisApiTestGroup.generateAnalysisApiComponentsTests() {
         }
     }
 
+    component(
+        "compilerFacility",
+        filter = frontendIs(FrontendKind.Fir)
+                and analysisSessionModeIs(AnalysisSessionMode.Normal)
+                and analysisApiModeIs(AnalysisApiMode.Ide)
+    ) {
+        test(AbstractCompilerFacilityTest::class) {
+            model("compilation", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME)
+        }
+    }
+
     component("compileTimeConstantProvider") {
         test(AbstractCompileTimeConstantEvaluatorTest::class) {
             model("evaluate")
@@ -232,10 +253,10 @@ private fun AnalysisApiTestGroup.generateAnalysisApiComponentsTests() {
 
     component("referenceShortener", filter = frontendIs(FrontendKind.Fir) and analysisSessionModeIs(AnalysisSessionMode.Normal)) {
         test(AbstractReferenceShortenerTest::class) {
-            model("referenceShortener")
+            model("referenceShortener", pattern = TestGeneratorUtil.KT_OR_KTS)
         }
         test(AbstractReferenceShortenerForWholeFileTest::class) {
-            model("referenceShortenerWholeFile")
+            model("referenceShortenerWholeFile", pattern = TestGeneratorUtil.KT_OR_KTS)
         }
     }
 
@@ -260,6 +281,10 @@ private fun AnalysisApiTestGroup.generateAnalysisApiComponentsTests() {
     component("diagnosticsProvider", filter = analysisSessionModeIs(AnalysisSessionMode.Normal)) {
         test(AbstractCollectDiagnosticsTest::class) {
             model("diagnostics")
+        }
+
+        test(AbstractCodeFragmentCollectDiagnosticsTest::class, filter = frontendIs(FrontendKind.Fir)) {
+            model("codeFragmentDiagnostics", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME)
         }
     }
 
@@ -300,6 +325,12 @@ private fun AnalysisApiTestGroup.generateAnalysisApiComponentsTests() {
 
         test(AbstractAnalysisApiExpressionPsiTypeProviderTest::class, filter = frontendIs(FrontendKind.Fir)) {
             model("psiType/forExpression")
+        }
+    }
+
+    component("resolveExtensionInfoProvider", filter = frontendIs(FrontendKind.Fir)) {
+        test(AbstractResolveExtensionInfoProviderTest::class) {
+            model("extensionScopeWithPsi")
         }
     }
 

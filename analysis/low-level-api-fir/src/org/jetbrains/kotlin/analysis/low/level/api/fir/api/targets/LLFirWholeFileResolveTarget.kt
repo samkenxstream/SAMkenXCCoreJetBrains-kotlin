@@ -5,30 +5,30 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets
 
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.forEachDeclaration
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.isDeclarationContainer
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
+import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirFile
-import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 
 /**
  * [LLFirResolveTarget] representing all declarations in file. All of them are going to be resolved.
  */
-class LLFirWholeFileResolveTarget(
-    override val firFile: FirFile,
-) : LLFirResolveTarget() {
-    override val path: List<FirRegularClass> get() = emptyList()
-
+class LLFirWholeFileResolveTarget(firFile: FirFile) : LLFirResolveTarget(firFile, emptyList()) {
     override fun forEachTarget(action: (FirElementWithResolveState) -> Unit) {
         fun goInside(target: FirElementWithResolveState) {
             action(target)
-            if (target is FirRegularClass) {
-                target.declarations.forEach(::goInside)
+            if (target is FirDeclaration && target.isDeclarationContainer) {
+                target.forEachDeclaration(::goInside)
             }
         }
+
+        action(firFile)
         forEachTopLevelDeclaration(::goInside)
     }
 
     inline fun forEachTopLevelDeclaration(action: (FirElementWithResolveState) -> Unit) {
-        action(firFile.annotationsContainer)
+        firFile.annotationsContainer?.let { action(it) }
 
         for (member in firFile.declarations) {
             action(member)

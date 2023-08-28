@@ -13,15 +13,19 @@ import org.jetbrains.kotlin.backend.wasm.dce.eliminateDeadDeclarations
 import org.jetbrains.kotlin.backend.wasm.wasmPhases
 import org.jetbrains.kotlin.ir.backend.js.MainModule
 import org.jetbrains.kotlin.ir.backend.js.ModulesStructure
+import org.jetbrains.kotlin.ir.backend.js.dce.DceDumpNameCache
 import org.jetbrains.kotlin.ir.backend.js.dce.dumpDeclarationIrSizesIfNeed
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
 import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageConfig
 import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageLogLevel
 import org.jetbrains.kotlin.ir.linkage.partial.PartialLinkageMode
 import org.jetbrains.kotlin.ir.linkage.partial.setupPartialLinkageConfig
+import org.jetbrains.kotlin.js.config.JSConfigurationKeys
+import org.jetbrains.kotlin.js.config.WasmTarget
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi.KtNamedFunction
 import org.jetbrains.kotlin.test.DebugMode
+import org.jetbrains.kotlin.test.directives.WasmEnvironmentConfigurationDirectives
 import org.jetbrains.kotlin.test.model.AbstractTestFacade
 import org.jetbrains.kotlin.test.model.ArtifactKinds
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
@@ -40,6 +44,7 @@ class WasmBackendFacade(
 
     override fun transform(module: TestModule, inputArtifact: BinaryArtifacts.KLib): BinaryArtifacts.Wasm? {
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)
+        val generateSourceMaps = WasmEnvironmentConfigurationDirectives.GENERATE_SOURCE_MAP in testServices.moduleStructure.allDirectives
 
         // Enforce PL with the ERROR log level to fail any tests where PL detected any incompatibilities.
         configuration.setupPartialLinkageConfig(PartialLinkageConfig(PartialLinkageMode.ENABLE, PartialLinkageLogLevel.ERROR))
@@ -61,9 +66,15 @@ class WasmBackendFacade(
             PhaseConfig(wasmPhases)
         }
 
+        val suffix = when (configuration.get(JSConfigurationKeys.WASM_TARGET, WasmTarget.JS)) {
+            WasmTarget.JS -> "-js"
+            WasmTarget.WASI -> "-wasi"
+            else -> error("Unexpected wasi target")
+        }
+
         val libraries = listOf(
-            System.getProperty("kotlin.wasm.stdlib.path")!!,
-            System.getProperty("kotlin.wasm.kotlin.test.path")!!
+            System.getProperty("kotlin.wasm$suffix.stdlib.path")!!,
+            System.getProperty("kotlin.wasm$suffix.kotlin.test.path")!!
         ) + WasmEnvironmentConfigurator.getAllRecursiveLibrariesFor(module, testServices).map { it.key.libraryFile.canonicalPath }
 
         val friendLibraries = emptyList<String>()
@@ -95,11 +106,13 @@ class WasmBackendFacade(
             emitNameSection = true,
             allowIncompleteImplementations = false,
             generateWat = generateWat,
+            generateSourceMaps = generateSourceMaps
         )
 
-        eliminateDeadDeclarations(allModules, backendContext)
+        val dceDumpNameCache = DceDumpNameCache()
+        eliminateDeadDeclarations(allModules, backendContext, dceDumpNameCache)
 
-        dumpDeclarationIrSizesIfNeed(System.getProperty("kotlin.wasm.dump.declaration.ir.size.to.file"), allModules)
+        dumpDeclarationIrSizesIfNeed(System.getProperty("kotlin.wasm.dump.declaration.ir.size.to.file"), allModules, dceDumpNameCache)
 
         val compilerResultWithDCE = compileWasm(
             allModules = allModules,
@@ -108,6 +121,7 @@ class WasmBackendFacade(
             emitNameSection = true,
             allowIncompleteImplementations = true,
             generateWat = generateWat,
+            generateSourceMaps = generateSourceMaps
         )
 
         return BinaryArtifacts.Wasm(

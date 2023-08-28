@@ -21,6 +21,12 @@ dependencies {
     api(project(":analysis:analysis-api-impl-base"))
     api(project(":analysis:light-classes-base"))
     api(project(":compiler:backend.common.jvm"))
+    implementation(project(":compiler:cli-base"))
+    implementation(project(":compiler:backend"))
+    implementation(project(":compiler:backend.jvm.entrypoint"))
+    implementation(project(":compiler:backend.jvm.lower"))
+    implementation(project(":compiler:ir.backend.common"))
+    implementation(project(":compiler:ir.serialization.jvm"))
     api(intellijCore())
     implementation(project(":analysis:analysis-api-providers"))
     implementation(project(":analysis:analysis-internal-utils"))
@@ -73,6 +79,8 @@ allprojects {
 val generatorClasspath by configurations.creating
 
 dependencies {
+    implementation(project(":compiler:fir:fir-serialization"))
+    implementation(project(":compiler:backend"))
     generatorClasspath(project(":analysis:analysis-api-fir:analysis-api-fir-generator"))
 }
 

@@ -15,13 +15,12 @@ import org.gradle.internal.resolve.ModuleVersionResolveException
 import org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi
 import org.jetbrains.kotlin.gradle.idea.tcs.*
 import org.jetbrains.kotlin.gradle.idea.tcs.extras.artifactsClasspath
+import org.jetbrains.kotlin.gradle.idea.tcs.extras.isOpaqueFileDependency
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilation
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
-import org.jetbrains.kotlin.gradle.plugin.ide.IdeDependencyResolver
+import org.jetbrains.kotlin.gradle.plugin.ide.*
 import org.jetbrains.kotlin.gradle.plugin.ide.IdeDependencyResolver.Companion.gradleArtifact
-import org.jetbrains.kotlin.gradle.plugin.ide.IdeaKotlinBinaryCoordinates
-import org.jetbrains.kotlin.gradle.plugin.ide.IdeaKotlinProjectCoordinates
 import org.jetbrains.kotlin.gradle.plugin.ide.dependencyResolvers.IdeBinaryDependencyResolver.ArtifactResolutionStrategy
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMetadataCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.compilationImpl.KotlinCompilationConfigurationsContainer
@@ -33,6 +32,7 @@ import org.jetbrains.kotlin.gradle.plugin.sources.DefaultKotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.sources.InternalKotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.sources.internal
 import org.jetbrains.kotlin.gradle.utils.markResolvable
+import org.jetbrains.kotlin.gradle.utils.relativeOrAbsolute
 import org.jetbrains.kotlin.tooling.core.mutableExtrasOf
 
 /**
@@ -124,6 +124,7 @@ class IdeBinaryDependencyResolver @JvmOverloads constructor(
         val unresolvedDependencies = artifacts.failures
             .onEach { reason -> sourceSet.project.logger.info("Failed to resolve platform dependency on ${sourceSet.name}", reason) }
             .map { reason ->
+
                 val selector = (reason as? ModuleVersionResolveException)?.selector as? ModuleComponentSelector
                 /* Can't figure out the dependency here :( */
                     ?: return@map IdeaKotlinUnresolvedBinaryDependency(
@@ -141,7 +142,8 @@ class IdeBinaryDependencyResolver @JvmOverloads constructor(
             when (val componentId = artifact.id.componentIdentifier) {
                 is ProjectComponentIdentifier -> {
                     IdeaKotlinProjectArtifactDependency(
-                        type = IdeaKotlinSourceDependency.Type.Regular, coordinates = IdeaKotlinProjectCoordinates(componentId)
+                        type = IdeaKotlinSourceDependency.Type.Regular,
+                        coordinates = IdeaKotlinProjectCoordinates(componentId)
                     ).apply {
                         artifactsClasspath.add(artifact.file)
                     }
@@ -149,7 +151,7 @@ class IdeBinaryDependencyResolver @JvmOverloads constructor(
 
                 is ModuleComponentIdentifier -> {
                     IdeaKotlinResolvedBinaryDependency(
-                        coordinates = IdeaKotlinBinaryCoordinates(componentId),
+                        coordinates = IdeaKotlinBinaryCoordinates(componentId, artifact.variant.capabilities, artifact.variant.attributes),
                         binaryType = binaryType,
                         classpath = IdeaKotlinClasspath(artifact.file),
                     )
@@ -161,21 +163,37 @@ class IdeBinaryDependencyResolver @JvmOverloads constructor(
                             group = componentId.projectPath + "(${componentId.variant})",
                             module = componentId.libraryName,
                             version = null,
-                            sourceSetName = null
+                            sourceSetName = null,
+                            capabilities = artifact.variant.capabilities.map(::IdeaKotlinBinaryCapability).toSet(),
+                            attributes = IdeaKotlinBinaryAttributes(artifact.variant.attributes)
                         ), classpath = IdeaKotlinClasspath(artifact.file)
                     )
                 }
 
                 is OpaqueComponentArtifactIdentifier -> {
-                    /* Such dependencies *would* require implementing a resolver */
-                    null
+                    /* Files within the build directory  still require a custom resolver */
+                    if (artifact.file.absoluteFile.startsWith(sourceSet.project.buildDir.absoluteFile)) return@mapNotNull null
+
+                    IdeaKotlinResolvedBinaryDependency(
+                        binaryType = binaryType, coordinates = IdeaKotlinBinaryCoordinates(
+                            group = "<file>",
+                            module = artifact.file.relativeOrAbsolute(sourceSet.project.rootDir),
+                            version = null,
+                            sourceSetName = null
+                        ),
+                        classpath = IdeaKotlinClasspath(componentId.file)
+                    ).also { dependency ->
+                        dependency.isOpaqueFileDependency = true
+                    }
                 }
 
                 else -> {
                     logger.warn("Unhandled componentId: ${componentId.javaClass}")
                     null
                 }
-            }?.also { dependency -> dependency.gradleArtifact = artifact }
+            }?.also { dependency ->
+                dependency.gradleArtifact = artifact
+            }
         }.toSet()
 
         return resolvedDependencies + unresolvedDependencies
@@ -227,11 +245,7 @@ class IdeBinaryDependencyResolver @JvmOverloads constructor(
 
     private fun ArtifactResolutionStrategy.createArtifactViewFromConfiguration(
         sourceSet: KotlinSourceSet, configuration: Configuration,
-    ): ArtifactView = configuration.incoming
-        .apply {
-            val dependencyFilter = dependencyFilter
-            if (dependencyFilter != null) dependencies.removeIf { dependency -> !dependencyFilter.invoke(dependency) }
-        }
+    ): ArtifactView = (if (dependencyFilter != null) configuration.copyRecursive(dependencyFilter) else configuration).incoming
         .artifactView { view ->
             view.isLenient = true
             view.attributes.setupArtifactViewAttributes(sourceSet)

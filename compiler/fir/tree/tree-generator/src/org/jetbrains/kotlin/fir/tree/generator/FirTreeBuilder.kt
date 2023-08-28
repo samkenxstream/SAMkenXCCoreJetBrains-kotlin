@@ -40,6 +40,8 @@ object FirTreeBuilder : AbstractFirTreeBuilder() {
     val callableDeclaration by sealedElement(Declaration, memberDeclaration)
     val typeParameterRef by element(Declaration)
     val typeParameter by element(Declaration, typeParameterRef, declaration)
+    val constructedClassTypeParameterRef by element(Declaration, typeParameterRef)
+    val outerClassTypeParameterRef by element(Declaration, typeParameterRef)
 
     val variable by sealedElement(Declaration, callableDeclaration, statement)
     val valueParameter by element(Declaration, variable, controlFlowGraphOwner)
@@ -64,6 +66,7 @@ object FirTreeBuilder : AbstractFirTreeBuilder() {
     val constructor by element(Declaration, function, typeParameterRefsOwner, contractDescriptionOwner)
     val file by element(Declaration, declaration)
     val script by element(Declaration, declaration)
+    val codeFragment by element(Declaration, declaration)
     val packageDirective by element(Other)
 
     val anonymousFunction by element(Declaration, function, typeParametersOwner, contractDescriptionOwner)
@@ -115,12 +118,13 @@ object FirTreeBuilder : AbstractFirTreeBuilder() {
     val checkNotNullCall by element(Expression, expression, call, resolvable)
     val elvisExpression by element(Expression, expression, resolvable)
 
-    val arrayOfCall by element(Expression, expression, call)
+    val arrayLiteral by element(Expression, expression, call)
     val augmentedArraySetCall by element(Expression, statement)
     val classReferenceExpression by element(Expression, expression)
     val errorExpression by element(Expression, expression, diagnosticHolder)
     val errorFunction by element(Declaration, function, diagnosticHolder)
     val errorProperty by element(Declaration, variable, diagnosticHolder)
+    val errorPrimaryConstructor by element(Declaration, constructor, diagnosticHolder)
     val danglingModifierList by element(Declaration, declaration, diagnosticHolder)
     val qualifiedAccessExpression by element(Expression, expression, resolvable, contextReceiverArgumentListOwner)
     val qualifiedErrorAccessExpression by element(Expression, expression, diagnosticHolder)

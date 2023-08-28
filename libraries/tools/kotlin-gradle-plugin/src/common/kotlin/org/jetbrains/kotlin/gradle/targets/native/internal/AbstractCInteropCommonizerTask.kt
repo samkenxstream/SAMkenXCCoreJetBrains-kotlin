@@ -8,20 +8,21 @@ package org.jetbrains.kotlin.gradle.targets.native.internal
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.OutputDirectory
+import org.gradle.work.DisableCachingByDefault
 import org.jetbrains.kotlin.commonizer.CommonizerOutputFileLayout
 import org.jetbrains.kotlin.commonizer.CommonizerOutputFileLayout.base64Hash
 import org.jetbrains.kotlin.commonizer.CommonizerOutputFileLayout.ensureMaxFileNameLength
 import org.jetbrains.kotlin.commonizer.identityString
+import org.jetbrains.kotlin.gradle.report.UsesBuildMetricsService
 import org.jetbrains.kotlin.gradle.utils.changing
 import org.jetbrains.kotlin.gradle.utils.future
 import org.jetbrains.kotlin.gradle.utils.outputFilesProvider
 import java.io.File
 
-internal abstract class AbstractCInteropCommonizerTask : DefaultTask() {
+@DisableCachingByDefault(because = "Abstract super-class, not to be instantiated directly")
+internal abstract class AbstractCInteropCommonizerTask : DefaultTask(), UsesBuildMetricsService {
     @get:OutputDirectory
     abstract val outputDirectory: File
-
-    internal abstract suspend fun findInteropsGroup(dependent: CInteropCommonizerDependent): CInteropCommonizerGroup?
 }
 
 internal fun AbstractCInteropCommonizerTask.outputDirectory(group: CInteropCommonizerGroup): File {
@@ -45,7 +46,7 @@ internal fun AbstractCInteropCommonizerTask.commonizedOutputLibraries(dependent:
 }
 
 internal suspend fun AbstractCInteropCommonizerTask.commonizedOutputDirectory(dependent: CInteropCommonizerDependent): File? {
-    val group = findInteropsGroup(dependent) ?: return null
+    val group = project.findCInteropCommonizerGroup(dependent) ?: return null
     return CommonizerOutputFileLayout
         .resolveCommonizedDirectory(outputDirectory(group), dependent.target)
 }

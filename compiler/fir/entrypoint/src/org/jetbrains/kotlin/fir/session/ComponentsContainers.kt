@@ -17,21 +17,24 @@ import org.jetbrains.kotlin.fir.analysis.jvm.FirJvmOverridesBackwardCompatibilit
 import org.jetbrains.kotlin.fir.analysis.jvm.checkers.FirJvmInlineCheckerComponent
 import org.jetbrains.kotlin.fir.caches.FirCachesFactory
 import org.jetbrains.kotlin.fir.caches.FirThreadUnsafeCachesFactory
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationOverloadabilityHelper
+import org.jetbrains.kotlin.fir.declarations.FirTypeSpecificityComparatorProvider
 import org.jetbrains.kotlin.fir.declarations.SealedClassInheritorsProvider
 import org.jetbrains.kotlin.fir.declarations.SealedClassInheritorsProviderImpl
-import org.jetbrains.kotlin.fir.deserialization.DeserializedClassConfigurator
-import org.jetbrains.kotlin.fir.deserialization.JvmDeserializedClassConfigurator
+import org.jetbrains.kotlin.fir.deserialization.FirDeserializationExtension
 import org.jetbrains.kotlin.fir.extensions.*
 import org.jetbrains.kotlin.fir.java.FirJavaVisibilityChecker
 import org.jetbrains.kotlin.fir.java.FirJvmDefaultModeComponent
+import org.jetbrains.kotlin.fir.java.FirSyntheticPropertiesStorage
 import org.jetbrains.kotlin.fir.java.JvmSupertypeUpdater
+import org.jetbrains.kotlin.fir.java.deserialization.FirJvmDeserializationExtension
 import org.jetbrains.kotlin.fir.java.enhancement.FirAnnotationTypeQualifierResolver
 import org.jetbrains.kotlin.fir.java.enhancement.FirEnhancedSymbolsStorage
-import org.jetbrains.kotlin.fir.java.scopes.JavaOverridabilityRules
-import org.jetbrains.kotlin.fir.java.FirSyntheticPropertiesStorage
 import org.jetbrains.kotlin.fir.java.enhancement.JavaCompilerRequiredAnnotationEnhancementProvider
+import org.jetbrains.kotlin.fir.java.scopes.JavaOverridabilityRules
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.ConeCallConflictResolverFactory
+import org.jetbrains.kotlin.fir.resolve.calls.FirDeclarationOverloadabilityHelperImpl
 import org.jetbrains.kotlin.fir.resolve.calls.FirSyntheticNamesProvider
 import org.jetbrains.kotlin.fir.resolve.calls.jvm.JvmCallConflictResolverFactory
 import org.jetbrains.kotlin.fir.resolve.inference.InferenceComponents
@@ -39,7 +42,8 @@ import org.jetbrains.kotlin.fir.resolve.providers.impl.FirQualifierResolverImpl
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirTypeResolverImpl
 import org.jetbrains.kotlin.fir.resolve.transformers.FirDummyCompilerLazyDeclarationResolver
 import org.jetbrains.kotlin.fir.resolve.transformers.PlatformSupertypeUpdater
-import org.jetbrains.kotlin.fir.resolve.transformers.plugin.GeneratedClassIndex
+import org.jetbrains.kotlin.fir.resolve.transformers.mpp.FirExpectActualMatchingContextImpl
+import org.jetbrains.kotlin.fir.resolve.transformers.plugin.CompilerRequiredAnnotationEnhancementProvider
 import org.jetbrains.kotlin.fir.scopes.FirOverrideChecker
 import org.jetbrains.kotlin.fir.scopes.FirOverrideService
 import org.jetbrains.kotlin.fir.scopes.FirPlatformClassMapper
@@ -47,14 +51,11 @@ import org.jetbrains.kotlin.fir.scopes.PlatformSpecificOverridabilityRules
 import org.jetbrains.kotlin.fir.scopes.impl.*
 import org.jetbrains.kotlin.fir.serialization.FirProvidedDeclarationsForMetadataService
 import org.jetbrains.kotlin.fir.symbols.FirLazyDeclarationResolver
-import org.jetbrains.kotlin.fir.types.FirCorrespondingSupertypesCache
-import org.jetbrains.kotlin.fir.types.FirFunctionTypeKindService
-import org.jetbrains.kotlin.fir.types.FirFunctionTypeKindServiceImpl
-import org.jetbrains.kotlin.fir.types.TypeComponents
+import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.incremental.components.EnumWhenTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
+import org.jetbrains.kotlin.resolve.jvm.JvmTypeSpecificityComparator
 import org.jetbrains.kotlin.resolve.jvm.modules.JavaModuleResolver
-import org.jetbrains.kotlin.fir.resolve.transformers.plugin.CompilerRequiredAnnotationEnhancementProvider
 
 // -------------------------- Required components --------------------------
 
@@ -69,7 +70,6 @@ fun FirSession.registerCommonComponents(languageVersionSettings: LanguageVersion
     register(FirDefaultParametersResolver::class, FirDefaultParametersResolver())
 
     register(FirExtensionService::class, FirExtensionService(this))
-    register(GeneratedClassIndex::class, GeneratedClassIndex.create())
 
     register(FirSubstitutionOverrideStorage::class, FirSubstitutionOverrideStorage(this))
     register(FirIntersectionOverrideStorage::class, FirIntersectionOverrideStorage(this))
@@ -80,6 +80,7 @@ fun FirSession.registerCommonComponents(languageVersionSettings: LanguageVersion
     register(FirDynamicMembersStorage::class, FirDynamicMembersStorage(this))
     register(FirEnumEntriesSupport::class, FirEnumEntriesSupport(this))
     register(FirOverrideChecker::class, FirStandardOverrideChecker(this))
+    register(FirDeclarationOverloadabilityHelper::class, FirDeclarationOverloadabilityHelperImpl(this))
 }
 
 @OptIn(SessionConfiguration::class)
@@ -111,7 +112,7 @@ fun FirSession.registerCommonJavaComponents(javaModuleResolver: JavaModuleResolv
     )
     register(PlatformSupertypeUpdater::class, JvmSupertypeUpdater(this))
     register(PlatformSpecificOverridabilityRules::class, JavaOverridabilityRules(this))
-    register(DeserializedClassConfigurator::class, JvmDeserializedClassConfigurator(this))
+    register(FirDeserializationExtension::class, FirJvmDeserializationExtension(this))
     register(FirEnumEntriesSupport::class, FirJvmEnumEntriesSupport(this))
     register(CompilerRequiredAnnotationEnhancementProvider::class, JavaCompilerRequiredAnnotationEnhancementProvider)
 }
@@ -144,6 +145,7 @@ fun FirSession.registerResolveComponents(lookupTracker: LookupTracker? = null, e
             IncrementalPassThroughEnumWhenTrackerComponent(enumWhenTracker)
         )
     }
+    register(FirExpectActualMatchingContextFactory::class, FirExpectActualMatchingContextImpl.Factory)
 }
 
 /*
@@ -153,6 +155,10 @@ fun FirSession.registerResolveComponents(lookupTracker: LookupTracker? = null, e
 fun FirSession.registerJavaSpecificResolveComponents() {
     register(FirVisibilityChecker::class, FirJavaVisibilityChecker)
     register(ConeCallConflictResolverFactory::class, JvmCallConflictResolverFactory)
+    register(
+        FirTypeSpecificityComparatorProvider::class,
+        FirTypeSpecificityComparatorProvider(JvmTypeSpecificityComparator(typeContext))
+    )
     register(FirPlatformClassMapper::class, FirJavaClassMapper(this))
     register(FirSyntheticNamesProvider::class, FirJavaSyntheticNamesProvider)
     register(FirOverridesBackwardCompatibilityHelper::class, FirJvmOverridesBackwardCompatibilityHelper)

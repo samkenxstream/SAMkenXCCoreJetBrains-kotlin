@@ -21,7 +21,6 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api("com.example.bar:my-lib-bar:1.0")
-                implementation(kotlin("stdlib-common"))
             }
         }
 
@@ -86,8 +85,4 @@ kotlin {
             dependsOn(linuxAndJsTest)
         }
     }
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile> {
-    kotlinOptions.freeCompilerArgs += "-Xforce-deprecated-legacy-compiler-usage"
 }

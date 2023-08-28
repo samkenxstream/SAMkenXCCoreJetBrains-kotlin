@@ -13,6 +13,7 @@
 #include "Cell.hpp"
 #include "ExtraObjectPage.hpp"
 #include "GCStatistics.hpp"
+#include "std_support/Vector.hpp"
 
 namespace kotlin::alloc {
 
@@ -34,6 +35,9 @@ public:
     // Testing method
     bool CheckInvariants() noexcept;
 
+    // Testing method
+    std_support::vector<uint8_t*> GetAllocatedBlocks() noexcept;
+
 private:
     explicit NextFitPage(uint32_t cellCount) noexcept;
 
@@ -42,7 +46,7 @@ private:
     void UpdateCurBlock(uint32_t cellsNeeded) noexcept;
 
     friend class AtomicStack<NextFitPage>;
-    NextFitPage* next_;
+    std::atomic<NextFitPage*> next_;
 
     Cell* curBlock_;
     Cell cells_[]; // cells_[0] is reserved for an empty block

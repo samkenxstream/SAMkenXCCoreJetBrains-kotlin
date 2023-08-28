@@ -22,9 +22,9 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
+import org.jetbrains.kotlin.ir.symbols.IrSymbolInternals
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.IdSignature
-import org.jetbrains.kotlin.ir.util.isComposite
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.name.Name
 
@@ -36,12 +36,12 @@ class FakeOverrideGenerator(
     private val basePropertySymbols: MutableMap<IrProperty, List<FirPropertySymbol>> = mutableMapOf()
     private val baseStaticFieldSymbols: MutableMap<IrField, List<FirFieldSymbol>> = mutableMapOf()
 
-    private fun IrSimpleFunction.withFunction(f: IrSimpleFunction.() -> Unit): IrSimpleFunction {
-        return conversionScope.withFunction(this, f)
+    private inline fun IrSimpleFunction.withFunction(f: IrSimpleFunction.() -> Unit) {
+        conversionScope.withFunction(this, f)
     }
 
-    private fun IrProperty.withProperty(f: IrProperty.() -> Unit): IrProperty {
-        return conversionScope.withProperty(this, firProperty = null, f)
+    private inline fun IrProperty.withProperty(f: IrProperty.() -> Unit) {
+        conversionScope.withProperty(this, firProperty = null, f)
     }
 
     private fun IrType.containsErrorType(): Boolean {
@@ -61,12 +61,7 @@ class FakeOverrideGenerator(
 
     private fun IrClass.getFakeOverrides(klass: FirClass, realDeclarations: Collection<FirDeclaration>): List<IrDeclaration> {
         val result = mutableListOf<IrDeclaration>()
-        val useSiteMemberScope = klass.unsubstitutedScope(
-            session,
-            scopeSession,
-            withForcedTypeCalculator = true,
-            memberRequiredPhase = null,
-        )
+        val useSiteMemberScope = klass.unsubstitutedScope()
 
         val superTypesCallableNames = useSiteMemberScope.getCallableNames()
         val realDeclarationSymbols = realDeclarations.mapTo(mutableSetOf(), FirDeclaration::symbol)
@@ -82,12 +77,7 @@ class FakeOverrideGenerator(
         name: Name,
         firClass: FirClass
     ): List<IrDeclaration> = buildList {
-        val useSiteMemberScope = firClass.unsubstitutedScope(
-            session,
-            scopeSession,
-            withForcedTypeCalculator = true,
-            memberRequiredPhase = null,
-        )
+        val useSiteMemberScope = firClass.unsubstitutedScope()
 
         generateFakeOverridesForName(
             irClass, useSiteMemberScope, name, firClass, this,
@@ -100,7 +90,10 @@ class FakeOverrideGenerator(
         if (none { it is IrProperty }) {
             FirSyntheticPropertiesScope.createIfSyntheticNamesProviderIsDefined(session, firClass.defaultType(), useSiteMemberScope)?.let {
                 generateFakeOverridesForName(
-                    irClass, it, name, firClass, this,
+                    irClass, it, name, firClass,
+                    // We pass result = null so that the IR declaration is not added to the class' list of declarations
+                    // but is still cached in the declaration storage.
+                    result = null,
                     // This parameter is only needed for data-class methods that is irrelevant for lazy library classes
                     realDeclarationSymbols = emptySet()
                 )
@@ -121,7 +114,7 @@ class FakeOverrideGenerator(
         useSiteOrStaticScope: FirScope,
         name: Name,
         firClass: FirClass,
-        result: MutableList<IrDeclaration>,
+        result: MutableList<IrDeclaration>?,
         realDeclarationSymbols: Set<FirBasedSymbol<*>>
     ) {
         val isLocal = firClass !is FirRegularClass || firClass.isLocal
@@ -186,7 +179,7 @@ class FakeOverrideGenerator(
                     createFakeOverriddenIfNeeded(
                         firClass, irClass, isLocal, propertyOrFieldSymbol,
                         { field, _, _ -> declarationStorage.getCachedIrFieldStaticFakeOverrideByDeclaration(field) },
-                        { field, irParent, _, _, _ ->
+                        { field, irParent, _, _ ->
                             declarationStorage.createIrField(field, irParent)
                         },
                         createFakeOverrideSymbol = { firField, _ ->
@@ -217,7 +210,7 @@ class FakeOverrideGenerator(
         fakeOverride: IrSimpleFunction,
         originalSymbol: FirNamedFunctionSymbol,
     ) {
-        val scope = klass.unsubstitutedScope(session, scopeSession, withForcedTypeCalculator = true, memberRequiredPhase = null)
+        val scope = klass.unsubstitutedScope()
         val classLookupTag = klass.symbol.toLookupTag()
         val baseFirSymbolsForFakeOverride =
             if (originalSymbol.shouldHaveComputedBaseSymbolsForClass(classLookupTag)) {
@@ -237,10 +230,10 @@ class FakeOverrideGenerator(
         isLocal: Boolean,
         originalSymbol: FirCallableSymbol<*>,
         cachedIrDeclaration: (firDeclaration: D, dispatchReceiverLookupTag: ConeClassLikeLookupTag?, () -> IdSignature?) -> I?,
-        createIrDeclaration: (firDeclaration: D, irParent: IrClass, thisReceiverOwner: IrClass?, origin: IrDeclarationOrigin, isLocal: Boolean) -> I,
+        createIrDeclaration: (firDeclaration: D, irParent: IrClass, origin: IrDeclarationOrigin, isLocal: Boolean) -> I,
         createFakeOverrideSymbol: (firDeclaration: D, baseSymbol: S) -> S,
         baseSymbols: MutableMap<I, List<S>>,
-        result: MutableList<in I>,
+        result: MutableList<in I>?,
         containsErrorTypes: (I) -> Boolean,
         realDeclarationSymbols: Set<FirBasedSymbol<*>>,
         computeDirectOverridden: FirTypeScope.(S) -> List<S>,
@@ -283,13 +276,11 @@ class FakeOverrideGenerator(
             // have the same signature.
             // Now we avoid this problem by signature caching,
             // so both FIR overrides correspond to one IR fake override
-            val isTopLevelPrivate = irClass.symbol.signature.isComposite()
-            signatureComposer.composeSignature(fakeOverrideFirDeclaration, forceTopLevelPrivate = isTopLevelPrivate)
+            signatureComposer.composeSignature(fakeOverrideFirDeclaration)
         }?.takeIf { it.parent == irClass }
             ?: createIrDeclaration(
                 fakeOverrideFirDeclaration,
                 irClass,
-                /* thisReceiverOwner = */ declarationStorage.findIrParent(baseSymbol.fir) as? IrClass,
                 origin,
                 isLocal
             )
@@ -297,7 +288,8 @@ class FakeOverrideGenerator(
             return
         }
         baseSymbols[irDeclaration] = baseFirSymbolsForFakeOverride
-        result += irDeclaration
+
+        result?.add(irDeclaration)
     }
 
     private inline fun <D : FirCallableDeclaration, reified S : FirCallableSymbol<D>> createFirFakeOverride(
@@ -425,6 +417,7 @@ class FakeOverrideGenerator(
         ) { declarationStorage.getIrPropertySymbol(it) as IrPropertySymbol }
     }
 
+    @OptIn(IrSymbolInternals::class)
     private fun <I : IrDeclaration, S : IrSymbol, F : FirCallableSymbol<*>> getOverriddenSymbolsInSupertypes(
         declaration: I,
         baseSymbols: List<F>,
@@ -438,6 +431,7 @@ class FakeOverrideGenerator(
         }.distinct()
     }
 
+    @OptIn(IrSymbolInternals::class)
     private fun <F : FirCallableSymbol<*>, S : IrSymbol> getOverriddenSymbolsInSupertypes(
         overridden: F,
         superClasses: Set<IrClass>,
@@ -503,6 +497,7 @@ class FakeOverrideGenerator(
         }
     }
 
+    @OptIn(IrSymbolInternals::class)
     private fun IrProperty.setOverriddenSymbolsForProperty(
         declarationStorage: Fir2IrDeclarationStorage,
         isVar: Boolean,
@@ -526,3 +521,71 @@ class FakeOverrideGenerator(
     }
 }
 
+context(Fir2IrComponents)
+@OptIn(IrSymbolInternals::class)
+internal fun FirProperty.generateOverriddenAccessorSymbols(containingClass: FirClass, isGetter: Boolean): List<IrSimpleFunctionSymbol> {
+    val scope = containingClass.unsubstitutedScope()
+    scope.processPropertiesByName(name) {}
+    val overriddenSet = mutableSetOf<IrSimpleFunctionSymbol>()
+    val superClasses = containingClass.getSuperTypesAsIrClasses() ?: return emptyList()
+
+    scope.processOverriddenPropertiesFromSuperClasses(symbol, containingClass) { overriddenSymbol ->
+        if (!session.visibilityChecker.isVisibleForOverriding(
+                candidateInDerivedClass = symbol.fir, candidateInBaseClass = overriddenSymbol.fir
+            )
+        ) {
+            return@processOverriddenPropertiesFromSuperClasses ProcessorAction.NEXT
+        }
+
+        for (overriddenIrPropertySymbol in fakeOverrideGenerator.getOverriddenSymbolsInSupertypes(overriddenSymbol, superClasses)) {
+            val overriddenIrAccessorSymbol =
+                if (isGetter) overriddenIrPropertySymbol.owner.getter?.symbol
+                else overriddenIrPropertySymbol.owner.setter?.symbol
+            if (overriddenIrAccessorSymbol != null) {
+                assert(overriddenIrAccessorSymbol != symbol) { "Cannot add property $overriddenIrAccessorSymbol to its own overriddenSymbols" }
+                overriddenSet += overriddenIrAccessorSymbol
+            }
+        }
+        ProcessorAction.NEXT
+    }
+    return overriddenSet.toList()
+}
+
+context(Fir2IrComponents)
+internal fun FirProperty.generateOverriddenPropertySymbols(containingClass: FirClass): List<IrPropertySymbol> {
+    val superClasses = containingClass.getSuperTypesAsIrClasses() ?: return emptyList()
+    val overriddenSet = mutableSetOf<IrPropertySymbol>()
+
+    processOverriddenPropertySymbols(containingClass) {
+        for (overridden in fakeOverrideGenerator.getOverriddenSymbolsInSupertypes(it, superClasses)) {
+            assert(overridden != symbol) { "Cannot add property $overridden to its own overriddenSymbols" }
+            overriddenSet += overridden
+        }
+    }
+
+    return overriddenSet.toList()
+}
+
+context(Fir2IrComponents)
+internal fun FirSimpleFunction.generateOverriddenFunctionSymbols(containingClass: FirClass): List<IrSimpleFunctionSymbol> {
+    val superClasses = containingClass.getSuperTypesAsIrClasses() ?: return emptyList()
+    val overriddenSet = mutableSetOf<IrSimpleFunctionSymbol>()
+
+    processOverriddenFunctionSymbols(containingClass) {
+        for (overridden in fakeOverrideGenerator.getOverriddenSymbolsInSupertypes(it, superClasses)) {
+            assert(overridden != symbol) { "Cannot add function $overridden to its own overriddenSymbols" }
+            overriddenSet += overridden
+        }
+    }
+
+    return overriddenSet.toList()
+}
+
+context(Fir2IrComponents)
+@OptIn(IrSymbolInternals::class)
+private fun FirClass.getSuperTypesAsIrClasses(): Set<IrClass>? {
+    val irClass =
+        declarationStorage.classifierStorage.getIrClassSymbol(symbol).owner as? IrClass ?: return null
+
+    return irClass.superTypes.mapNotNull { it.classifierOrNull?.owner as? IrClass }.toSet()
+}

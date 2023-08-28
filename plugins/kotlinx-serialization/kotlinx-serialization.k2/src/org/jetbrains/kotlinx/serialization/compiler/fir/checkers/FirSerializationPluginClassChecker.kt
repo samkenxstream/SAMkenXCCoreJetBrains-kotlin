@@ -175,8 +175,8 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
             this is FirConstExpression<*> && other is FirConstExpression<*> -> kind == other.kind && value == other.value
             this is FirGetClassCall && other is FirGetClassCall -> AbstractTypeChecker.equalTypes(
                 session.typeContext,
-                typeRef.coneType,
-                other.typeRef.coneType
+                resolvedType,
+                other.resolvedType
             )
 
             this is FirPropertyAccessExpression && other is FirPropertyAccessExpression ->
@@ -185,12 +185,12 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
             else -> {
                 val argumentsIfArray1 = when (this) {
                     is FirVarargArgumentsExpression -> arguments
-                    is FirArrayOfCall -> arguments
+                    is FirArrayLiteral -> arguments
                     else -> return false
                 }
                 val argumentsIfArray2 = when (other) {
                     is FirVarargArgumentsExpression -> other.arguments
-                    is FirArrayOfCall -> other.arguments
+                    is FirArrayLiteral -> other.arguments
                     else -> return false
                 }
                 argumentsIfArray1.size == argumentsIfArray2.size && argumentsIfArray1.zip(argumentsIfArray2)
@@ -363,6 +363,7 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
         val serializerType = classSymbol.getSerializableWith(session)?.fullyExpandedType(session) ?: return
         checkCustomSerializerMatch(classSymbol, source = null, classSymbol.defaultType(), serializerType, reporter)
         checkCustomSerializerIsNotLocal(source = null, classSymbol, serializerType, reporter)
+        checkCustomSerializerNotAbstract(classSymbol, source = null, serializerType, reporter)
     }
 
     context(CheckerContext)
@@ -471,6 +472,12 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
                     customSerializerType,
                     reporter
                 )
+                checkCustomSerializerNotAbstract(
+                    classSymbol,
+                    source = propertySymbol.serializableAnnotation(needArguments = false, session)?.source,
+                    customSerializerType,
+                    reporter
+                )
                 checkCustomSerializerIsNotLocal(
                     source = propertySymbol.serializableAnnotation(needArguments = false, session)?.source,
                     classSymbol,
@@ -563,6 +570,22 @@ object FirSerializationPluginClassChecker : FirClassChecker() {
                 containingClassSymbol.defaultType(),
                 serializerType,
                 serializerForType
+            )
+        }
+    }
+    context(CheckerContext)
+    private fun checkCustomSerializerNotAbstract(
+        containingClassSymbol: FirClassSymbol<*>,
+        source: KtSourceElement?,
+        serializerType: ConeKotlinType,
+        reporter: DiagnosticReporter
+    ) {
+        if (with(session) { serializerType.isAbstractOrSealedOrInterface }) {
+            reporter.reportOn(
+                source ?: containingClassSymbol.serializableOrMetaAnnotationSource,
+                FirSerializationErrors.ABSTRACT_SERIALIZER_TYPE,
+                containingClassSymbol.defaultType(),
+                serializerType
             )
         }
     }

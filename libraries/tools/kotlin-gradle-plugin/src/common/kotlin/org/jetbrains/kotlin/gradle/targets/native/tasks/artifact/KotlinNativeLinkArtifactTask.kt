@@ -19,22 +19,33 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.*
 import org.gradle.process.ExecOperations
+import org.gradle.work.DisableCachingByDefault
+import org.jetbrains.kotlin.build.report.metrics.BuildMetricsReporter
+import org.jetbrains.kotlin.build.report.metrics.GradleBuildPerformanceMetric
+import org.jetbrains.kotlin.build.report.metrics.GradleBuildTime
 import org.jetbrains.kotlin.compilerRunner.KotlinNativeCompilerRunner
 import org.jetbrains.kotlin.compilerRunner.KotlinToolRunner
+import org.jetbrains.kotlin.compilerRunner.konanDataDir
+import org.jetbrains.kotlin.compilerRunner.konanHome
+import org.jetbrains.kotlin.compilerRunner.addBuildMetricsForTaskAction
 import org.jetbrains.kotlin.gradle.dsl.*
 import org.jetbrains.kotlin.gradle.internal.ensureParentDirsCreated
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider
 import org.jetbrains.kotlin.gradle.plugin.mpp.BitcodeEmbeddingMode
+import org.jetbrains.kotlin.gradle.report.GradleBuildMetricsReporter
+import org.jetbrains.kotlin.gradle.report.UsesBuildMetricsService
 import org.jetbrains.kotlin.gradle.targets.native.tasks.buildKotlinNativeBinaryLinkerArgs
 import org.jetbrains.kotlin.gradle.tasks.KotlinToolTask
 import org.jetbrains.kotlin.gradle.utils.XcodeUtils
 import org.jetbrains.kotlin.gradle.utils.newInstance
+import org.jetbrains.kotlin.gradle.utils.property
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.visibleName
 import java.io.File
 import javax.inject.Inject
 
+@DisableCachingByDefault
 @Suppress("LeakingThis")
 abstract class KotlinNativeLinkArtifactTask @Inject constructor(
     @get:Input val konanTarget: KonanTarget,
@@ -43,6 +54,7 @@ abstract class KotlinNativeLinkArtifactTask @Inject constructor(
     private val execOperations: ExecOperations,
     private val projectLayout: ProjectLayout
 ) : DefaultTask(),
+    UsesBuildMetricsService,
     KotlinToolTask<KotlinCommonCompilerToolOptions> {
 
     @get:Input
@@ -93,6 +105,7 @@ abstract class KotlinNativeLinkArtifactTask @Inject constructor(
     @get:Input
     abstract val binaryOptions: MapProperty<String, String>
 
+    @get:PathSensitive(PathSensitivity.RELATIVE)
     @get:Optional
     @get:InputFile
     abstract val xcodeVersion: RegularFileProperty
@@ -160,7 +173,17 @@ abstract class KotlinNativeLinkArtifactTask @Inject constructor(
         destinationDir.asFile.get().resolve(outFileName)
     }
 
-    private val runnerSettings = KotlinNativeCompilerRunner.Settings.fromProject(project)
+    @get:Internal
+    val metrics: Property<BuildMetricsReporter<GradleBuildTime, GradleBuildPerformanceMetric>> = project.objects
+        .property(GradleBuildMetricsReporter())
+
+    @get:Internal
+    val konanDataDir: Provider<String?> = project.provider { project.konanDataDir }
+
+    @get:Internal
+    val konanHome: Provider<String> = project.provider { project.konanHome }
+
+    private val runnerSettings = KotlinNativeCompilerRunner.Settings.of(konanHome.get(), konanDataDir.getOrNull(),project)
 
     init {
         baseName.convention(project.name)
@@ -180,36 +203,42 @@ abstract class KotlinNativeLinkArtifactTask @Inject constructor(
 
     @TaskAction
     fun link() {
-        val outFile = outputFile.get()
-        outFile.ensureParentDirsCreated()
+        val metricReporter = metrics.get()
 
-        fun FileCollection.klibs() = files.filter { it.extension == "klib" }
+        addBuildMetricsForTaskAction(metricsReporter = metricReporter, languageVersion = null) {
 
-        val buildArgs = buildKotlinNativeBinaryLinkerArgs(
-            outFile = outFile,
-            optimized = optimized.get(),
-            debuggable = debuggable.get(),
-            target = konanTarget,
-            outputKind = outputKind,
-            libraries = libraries.klibs(),
-            friendModules = emptyList(), //FriendModules aren't needed here because it's no test artifact
-            toolOptions = toolOptions,
-            compilerPlugins = emptyList(),//CompilerPlugins aren't needed here because it's no compilation but linking
-            processTests = processTests.get(),
-            entryPoint = entryPoint.getOrNull(),
-            embedBitcode = bitcodeEmbeddingMode(),
-            linkerOpts = linkerOptions.get(),
-            binaryOptions = allBinaryOptions.get(),
-            isStaticFramework = staticFramework.get(),
-            exportLibraries = exportLibraries.klibs(),
-            includeLibraries = includeLibraries.klibs(),
-            additionalOptions = emptyList()//todo support org.jetbrains.kotlin.gradle.tasks.CacheBuilder and org.jetbrains.kotlin.gradle.tasks.ExternalDependenciesBuilder
-        )
+            val outFile = outputFile.get()
+            outFile.ensureParentDirsCreated()
 
-        KotlinNativeCompilerRunner(
-            settings = runnerSettings,
-            executionContext = KotlinToolRunner.GradleExecutionContext.fromTaskContext(objectFactory, execOperations, logger)
-        ).run(buildArgs)
+            fun FileCollection.klibs() = files.filter { it.extension == "klib" }
+
+            val buildArgs = buildKotlinNativeBinaryLinkerArgs(
+                outFile = outFile,
+                optimized = optimized.get(),
+                debuggable = debuggable.get(),
+                target = konanTarget,
+                outputKind = outputKind,
+                libraries = libraries.klibs(),
+                friendModules = emptyList(), //FriendModules aren't needed here because it's no test artifact
+                toolOptions = toolOptions,
+                compilerPlugins = emptyList(),//CompilerPlugins aren't needed here because it's no compilation but linking
+                processTests = processTests.get(),
+                entryPoint = entryPoint.getOrNull(),
+                embedBitcode = bitcodeEmbeddingMode(),
+                linkerOpts = linkerOptions.get(),
+                binaryOptions = allBinaryOptions.get(),
+                isStaticFramework = staticFramework.get(),
+                exportLibraries = exportLibraries.klibs(),
+                includeLibraries = includeLibraries.klibs(),
+                additionalOptions = emptyList()//todo support org.jetbrains.kotlin.gradle.tasks.CacheBuilder and org.jetbrains.kotlin.gradle.tasks.ExternalDependenciesBuilder
+            )
+
+            KotlinNativeCompilerRunner(
+                settings = runnerSettings,
+                executionContext = KotlinToolRunner.GradleExecutionContext.fromTaskContext(objectFactory, execOperations, logger),
+                metricReporter,
+            ).run(buildArgs)
+        }
     }
 
     private fun bitcodeEmbeddingMode(): BitcodeEmbeddingMode {

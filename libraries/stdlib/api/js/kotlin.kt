@@ -45,7 +45,7 @@ public inline fun UShortArray(size: kotlin.Int, init: (kotlin.Int) -> kotlin.USh
 
 public inline fun <T> arrayOf(vararg elements: T): kotlin.Array<T>
 
-public inline fun <reified T> arrayOfNulls(size: kotlin.Int): kotlin.Array<T?>
+public inline fun <T> arrayOfNulls(size: kotlin.Int): kotlin.Array<T?>
 
 public inline fun booleanArrayOf(vararg elements: kotlin.Boolean): kotlin.BooleanArray
 
@@ -846,6 +846,15 @@ public inline fun kotlin.Short.toUShort(): kotlin.UShort
 @kotlin.internal.InlineOnly
 public inline fun <T : kotlin.AutoCloseable?, R> T.use(block: (T) -> R): R
 
+@kotlin.annotation.Retention(value = AnnotationRetention.SOURCE)
+@kotlin.annotation.Target(allowedTargets = {AnnotationTarget.CLASS, AnnotationTarget.TYPEALIAS})
+@kotlin.annotation.MustBeDocumented
+@kotlin.ExperimentalMultiplatform
+@kotlin.SinceKotlin(version = "1.9")
+public final annotation class AllowDifferentMembersInActual : kotlin.Annotation {
+    public constructor AllowDifferentMembersInActual()
+}
+
 public interface Annotation {
 }
 
@@ -1218,8 +1227,8 @@ public final class Char : kotlin.Comparable<kotlin.Char> {
     @kotlin.internal.IntrinsicConstEvaluation
     public final fun toShort(): kotlin.Short
 
-    @kotlin.js.JsName(name = "toString")
     @kotlin.internal.IntrinsicConstEvaluation
+    @kotlin.js.JsName(name = "toString")
     public open override fun toString(): kotlin.String
 
     public companion object of Char {

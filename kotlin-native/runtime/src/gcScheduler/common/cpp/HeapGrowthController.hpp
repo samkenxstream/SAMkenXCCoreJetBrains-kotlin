@@ -17,44 +17,57 @@ namespace kotlin::gcScheduler::internal {
 
 class HeapGrowthController {
 public:
-    explicit HeapGrowthController(GCSchedulerConfig& config) noexcept : config_(config) {}
+    enum class MemoryBoundary {
+        // Memory usage is low.
+        kNone,
+        // Memory usage is high, GC should be triggered.
+        kTrigger,
+        // Memory usage is critical, GC is running behind the mutators. Mutators should pause.
+        kTarget,
+    };
 
-    // Called by the mutators.
-    void OnAllocated(size_t allocatedBytes) noexcept { allocatedBytes_ += allocatedBytes; }
+    explicit HeapGrowthController(GCSchedulerConfig& config) noexcept :
+        config_(config), targetHeapBytes_(config.targetHeapBytes.load(std::memory_order_relaxed)) {
+        triggerHeapBytes_ = targetHeapBytes_ * config_.heapTriggerCoefficient.load(std::memory_order_relaxed);
+    }
+
+    // Can be called by any thread.
+    MemoryBoundary boundaryForHeapSize(size_t totalAllocatedBytes) noexcept {
+        if (totalAllocatedBytes >= targetHeapBytes_) {
+            return config_.mutatorAssists() ? MemoryBoundary::kTarget : MemoryBoundary::kTrigger;
+        } else if (totalAllocatedBytes >= triggerHeapBytes_) {
+            return MemoryBoundary::kTrigger;
+        } else {
+            return MemoryBoundary::kNone;
+        }
+    }
 
     // Called by the GC thread.
-    void OnPerformFullGC() noexcept { allocatedBytes_ = 0; }
-
-    // Called by the GC thread.
-    void UpdateAliveSetBytes(size_t bytes) noexcept {
-        lastAliveSetBytes_ = bytes;
-
+    void updateBoundaries(size_t aliveBytes) noexcept {
         if (config_.autoTune.load()) {
-            double targetHeapBytes = static_cast<double>(bytes) / config_.targetHeapUtilization;
+            double targetHeapBytes = static_cast<double>(aliveBytes) / config_.targetHeapUtilization;
             if (!std::isfinite(targetHeapBytes)) {
                 // This shouldn't happen in practice: targetHeapUtilization is in (0, 1]. But in case it does, don't touch anything.
                 return;
             }
-            double minHeapBytes = static_cast<double>(config_.minHeapBytes.load());
-            double maxHeapBytes = static_cast<double>(config_.maxHeapBytes.load());
+            double minHeapBytes = static_cast<double>(config_.minHeapBytes.load(std::memory_order_relaxed));
+            double maxHeapBytes = static_cast<double>(config_.maxHeapBytes.load(std::memory_order_relaxed));
             targetHeapBytes = std::min(std::max(targetHeapBytes, minHeapBytes), maxHeapBytes);
-            config_.targetHeapBytes = static_cast<int64_t>(targetHeapBytes);
+            triggerHeapBytes_ = static_cast<size_t>(targetHeapBytes * config_.heapTriggerCoefficient.load(std::memory_order_relaxed));
+            config_.targetHeapBytes.store(static_cast<int64_t>(targetHeapBytes), std::memory_order_relaxed);
+            targetHeapBytes_ = static_cast<size_t>(targetHeapBytes);
+        } else {
+            targetHeapBytes_ = config_.targetHeapBytes.load(std::memory_order_relaxed);
         }
     }
 
-    // Called by the mutators.
-    bool NeedsGC() const noexcept {
-        uint64_t currentHeapBytes = allocatedBytes_.load() + lastAliveSetBytes_.load();
-        uint64_t targetHeapBytes = config_.targetHeapBytes;
-        return currentHeapBytes >= targetHeapBytes;
-    }
+    size_t targetHeapBytes() const noexcept { return targetHeapBytes_; }
+    size_t triggerHeapBytes() const noexcept { return triggerHeapBytes_; }
 
 private:
     GCSchedulerConfig& config_;
-    // Updated by both the mutators and the GC thread.
-    std::atomic<size_t> allocatedBytes_ = 0;
-    // Updated by the GC thread, read by the mutators.
-    std::atomic<size_t> lastAliveSetBytes_ = 0;
+    size_t targetHeapBytes_ = 0;
+    size_t triggerHeapBytes_ = 0;
 };
 
 } // namespace kotlin::gcScheduler::internal

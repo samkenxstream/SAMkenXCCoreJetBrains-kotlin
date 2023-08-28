@@ -13,7 +13,9 @@ import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.FirTowerDataContext
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.psi
-import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirTowerDataContextCollector
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.BodyResolveContext
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirResolveContextCollector
+import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
 import org.jetbrains.kotlin.utils.addIfNotNull
@@ -24,13 +26,13 @@ interface FirTowerContextProvider {
 
 internal class FileTowerProvider(
     private val file: KtFile,
-    private val context: FirTowerDataContext
+    private val context: FirTowerDataContext,
 ) : FirTowerContextProvider {
     override fun getClosestAvailableParentContext(ktElement: KtElement): FirTowerDataContext? =
         if (file == ktElement.containingKtFile) context else null
 }
 
-internal class FirTowerDataContextAllElementsCollector : FirTowerDataContextCollector, FirTowerContextProvider {
+internal class FirTowerDataContextAllElementsCollector : FirResolveContextCollector, FirTowerContextProvider {
     private val elementsToContext: MutableMap<KtElement, FirTowerDataContext> = hashMapOf()
 
     /**
@@ -46,13 +48,13 @@ internal class FirTowerDataContextAllElementsCollector : FirTowerDataContextColl
         elementsToContext[ktFile] = context
     }
 
-    override fun addStatementContext(statement: FirStatement, context: FirTowerDataContext) {
-        val closestStatementInBlock = statement.psi?.closestBlockLevelOrInitializerExpression() ?: return
+    override fun addStatementContext(statement: FirStatement, context: BodyResolveContext) {
+        val closestParentExpression = statement.psi?.closestParentExpressionWithSameContextOrSelf() ?: return
         // FIR body transform may alter the context if there are implicit receivers with smartcast
-        elementsToContext[closestStatementInBlock] = context.createSnapshot()
+        elementsToContext[closestParentExpression] = context.towerDataContext.createSnapshot()
     }
 
-    override fun addDeclarationContext(declaration: FirDeclaration, context: FirTowerDataContext) {
+    override fun addDeclarationContext(declaration: FirDeclaration, context: BodyResolveContext) {
         val psi = declaration.psi as? KtElement ?: return
 
         // FIR creates a fake field declaration for the delegated super calls,
@@ -60,7 +62,7 @@ internal class FirTowerDataContextAllElementsCollector : FirTowerDataContextColl
         // we do not collect contexts for such declarations
         if (psi is KtDelegatedSuperTypeEntry) return
 
-        elementsToContext[psi] = context
+        elementsToContext[psi] = context.towerDataContext.createSnapshot()
     }
 
     override fun addClassHeaderContext(declaration: FirRegularClass, context: FirTowerDataContext) {
@@ -109,10 +111,37 @@ internal class FirTowerDataContextAllElementsCollector : FirTowerDataContextColl
     }
 }
 
-private tailrec fun PsiElement.closestBlockLevelOrInitializerExpression(): KtExpression? =
-    when {
-        this is KtExpression && (parent is KtBlockExpression || parent is KtDeclarationWithInitializer) -> this
-        else -> parent?.closestBlockLevelOrInitializerExpression()
+/**
+ * Returns [this] in case [this] is:
+ * - a statement in a block
+ * - an initializer of a declaration
+ * - an expression in when entry
+ * - a right operand in binary expression with operator `&&` or `||`
+ *
+ * Otherwise, invokes this function recursively on the parent.
+ */
+private tailrec fun PsiElement.closestParentExpressionWithSameContextOrSelf(): KtExpression? {
+    if (this is KtExpression) {
+        if (
+            parent is KtBlockExpression ||
+            parent is KtDeclarationWithInitializer ||
+            isExpressionInWhenEntry ||
+            isRightOperandInBinaryLogicOperation
+        ) return this
+    }
+
+    return parent?.closestParentExpressionWithSameContextOrSelf()
+}
+
+private val KtExpression.isExpressionInWhenEntry: Boolean
+    get() = this == (parent as? KtWhenEntry)?.expression
+
+private val KtExpression.isRightOperandInBinaryLogicOperation: Boolean
+    get() {
+        val binaryLogicOperation = (parent as? KtBinaryExpression)
+            ?.takeIf { it.operationToken == KtTokens.ANDAND || it.operationToken == KtTokens.OROR }
+
+        return this == binaryLogicOperation?.right
     }
 
 /**
@@ -128,6 +157,7 @@ private fun KtClassOrObject.containsInHeader(element: PsiElement): Boolean {
         addIfNotNull(getContextReceiverList())
         addIfNotNull(modifierList) // for annotations declared on class
         addIfNotNull(typeParameterList)
+        addIfNotNull(typeConstraintList) // `where` clause type constraints
 
         for (superTypeEntry in superTypeListEntries) {
             addIfNotNull(superTypeEntry.typeReference)

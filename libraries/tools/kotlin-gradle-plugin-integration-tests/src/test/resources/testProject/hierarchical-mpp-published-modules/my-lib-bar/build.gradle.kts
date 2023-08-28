@@ -22,7 +22,6 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api("com.example.foo:my-lib-foo:1.0")
-                implementation(kotlin("stdlib-common"))
             }
         }
 
@@ -93,8 +92,4 @@ publishing {
     repositories {
         maven("<localRepo>")
     }
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile> {
-    kotlinOptions.freeCompilerArgs += "-Xforce-deprecated-legacy-compiler-usage"
 }

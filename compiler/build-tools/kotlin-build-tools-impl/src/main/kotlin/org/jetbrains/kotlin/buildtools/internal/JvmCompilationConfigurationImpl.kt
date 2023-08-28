@@ -10,10 +10,20 @@ import org.jetbrains.kotlin.buildtools.api.SourcesChanges
 import org.jetbrains.kotlin.buildtools.api.jvm.*
 import java.io.File
 
+internal data class AggregatedIcConfiguration<P : IncrementalCompilationApproachParameters>(
+    val options: IncrementalJvmCompilationConfiguration<P>,
+    val parameters: P,
+    val sourcesChanges: SourcesChanges,
+    val workingDir: File,
+)
+
 internal class JvmCompilationConfigurationImpl(
     override var kotlinScriptFilenameExtensions: Set<String> = emptySet(),
     override var logger: KotlinLogger = DefaultKotlinLogger,
 ) : JvmCompilationConfiguration {
+    internal var aggregatedIcConfiguration: AggregatedIcConfiguration<*>? = null
+        private set
+
     override fun useLogger(logger: KotlinLogger): JvmCompilationConfiguration {
         this.logger = logger
         return this
@@ -31,18 +41,27 @@ internal class JvmCompilationConfigurationImpl(
         sourcesChanges: SourcesChanges,
         approachParameters: P,
         options: IncrementalJvmCompilationConfiguration<P>,
-    ) = TODO("Incremental compilation is not yet supported to run via the Build Tools API")
+    ) {
+        aggregatedIcConfiguration = AggregatedIcConfiguration(options, approachParameters, sourcesChanges, workingDirectory)
+    }
 }
 
 internal abstract class JvmIncrementalCompilationConfigurationImpl<P : IncrementalCompilationApproachParameters>(
     override var preciseJavaTrackingEnabled: Boolean = true,
     override var preciseCompilationResultsBackupEnabled: Boolean = false,
     override var incrementalCompilationCachesKeptInMemory: Boolean = false,
-    override var projectDir: File? = null,
+    override var rootProjectDir: File? = null,
+    override var buildDir: File? = null,
     override var forcedNonIncrementalMode: Boolean = false,
+    override var outputDirs: Set<File> = emptySet(),
 ) : IncrementalJvmCompilationConfiguration<P> {
-    override fun useProjectDir(projectDir: File): IncrementalJvmCompilationConfiguration<P> {
-        this.projectDir = projectDir
+    override fun setRootProjectDir(rootProjectDir: File): IncrementalJvmCompilationConfiguration<P> {
+        this.rootProjectDir = rootProjectDir
+        return this
+    }
+
+    override fun setBuildDir(buildDir: File): IncrementalJvmCompilationConfiguration<P> {
+        this.buildDir = buildDir
         return this
     }
 
@@ -65,6 +84,11 @@ internal abstract class JvmIncrementalCompilationConfigurationImpl<P : Increment
         forcedNonIncrementalMode = value
         return this
     }
+
+    override fun useOutputDirs(outputDirs: Collection<File>): IncrementalJvmCompilationConfiguration<P> {
+        this.outputDirs = outputDirs.toSet()
+        return this
+    }
 }
 
 internal class ClasspathSnapshotBasedIncrementalJvmCompilationConfigurationImpl(
@@ -72,8 +96,13 @@ internal class ClasspathSnapshotBasedIncrementalJvmCompilationConfigurationImpl(
 ) :
     JvmIncrementalCompilationConfigurationImpl<ClasspathSnapshotBasedIncrementalCompilationApproachParameters>(),
     ClasspathSnapshotBasedIncrementalJvmCompilationConfiguration {
-    override fun useProjectDir(projectDir: File): ClasspathSnapshotBasedIncrementalJvmCompilationConfiguration {
-        super.useProjectDir(projectDir)
+    override fun setRootProjectDir(rootProjectDir: File): ClasspathSnapshotBasedIncrementalJvmCompilationConfiguration {
+        super.setRootProjectDir(rootProjectDir)
+        return this
+    }
+
+    override fun setBuildDir(buildDir: File): ClasspathSnapshotBasedIncrementalJvmCompilationConfiguration {
+        super.setBuildDir(buildDir)
         return this
     }
 
@@ -99,6 +128,11 @@ internal class ClasspathSnapshotBasedIncrementalJvmCompilationConfigurationImpl(
 
     override fun assureNoClasspathSnapshotsChanges(value: Boolean): ClasspathSnapshotBasedIncrementalJvmCompilationConfiguration {
         assuredNoClasspathSnapshotsChanges = value
+        return this
+    }
+
+    override fun useOutputDirs(outputDirs: Collection<File>): ClasspathSnapshotBasedIncrementalJvmCompilationConfiguration {
+        super.useOutputDirs(outputDirs)
         return this
     }
 }

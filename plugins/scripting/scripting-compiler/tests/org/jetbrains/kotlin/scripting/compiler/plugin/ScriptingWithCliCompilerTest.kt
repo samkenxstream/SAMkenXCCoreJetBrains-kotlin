@@ -71,28 +71,20 @@ class ScriptingWithCliCompilerTest {
         runWithK2JVMCompiler(
             arrayOf(
                 "-cp", getMainKtsClassPath().joinToString(File.pathSeparator),
-                "-expression",
-                "\\@file:CompilerOptions(\"-Xunknown1\")"
+                "-expression=@file:CompilerOptions(\"-Xunknown1\")"
             ),
             expectedExitCode = 1,
             expectedSomeErrPatterns = listOf(
-                "unresolved reference: CompilerOptions"
-            )
+                "unresolved reference\\W*CompilerOptions"
+            ),
         )
-        // it seems not possible to make a one-liner with the annotation, and
-        // annotation is the easiest available distinguishing factor for the .main.kts script
-        // so, considering "expecting an element" error as a success here
         runWithK2JVMCompiler(
             arrayOf(
                 "-cp", getMainKtsClassPath().joinToString(File.pathSeparator),
                 "-Xdefault-script-extension=.main.kts",
-                "-expression",
-                "\\@file:CompilerOptions(\"-Xunknown1\")"
+                "-expression=@file:CompilerOptions(\"-Xunknown1\")"
             ),
-            expectedExitCode = 1,
-            expectedSomeErrPatterns = listOf(
-                "expecting an element"
-            )
+            expectedExitCode = 0,
         )
     }
 
@@ -146,7 +138,7 @@ class ScriptingWithCliCompilerTest {
                 "-expression",
                 "listOf(1,2)"
             ),
-            listOf("\\[1, 2\\]")
+            listOf("\\[1, 2\\]"),
         )
     }
 
@@ -259,6 +251,7 @@ class ScriptingWithCliCompilerTest {
                         arrayOf(
                             "-P", "plugin:kotlin.scripting:disable-script-definitions-autoloading=true",
                             "-cp", getMainKtsClassPath().joinToString(File.pathSeparator), "-d", tmpdir.path,
+                            "-Xuse-fir-lt=false",
                             "-Xallow-any-scripts-in-source-roots", "-verbose", fileArg
                         )
                     )

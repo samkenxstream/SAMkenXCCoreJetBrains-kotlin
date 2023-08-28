@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isActual
+import org.jetbrains.kotlin.fir.expectActualMatchingContextFactory
 import org.jetbrains.kotlin.fir.expressions.FirStatement
 import org.jetbrains.kotlin.fir.languageVersionSettings
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
@@ -18,7 +19,7 @@ import org.jetbrains.kotlin.fir.visitors.FirTransformer
 
 class FirExpectActualMatcherProcessor(
     session: FirSession,
-    scopeSession: ScopeSession
+    scopeSession: ScopeSession,
 ) : FirTransformerBasedResolveProcessor(session, scopeSession, FirResolvePhase.EXPECT_ACTUAL_MATCHING) {
     private val enabled = session.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects)
 
@@ -31,9 +32,14 @@ class FirExpectActualMatcherProcessor(
 }
 
 open class FirExpectActualMatcherTransformer(
-    override val session: FirSession,
-    private val scopeSession: ScopeSession
+    final override val session: FirSession,
+    private val scopeSession: ScopeSession,
 ) : FirAbstractTreeTransformer<Nothing?>(FirResolvePhase.EXPECT_ACTUAL_MATCHING) {
+
+    private val expectActualMatchingContext = session.expectActualMatchingContextFactory.create(
+        session, scopeSession,
+        allowedWritingMemberExpectForActualMapping = true,
+    )
 
     // --------------------------- classifiers ---------------------------
     override fun transformTypeAlias(typeAlias: FirTypeAlias, data: Nothing?): FirStatement {
@@ -63,6 +69,9 @@ open class FirExpectActualMatcherTransformer(
         return constructor
     }
 
+    override fun transformErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: Nothing?) =
+        transformConstructor(errorPrimaryConstructor, data)
+
     override fun transformSimpleFunction(simpleFunction: FirSimpleFunction, data: Nothing?): FirStatement {
         transformMemberDeclaration(simpleFunction)
         return simpleFunction
@@ -85,7 +94,8 @@ open class FirExpectActualMatcherTransformer(
         val expectForActualData = FirExpectActualResolver.findExpectForActual(
             actualSymbol,
             session,
-            scopeSession
+            scopeSession,
+            expectActualMatchingContext,
         ) ?: mapOf()
         memberDeclaration.expectForActual = expectForActualData
     }

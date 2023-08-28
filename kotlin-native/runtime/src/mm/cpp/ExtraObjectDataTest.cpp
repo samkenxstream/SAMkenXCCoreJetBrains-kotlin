@@ -29,7 +29,6 @@ public:
 
     ~ExtraObjectDataTest() {
         mm::GlobalsRegistry::Instance().ClearForTests();
-        mm::GlobalData::Instance().extraObjectDataFactory().ClearForTests();
         mm::GlobalData::Instance().gc().ClearForTests();
     }
 };
@@ -79,7 +78,7 @@ TEST_F(ExtraObjectDataTest, ConcurrentInstall) {
             }
             auto& extraData = mm::ExtraObjectData::Install(object.header());
             actual[i] = &extraData;
-            mm::GlobalData::Instance().threadRegistry().CurrentThreadData()->Publish();
+            mm::GlobalData::Instance().threadRegistry().CurrentThreadData()->gc().PublishObjectFactory();
         });
     }
 

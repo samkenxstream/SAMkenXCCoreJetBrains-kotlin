@@ -264,6 +264,8 @@ sealed class AnnotationStub(val classifier: Classifier) {
     class CEnumVarTypeSize(val size: Int) :
             AnnotationStub(Classifier.topLevel(cinteropInternalPackage, "CEnumVarTypeSize"))
 
+    object ExperimentalForeignApi : AnnotationStub(KotlinTypes.experimentalForeignApi)
+
     private companion object {
         val cCallClassifier = Classifier.topLevel(cinteropInternalPackage, "CCall")
 
@@ -286,7 +288,7 @@ data class PropertyStub(
         val kind: Kind,
         val modality: MemberStubModality = MemberStubModality.FINAL,
         val receiverType: StubType? = null,
-        override val annotations: List<AnnotationStub> = emptyList(),
+        override val annotations: MutableList<AnnotationStub> = mutableListOf(),
         val origin: StubOrigin,
         val isOverride: Boolean = false
 ) : StubIrElement, AnnotationHolder {
@@ -343,11 +345,12 @@ sealed class ClassStub : StubContainer(), StubElementWithOrigin, AnnotationHolde
             override val interfaces: List<StubType> = emptyList(),
             override val properties: List<PropertyStub> = emptyList(),
             override val origin: StubOrigin,
-            override val annotations: List<AnnotationStub> = emptyList(),
+            annotations: List<AnnotationStub> = emptyList(),
             override val childrenClasses: List<ClassStub> = emptyList(),
             override val companion: Companion? = null,
             override val simpleContainers: List<SimpleStubContainer> = emptyList()
     ) : ClassStub() {
+        override val annotations = annotations.toMutableList()
         override val functions: List<FunctionalStub> = constructors + methods
     }
 
@@ -375,11 +378,12 @@ sealed class ClassStub : StubContainer(), StubElementWithOrigin, AnnotationHolde
             override val interfaces: List<StubType> = emptyList(),
             override val properties: List<PropertyStub> = emptyList(),
             override val origin: StubOrigin,
-            override val annotations: List<AnnotationStub> = emptyList(),
+            annotations: List<AnnotationStub> = emptyList(),
             override val childrenClasses: List<ClassStub> = emptyList(),
             override val companion: Companion?= null,
             override val simpleContainers: List<SimpleStubContainer> = emptyList()
     ) : ClassStub() {
+        override val annotations = annotations.toMutableList()
         override val functions: List<FunctionalStub> = constructors
     }
 
@@ -504,7 +508,7 @@ data class FunctionStub(
         val returnType: StubType,
         override val parameters: List<FunctionParameterStub>,
         override val origin: StubOrigin,
-        override val annotations: List<AnnotationStub>,
+        override val annotations: MutableList<AnnotationStub>,
         val external: Boolean = false,
         val receiver: ReceiverParameterStub?,
         val modality: MemberStubModality,
@@ -540,8 +544,9 @@ class EnumEntryStub(
 class TypealiasStub(
         val alias: Classifier,
         val aliasee: StubType,
-        val origin: StubOrigin
-) : StubIrElement {
+        val origin: StubOrigin,
+        override val annotations: MutableList<AnnotationStub> = mutableListOf(),
+) : StubIrElement, AnnotationHolder {
 
     override fun <T, R> accept(visitor: StubIrVisitor<T, R>, data: T) =
         visitor.visitTypealias(this, data)

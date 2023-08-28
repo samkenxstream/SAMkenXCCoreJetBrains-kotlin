@@ -21,6 +21,10 @@ internal class ListBuilder<E> private constructor(
         private val Empty = ListBuilder<Nothing>(0).also { it.isReadOnly = true }
     }
 
+    init {
+        if (backing != null) this.modCount = backing.modCount
+    }
+
     constructor() : this(10)
 
     constructor(initialCapacity: Int) : this(
@@ -40,17 +44,25 @@ internal class ListBuilder<E> private constructor(
             throw NotSerializableException("The list cannot be serialized while it is being built.")
 
     override val size: Int
-        get() = length
+        get() {
+            checkForComodification()
+            return length
+        }
 
-    override fun isEmpty(): Boolean = length == 0
+    override fun isEmpty(): Boolean {
+        checkForComodification()
+        return length == 0
+    }
 
     override fun get(index: Int): E {
+        checkForComodification()
         AbstractList.checkElementIndex(index, length)
         return array[offset + index]
     }
 
     override operator fun set(index: Int, element: E): E {
         checkIsMutable()
+        checkForComodification()
         AbstractList.checkElementIndex(index, length)
         val old = array[offset + index]
         array[offset + index] = element
@@ -58,6 +70,7 @@ internal class ListBuilder<E> private constructor(
     }
 
     override fun indexOf(element: E): Int {
+        checkForComodification()
         var i = 0
         while (i < length) {
             if (array[offset + i] == element) return i
@@ -67,6 +80,7 @@ internal class ListBuilder<E> private constructor(
     }
 
     override fun lastIndexOf(element: E): Int {
+        checkForComodification()
         var i = length - 1
         while (i >= 0) {
             if (array[offset + i] == element) return i
@@ -75,28 +89,32 @@ internal class ListBuilder<E> private constructor(
         return -1
     }
 
-    override fun iterator(): MutableIterator<E> = Itr(this, 0)
-    override fun listIterator(): MutableListIterator<E> = Itr(this, 0)
+    override fun iterator(): MutableIterator<E> = listIterator(0)
+    override fun listIterator(): MutableListIterator<E> = listIterator(0)
 
     override fun listIterator(index: Int): MutableListIterator<E> {
+        checkForComodification()
         AbstractList.checkPositionIndex(index, length)
         return Itr(this, index)
     }
 
     override fun add(element: E): Boolean {
         checkIsMutable()
+        checkForComodification()
         addAtInternal(offset + length, element)
         return true
     }
 
     override fun add(index: Int, element: E) {
         checkIsMutable()
+        checkForComodification()
         AbstractList.checkPositionIndex(index, length)
         addAtInternal(offset + index, element)
     }
 
     override fun addAll(elements: Collection<E>): Boolean {
         checkIsMutable()
+        checkForComodification()
         val n = elements.size
         addAllInternal(offset + length, elements, n)
         return n > 0
@@ -104,6 +122,7 @@ internal class ListBuilder<E> private constructor(
 
     override fun addAll(index: Int, elements: Collection<E>): Boolean {
         checkIsMutable()
+        checkForComodification()
         AbstractList.checkPositionIndex(index, length)
         val n = elements.size
         addAllInternal(offset + index, elements, n)
@@ -112,17 +131,20 @@ internal class ListBuilder<E> private constructor(
 
     override fun clear() {
         checkIsMutable()
+        checkForComodification()
         removeRangeInternal(offset, length)
     }
 
     override fun removeAt(index: Int): E {
         checkIsMutable()
+        checkForComodification()
         AbstractList.checkElementIndex(index, length)
         return removeAtInternal(offset + index)
     }
 
     override fun remove(element: E): Boolean {
         checkIsMutable()
+        checkForComodification()
         val i = indexOf(element)
         if (i >= 0) removeAt(i)
         return i >= 0
@@ -130,11 +152,13 @@ internal class ListBuilder<E> private constructor(
 
     override fun removeAll(elements: Collection<E>): Boolean {
         checkIsMutable()
+        checkForComodification()
         return retainOrRemoveAllInternal(offset, length, elements, false) > 0
     }
 
     override fun retainAll(elements: Collection<E>): Boolean {
         checkIsMutable()
+        checkForComodification()
         return retainOrRemoveAllInternal(offset, length, elements, true) > 0
     }
 
@@ -144,6 +168,7 @@ internal class ListBuilder<E> private constructor(
     }
 
     override fun <T> toArray(destination: Array<T>): Array<T> {
+        checkForComodification()
         if (destination.size < length) {
             return java.util.Arrays.copyOfRange(array, offset, offset + length, destination.javaClass)
         }
@@ -151,36 +176,40 @@ internal class ListBuilder<E> private constructor(
         @Suppress("UNCHECKED_CAST")
         (array as Array<T>).copyInto(destination, 0, startIndex = offset, endIndex = offset + length)
 
-        if (destination.size > length) {
-            @Suppress("UNCHECKED_CAST")
-            destination[length] = null as T // null-terminate
-        }
-
-        return destination
+        return terminateCollectionToArray(length, destination)
     }
 
     override fun toArray(): Array<Any?> {
+        checkForComodification()
         @Suppress("UNCHECKED_CAST")
         return array.copyOfRange(fromIndex = offset, toIndex = offset + length) as Array<Any?>
     }
 
     override fun equals(other: Any?): Boolean {
+        checkForComodification()
         return other === this ||
                 (other is List<*>) && contentEquals(other)
     }
 
     override fun hashCode(): Int {
+        checkForComodification()
         return array.subarrayContentHashCode(offset, length)
     }
 
     override fun toString(): String {
-        return array.subarrayContentToString(offset, length)
+        checkForComodification()
+        return array.subarrayContentToString(offset, length, this)
     }
 
     // ---------------------------- private ----------------------------
 
     private fun registerModification() {
         modCount += 1
+    }
+
+    private fun checkForComodification() {
+        if (root != null && root.modCount != modCount)
+            throw ConcurrentModificationException()
     }
 
     private fun checkIsMutable() {
@@ -359,13 +388,18 @@ internal fun <E> arrayOfUninitializedElements(size: Int): Array<E> {
     return arrayOfNulls<Any?>(size) as Array<E>
 }
 
-private fun <T> Array<out T>.subarrayContentToString(offset: Int, length: Int): String {
+private fun <T> Array<out T>.subarrayContentToString(offset: Int, length: Int, thisCollection: Collection<T>): String {
     val sb = StringBuilder(2 + length * 3)
     sb.append("[")
     var i = 0
     while (i < length) {
         if (i > 0) sb.append(", ")
-        sb.append(this[offset + i])
+        val nextElement = this[offset + i]
+        if (nextElement === thisCollection) {
+            sb.append("(this Collection)")
+        } else {
+            sb.append(nextElement)
+        }
         i++
     }
     sb.append("]")

@@ -8,14 +8,21 @@ package org.jetbrains.kotlin.analysis.test.framework.services
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiWhiteSpace
+import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.kotlin.analysis.test.framework.project.structure.ktModuleProvider
 import org.jetbrains.kotlin.analysis.utils.printer.parentOfType
-import org.jetbrains.kotlin.fir.PrivateForInline
+import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
 import org.jetbrains.kotlin.psi.psiUtil.collectDescendantsOfType
 import org.jetbrains.kotlin.psi.psiUtil.elementsInRange
+import org.jetbrains.kotlin.psi.psiUtil.endOffset
+import org.jetbrains.kotlin.psi.psiUtil.parents
+import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
+import org.jetbrains.kotlin.psi.psiUtil.startOffset
+import org.jetbrains.kotlin.test.directives.model.RegisteredDirectives
 import org.jetbrains.kotlin.test.directives.model.SimpleDirectivesContainer
+import org.jetbrains.kotlin.test.directives.model.singleOrZeroValue
 import org.jetbrains.kotlin.test.model.TestFile
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.SourceFilePreprocessor
@@ -23,6 +30,7 @@ import org.jetbrains.kotlin.test.services.TestModuleStructure
 import org.jetbrains.kotlin.test.services.TestService
 import org.jetbrains.kotlin.test.services.TestServices
 import org.jetbrains.kotlin.utils.addToStdlib.firstIsInstance
+import kotlin.reflect.KClass
 
 internal class ExpressionMarkersSourceFilePreprocessor(testServices: TestServices) : SourceFilePreprocessor(testServices) {
     override fun process(file: TestFile, content: String): String {
@@ -82,20 +90,36 @@ class ExpressionMarkerProvider : TestService {
     }
 
     @OptIn(PrivateForInline::class)
-    fun getCaretPosition(file: KtFile, caretTag: String? = null): Int {
+    fun getCaretPositionOrNull(file: KtFile, caretTag: String? = null): Int? {
         return carets.getCaretOffset(file.name, caretTag)
+    }
+
+    fun getCaretPosition(file: KtFile, caretTag: String? = null): Int {
+        return getCaretPositionOrNull(file, caretTag)
             ?: run {
                 val caretName = "caret${caretTag?.let { "_$it" }.orEmpty()}"
                 error("No <$caretName> found in file")
             }
-
     }
+
 
     inline fun <reified P : KtElement> getElementOfTypeAtCaret(file: KtFile, caretTag: String? = null): P {
         val offset = getCaretPosition(file, caretTag)
         return file.findElementAt(offset)
             ?.parentOfType()
             ?: error("No expression found at caret")
+    }
+
+    inline fun <reified P : KtElement> getElementOfTypeAtCaretByDirective(
+        file: KtFile,
+        registeredDirectives: RegisteredDirectives,
+        caretTag: String? = null,
+    ): P {
+        val elementAtCaret = getElementOfTypeAtCaret<P>(file, caretTag)
+        val expectedType = expectedTypeClass(registeredDirectives) ?: return elementAtCaret
+        return (elementAtCaret as PsiElement).parentsWithSelf.firstNotNullOfOrNull { currentElement ->
+            currentElement.takeIf(expectedType::isInstance) as? P
+        } ?: error("Element of ${P::class.simpleName} & ${expectedType.simpleName} is not found")
     }
 
     @OptIn(PrivateForInline::class)
@@ -124,24 +148,72 @@ class ExpressionMarkerProvider : TestService {
 
     }
 
-    fun getSelectedElement(file: KtFile): KtElement {
-        val range = selected[file.name]
-            ?: error("No selected expression found in file")
+    fun getSelectedElementOrElementAtCaretOfTypeByDirective(
+        ktFile: KtFile,
+        module: TestModule,
+        defaultType: KClass<out PsiElement>? = null,
+        caretTag: String? = null,
+    ): PsiElement {
+        val expectedClass = expectedTypeClass(module.directives) ?: defaultType?.java
+        return getSelectedElementOfClassOrNull(ktFile, expectedClass)
+            ?: getElementOfClassAtCaretOrNull(ktFile, expectedClass, caretTag)
+            ?: error("Neither ${ExpressionMarkersSourceFilePreprocessor.TAGS.OPENING_EXPRESSION_TAG} marker nor <caret> were found in file")
+    }
+
+    private fun getSelectedElementOfClassOrNull(
+        ktFile: KtFile,
+        expectedClass: Class<out PsiElement>?,
+    ): PsiElement? {
+        val selectedElement = getSelectedElementOrNull(ktFile) ?: return null
+        if (expectedClass == null) return selectedElement
+        return findDescendantOfTheSameRangeOfType(selectedElement, expectedClass)
+    }
+
+
+    private fun getElementOfClassAtCaretOrNull(
+        ktFile: KtFile,
+        expectedClass: Class<out PsiElement>?,
+        caretTag: String? = null,
+    ): PsiElement? {
+        val caretPosition = getCaretPositionOrNull(ktFile, caretTag) ?: return null
+        val elementAtPosition = ktFile.findElementAt(caretPosition) ?: return null
+        if (expectedClass == null) return elementAtPosition
+        return PsiTreeUtil.getParentOfType(elementAtPosition, expectedClass, /*strict*/false)
+    }
+
+
+    fun getSelectedElementOrNull(file: KtFile): PsiElement? {
+        val range = selected[file.name] ?: return null
         val elements = file.elementsInRange(range).trimWhitespaces()
         if (elements.size != 1) {
             error("Expected one element at rage but found ${elements.size} [${elements.joinToString { it::class.simpleName + ": " + it.text }}]")
         }
-        return elements.single() as KtElement
+        return elements.single()
+    }
+
+    fun getSelectedElement(file: KtFile): PsiElement {
+        return getSelectedElementOrNull(file)
+            ?: error("No selected expression found in file")
+    }
+
+    fun expectedTypeClass(registeredDirectives: RegisteredDirectives): Class<PsiElement>? {
+        val expectedType = registeredDirectives.singleOrZeroValue(Directives.LOOK_UP_FOR_ELEMENT_OF_TYPE) ?: return null
+        val ktPsiPackage = "org.jetbrains.kotlin.psi."
+        val expectedTypeFqName = ktPsiPackage + expectedType.removePrefix(ktPsiPackage)
+
+        @Suppress("UNCHECKED_CAST")
+        return Class.forName(expectedTypeFqName) as Class<PsiElement>
     }
 
     fun getSelectedElementOfTypeByDirective(ktFile: KtFile, module: TestModule): PsiElement {
         val selectedElement = getSelectedElement(ktFile)
-        val expectedType = module.directives[Directives.LOOK_UP_FOR_ELEMENT_OF_TYPE].firstOrNull() ?: return selectedElement
-        val ktPsiPackage = "org.jetbrains.kotlin.psi."
-        val expectedTypeFqName = ktPsiPackage + expectedType.removePrefix(ktPsiPackage)
-        @Suppress("UNCHECKED_CAST") val expectedClass = Class.forName(expectedTypeFqName) as Class<PsiElement>
-        if (expectedClass.isInstance(selectedElement)) return selectedElement
+        val expectedType = expectedTypeClass(module.directives) ?: return selectedElement
+        if (expectedType.isInstance(selectedElement)) return selectedElement
 
+        return findDescendantOfTheSameRangeOfType(selectedElement, expectedType)
+    }
+
+    private fun findDescendantOfTheSameRangeOfType(selectedElement: PsiElement, expectedClass: Class<out PsiElement>): PsiElement {
         return selectedElement.collectDescendantsOfType<PsiElement> {
             expectedClass.isInstance(it)
         }.single { it.textRange == selectedElement.textRange }
@@ -150,10 +222,31 @@ class ExpressionMarkerProvider : TestService {
     inline fun <reified E : KtElement> getSelectedElementOfType(file: KtFile): E {
         return when (val selected = getSelectedElement(file)) {
             is E -> selected
-            else -> generateSequence(selected as PsiElement) { current ->
+            else -> generateSequence(selected) { current ->
                 current.children.singleOrNull()?.takeIf { it.textRange == current.textRange }
             }.firstIsInstance()
         }
+    }
+
+    /**
+     * Find the bottommost element of an [elementType] or its subtype located precisely in the [range].
+     */
+    private fun <T : PsiElement> getBottommostElementOfTypeInRange(file: KtFile, range: TextRange, elementType: Class<T>): T {
+        var candidate = PsiTreeUtil.findElementOfClassAtOffset(file, range.startOffset, elementType, true)
+        while (candidate != null && candidate.endOffset < range.endOffset) {
+            candidate = PsiTreeUtil.getParentOfType(candidate, elementType)?.takeIf { it.startOffset == range.startOffset }
+        }
+
+        return candidate?.takeIf { it.endOffset == range.endOffset }
+            ?: error("Cannot find '${elementType.name}' in range $range")
+    }
+
+    /**
+     * Find the bottommost element of [E] or its subtype wrapped in an '<expr>' selection tag.
+     */
+    fun <E : KtElement> getBottommostSelectedElementOfType(file: KtFile, elementType: Class<E>): E {
+        val range = selected[file.name] ?: error("No selected expression found in file")
+        return getBottommostElementOfTypeInRange(file, range, elementType)
     }
 
     private fun List<PsiElement>.trimWhitespaces(): List<PsiElement> =

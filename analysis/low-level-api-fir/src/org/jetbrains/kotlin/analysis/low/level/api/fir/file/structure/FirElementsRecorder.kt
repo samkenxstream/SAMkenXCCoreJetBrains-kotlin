@@ -119,7 +119,7 @@ internal open class FirElementsRecorder : FirVisitor<Unit, MutableMap<KtElement,
         userTypeRef.acceptChildren(this, data)
     }
 
-    private fun cacheElement(element: FirElement, cache: MutableMap<KtElement, FirElement>) {
+    protected fun cacheElement(element: FirElement, cache: MutableMap<KtElement, FirElement>) {
         val psi = element.source
             ?.takeIf {
                 it is KtRealPsiSourceElement ||
@@ -215,9 +215,10 @@ internal open class FirElementsRecorder : FirVisitor<Unit, MutableMap<KtElement,
         return buildConstExpression(
             original.ktConstantExpression?.toKtPsiSourceElement(),
             this,
-            convertedValue as T
+            convertedValue as T,
+            setType = false
         ).also {
-            it.replaceTypeRef(original.typeRef)
+            it.replaceConeTypeOrNull(original.coneTypeOrNull)
         }
     }
 

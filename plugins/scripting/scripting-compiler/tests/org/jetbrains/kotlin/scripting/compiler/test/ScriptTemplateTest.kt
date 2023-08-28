@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.script.loadScriptingPlugin
 import org.jetbrains.kotlin.scripting.compiler.plugin.TestMessageCollector
 import org.jetbrains.kotlin.scripting.compiler.plugin.assertHasMessage
+import org.jetbrains.kotlin.scripting.compiler.plugin.expectTestToFailOnK2
 import org.jetbrains.kotlin.scripting.compiler.plugin.updateWithBaseCompilerArguments
 import org.jetbrains.kotlin.scripting.configuration.ScriptingConfigurationKeys
 import org.jetbrains.kotlin.scripting.definitions.KotlinScriptDefinition
@@ -119,7 +120,8 @@ class ScriptTemplateTest : TestCase() {
         assertEqualsTrimmed(NUM_4_LINE + FIB_SCRIPT_OUTPUT_TAIL, out)
     }
 
-    fun testScriptWithoutParams() {
+    // Fails on K2, see KT-60452
+    fun testScriptWithoutParams() = expectTestToFailOnK2 {
         val messageCollector = TestMessageCollector()
         val aClass = compileScript("without_params.kts", ScriptWithoutParams::class, null, messageCollector = messageCollector)
         Assert.assertNotNull("Compilation failed:\n$messageCollector", aClass)

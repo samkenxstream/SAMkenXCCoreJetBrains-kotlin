@@ -33,7 +33,6 @@ import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.load.java.JavaDescriptorVisibilities
 import org.jetbrains.kotlin.name.NameUtils
-import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmBackendErrors
 
 private var patchParentPhases = 0
 
@@ -305,7 +304,7 @@ internal val functionInliningPhase = makeIrModulePhase(
 
         FunctionInlining(
             context, JvmInlineFunctionResolver(), context.innerClassesSupport,
-            inlinePureArguments = false,
+            alwaysCreateTemporaryVariablesForArguments = true,
             regenerateInlinedAnonymousObjects = true,
             inlineArgumentsWithTheirOriginalTypeAndOffset = true
         )
@@ -327,20 +326,18 @@ private val apiVersionIsAtLeastEvaluationPhase = makeIrModulePhase(
     prerequisite = setOf(functionInliningPhase)
 )
 
-private val constEvaluationPhase = makeIrModulePhase<JvmBackendContext>(
-    {
-        ConstEvaluationLowering(
-            it,
-            onWarning = { irFile, element, warning ->
-                it.ktDiagnosticReporter.at(element, irFile)
-                    .report(JvmBackendErrors.EXCEPTION_IN_CONST_EXPRESSION, warning.description)
-            },
-            onError = { irFile, element, error ->
-                it.ktDiagnosticReporter.at(element, irFile)
-                    .report(JvmBackendErrors.EXCEPTION_IN_CONST_VAL_INITIALIZER, error.description)
-            }
-        )
+private val inlinedClassReferencesBoxingPhase = makeIrModulePhase(
+    { context ->
+        if (!context.irInlinerIsEnabled()) return@makeIrModulePhase FileLoweringPass.Empty
+        InlinedClassReferencesBoxingLowering(context)
     },
+    name = "InlinedClassReferencesBoxingLowering",
+    description = "Replace inlined primitive types in class references with boxed versions",
+    prerequisite = setOf(functionInliningPhase, markNecessaryInlinedClassesAsRegenerated)
+)
+
+private val constEvaluationPhase = makeIrModulePhase<JvmBackendContext>(
+    ::ConstEvaluationLowering,
     name = "ConstEvaluationLowering",
     description = "Evaluate functions that are marked as `IntrinsicConstEvaluation`"
 )
@@ -455,8 +452,8 @@ private val jvmFilePhases = listOf(
     replaceNumberToCharCallSitesPhase,
 
     renameFieldsPhase,
-    fakeInliningLocalVariablesLowering,
-    fakeInliningLocalVariablesAfterInlineLowering,
+    fakeLocalVariablesForBytecodeInlinerLowering,
+    fakeLocalVariablesForIrInlinerLowering,
 
     // makePatchParentsPhase()
 )
@@ -473,7 +470,8 @@ private fun buildJvmLoweringPhases(
         nlevels = 1,
         actions = setOf(defaultDumper, validationAction),
         lower =
-        fragmentSharedVariablesLowering then
+        externalPackageParentPatcherPhase then
+                fragmentSharedVariablesLowering then
                 validateIrBeforeLowering then
                 processOptionalAnnotationsPhase then
                 expectDeclarationsRemovingPhase then
@@ -488,6 +486,7 @@ private fun buildJvmLoweringPhases(
                 apiVersionIsAtLeastEvaluationPhase then
                 createSeparateCallForInlinedLambdas then
                 markNecessaryInlinedClassesAsRegenerated then
+                inlinedClassReferencesBoxingPhase then
 
                 buildLoweringsPhase(phases) then
                 generateMultifileFacadesPhase then

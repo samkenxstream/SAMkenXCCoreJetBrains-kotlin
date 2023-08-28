@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.lazyDeclarationResolver
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitorVoid
 import org.jetbrains.kotlin.name.FqNameUnsafe
@@ -43,6 +44,7 @@ import org.jetbrains.kotlin.test.directives.DiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.LanguageSettingsDirectives
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
+import org.jetbrains.kotlin.test.directives.model.SimpleDirective
 import org.jetbrains.kotlin.test.directives.model.singleValue
 import org.jetbrains.kotlin.test.frontend.fir.FirOutputArtifact
 import org.jetbrains.kotlin.test.model.TestFile
@@ -53,6 +55,31 @@ import org.jetbrains.kotlin.test.utils.AbstractTwoAttributesMetaInfoProcessor
 import org.jetbrains.kotlin.test.utils.MultiModuleInfoDumper
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
+
+class FullDiagnosticsRenderer(private val directive: SimpleDirective) {
+    private val dumper: MultiModuleInfoDumper = MultiModuleInfoDumper(moduleHeaderTemplate = "// -- Module: <%s> --")
+
+    fun assertCollectedDiagnostics(testServices: TestServices, expectedExtension: String) {
+        if (dumper.isEmpty()) return
+        val resultDump = dumper.generateResultingDump()
+        val testDataFile = testServices.moduleStructure.originalTestDataFiles.first()
+        val expectedFile = testDataFile.parentFile.resolve("${testDataFile.nameWithoutExtension.removeSuffix(".fir")}$expectedExtension")
+        testServices.assertions.assertEqualsToFile(expectedFile, resultDump)
+    }
+
+    fun storeFullDiagnosticRender(module: TestModule, diagnostics: List<KtDiagnostic>, file: TestFile) {
+        if (directive !in module.directives) return
+        if (diagnostics.isEmpty()) return
+
+        val reportedDiagnostics = diagnostics.sortedBy { it.textRanges.first().startOffset }.map {
+            val severity = AnalyzerWithCompilerReport.convertSeverity(it.severity).toString().toLowerCaseAsciiOnly()
+            val message = RootDiagnosticRendererFactory(it).render(it)
+            "/${file.name}:${it.textRanges.first()}: $severity: $message"
+        }
+
+        dumper.builderForModule(module).appendLine(reportedDiagnostics.joinToString(separator = "\n\n"))
+    }
+}
 
 @OptIn(SymbolInternals::class)
 class FirDiagnosticsHandler(testServices: TestServices) : FirAnalysisHandler(testServices) {
@@ -68,21 +95,19 @@ class FirDiagnosticsHandler(testServices: TestServices) : FirAnalysisHandler(tes
     override val additionalServices: List<ServiceRegistrationData> =
         listOf(service(::DiagnosticsService))
 
-    private val dumper: MultiModuleInfoDumper = MultiModuleInfoDumper(moduleHeaderTemplate = "// -- Module: <%s> --")
+    private val fullDiagnosticsRenderer = FullDiagnosticsRenderer(DiagnosticsDirectives.RENDER_DIAGNOSTICS_FULL_TEXT)
 
     override fun processAfterAllModules(someAssertionWasFailed: Boolean) {
-        if (dumper.isEmpty()) return
-        val resultDump = dumper.generateResultingDump()
-        val testDataFile = testServices.moduleStructure.originalTestDataFiles.first()
-        val expectedFile = testDataFile.parentFile.resolve("${testDataFile.nameWithoutFirExtension}.fir.diag.txt")
-        assertions.assertEqualsToFile(expectedFile, resultDump)
+        fullDiagnosticsRenderer.assertCollectedDiagnostics(testServices, ".fir.diag.txt")
     }
 
     override fun processModule(module: TestModule, info: FirOutputArtifact) {
         for (part in info.partsForDependsOnModules) {
-            val diagnosticsPerFile = part.firAnalyzerFacade.runCheckers()
-            val currentModule = part.module
+            val firAnalyzerFacade = part.firAnalyzerFacade
+            val lazyDeclarationResolver = firAnalyzerFacade.result.outputs.single().session.lazyDeclarationResolver
+            val diagnosticsPerFile = lazyDeclarationResolver.disableLazyResolveContractChecksInside { firAnalyzerFacade.runCheckers() }
 
+            val currentModule = part.module
             val lightTreeComparingModeEnabled = FirDiagnosticsDirectives.COMPARE_WITH_LIGHT_TREE in currentModule.directives
             val lightTreeEnabled = currentModule.directives.singleValue(FirDiagnosticsDirectives.FIR_PARSER) == FirParser.LightTree
             val forceRenderArguments = FirDiagnosticsDirectives.RENDER_DIAGNOSTICS_MESSAGES in currentModule.directives
@@ -106,7 +131,7 @@ class FirDiagnosticsHandler(testServices: TestServices) : FirAnalysisHandler(tes
                 globalMetadataInfoHandler.addMetadataInfosForFile(file, diagnosticsMetadataInfos)
                 collectSyntaxDiagnostics(currentModule, file, firFile, lightTreeEnabled, lightTreeComparingModeEnabled, forceRenderArguments)
                 collectDebugInfoDiagnostics(currentModule, file, firFile, lightTreeEnabled, lightTreeComparingModeEnabled)
-                checkFullDiagnosticRender(module, diagnostics, file)
+                fullDiagnosticsRenderer.storeFullDiagnosticRender(module, diagnostics, file)
             }
         }
     }
@@ -187,7 +212,7 @@ class FirDiagnosticsHandler(testServices: TestServices) : FirAnalysisHandler(tes
                 val calleeDeclaration = element.calleeReference.toResolvedCallableSymbol() ?: return
                 val isInvokeCallWithDynamicReceiver = calleeDeclaration.name == OperatorNameConventions.INVOKE
                         && element is FirQualifiedAccessExpression
-                        && element.dispatchReceiver.typeRef.isFunctionTypeWithDynamicReceiver(firFile.moduleData.session)
+                        && element.dispatchReceiver.coneTypeOrNull?.isFunctionTypeWithDynamicReceiver(firFile.moduleData.session) == true
 
                 if (calleeDeclaration.origin !is FirDeclarationOrigin.DynamicScope && !isInvokeCallWithDynamicReceiver) {
                     return
@@ -268,10 +293,9 @@ class FirDiagnosticsHandler(testServices: TestServices) : FirAnalysisHandler(tes
 
     private fun DebugDiagnosticConsumer.reportExpressionTypeDiagnostic(element: FirExpression) {
         report(DebugInfoDiagnosticFactory1.EXPRESSION_TYPE, element) {
-            val originalTypeRef = (element as? FirSmartCastExpression)?.takeIf { it.isStable }?.originalExpression?.typeRef
 
-            val type = element.typeRef.coneTypeSafe<ConeKotlinType>()
-            val originalType = originalTypeRef?.coneTypeSafe<ConeKotlinType>()
+            val type = element.coneTypeSafe<ConeKotlinType>()
+            val originalType = (element as? FirSmartCastExpression)?.takeIf { it.isStable }?.originalExpression?.coneTypeOrNull
 
             if (type != null && originalType != null) {
                 "${originalType.renderForDebugInfo()} & ${type.renderForDebugInfo()}"
@@ -337,19 +361,6 @@ class FirDiagnosticsHandler(testServices: TestServices) : FirAnalysisHandler(tes
         is FirCallableSymbol<*> -> callableId.asFqNameForDebugInfo().toUnsafe()
         else -> null
     }
-
-    private fun checkFullDiagnosticRender(module: TestModule, diagnostics: List<KtDiagnostic>, file: TestFile) {
-        if (DiagnosticsDirectives.RENDER_DIAGNOSTICS_FULL_TEXT !in module.directives) return
-        if (diagnostics.isEmpty()) return
-
-        val reportedDiagnostics = diagnostics.sortedBy { it.textRanges.first().startOffset }.map {
-            val severity = AnalyzerWithCompilerReport.convertSeverity(it.severity).toString().toLowerCaseAsciiOnly()
-            val message = RootDiagnosticRendererFactory(it).render(it)
-            "/${file.name}:${it.textRanges.first()}: $severity: $message"
-        }
-
-        dumper.builderForModule(module).appendLine(reportedDiagnostics.joinToString(separator = "\n\n"))
-    }
 }
 
 fun List<KtDiagnostic>.diagnosticCodeMetaInfos(
@@ -377,9 +388,6 @@ fun List<KtDiagnostic>.diagnosticCodeMetaInfos(
         forceRenderArguments,
     )
 }
-
-private fun FirTypeRef.isFunctionTypeWithDynamicReceiver(session: FirSession) =
-    coneTypeSafe<ConeKotlinType>()?.isFunctionTypeWithDynamicReceiver(session) == true
 
 private fun ConeKotlinType.isFunctionTypeWithDynamicReceiver(session: FirSession): Boolean {
     val hasExplicitDynamicReceiver = receiverType(session) is ConeDynamicType

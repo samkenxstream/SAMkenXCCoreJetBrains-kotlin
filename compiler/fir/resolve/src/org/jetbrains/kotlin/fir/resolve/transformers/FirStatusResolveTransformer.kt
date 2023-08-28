@@ -17,17 +17,16 @@ import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.LocalClassesNavigationInfo
 import org.jetbrains.kotlin.fir.scopes.FirCompositeScope
 import org.jetbrains.kotlin.fir.scopes.FirScope
-import org.jetbrains.kotlin.fir.symbols.impl.FirAnonymousObjectSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirTypeAliasSymbol
-import org.jetbrains.kotlin.fir.symbols.impl.FirTypeParameterSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhaseWithCallableMembers
 import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.toSymbol
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.fir.visitors.transformSingle
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.util.PrivateForInline
 
 class FirStatusResolveProcessor(
     session: FirSession,
@@ -285,7 +284,9 @@ abstract class AbstractFirStatusResolveTransformer(
             is FirRegularClass -> declaration.declarations
             is FirAnonymousObject -> declaration.declarations
             is FirFile -> declaration.declarations
-            else -> error("Not supported declaration ${declaration::class.simpleName}")
+            else -> errorWithAttachment("Unsupported declaration: ${declaration::class.java}") {
+                withFirEntry("declaration", declaration)
+            }
         }
 
         if (declaration.needResolveMembers()) {
@@ -416,6 +417,9 @@ abstract class AbstractFirStatusResolveTransformer(
         constructor.transformStatus(this, statusResolver.resolveStatus(constructor, containingClass, isLocal = false))
         return transformDeclaration(constructor, data) as FirStatement
     }
+
+    override fun transformErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: FirResolvedDeclarationStatus?) =
+        transformConstructor(errorPrimaryConstructor, data)
 
     override fun transformSimpleFunction(
         simpleFunction: FirSimpleFunction,

@@ -7,10 +7,7 @@ package org.jetbrains.kotlin.mainKts.test
 
 import org.jetbrains.kotlin.mainKts.COMPILED_SCRIPTS_CACHE_DIR_ENV_VAR
 import org.jetbrains.kotlin.mainKts.COMPILED_SCRIPTS_CACHE_DIR_PROPERTY
-import org.jetbrains.kotlin.scripting.compiler.plugin.runAndCheckResults
-import org.jetbrains.kotlin.scripting.compiler.plugin.runWithK2JVMCompiler
-import org.jetbrains.kotlin.scripting.compiler.plugin.runWithKotlinLauncherScript
-import org.jetbrains.kotlin.scripting.compiler.plugin.runWithKotlinc
+import org.jetbrains.kotlin.scripting.compiler.plugin.*
 import org.jetbrains.kotlin.utils.KotlinPaths
 import org.jetbrains.kotlin.utils.PathUtil
 import org.junit.Assert
@@ -147,7 +144,7 @@ class MainKtsIT {
         val serializationPlugin = paths.jar(KotlinPaths.Jar.SerializationPlugin)
         runWithKotlinc(
             arrayOf(
-                "-Xplugin", serializationPlugin.absolutePath,
+                "-Xplugin=${serializationPlugin.absolutePath}",
                 "-cp", paths.jar(KotlinPaths.Jar.MainKts).absolutePath,
                 "-script", File("$TEST_DATA_ROOT/hello-kotlinx-serialization.main.kts").absolutePath
             ),
@@ -185,11 +182,13 @@ fun runWithKotlinRunner(
     scriptPath: String,
     expectedOutPatterns: List<String> = emptyList(),
     expectedExitCode: Int = 0,
-    cacheDir: Path? = null
+    cacheDir: Path? = null,
+    expectErrorOnK2: Boolean = false
 ) {
     runWithKotlinLauncherScript(
         "kotlin", listOf(scriptPath), expectedOutPatterns, expectedExitCode,
-        additionalEnvVars = listOf(COMPILED_SCRIPTS_CACHE_DIR_ENV_VAR to (cacheDir?.toAbsolutePath()?.toString() ?: ""))
+        additionalEnvVars = listOf(COMPILED_SCRIPTS_CACHE_DIR_ENV_VAR to (cacheDir?.toAbsolutePath()?.toString() ?: "")),
+        expectErrorOnK2 = expectErrorOnK2
     )
 }
 

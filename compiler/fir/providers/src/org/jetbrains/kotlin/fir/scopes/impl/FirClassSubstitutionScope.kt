@@ -24,8 +24,10 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 class FirClassSubstitutionScope(
     private val session: FirSession,
@@ -67,14 +69,17 @@ class FirClassSubstitutionScope(
         processDirectOverriddenCallablesWithBaseScope: FirTypeScope.(D, ((D, FirTypeScope) -> ProcessorAction)) -> ProcessorAction,
         originalInCache: (D) -> Boolean
     ): ProcessorAction {
-        val original = callableSymbol.originalForSubstitutionOverride?.takeIf { originalInCache(it) }
-            ?: return useSiteMemberScope.processDirectOverriddenCallablesWithBaseScope(callableSymbol, processor)
+        val original = callableSymbol.originalForSubstitutionOverride
 
-        if (original != callableSymbol) {
-            if (!processor(original, useSiteMemberScope)) return ProcessorAction.STOP
+        return when {
+            original == null || !originalInCache(original) -> {
+                useSiteMemberScope.processDirectOverriddenCallablesWithBaseScope(callableSymbol, processor)
+            }
+            else -> when {
+                !processor(original, useSiteMemberScope) -> ProcessorAction.STOP
+                else -> ProcessorAction.NONE
+            }
         }
-
-        return useSiteMemberScope.processDirectOverriddenCallablesWithBaseScope(original, processor)
     }
 
     override fun processPropertiesByName(name: Name, processor: (FirVariableSymbol<*>) -> Unit) {
@@ -365,7 +370,9 @@ class FirSubstitutionOverrideStorage(val session: FirSession) : FirSessionCompon
                 when (original) {
                     is FirPropertySymbol -> scope.createSubstitutionOverrideProperty(original)
                     is FirFieldSymbol -> scope.createSubstitutionOverrideField(original)
-                    else -> error("symbol $original is not overridable")
+                    else -> errorWithAttachment("symbol ${original::class.java} is not overridable") {
+                        withFirEntry("original", original.fir)
+                    }
                 }
             }
     }

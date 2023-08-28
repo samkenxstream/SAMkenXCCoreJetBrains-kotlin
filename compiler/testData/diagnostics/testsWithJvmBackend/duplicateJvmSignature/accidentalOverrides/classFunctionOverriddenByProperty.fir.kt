@@ -3,6 +3,6 @@ open class B {
 }
 
 class C : B() {
-    <!ACCIDENTAL_OVERRIDE!>val x: Int<!>
-        get() = 1
+    <!ACCIDENTAL_OVERRIDE!>val x: Int
+        get() = 1<!>
 }

@@ -86,6 +86,14 @@ object DiagnosticsDirectives : SimpleDirectivesContainer() {
     )
 
     val RENDER_DIAGNOSTICS_FULL_TEXT by directive(
-        description = "Render diagnostic texts to .diag.txt"
+        description = "Render frontend diagnostic texts to .diag.txt"
+    )
+
+    val RENDER_ALL_DIAGNOSTICS_FULL_TEXT by directive(
+        description = "Render both frontend and backend diagnostic texts to .diag.txt"
+    )
+
+    val RENDER_IR_DIAGNOSTICS_FULL_TEXT by directive(
+        description = "Render IR diagnostic texts to .ir.diag.txt"
     )
 }

@@ -15,7 +15,15 @@ data class Tag<out RenderingT : Any?> {
   }
 
   fun copy(action: Function1<RenderingT, Unit> = <this>.#action): Tag<RenderingT> {
-    return Tag<Any>(action = action)
+    return Tag<RenderingT>(action = action)
+  }
+
+  override fun toString(): String {
+    return "Tag(" + "action=" + <this>.#action + ")"
+  }
+
+  override fun hashCode(): Int {
+    return <this>.#action.hashCode()
   }
 
   override operator fun equals(other: Any?): Boolean {
@@ -32,18 +40,10 @@ data class Tag<out RenderingT : Any?> {
     return true
   }
 
-  override fun hashCode(): Int {
-    return <this>.#action.hashCode()
-  }
-
-  override fun toString(): String {
-    return "Tag(" + "action=" + <this>.#action + ")"
-  }
-
 }
 
 fun getTag(): Tag<*> {
-  return throw Exception()
+  throw Exception()
 }
 
 fun doAction() {

@@ -6,23 +6,27 @@
 package org.jetbrains.kotlin.gradle.tasks.configuration
 
 import org.gradle.api.Project
+import org.gradle.api.artifacts.transform.TransformSpec
 import org.gradle.api.attributes.Attribute
+import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Provider
 import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.KotlinTopLevelExtension
+import org.jetbrains.kotlin.gradle.internal.ClassLoadersCachingBuildService
+import org.jetbrains.kotlin.gradle.internal.transforms.BuildToolsApiClasspathEntrySnapshotTransform
 import org.jetbrains.kotlin.gradle.internal.transforms.ClasspathEntrySnapshotTransform
+import org.jetbrains.kotlin.gradle.plugin.BUILD_TOOLS_API_CLASSPATH_CONFIGURATION_NAME
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilationInfo
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmAndroidCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJvmCompilation
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinWithJavaCompilation
 import org.jetbrains.kotlin.gradle.utils.markResolvable
-import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
 import org.jetbrains.kotlin.gradle.plugin.tcsOrNull
 import org.jetbrains.kotlin.gradle.report.BuildMetricsService
+import org.jetbrains.kotlin.gradle.tasks.DefaultKotlinJavaToolchain
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.jetbrains.kotlin.gradle.utils.providerWithLazyConvention
-import org.jetbrains.kotlin.project.model.LanguageSettings
 
 internal typealias KotlinCompileConfig = BaseKotlinCompileConfig<KotlinCompile>
 
@@ -32,7 +36,9 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
         configureTaskProvider { taskProvider ->
             val useClasspathSnapshot = propertiesProvider.useClasspathSnapshot
             val classpathConfiguration = if (useClasspathSnapshot) {
-                registerTransformsOnce(project)
+                val runKotlinCompilerViaBuildToolsApi = propertiesProvider.runKotlinCompilerViaBuildToolsApi
+                val jvmToolchain = taskProvider.flatMap { it.defaultKotlinJavaToolchain }
+                registerTransformsOnce(project, jvmToolchain, runKotlinCompilerViaBuildToolsApi)
                 // Note: Creating configurations should be done during build configuration, not task configuration, to avoid issues with
                 // composite builds (e.g., https://issuetracker.google.com/183952598).
                 project.configurations.detachedConfiguration(
@@ -99,7 +105,7 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
 
 
     constructor(project: Project, ext: KotlinTopLevelExtension) : super(
-        project, ext, languageSettings = getDefaultLangSetting(project)
+        project, ext
     )
 
     companion object {
@@ -109,18 +115,26 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
         private const val DIRECTORY_ARTIFACT_TYPE = "directory"
         private const val JAR_ARTIFACT_TYPE = "jar"
         const val CLASSPATH_ENTRY_SNAPSHOT_ARTIFACT_TYPE = "classpath-entry-snapshot"
-
-        private fun getDefaultLangSetting(project: Project): Provider<LanguageSettings> {
-            return project.provider { DefaultLanguageSettingsBuilder() }
-        }
     }
 
-    private fun registerTransformsOnce(project: Project) {
+    private fun registerTransformsOnce(
+        project: Project,
+        jvmToolchain: Provider<DefaultKotlinJavaToolchain>,
+        runKotlinCompilerViaBuildToolsApi: Boolean,
+    ) {
         if (project.extensions.extraProperties.has(TRANSFORMS_REGISTERED)) {
             return
         }
         project.extensions.extraProperties[TRANSFORMS_REGISTERED] = true
 
+        if (runKotlinCompilerViaBuildToolsApi) {
+            registerBuildToolsApiTransformations(project, jvmToolchain)
+        } else {
+            registerOldTransformations(project)
+        }
+    }
+
+    private fun registerOldTransformations(project: Project) {
         val buildMetricsService = BuildMetricsService.registerIfAbsent(project)
         project.dependencies.registerTransform(ClasspathEntrySnapshotTransform::class.java) {
             it.from.attribute(ARTIFACT_TYPE_ATTRIBUTE, JAR_ARTIFACT_TYPE)
@@ -133,6 +147,39 @@ internal open class BaseKotlinCompileConfig<TASK : KotlinCompile> : AbstractKotl
             it.to.attribute(ARTIFACT_TYPE_ATTRIBUTE, CLASSPATH_ENTRY_SNAPSHOT_ARTIFACT_TYPE)
             it.parameters.gradleUserHomeDir.set(project.gradle.gradleUserHomeDir)
             buildMetricsService?.apply { it.parameters.buildMetricsService.set(this) }
+        }
+    }
+
+    private fun TransformSpec<BuildToolsApiClasspathEntrySnapshotTransform.Parameters>.configureCommonParameters(
+        classLoadersCachingService: Provider<ClassLoadersCachingBuildService>,
+        classpath: Provider<out FileCollection>,
+        jvmToolchain: Provider<DefaultKotlinJavaToolchain>,
+    ) {
+        parameters.gradleUserHomeDir.set(project.gradle.gradleUserHomeDir)
+        parameters.classLoadersCachingService.set(classLoadersCachingService)
+        parameters.classpath.from(classpath)
+        // add some tools.jar in order to reuse some of the classloaders required for compilation
+        parameters.classpath.from(jvmToolchain.map { toolchain ->
+            if (toolchain.currentJvmJdkToolsJar.isPresent) {
+                setOf(toolchain.currentJvmJdkToolsJar.get())
+            } else {
+                emptySet()
+            }
+        })
+    }
+
+    private fun registerBuildToolsApiTransformations(project: Project, jvmToolchain: Provider<DefaultKotlinJavaToolchain>) {
+        val classLoadersCachingService = ClassLoadersCachingBuildService.registerIfAbsent(project)
+        val classpath = project.configurations.named(BUILD_TOOLS_API_CLASSPATH_CONFIGURATION_NAME)
+        project.dependencies.registerTransform(BuildToolsApiClasspathEntrySnapshotTransform::class.java) {
+            it.from.attribute(ARTIFACT_TYPE_ATTRIBUTE, JAR_ARTIFACT_TYPE)
+            it.to.attribute(ARTIFACT_TYPE_ATTRIBUTE, CLASSPATH_ENTRY_SNAPSHOT_ARTIFACT_TYPE)
+            it.configureCommonParameters(classLoadersCachingService, classpath, jvmToolchain)
+        }
+        project.dependencies.registerTransform(BuildToolsApiClasspathEntrySnapshotTransform::class.java) {
+            it.from.attribute(ARTIFACT_TYPE_ATTRIBUTE, DIRECTORY_ARTIFACT_TYPE)
+            it.to.attribute(ARTIFACT_TYPE_ATTRIBUTE, CLASSPATH_ENTRY_SNAPSHOT_ARTIFACT_TYPE)
+            it.configureCommonParameters(classLoadersCachingService, classpath, jvmToolchain)
         }
     }
 

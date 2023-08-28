@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.ir.util.classIdOrFail
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.mpp.DeclarationSymbolMarker
+import org.jetbrains.kotlin.mpp.RegularClassSymbolMarker
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.resolve.calls.mpp.AbstractExpectActualCompatibilityChecker
@@ -62,6 +63,10 @@ internal class ExpectActualCollector(
     ) {
         val linkCollector = ExpectActualLinkCollector(destination, classActualizationInfo, typeSystemContext, diagnosticsReporter)
         dependentFragments.forEach { linkCollector.visitModuleFragment(it) }
+        // It doesn't make sense to link expects from the last module because actuals always should be located in another module
+        // Thus relevant actuals are always missing for the last module
+        // But the collector should be run anyway to detect and report "hanging" expect declarations
+        linkCollector.visitModuleFragment(mainFragment)
     }
 }
 
@@ -76,6 +81,8 @@ internal data class ClassActualizationInfo(
         return actualTypeAliases[classId] ?: actualClasses[classId]
     }
 }
+
+
 
 private class ActualDeclarationsCollector {
     companion object {
@@ -212,6 +219,8 @@ private class ExpectActualLinkCollector(
         override fun onMismatchedMembersFromClassScope(
             expectSymbol: DeclarationSymbolMarker,
             actualSymbolsByIncompatibility: Map<ExpectActualCompatibility.Incompatible<*>, List<DeclarationSymbolMarker>>,
+            containingExpectClassSymbol: RegularClassSymbolMarker?,
+            containingActualClassSymbol: RegularClassSymbolMarker?,
         ) {
             require(expectSymbol is IrSymbol)
             if (actualSymbolsByIncompatibility.isEmpty() && !expectSymbol.owner.containsOptionalExpectation()) {

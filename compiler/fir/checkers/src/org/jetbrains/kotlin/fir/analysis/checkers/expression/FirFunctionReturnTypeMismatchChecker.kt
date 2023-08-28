@@ -19,12 +19,17 @@ import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.declarations.FirConstructor
 import org.jetbrains.kotlin.fir.declarations.FirErrorFunction
 import org.jetbrains.kotlin.fir.declarations.FirPropertyAccessor
-import org.jetbrains.kotlin.fir.expressions.*
+import org.jetbrains.kotlin.fir.expressions.FirReturnExpression
+import org.jetbrains.kotlin.fir.expressions.FirSmartCastExpression
+import org.jetbrains.kotlin.fir.expressions.FirWhenExpression
+import org.jetbrains.kotlin.fir.expressions.isExhaustive
 import org.jetbrains.kotlin.fir.types.*
 
 object FirFunctionReturnTypeMismatchChecker : FirReturnExpressionChecker() {
     override fun check(expression: FirReturnExpression, context: CheckerContext, reporter: DiagnosticReporter) {
-        if (expression.source == null) return
+        // checked in FirDelegatedPropertyChecker
+        if (expression.source?.kind == KtFakeSourceElementKind.DelegatedPropertyAccessor) return
+
         val targetElement = expression.target.labeledElement
         if (targetElement is FirErrorFunction || targetElement is FirAnonymousFunction && targetElement.isLambda) {
             return
@@ -54,11 +59,11 @@ object FirFunctionReturnTypeMismatchChecker : FirReturnExpressionChecker() {
         }
 
         val typeContext = context.session.typeContext
-        val returnExpressionType = resultExpression.typeRef.coneType
+        val returnExpressionType = resultExpression.resolvedType
 
         if (!isSubtypeForTypeMismatch(typeContext, subtype = returnExpressionType, supertype = functionReturnType)) {
             if (resultExpression.isNullLiteral && functionReturnType.nullability == ConeNullability.NOT_NULL) {
-                reporter.reportOn(resultExpression.source, NULL_FOR_NONNULL_TYPE, context)
+                reporter.reportOn(resultExpression.source, NULL_FOR_NONNULL_TYPE, functionReturnType, context)
             } else {
                 val isDueToNullability =
                     context.session.typeContext.isTypeMismatchDueToNullability(returnExpressionType, functionReturnType)
@@ -86,7 +91,7 @@ object FirFunctionReturnTypeMismatchChecker : FirReturnExpressionChecker() {
                     )
                 }
             }
-        } else if (resultExpression.source?.kind == KtFakeSourceElementKind.ImplicitUnit && !functionReturnType.isUnit) {
+        } else if (resultExpression.source?.kind is KtFakeSourceElementKind.ImplicitUnit && !functionReturnType.isUnit) {
             reporter.reportOn(
                 resultExpression.source,
                 RETURN_TYPE_MISMATCH,

@@ -29,4 +29,16 @@ public class FirLightTreeDiagnosticTestForAllOpenGenerated extends AbstractFirLi
     public void testKt54260() throws Exception {
         runTest("plugins/allopen/testData/diagnostics/kt54260.kt");
     }
+
+    @Test
+    @TestMetadata("kt60448.kt")
+    public void testKt60448() throws Exception {
+        runTest("plugins/allopen/testData/diagnostics/kt60448.kt");
+    }
+
+    @Test
+    @TestMetadata("smartcast.kt")
+    public void testSmartcast() throws Exception {
+        runTest("plugins/allopen/testData/diagnostics/smartcast.kt");
+    }
 }

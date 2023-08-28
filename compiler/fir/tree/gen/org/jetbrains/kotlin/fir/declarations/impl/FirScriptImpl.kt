@@ -3,7 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("DuplicatedCode")
+@file:Suppress("DuplicatedCode", "unused")
 
 package org.jetbrains.kotlin.fir.declarations.impl
 
@@ -39,10 +39,11 @@ internal class FirScriptImpl(
     override val origin: FirDeclarationOrigin,
     override val attributes: FirDeclarationAttributes,
     override val name: Name,
-    override val statements: MutableList<FirStatement>,
+    override var statements: MutableOrEmptyList<FirStatement>,
     override val symbol: FirScriptSymbol,
     override val parameters: MutableList<FirVariable>,
     override var contextReceivers: MutableOrEmptyList<FirContextReceiver>,
+    override val resultPropertyName: Name?,
 ) : FirScript() {
     init {
         symbol.bind(this)
@@ -77,5 +78,9 @@ internal class FirScriptImpl(
 
     override fun replaceAnnotations(newAnnotations: List<FirAnnotation>) {
         annotations = newAnnotations.toMutableOrEmpty()
+    }
+
+    override fun replaceStatements(newStatements: List<FirStatement>) {
+        statements = newStatements.toMutableOrEmpty()
     }
 }

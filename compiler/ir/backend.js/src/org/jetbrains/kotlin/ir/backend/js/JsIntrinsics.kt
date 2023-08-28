@@ -15,10 +15,7 @@ import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.isLong
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.findDeclaration
-import org.jetbrains.kotlin.ir.util.fqNameWhenAvailable
-import org.jetbrains.kotlin.ir.util.kotlinPackageFqn
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi2ir.findSingleFunction
@@ -29,6 +26,9 @@ import java.util.*
 class JsIntrinsics(private val irBuiltIns: IrBuiltIns, val context: JsIrBackendContext) {
 
     // TODO: Should we drop operator intrinsics in favor of IrDynamicOperatorExpression?
+
+    // Modes
+    val jsIsEs6 = getInternalFunction("jsIsEs6")
 
     // Global variables
     val void = getInternalProperty("VOID")
@@ -139,6 +139,7 @@ class JsIntrinsics(private val irBuiltIns: IrBuiltIns, val context: JsIrBackendC
 
     val enumValueOfIntrinsic = getInternalFunction("enumValueOfIntrinsic")
     val enumValuesIntrinsic = getInternalFunction("enumValuesIntrinsic")
+    val enumEntriesIntrinsic = getFunctionInEnumPackage("enumEntriesIntrinsic")
 
 
     // Other:
@@ -201,12 +202,12 @@ class JsIntrinsics(private val irBuiltIns: IrBuiltIns, val context: JsIrBackendC
     val metadataObjectConstructorSymbol = getInternalFunction("objectMeta")
     val metadataClassConstructorSymbol = getInternalFunction("classMeta")
 
-    val longToDouble = context.symbolTable.referenceSimpleFunction(
+    val longToDouble = context.symbolTable.descriptorExtension.referenceSimpleFunction(
         context.getClass(FqName("kotlin.Long")).unsubstitutedMemberScope.findSingleFunction(
             Name.identifier("toDouble")
         )
     )
-    val longToFloat = context.symbolTable.referenceSimpleFunction(
+    val longToFloat = context.symbolTable.descriptorExtension.referenceSimpleFunction(
         context.getClass(FqName("kotlin.Long")).unsubstitutedMemberScope.findSingleFunction(
             Name.identifier("toFloat")
         )
@@ -320,12 +321,13 @@ class JsIntrinsics(private val irBuiltIns: IrBuiltIns, val context: JsIrBackendC
     val jsBind = getInternalFunction("jsBind")
 
     // TODO move to IntrinsifyCallsLowering
-    val doNotIntrinsifyAnnotationSymbol = context.symbolTable.referenceClass(context.getJsInternalClass("DoNotIntrinsify"))
-    val jsFunAnnotationSymbol = context.symbolTable.referenceClass(context.getJsInternalClass("JsFun"))
-    val jsNameAnnotationSymbol = context.symbolTable.referenceClass(context.getJsInternalClass("JsName"))
+    val doNotIntrinsifyAnnotationSymbol =
+        context.symbolTable.descriptorExtension.referenceClass(context.getJsInternalClass("DoNotIntrinsify"))
+    val jsFunAnnotationSymbol = context.symbolTable.descriptorExtension.referenceClass(context.getJsInternalClass("JsFun"))
+    val jsNameAnnotationSymbol = context.symbolTable.descriptorExtension.referenceClass(context.getJsInternalClass("JsName"))
 
     val jsExportAnnotationSymbol by lazy(LazyThreadSafetyMode.NONE) {
-      context.symbolTable.referenceClass(context.getJsInternalClass("JsExport"))
+        context.symbolTable.descriptorExtension.referenceClass(context.getJsInternalClass("JsExport"))
     }
 
     val jsExportIgnoreAnnotationSymbol by lazy(LazyThreadSafetyMode.NONE) {
@@ -334,10 +336,11 @@ class JsIntrinsics(private val irBuiltIns: IrBuiltIns, val context: JsIrBackendC
             ?.symbol ?: error("can't find kotlin.js.JsExport.Ignore annotation")
     }
 
-    val jsImplicitExportAnnotationSymbol = context.symbolTable.referenceClass(context.getJsInternalClass("JsImplicitExport"))
+    val jsImplicitExportAnnotationSymbol =
+        context.symbolTable.descriptorExtension.referenceClass(context.getJsInternalClass("JsImplicitExport"))
 
     // TODO move CharSequence-related stiff to IntrinsifyCallsLowering
-    val charSequenceClassSymbol = context.symbolTable.referenceClass(context.getClass(FqName("kotlin.CharSequence")))
+    val charSequenceClassSymbol = context.symbolTable.descriptorExtension.referenceClass(context.getClass(FqName("kotlin.CharSequence")))
     val charSequenceLengthPropertyGetterSymbol by context.lazy2 {
         with(charSequenceClassSymbol.owner.declarations) {
             filterIsInstance<IrProperty>().firstOrNull { it.name.asString() == "length" }?.getter ?:
@@ -378,22 +381,29 @@ class JsIntrinsics(private val irBuiltIns: IrBuiltIns, val context: JsIrBackendC
     // Helpers:
 
     private fun getInternalFunction(name: String) =
-        context.symbolTable.referenceSimpleFunction(context.getJsInternalFunction(name))
+        context.symbolTable.descriptorExtension.referenceSimpleFunction(context.getJsInternalFunction(name))
 
     private fun getInternalProperty(name: String) =
-        context.symbolTable.referenceProperty(context.getJsInternalProperty(name))
+        context.symbolTable.descriptorExtension.referenceProperty(context.getJsInternalProperty(name))
 
     private fun getInternalWithoutPackage(name: String) =
-        context.symbolTable.referenceSimpleFunction(context.getFunctions(FqName(name)).single())
+        context.symbolTable.descriptorExtension.referenceSimpleFunction(context.getFunctions(FqName(name)).single())
 
     private fun getInternalWithoutPackageOrNull(name: String): IrSimpleFunctionSymbol? {
         val descriptor = context.getFunctions(FqName(name)).singleOrNull() ?: return null
-        return context.symbolTable.referenceSimpleFunction(descriptor)
+        return context.symbolTable.descriptorExtension.referenceSimpleFunction(descriptor)
     }
 
+    private fun getFunctionInEnumPackage(name: String) =
+        context.symbolTable.descriptorExtension.referenceSimpleFunction(
+            context.getFunctions(kotlinEnumsPackageFqn.child(Name.identifier(name))).single()
+        )
+
     private fun getFunctionInKotlinPackage(name: String) =
-        context.symbolTable.referenceSimpleFunction(context.getFunctions(kotlinPackageFqn.child(Name.identifier(name))).single())
+        context.symbolTable.descriptorExtension.referenceSimpleFunction(
+            context.getFunctions(kotlinPackageFqn.child(Name.identifier(name))).single()
+        )
 
     private fun getInternalClassWithoutPackage(fqName: String) =
-        context.symbolTable.referenceClass(context.getClass(FqName(fqName)))
+        context.symbolTable.descriptorExtension.referenceClass(context.getClass(FqName(fqName)))
 }

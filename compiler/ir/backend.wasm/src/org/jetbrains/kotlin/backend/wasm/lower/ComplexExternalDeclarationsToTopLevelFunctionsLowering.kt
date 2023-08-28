@@ -156,6 +156,27 @@ class ComplexExternalDeclarationsToTopLevelFunctionsLowering(val context: WasmBa
     private fun StringBuilder.appendExternalClassReference(klass: IrClass) {
         val parent = klass.parent
         if (parent is IrClass) {
+
+            // This is hack to support Kotlin/JS like implementation of IDL string enums bindings
+            // with error suppression:
+            //
+            //    @JsName("null")
+            //    @Suppress("NESTED_CLASS_IN_EXTERNAL_INTERFACE")
+            //    public external interface CanvasFillRule {
+            //        companion object
+            //    }
+            //    public inline val CanvasFillRule.Companion.NONZERO: CanvasFillRule get() = "nonzero".asDynamic().unsafeCast<CanvasFillRule>()
+            //
+            // Kotlin/JS translates access to CanvasFillRule.Companion as `null` due to @JsName("null"),
+            // but Kotlin/Wasm fails to do this due to stricter null checks on interop boundary.
+            //
+            // Instead, as a temporary solution, we evaluate such companion object to an empty JS object.
+            // TODO: Optimize (KT-60661)
+            if (parent.isInterface) {
+                append("({})")
+                return
+            }
+
             appendExternalClassReference(parent)
             if (klass.isCompanion) {
                 // Reference to external companion object is reference to its parent class
@@ -366,22 +387,21 @@ class ComplexExternalDeclarationsToTopLevelFunctionsLowering(val context: WasmBa
     }
 
     private fun referenceTopLevelExternalDeclaration(declaration: IrDeclarationWithName): String {
-        var name = declaration.getJsNameOrKotlinName().identifier
+        var name: String? = declaration.getJsNameOrKotlinName().identifier
 
         val qualifier = currentFile.getJsQualifier()
 
         val module = currentFile.getJsModule()
             ?: declaration.getJsModule()?.also {
-                // JsModule on top level declarations imports "default"
-                name = "default"
+                name = if (declaration is IrClass && declaration.isObject) null else "default"
             }
 
         if (qualifier == null && module == null)
-            return name
+            return name!!
 
         val qualifieReference = JsModuleAndQualifierReference(module, qualifier)
         context.jsModuleAndQualifierReferences += qualifieReference
-        return qualifieReference.jsVariableName + "." + name
+        return qualifieReference.jsVariableName + name?.let { ".$it" }.orEmpty()
     }
 }
 
@@ -398,7 +418,7 @@ fun createExternalJsFunction(
         isExternal = true
     }
     val builder = context.createIrBuilder(res.symbol)
-    res.annotations += builder.irCallConstructor(context.wasmSymbols.jsFunConstructor, typeArguments = emptyList()).also {
+    res.annotations += builder.irCallConstructor(context.wasmSymbols.jsRelatedSymbols.jsFunConstructor, typeArguments = emptyList()).also {
         it.putValueArgument(0, builder.irString(jsCode))
     }
     return res

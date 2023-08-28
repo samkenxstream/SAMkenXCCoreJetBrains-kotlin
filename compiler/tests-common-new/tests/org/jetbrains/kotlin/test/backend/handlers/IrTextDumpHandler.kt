@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.test.directives.CodegenTestDirectives.EXTERNAL_FILE
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives
 import org.jetbrains.kotlin.test.directives.FirDiagnosticsDirectives.FIR_IDENTICAL
 import org.jetbrains.kotlin.test.directives.model.DirectivesContainer
+import org.jetbrains.kotlin.test.model.BackendKind
 import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.model.TestFile
 import org.jetbrains.kotlin.test.model.TestModule
@@ -31,7 +32,10 @@ import org.jetbrains.kotlin.test.utils.withExtension
 import org.jetbrains.kotlin.test.utils.withSuffixAndExtension
 import java.io.File
 
-class IrTextDumpHandler(testServices: TestServices) : AbstractIrHandler(testServices) {
+class IrTextDumpHandler(
+    testServices: TestServices,
+    artifactKind: BackendKind<IrBackendInput>,
+) : AbstractIrHandler(testServices, artifactKind) {
     companion object {
         const val DUMP_EXTENSION = "ir.txt"
 
@@ -66,6 +70,10 @@ class IrTextDumpHandler(testServices: TestServices) : AbstractIrHandler(testServ
             normalizeNames = true,
             printFacadeClassInFqNames = false,
             printFlagsInDeclarationReferences = false,
+            // KT-60248 Abbreviations should not be rendered to make K2 IR dumps closer to K1 IR dumps during irText tests.
+            // PSI2IR assigns field `abbreviation` with type abbreviation. It serves only debugging purposes, and no compiler functionality relies on it.
+            // FIR2IR does not initialize field `abbreviation` at all.
+            printTypeAbbreviations = false,
         )
 
         info.processAllIrModuleFragments(module) { irModuleFragment, moduleName ->

@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.references.*
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnmatchedTypeArgumentsError
+import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.providers.toSymbol
 import org.jetbrains.kotlin.fir.resolve.scope
 import org.jetbrains.kotlin.fir.resolve.toSymbol
@@ -57,12 +58,20 @@ import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
 internal object FirReferenceResolveHelper {
     fun FirResolvedTypeRef.toTargetSymbol(session: FirSession, symbolBuilder: KtSymbolByFirBuilder): KtSymbol? {
-
         val type = getDeclaredType() as? ConeLookupTagBasedType
+
+        return type?.toTargetSymbol(session, symbolBuilder) ?: run {
+            val diagnostic = (this as? FirErrorTypeRef)?.diagnostic
+            (diagnostic as? ConeUnmatchedTypeArgumentsError)?.symbol?.fir?.buildSymbol(symbolBuilder)
+        }
+    }
+
+    private fun ConeKotlinType.toTargetSymbol(session: FirSession, symbolBuilder: KtSymbolByFirBuilder): KtSymbol? {
+        val type = this as? ConeLookupTagBasedType
         val resolvedSymbol = type?.lookupTag?.toSymbol(session) as? FirBasedSymbol<*>
 
         val symbol = resolvedSymbol ?: run {
-            val diagnostic = (this as? FirErrorTypeRef)?.diagnostic
+            val diagnostic = (this as? ConeErrorType)?.diagnostic
             (diagnostic as? ConeUnmatchedTypeArgumentsError)?.symbol
         }
 
@@ -226,7 +235,7 @@ internal object FirReferenceResolveHelper {
             is FirResolvedImport -> getSymbolsByResolvedImport(expression, symbolBuilder, fir, session)
             is FirPackageDirective -> getSymbolsForPackageDirective(expression, symbolBuilder)
             is FirFile -> getSymbolsByFirFile(symbolBuilder, fir)
-            is FirArrayOfCall -> {
+            is FirArrayLiteral -> {
                 // We can't yet find PsiElement for arrayOf, intArrayOf, etc.
                 emptyList()
             }
@@ -240,6 +249,7 @@ internal object FirReferenceResolveHelper {
             is FirNamedArgumentExpression -> getSymbolsByNameArgumentExpression(expression, analysisSession, symbolBuilder)
             is FirEqualityOperatorCall -> getSymbolsByEqualsName(fir, session, analysisSession, symbolBuilder)
             is FirTypeParameter -> getSybmolsByTypeParameter(symbolBuilder, fir)
+            is FirResolvedReifiedParameterReference -> getSymbolsByResolvedReifiedTypeParameterReference(symbolBuilder, fir)
             else -> handleUnknownFirElement(expression, analysisSession, session, symbolBuilder)
         }
     }
@@ -251,7 +261,7 @@ internal object FirReferenceResolveHelper {
         symbolBuilder: KtSymbolByFirBuilder
     ): Collection<KtSymbol> {
         val lhs = expression.arguments.firstOrNull() ?: return emptyList()
-        val scope = lhs.typeRef.coneType.scope(
+        val scope = lhs.resolvedType.scope(
             session,
             analysisSession.getScopeSessionFor(analysisSession.useSiteSession),
             FakeOverrideTypeCalculator.DoNothing,
@@ -261,7 +271,7 @@ internal object FirReferenceResolveHelper {
         return buildList {
             scope.processFunctionsByName(OperatorNameConventions.EQUALS) { functionSymbol ->
                 val parameterSymbol = functionSymbol.valueParameterSymbols.singleOrNull()
-                if (parameterSymbol != null && parameterSymbol.fir.returnTypeRef.isNullableAny) {
+                if (parameterSymbol != null && parameterSymbol.fir.returnTypeRef.coneType.fullyExpandedType(session).isNullableAny) {
                     add(functionSymbol.buildSymbol(symbolBuilder))
                 }
             }
@@ -412,7 +422,7 @@ internal object FirReferenceResolveHelper {
         // accessing the `super` property on `this`, hence this weird looking if condition. In addition, the current class type is available
         // from the dispatch receiver `this`.
         if (expression is KtLabelReferenceExpression && fir is FirPropertyAccessExpression && fir.calleeReference is FirSuperReference) {
-            return listOfNotNull((fir.dispatchReceiver.typeRef as? FirResolvedTypeRef)?.toTargetSymbol(session, symbolBuilder))
+            return listOfNotNull(fir.dispatchReceiver.coneTypeOrNull?.toTargetSymbol(session, symbolBuilder))
         }
         val receiverOrImplicitInvoke = if (fir is FirImplicitInvokeCall) {
             fir.explicitReceiver?.unwrapSmartcastExpression()
@@ -459,6 +469,14 @@ internal object FirReferenceResolveHelper {
     ): List<KtSymbol> {
         return listOf(symbolBuilder.buildSymbol(fir.symbol))
     }
+
+    private fun getSymbolsByResolvedReifiedTypeParameterReference(
+        symbolBuilder: KtSymbolByFirBuilder,
+        fir: FirResolvedReifiedParameterReference
+    ): List<KtSymbol> {
+        return listOf(symbolBuilder.buildSymbol(fir.symbol))
+    }
+
 
     private fun getSymbolsByResolvedImport(
         expression: KtSimpleNameExpression,
@@ -715,7 +733,7 @@ internal object FirReferenceResolveHelper {
         session: FirSession,
         symbolBuilder: KtSymbolByFirBuilder
     ): Collection<KtSymbol> {
-        val type = fir.typeRef as? FirResolvedTypeRef ?: return emptyList()
+        val type = fir.coneTypeOrNull ?: return emptyList()
         return listOfNotNull(type.toTargetSymbol(session, symbolBuilder))
     }
 

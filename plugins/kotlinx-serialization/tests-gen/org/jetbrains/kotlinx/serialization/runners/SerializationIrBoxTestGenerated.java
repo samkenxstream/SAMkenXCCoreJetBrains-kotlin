@@ -140,6 +140,12 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     }
 
     @Test
+    @TestMetadata("interfaces.kt")
+    public void testInterfaces() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/interfaces.kt");
+    }
+
+    @Test
     @TestMetadata("intrinsicAnnotations.kt")
     public void testIntrinsicAnnotations() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/intrinsicAnnotations.kt");
@@ -194,6 +200,12 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     }
 
     @Test
+    @TestMetadata("namedCompanions.kt")
+    public void testNamedCompanions() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/namedCompanions.kt");
+    }
+
+    @Test
     @TestMetadata("repeatableSerialInfo.kt")
     public void testRepeatableSerialInfo() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/repeatableSerialInfo.kt");
@@ -227,6 +239,18 @@ public class SerializationIrBoxTestGenerated extends AbstractSerializationIrBoxT
     @TestMetadata("serializableOnPropertyType.kt")
     public void testSerializableOnPropertyType() throws Exception {
         runTest("plugins/kotlinx-serialization/testData/boxIr/serializableOnPropertyType.kt");
+    }
+
+    @Test
+    @TestMetadata("serializerFactory.kt")
+    public void testSerializerFactory() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/serializerFactory.kt");
+    }
+
+    @Test
+    @TestMetadata("serializerFactoryInUserDefined.kt")
+    public void testSerializerFactoryInUserDefined() throws Exception {
+        runTest("plugins/kotlinx-serialization/testData/boxIr/serializerFactoryInUserDefined.kt");
     }
 
     @Test

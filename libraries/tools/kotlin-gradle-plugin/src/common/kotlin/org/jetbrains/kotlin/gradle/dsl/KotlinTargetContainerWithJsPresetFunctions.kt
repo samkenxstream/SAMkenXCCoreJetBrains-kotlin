@@ -6,9 +6,9 @@
 package org.jetbrains.kotlin.gradle.dsl
 
 import org.gradle.api.Action
-import org.jetbrains.kotlin.gradle.dsl.KotlinJsProjectExtension.Companion.reportJsCompilerMode
 import org.jetbrains.kotlin.gradle.dsl.KotlinJsProjectExtension.Companion.warnAboutDeprecatedCompiler
 import org.jetbrains.kotlin.gradle.plugin.*
+import org.jetbrains.kotlin.gradle.targets.android.internal.InternalKotlinTargetPreset
 import org.jetbrains.kotlin.gradle.targets.js.calculateJsCompilerType
 import org.jetbrains.kotlin.gradle.targets.js.dsl.KotlinJsTargetDsl
 import org.jetbrains.kotlin.gradle.utils.lowerCamelCaseName
@@ -101,9 +101,7 @@ private fun KotlinTargetContainerWithJsPresetFunctions.jsInternal(
         }
     }
 
-    reportJsCompilerMode(compilerOrDefault)
-
-    @Suppress("UNCHECKED_CAST")
+    @Suppress("UNCHECKED_CAST", "DEPRECATION")
     return configureOrCreate(
         targetName,
         presets.getByName(
@@ -111,7 +109,7 @@ private fun KotlinTargetContainerWithJsPresetFunctions.jsInternal(
                 "js",
                 if (compilerOrDefault == KotlinJsCompilerType.LEGACY) null else compilerOrDefault.lowerName
             )
-        ) as KotlinTargetPreset<KotlinJsTargetDsl>,
+        ) as InternalKotlinTargetPreset<KotlinJsTargetDsl>,
         configure
     ).also { target ->
         warnAboutDeprecatedCompiler(target.project, compilerOrDefault)

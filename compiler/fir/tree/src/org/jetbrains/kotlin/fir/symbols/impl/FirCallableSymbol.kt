@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.fir.symbols.impl
 
-import org.jetbrains.kotlin.config.ApiVersion
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
@@ -13,21 +13,23 @@ import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.mpp.CallableSymbolMarker
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.util.OperatorNameConventions
 
 abstract class FirCallableSymbol<D : FirCallableDeclaration> : FirBasedSymbol<D>(), CallableSymbolMarker {
     abstract val callableId: CallableId
 
     val resolvedReturnTypeRef: FirResolvedTypeRef
         get() {
-            ensureType(fir.returnTypeRef)
-            val returnTypeRef = fir.returnTypeRef
-            if (returnTypeRef !is FirResolvedTypeRef) {
-                errorInLazyResolve("returnTypeRef", returnTypeRef::class, FirResolvedTypeRef::class)
-            }
-
-            return returnTypeRef
+            calculateReturnType()
+            return fir.returnTypeRef as FirResolvedTypeRef
         }
+
+    fun calculateReturnType() {
+        ensureType(fir.returnTypeRef)
+        val returnTypeRef = fir.returnTypeRef
+        if (returnTypeRef !is FirResolvedTypeRef) {
+            errorInLazyResolve("returnTypeRef", returnTypeRef::class, FirResolvedTypeRef::class)
+        }
+    }
 
     val resolvedReturnType: ConeKotlinType
         get() = resolvedReturnTypeRef.coneType
@@ -74,9 +76,9 @@ abstract class FirCallableSymbol<D : FirCallableDeclaration> : FirBasedSymbol<D>
     val name: Name
         get() = callableId.callableName
 
-    fun getDeprecation(apiVersion: ApiVersion): DeprecationsPerUseSite? {
+    fun getDeprecation(languageVersionSettings: LanguageVersionSettings): DeprecationsPerUseSite? {
         lazyResolveToPhase(FirResolvePhase.COMPILER_REQUIRED_ANNOTATIONS)
-        return fir.deprecationsProvider.getDeprecationsInfo(apiVersion)
+        return fir.deprecationsProvider.getDeprecationsInfo(languageVersionSettings)
     }
 
     private fun ensureType(typeRef: FirTypeRef?) {
@@ -96,12 +98,3 @@ val FirCallableSymbol<*>.isExtension: Boolean
         is FirProperty -> fir.receiverParameter != null
         is FirVariable -> false
     }
-
-fun FirSimpleFunction.isEquals(): Boolean {
-    if (name != OperatorNameConventions.EQUALS) return false
-    if (valueParameters.size != 1) return false
-    if (contextReceivers.isNotEmpty()) return false
-    if (receiverParameter != null) return false
-    val parameter = valueParameters.first()
-    return parameter.returnTypeRef.isNullableAny
-}

@@ -6,11 +6,15 @@
 package org.jetbrains.kotlin.resolve.jvm.diagnostics
 
 import com.intellij.psi.PsiElement
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.diagnostics.*
+import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactoryToRendererMap
 import org.jetbrains.kotlin.diagnostics.SourceElementPositioningStrategies.DECLARATION_SIGNATURE_OR_DEFAULT
+import org.jetbrains.kotlin.diagnostics.error0
+import org.jetbrains.kotlin.diagnostics.error1
+import org.jetbrains.kotlin.diagnostics.error2
 import org.jetbrains.kotlin.diagnostics.rendering.*
+import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers.NAME
 import org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers.STRING
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.MemberComparator
 import org.jetbrains.kotlin.utils.join
 
@@ -31,8 +35,11 @@ object JvmBackendErrors {
     val SCRIPT_CAPTURING_ENUM by error1<PsiElement, String>()
     val SCRIPT_CAPTURING_ENUM_ENTRY by error1<PsiElement, String>()
 
-    val EXCEPTION_IN_CONST_VAL_INITIALIZER by error1<PsiElement, String>()
-    val EXCEPTION_IN_CONST_EXPRESSION by warning1<PsiElement, String>()
+    val INLINE_CALL_CYCLE by error1<PsiElement, Name>()
+
+    val NOT_ALL_MULTIFILE_CLASS_PARTS_ARE_JVM_SYNTHETIC by error0<PsiElement>()
+
+    val DUPLICATE_CLASS_NAMES by error2<PsiElement, String, String>()
 
     init {
         RootDiagnosticRendererFactory.registerFactory(KtDefaultJvmErrorMessages)
@@ -68,7 +75,12 @@ object KtDefaultJvmErrorMessages : BaseDiagnosticRendererFactory() {
         map.put(JvmBackendErrors.SCRIPT_CAPTURING_ENUM, "Enum class {0} captures the script class instance. Try to use class or anonymous object instead", STRING)
         map.put(JvmBackendErrors.SCRIPT_CAPTURING_ENUM_ENTRY, "Enum entry {0} captures the script class instance. Try to use class or anonymous object instead", STRING)
 
-        map.put(JvmBackendErrors.EXCEPTION_IN_CONST_VAL_INITIALIZER, "Cannot evaluate constant expression: {0}", STRING)
-        map.put(JvmBackendErrors.EXCEPTION_IN_CONST_EXPRESSION, "Constant expression will throw an exception at runtime: {0}", STRING)
+        map.put(JvmBackendErrors.INLINE_CALL_CYCLE, "The ''{0}'' invocation is a part of inline cycle", NAME)
+        map.put(
+            JvmBackendErrors.NOT_ALL_MULTIFILE_CLASS_PARTS_ARE_JVM_SYNTHETIC,
+            "All of multi-file class parts should be annotated with @JvmSynthetic if at least one of them is"
+        )
+
+        map.put(JvmBackendErrors.DUPLICATE_CLASS_NAMES, "Duplicate JVM class name ''{0}'' generated from: {1}", STRING, STRING)
     }
 }

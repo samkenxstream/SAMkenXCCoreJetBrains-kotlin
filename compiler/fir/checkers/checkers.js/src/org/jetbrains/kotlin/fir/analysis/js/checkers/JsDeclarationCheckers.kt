@@ -23,6 +23,8 @@ object JsDeclarationCheckers : DeclarationCheckers() {
             FirJsNameChecker,
             FirJsExportAnnotationChecker,
             FirJsExportDeclarationChecker,
+            FirJsBuiltinNameClashChecker,
+            FirJsNameCharsChecker
         )
 
     override val classCheckers: Set<FirClassChecker>
@@ -38,5 +40,10 @@ object JsDeclarationCheckers : DeclarationCheckers() {
             FirJsNativeInvokeChecker,
             FirJsNativeGetterChecker,
             FirJsNativeSetterChecker,
+        )
+
+    override val propertyCheckers: Set<FirPropertyChecker>
+        get() = setOf(
+            FirJsPropertyDelegationByDynamicChecker
         )
 }

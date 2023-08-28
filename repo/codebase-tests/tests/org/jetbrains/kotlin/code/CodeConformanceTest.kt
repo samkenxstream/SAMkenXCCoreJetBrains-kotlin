@@ -26,7 +26,6 @@ class CodeConformanceTest : TestCase() {
                 ".idea",
                 "build/js",
                 "build/tmp",
-                "buildSrc",
                 "compiler/build",
                 "compiler/fir/lightTree/testData",
                 "compiler/testData/psi/kdoc",
@@ -80,8 +79,6 @@ class CodeConformanceTest : TestCase() {
             File("."),
             listOf(
                 "build",
-                "buildSrc/build/generated-sources",
-                "buildSrc/prepare-deps/build",
                 "compiler/ir/serialization.js/build/fullRuntime",
                 "compiler/ir/serialization.js/build/reducedRuntime/src/libraries/stdlib/js-ir/runtime/longjs.kt",
                 "dependencies",
@@ -97,7 +94,12 @@ class CodeConformanceTest : TestCase() {
                 "libraries/examples/browser-example-with-library/target",
                 "libraries/examples/js-example/target",
                 "libraries/kotlin.test/js/it/.gradle",
+                "libraries/kotlin.test/js/it/build",
                 "libraries/kotlin.test/js/it/node_modules",
+                "libraries/kotlin.test/js-ir/it/.gradle",
+                "libraries/kotlin.test/js-ir/it/build",
+                "libraries/kotlin.test/js-ir/it/node_modules",
+                "libraries/stdlib/build",
                 "libraries/stdlib/common/build",
                 "libraries/stdlib/js-ir/.gradle",
                 "libraries/stdlib/js-ir/build",
@@ -108,6 +110,7 @@ class CodeConformanceTest : TestCase() {
                 "libraries/stdlib/js-v1/.gradle",
                 "libraries/stdlib/js-v1/build",
                 "libraries/stdlib/js-v1/node_modules",
+                "libraries/stdlib/jvm/build",
                 "libraries/stdlib/jvm-minimal-for-test/build",
                 "libraries/stdlib/wasm/build",
                 "libraries/tools/atomicfu/build",
@@ -142,6 +145,7 @@ class CodeConformanceTest : TestCase() {
                 "repo/gradle-settings-conventions/jvm-toolchain-provisioning/build/generated-sources",
                 "repo/gradle-settings-conventions/gradle-enterprise/build/generated-sources",
                 "repo/gradle-settings-conventions/kotlin-daemon-config/build/generated-sources",
+                "repo/gradle-build-conventions/buildsrc-compat/build/generated-sources",
                 ".gradle/expanded",
             )
         )
@@ -191,11 +195,14 @@ class CodeConformanceTest : TestCase() {
                 "org.jetbrains.jet" in source
             },
             FileTestCase(
-                "%d source files contain references to package kotlin.reflect.jvm.internal.impl.\n" +
+                message = "%d source files contain references to package kotlin.reflect.jvm.internal.impl.\n" +
                         "This package contains internal reflection implementation and is a result of a " +
                         "post-processing of kotlin-reflect.jar by jarjar.\n" +
                         "Most probably you meant to use classes from org.jetbrains.kotlin.**.\n" +
-                        "Please change references in these files or exclude them in this test:\n%s"
+                        "Please change references in these files or exclude them in this test:\n%s",
+                allowedFiles = listOf(
+                    "libraries/tools/jdk-api-validator/src/test/JdkApiUsageTest.kt"
+                )
             ) { _, source ->
                 "kotlin.reflect.jvm.internal.impl" in source
             },
@@ -245,8 +252,7 @@ class CodeConformanceTest : TestCase() {
                     "native/commonizer/src/org/jetbrains/kotlin/commonizer/mergedtree/CirTypeSignature.kt",
                     "native/commonizer/src/org/jetbrains/kotlin/commonizer/metadata/CirDeserializers.kt",
                     "native/commonizer/src/org/jetbrains/kotlin/commonizer/metadata/CirTypeResolver.kt",
-                    "native/commonizer/src/org/jetbrains/kotlin/commonizer/utils/misc.kt",
-                    "native/native.tests/tests/org/jetbrains/kotlin/konan/blackboxtest/support/settings/SettingsContainers.kt"
+                    "native/commonizer/src/org/jetbrains/kotlin/commonizer/utils/misc.kt"
                 )
             ) { _, source ->
                 "gnu.trove" in source

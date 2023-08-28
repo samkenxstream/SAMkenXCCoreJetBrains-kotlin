@@ -7,17 +7,19 @@ package org.jetbrains.kotlin.generators.tests.analysis.api
 
 import org.jetbrains.kotlin.analysis.low.level.api.fir.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.AbstractLLFirDiagnosticCompilerTestDataSpecTest
-import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractDiagnosticTraversalCounterTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractFirOutOfContentRootContextCollectionTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractFirSourceContextCollectionTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractScriptContextCollectionTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractScriptDiagnosticTraversalCounterTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.AbstractSourceDiagnosticTraversalCounterTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.AbstractDiagnosticCompilerTestDataTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.AbstractLLFirPreresolvedReversedDiagnosticCompilerTestDataSpecTest
 import org.jetbrains.kotlin.analysis.low.level.api.fir.diagnostic.compiler.based.AbstractLLFirPreresolvedReversedDiagnosticCompilerTestDataTest
-import org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.AbstractOutOfContentRootFileStructureTest
-import org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.AbstractSourceFileStructureTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.file.structure.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.AbstractErrorResistanceTest
-import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.AbstractOutOfContentRootInnerDeclarationsResolvePhaseTest
-import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.AbstractSourceInnerDeclarationsResolvePhaseTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.AbstractOutOfContentRootWholeFileResolvePhaseTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.AbstractScriptWholeFileResolvePhaseTest
+import org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.AbstractSourceWholeFileResolvePhaseTest
 import org.jetbrains.kotlin.generators.TestGroup
 import org.jetbrains.kotlin.generators.TestGroupSuite
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil
@@ -42,47 +44,83 @@ internal fun TestGroupSuite.generateFirLowLevelApiTests() {
         }
 
         testClass<AbstractFirSourceLazyDeclarationResolveTest> {
-            model("lazyResolve")
+            model("lazyResolve", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractFirOutOfContentRootLazyDeclarationResolveTest> {
+            model("lazyResolve", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractFirScriptLazyDeclarationResolveTest> {
+            model("lazyResolve", pattern = TestGeneratorUtil.KTS)
         }
 
         testClass<AbstractStdLibSourcesLazyDeclarationResolveTest> {
             model("lazyResolveStdlibSources")
         }
 
-        testClass<AbstractFirOutOfContentRootLazyDeclarationResolveTest> {
-            model("lazyResolve")
-        }
-
         testClass<AbstractErrorResistanceTest> {
             model("errorResistance")
         }
 
+        testClass<AbstractSourceInBlockModificationTest> {
+            model("inBlockModification", recursive = false, pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractOutOfContentRootInBlockModificationTest> {
+            model("inBlockModification", recursive = false, pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptInBlockModificationTest> {
+            model("inBlockModification", recursive = false, pattern = TestGeneratorUtil.KTS)
+        }
+
+        testClass<AbstractCodeFragmentInBlockModificationTest> {
+            model("inBlockModification/codeFragments", recursive = false, pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME)
+        }
+
         testClass<AbstractSourceFileStructureTest> {
-            model("fileStructure")
+            model("fileStructure", pattern = TestGeneratorUtil.KT)
         }
 
         testClass<AbstractOutOfContentRootFileStructureTest> {
-            model("fileStructure")
+            model("fileStructure", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptFileStructureTest> {
+            model("fileStructure", pattern = TestGeneratorUtil.KTS)
         }
 
         testClass<AbstractFirSourceContextCollectionTest> {
-            model("fileStructure")
+            model("fileStructure", pattern = TestGeneratorUtil.KT)
         }
 
         testClass<AbstractFirOutOfContentRootContextCollectionTest> {
-            model("fileStructure")
+            model("fileStructure", pattern = TestGeneratorUtil.KT)
         }
 
-        testClass<AbstractDiagnosticTraversalCounterTest> {
-            model("diagnosticTraversalCounter")
+        testClass<AbstractScriptContextCollectionTest> {
+            model("fileStructure", pattern = TestGeneratorUtil.KTS)
         }
 
-        testClass<AbstractSourceInnerDeclarationsResolvePhaseTest> {
-            model("innerDeclarationsResolve")
+        testClass<AbstractSourceDiagnosticTraversalCounterTest> {
+            model("fileStructure", pattern = TestGeneratorUtil.KT)
         }
 
-        testClass<AbstractOutOfContentRootInnerDeclarationsResolvePhaseTest> {
-            model("innerDeclarationsResolve")
+        testClass<AbstractScriptDiagnosticTraversalCounterTest> {
+            model("fileStructure", pattern = TestGeneratorUtil.KTS)
+        }
+
+        testClass<AbstractSourceWholeFileResolvePhaseTest> {
+            model("fileStructure", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractOutOfContentRootWholeFileResolvePhaseTest> {
+            model("fileStructure", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptWholeFileResolvePhaseTest> {
+            model("fileStructure", pattern = TestGeneratorUtil.KTS)
         }
 
         testClass<AbstractSourcePartialRawFirBuilderTestCase> {
@@ -94,11 +132,15 @@ internal fun TestGroupSuite.generateFirLowLevelApiTests() {
         }
 
         testClass<AbstractSourceGetOrBuildFirTest> {
-            model("getOrBuildFir")
+            model("getOrBuildFir", pattern = TestGeneratorUtil.KT)
         }
 
         testClass<AbstractOutOfContentRootGetOrBuildFirTest> {
-            model("getOrBuildFir")
+            model("getOrBuildFir", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptGetOrBuildFirTest> {
+            model("getOrBuildFir", pattern = TestGeneratorUtil.KTS)
         }
 
         testClass<AbstractLibraryGetOrBuildFirTest> {
@@ -109,16 +151,58 @@ internal fun TestGroupSuite.generateFirLowLevelApiTests() {
             model("getOrBuildFirForStdLib")
         }
 
-        testClass<AbstractFileBasedKotlinDeclarationProviderTest> {
-            model("fileBasedDeclarationProvider", pattern = TestGeneratorUtil.KT_OR_KTS)
+        testClass<AbstractSourceFileBasedKotlinDeclarationProviderTest> {
+            model("fileBasedDeclarationProvider", pattern = TestGeneratorUtil.KT)
         }
 
-        testClass<AbstractFirNonLocalDeclarationAnchorTest> {
-            model("nonLocalDeclarationAnchors")
+        testClass<AbstractScriptFileBasedKotlinDeclarationProviderTest> {
+            model("fileBasedDeclarationProvider", pattern = TestGeneratorUtil.KTS)
         }
 
-        testClass<AbstractClassIdTest> {
-            model("classId")
+        testClass<AbstractSourceNonLocalDeclarationAnchorTest> {
+            model("nonLocalDeclarationAnchors", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptNonLocalDeclarationAnchorTest> {
+            model("nonLocalDeclarationAnchors", pattern = TestGeneratorUtil.KTS)
+        }
+
+        testClass<AbstractSourceClassIdTest> {
+            model("classId", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptClassIdTest> {
+            model("classId", pattern = TestGeneratorUtil.KTS)
+        }
+
+        testClass<AbstractCompilationPeerAnalysisTest> {
+            model("compilationPeers")
+        }
+
+        testClass<AbstractContextCollectorTest> {
+            model("contextCollector")
+        }
+
+        testClass<AbstractSourceDependentCopyContextTest> {
+            model("dependentCopy", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptDependentCopyContextTest> {
+            model("dependentCopy", pattern = TestGeneratorUtil.KTS)
+        }
+
+        testClass<AbstractSourceDependentCopyFirTest> {
+            model("dependentCopy", pattern = TestGeneratorUtil.KT)
+        }
+
+        testClass<AbstractScriptDependentCopyFirTest> {
+            model("dependentCopy", pattern = TestGeneratorUtil.KTS)
+        }
+    }
+
+    testGroup("analysis/low-level-api-fir/tests", "analysis/analysis-api/testData") {
+        testClass<AbstractCodeFragmentCapturingTest> {
+            model("components/compilerFacility/compilation/codeFragments/capturing", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME)
         }
     }
 

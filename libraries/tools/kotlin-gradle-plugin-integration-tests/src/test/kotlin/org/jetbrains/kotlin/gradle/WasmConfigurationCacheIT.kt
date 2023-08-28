@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.gradle
 
 import org.gradle.util.GradleVersion
-import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.junit.jupiter.api.DisplayName
 
@@ -24,7 +23,7 @@ class WasmConfigurationCacheIT : KGPBaseTest() {
             assertSimpleConfigurationCacheScenarioWorks(
                 "assemble",
                 buildOptions = defaultBuildOptions,
-                executedTaskNames = listOf(":compileKotlinWasm")
+                executedTaskNames = listOf(":compileKotlinWasmJs")
             )
         }
     }
@@ -34,10 +33,10 @@ class WasmConfigurationCacheIT : KGPBaseTest() {
     @GradleTestVersions(minVersion = TestVersions.Gradle.G_7_6)
     fun testD8Run(gradleVersion: GradleVersion) {
         project("wasm-d8-simple-project", gradleVersion) {
-            build("wasmD8Run", buildOptions = buildOptions) {
-                assertTasksExecuted(":wasmD8Run")
+            build("wasmJsD8Run", buildOptions = buildOptions) {
+                assertTasksExecuted(":wasmJsD8Run")
                 assertOutputContains(
-                    "Calculating task graph as no configuration cache is available for tasks: wasmD8Run"
+                    "Calculating task graph as no configuration cache is available for tasks: wasmJsD8Run"
                 )
 
                 assertConfigurationCacheStored()
@@ -46,8 +45,8 @@ class WasmConfigurationCacheIT : KGPBaseTest() {
             build("clean", buildOptions = buildOptions)
 
             // Then run a build where tasks states are deserialized to check that they work correctly in this mode
-            build("wasmD8Run", buildOptions = buildOptions) {
-                assertTasksExecuted(":wasmD8Run")
+            build("wasmJsD8Run", buildOptions = buildOptions) {
+                assertTasksExecuted(":wasmJsD8Run")
                 assertConfigurationCacheReused()
             }
         }

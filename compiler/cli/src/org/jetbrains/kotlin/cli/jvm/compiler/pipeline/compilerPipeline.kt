@@ -41,14 +41,17 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.constant.EvaluatedConstTracker
-import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
+import org.jetbrains.kotlin.diagnostics.impl.BaseDiagnosticsCollector
 import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
 import org.jetbrains.kotlin.fir.backend.jvm.FirJvmBackendClassResolver
 import org.jetbrains.kotlin.fir.backend.jvm.FirJvmBackendExtension
 import org.jetbrains.kotlin.fir.backend.jvm.JvmFir2IrExtensions
+import org.jetbrains.kotlin.fir.extensions.FirAnalysisHandlerExtension
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
-import org.jetbrains.kotlin.fir.pipeline.*
+import org.jetbrains.kotlin.fir.pipeline.FirResult
+import org.jetbrains.kotlin.fir.pipeline.buildResolveAndCheckFirViaLightTree
+import org.jetbrains.kotlin.fir.pipeline.convertToIrAndActualizeForJvm
 import org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider
 import org.jetbrains.kotlin.fir.session.IncrementalCompilationContext
 import org.jetbrains.kotlin.fir.session.environment.AbstractProjectEnvironment
@@ -76,7 +79,8 @@ fun compileModulesUsingFrontendIrAndLightTree(
     messageCollector: MessageCollector,
     buildFile: File?,
     chunk: List<Module>,
-    targetDescription: String
+    targetDescription: String,
+    checkSourceFiles: Boolean
 ): Boolean {
     require(projectEnvironment is VfsBasedProjectEnvironment) // TODO: abstract away this requirement
     ProgressIndicatorAndCompilationCanceledStatus.checkCanceled()
@@ -84,6 +88,9 @@ fun compileModulesUsingFrontendIrAndLightTree(
     val performanceManager = compilerConfiguration[CLIConfigurationKeys.PERF_MANAGER]
 
     performanceManager?.notifyCompilerInitialized(0, 0, targetDescription)
+
+    val project = projectEnvironment.project
+    FirAnalysisHandlerExtension.analyze(project, compilerConfiguration)?.let { return it }
 
     val outputs = mutableListOf<GenerationState>()
     var mainClassFqName: FqName? = null
@@ -93,6 +100,14 @@ fun compileModulesUsingFrontendIrAndLightTree(
             put(JVMConfigurationKeys.FRIEND_PATHS, module.getFriendPaths())
         }
         val groupedSources = collectSources(compilerConfiguration, projectEnvironment, messageCollector)
+        if (messageCollector.hasErrors()) {
+            return false
+        }
+
+        if (checkSourceFiles && groupedSources.isEmpty() && buildFile == null) {
+            messageCollector.report(CompilerMessageSeverity.ERROR, "No source files")
+            return false
+        }
 
         val compilerInput = ModuleCompilerInput(
             TargetId(module),
@@ -103,7 +118,9 @@ fun compileModulesUsingFrontendIrAndLightTree(
         )
 
         val renderDiagnosticName = moduleConfiguration.getBoolean(CLIConfigurationKeys.RENDER_DIAGNOSTIC_INTERNAL_NAME)
-        val diagnosticsReporter = DiagnosticReporterFactory.createPendingReporter()
+        val diagnosticsReporter = DiagnosticReporterFactory.createPendingReporter { isError, message ->
+            messageCollector.report(if (isError) CompilerMessageSeverity.ERROR else CompilerMessageSeverity.WARNING, message)
+        }
         val compilerEnvironment = ModuleCompilerEnvironment(projectEnvironment, diagnosticsReporter)
 
         performanceManager?.notifyAnalysisStarted()
@@ -176,14 +193,16 @@ fun convertAnalyzedFirToIr(
         } ?: emptyList()
     val fir2IrConfiguration = Fir2IrConfiguration(
         languageVersionSettings = input.configuration.languageVersionSettings,
+        diagnosticReporter = environment.diagnosticsReporter,
         linkViaSignatures = input.configuration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES),
         evaluatedConstTracker = input.configuration
             .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
         inlineConstTracker = input.configuration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
+        allowNonCachedDeclarations = false,
     )
     val (irModuleFragment, components, pluginContext, irActualizedResult) =
         analysisResults.convertToIrAndActualizeForJvm(
-            extensions, fir2IrConfiguration, irGenerationExtensions, environment.diagnosticsReporter,
+            extensions, fir2IrConfiguration, irGenerationExtensions,
         )
 
     return ModuleCompilerIrBackendInput(
@@ -254,7 +273,7 @@ fun compileModuleToAnalyzedFir(
     environment: ModuleCompilerEnvironment,
     previousStepsSymbolProviders: List<FirSymbolProvider>,
     incrementalExcludesScope: AbstractProjectFileSearchScope?,
-    diagnosticsReporter: DiagnosticReporter,
+    diagnosticsReporter: BaseDiagnosticsCollector,
     performanceManager: CommonCompilerPerformanceManager?
 ): FirResult {
     val projectEnvironment = environment.projectEnvironment
@@ -503,7 +522,7 @@ private fun VirtualFileSystem.findJarRoot(file: File): VirtualFile? =
     findFileByPath("$file${URLUtil.JAR_SEPARATOR}")
 
 private fun VirtualFileSystem.findExistingRoot(
-    root: JvmContentRoot, rootDescription: String, messageCollector: MessageCollector
+    root: JvmContentRoot, rootDescription: String, messageCollector: MessageCollector,
 ): VirtualFile? {
     return findFileByPath(root.file.absolutePath).also {
         if (it == null) {

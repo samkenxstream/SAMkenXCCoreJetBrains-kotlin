@@ -259,7 +259,7 @@ private fun processCLib(
         cinteropArguments.argParser.printError("-def or -pkg should be provided!")
     }
 
-    val tool = prepareTool(cinteropArguments.target, flavor, runFromDaemon, parseKeyValuePairs(cinteropArguments.overrideKonanProperties))
+    val tool = prepareTool(cinteropArguments.target, flavor, runFromDaemon, parseKeyValuePairs(cinteropArguments.overrideKonanProperties), konanDataDir = cinteropArguments.konanDataDir)
 
     val def = DefFile(defFile, tool.substitutions)
     val isLinkerOptsSetByUser = (cinteropArguments.linkerOpts.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER) ||
@@ -326,6 +326,7 @@ private fun processCLib(
             noStringConversion = def.config.noStringConversion.toSet(),
             exportForwardDeclarations = def.config.exportForwardDeclarations,
             disableDesignatedInitializerChecks = def.config.disableDesignatedInitializerChecks,
+            disableExperimentalAnnotation = cinteropArguments.disableExperimentalAnnotation ?: false,
             target = target
     )
 
@@ -480,7 +481,7 @@ private fun getLibraryResolver(
             repos,
             libraries.filter { it.contains(org.jetbrains.kotlin.konan.file.File.separator) },
             target,
-            Distribution(KonanHomeProvider.determineKonanHome())
+            Distribution(KonanHomeProvider.determineKonanHome(), konanDataDir = cinteropArguments.konanDataDir)
     ).libraryResolver()
 }
 
@@ -498,8 +499,8 @@ private fun resolveDependencies(
     ).getFullList(TopologicalLibraryOrder)
 }
 
-internal fun prepareTool(target: String?, flavor: KotlinPlatform, runFromDaemon: Boolean, propertyOverrides: Map<String, String> = emptyMap()) =
-        ToolConfig(target, flavor, propertyOverrides).also {
+internal fun prepareTool(target: String?, flavor: KotlinPlatform, runFromDaemon: Boolean, propertyOverrides: Map<String, String> = emptyMap(), konanDataDir: String? = null) =
+        ToolConfig(target, flavor, propertyOverrides, konanDataDir).also {
             if (!runFromDaemon) it.prepare() // Daemon prepares the tool himself. (See KonanToolRunner.kt)
         }
 

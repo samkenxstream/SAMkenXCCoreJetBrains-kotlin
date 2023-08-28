@@ -9,8 +9,8 @@ import org.jetbrains.kotlin.analysis.api.fir.KtSymbolByFirBuilder
 import org.jetbrains.kotlin.analysis.api.types.KtClassTypeQualifier
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.tryCollectDesignation
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.withFirEntry
-import org.jetbrains.kotlin.analysis.utils.errors.checkWithAttachmentBuilder
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
+import org.jetbrains.kotlin.utils.exceptions.checkWithAttachment
 import org.jetbrains.kotlin.fir.containingClassForLocal
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isInner
@@ -21,6 +21,8 @@ import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.LookupTagInternals
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.withPsiEntry
 
 internal object UsualClassTypeQualifierBuilder {
     fun buildQualifiers(
@@ -94,7 +96,7 @@ internal object UsualClassTypeQualifierBuilder {
     }
 
     private fun collectDesignationPathForLocal(declaration: FirClassLikeDeclaration): List<FirDeclaration> {
-        checkWithAttachmentBuilder(
+        checkWithAttachment(
             declaration.isLocal,
             message = { "${declaration::class} is not local" }
         ) {
@@ -104,7 +106,9 @@ internal object UsualClassTypeQualifierBuilder {
             is FirAnonymousObject -> listOf(declaration)
             is FirRegularClass -> declaration.collectForLocal()
             is FirTypeAlias -> listOf(declaration) // TODO: handle type aliases
-            else -> error("Invalid declaration ${declaration.renderWithType()}")
+            else -> errorWithAttachment("Invalid declaration ${declaration::class}") {
+                withFirEntry("declaration", declaration)
+            }
         }
     }
 }

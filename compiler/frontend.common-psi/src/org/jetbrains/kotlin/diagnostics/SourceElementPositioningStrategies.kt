@@ -148,6 +148,11 @@ object SourceElementPositioningStrategies {
         PositioningStrategies.PARAMETER_DEFAULT_VALUE
     )
 
+    val PARAMETERS_WITH_DEFAULT_VALUE = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.PARAMETERS_WITH_DEFAULT_VALUE,
+        PositioningStrategies.PARAMETERS_WITH_DEFAULT_VALUE
+    )
+
     val PARAMETER_VARARG_MODIFIER = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.PARAMETER_VARARG_MODIFIER,
         PositioningStrategies.PARAMETER_VARARG_MODIFIER
@@ -161,6 +166,11 @@ object SourceElementPositioningStrategies {
     val VALUE_ARGUMENTS = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.VALUE_ARGUMENTS,
         PositioningStrategies.VALUE_ARGUMENTS
+    )
+
+    val VALUE_ARGUMENTS_LIST = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.VALUE_ARGUMENTS_LIST,
+        PositioningStrategies.VALUE_ARGUMENTS_LIST
     )
 
     val SUPERTYPES_LIST = SourceElementPositioningStrategy(
@@ -378,5 +388,10 @@ object SourceElementPositioningStrategies {
     val CALL_ELEMENT_WITH_DOT = SourceElementPositioningStrategy(
         LightTreePositioningStrategies.CALL_ELEMENT_WITH_DOT,
         PositioningStrategies.CALL_ELEMENT_WITH_DOT
+    )
+
+    val TYPEALIAS_TYPE_REFERENCE = SourceElementPositioningStrategy(
+        LightTreePositioningStrategies.TYPEALIAS_TYPE_REFERENCE,
+        PositioningStrategies.TYPEALIAS_TYPE_REFERENCE,
     )
 }

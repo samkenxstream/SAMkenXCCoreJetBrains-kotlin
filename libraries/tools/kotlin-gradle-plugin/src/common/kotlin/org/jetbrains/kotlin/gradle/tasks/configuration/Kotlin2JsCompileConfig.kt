@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.gradle.tasks.configuration
 
 import org.jetbrains.kotlin.gradle.plugin.KotlinCompilationInfo
+import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
+import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetType
 import org.jetbrains.kotlin.gradle.targets.js.internal.LibraryFilterCachingService
 import org.jetbrains.kotlin.gradle.targets.js.ir.*
 import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
@@ -102,6 +104,13 @@ internal open class BaseKotlin2JsCompileConfig<TASK : Kotlin2JsCompile>(
             if (none { it.startsWith(KLIB_MODULE_NAME) }) {
                 add("$KLIB_MODULE_NAME=${project.klibModuleName(baseName)}")
             }
+        }
+
+        if (compilation.platformType == KotlinPlatformType.wasm) {
+            add(WASM_BACKEND)
+            val wasmTargetType = ((compilation.origin as KotlinJsIrCompilation).target as KotlinJsIrTarget).wasmTargetType!!
+            val targetValue = if (wasmTargetType == KotlinWasmTargetType.WASI) "wasm-wasi" else "wasm-js"
+            add("$WASM_TARGET=$targetValue")
         }
     }
 }

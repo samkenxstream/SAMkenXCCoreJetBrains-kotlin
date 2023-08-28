@@ -5,11 +5,14 @@
 
 package org.jetbrains.kotlin.backend.common.actualizer
 
+import org.jetbrains.kotlin.backend.common.sourceElement
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.descriptors.annotations.KotlinRetention
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
@@ -21,11 +24,17 @@ import org.jetbrains.kotlin.mpp.*
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.calls.mpp.ExpectActualCollectionArgumentsCompatibilityCheckStrategy
 import org.jetbrains.kotlin.resolve.calls.mpp.ExpectActualMatchingContext
+import org.jetbrains.kotlin.resolve.calls.mpp.ExpectActualMatchingContext.AnnotationCallInfo
+import org.jetbrains.kotlin.resolve.checkers.OptInNames
+import org.jetbrains.kotlin.resolve.multiplatform.ExpectActualCompatibility
 import org.jetbrains.kotlin.types.AbstractTypeChecker
 import org.jetbrains.kotlin.types.TypeCheckerState
 import org.jetbrains.kotlin.types.Variance
-import org.jetbrains.kotlin.types.model.*
+import org.jetbrains.kotlin.types.model.KotlinTypeMarker
+import org.jetbrains.kotlin.types.model.TypeSubstitutorMarker
+import org.jetbrains.kotlin.types.model.TypeSystemContext
 import org.jetbrains.kotlin.utils.addToStdlib.UnsafeCastFunction
 import org.jetbrains.kotlin.utils.addToStdlib.castAll
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
@@ -39,6 +48,12 @@ internal abstract class IrExpectActualMatchingContext(
 
     override val allowTransitiveSupertypesActualization: Boolean
         get() = true
+
+    // This incompatibility is often suppressed in the source code (e.g. in kotlin-stdlib).
+    // The backend must be able to do expect-actual matching to emit bytecode
+    // That's why we disable the checker here. Probably, this checker can be enabled once KT-60426 is fixed
+    override val shouldCheckAbsenceOfDefaultParamsInActual: Boolean
+        get() = false
 
     private inline fun <R> CallableSymbolMarker.processIr(
         onFunction: (IrFunction) -> R,
@@ -252,6 +267,10 @@ internal abstract class IrExpectActualMatchingContext(
         return asIr().declarations.filterIsInstance<IrEnumEntry>().map { it.name }
     }
 
+    override fun RegularClassSymbolMarker.collectEnumEntries(): List<DeclarationSymbolMarker> {
+        return asIr().declarations.filterIsInstance<IrEnumEntry>().map { it.symbol }
+    }
+
     override val CallableSymbolMarker.dispatchReceiverType: KotlinTypeMarker?
         get() = (asIr().parent as? IrClass)?.defaultType
 
@@ -275,6 +294,9 @@ internal abstract class IrExpectActualMatchingContext(
             onValueParameter = { emptyList() },
             onEnumEntry = { emptyList() }
         )
+
+    override fun FunctionSymbolMarker.allOverriddenDeclarationsRecursive(): Sequence<CallableSymbolMarker> =
+        throw NotImplementedError("Not implemented because it's unused")
 
     override val FunctionSymbolMarker.valueParameters: List<ValueParameterSymbolMarker>
         get() = asIr().valueParameters.map { it.symbol }
@@ -407,14 +429,27 @@ internal abstract class IrExpectActualMatchingContext(
     }
 
     override val CallableSymbolMarker.hasStableParameterNames: Boolean
-        get() = when (asIr().origin) {
-            IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB,
-            IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB,
-            -> false
-            else -> true
+        get() {
+            var ir = asIr()
+
+            if (ir.isFakeOverride && ir is IrOverridableDeclaration<*>) {
+                ir.resolveFakeOverrideOrNull()?.let { ir = it }
+            }
+
+            return when (ir.origin) {
+                IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB,
+                IrDeclarationOrigin.IR_EXTERNAL_JAVA_DECLARATION_STUB,
+                -> false
+                else -> true
+            }
         }
 
-    override fun onMatchedMembers(expectSymbol: DeclarationSymbolMarker, actualSymbol: DeclarationSymbolMarker) {
+    override fun onMatchedMembers(
+        expectSymbol: DeclarationSymbolMarker,
+        actualSymbol: DeclarationSymbolMarker,
+        containingExpectClassSymbol: RegularClassSymbolMarker?,
+        containingActualClassSymbol: RegularClassSymbolMarker?,
+    ) {
         require(expectSymbol is IrSymbol)
         require(actualSymbol is IrSymbol)
         when (expectSymbol) {
@@ -432,4 +467,60 @@ internal abstract class IrExpectActualMatchingContext(
 
     abstract fun onMatchedClasses(expectClassSymbol: IrClassSymbol, actualClassSymbol: IrClassSymbol)
     abstract fun onMatchedCallables(expectSymbol: IrSymbol, actualSymbol: IrSymbol)
+
+    override val DeclarationSymbolMarker.annotations: List<AnnotationCallInfo>
+        get() = asIr().annotations.map(::AnnotationCallInfoImpl)
+
+    override fun areAnnotationArgumentsEqual(
+        expectAnnotation: AnnotationCallInfo, actualAnnotation: AnnotationCallInfo,
+        collectionArgumentsCompatibilityCheckStrategy: ExpectActualCollectionArgumentsCompatibilityCheckStrategy,
+    ): Boolean {
+        fun AnnotationCallInfo.getIrElement(): IrConstructorCall = (this as AnnotationCallInfoImpl).irElement
+
+        return areIrExpressionConstValuesEqual(
+            expectAnnotation.getIrElement(),
+            actualAnnotation.getIrElement(),
+            collectionArgumentsCompatibilityCheckStrategy,
+        )
+    }
+
+    internal fun getClassIdAfterActualization(classId: ClassId): ClassId {
+        return expectToActualClassMap[classId]?.classId ?: classId
+    }
+
+    private inner class AnnotationCallInfoImpl(val irElement: IrConstructorCall) : AnnotationCallInfo {
+        override val annotationSymbol: IrConstructorCall = irElement
+
+        override val classId: ClassId?
+            get() = getAnnotationClass()?.classId
+
+        override val isRetentionSource: Boolean
+            get() = getAnnotationClass()?.getAnnotationRetention() == KotlinRetention.SOURCE
+
+        override val isOptIn: Boolean
+            get() = getAnnotationClass()?.hasAnnotation(OptInNames.REQUIRES_OPT_IN_FQ_NAME) ?: false
+
+        private fun getAnnotationClass(): IrClass? {
+            val annotationClass = irElement.type.getClass() ?: return null
+            return expectToActualClassMap[annotationClass.classId]?.owner ?: annotationClass
+        }
+    }
+
+    override val DeclarationSymbolMarker.hasSourceAnnotationsErased: Boolean
+        get() {
+            val ir = asIr()
+            return ir.sourceElement() == null && ir.origin !is IrDeclarationOrigin.GeneratedByPlugin
+        }
+
+    // IR checker traverses member scope itself and collects mappings
+    override val checkClassScopesForAnnotationCompatibility = false
+
+    override fun skipCheckingAnnotationsOfActualClassMember(actualMember: DeclarationSymbolMarker): Boolean = error("Should not be called")
+
+    override fun findPotentialExpectClassMembersForActual(
+        expectClass: RegularClassSymbolMarker,
+        actualClass: RegularClassSymbolMarker,
+        actualMember: DeclarationSymbolMarker,
+        checkClassScopesCompatibility: Boolean,
+    ): Map<out DeclarationSymbolMarker, ExpectActualCompatibility<*>> = error("Should not be called")
 }

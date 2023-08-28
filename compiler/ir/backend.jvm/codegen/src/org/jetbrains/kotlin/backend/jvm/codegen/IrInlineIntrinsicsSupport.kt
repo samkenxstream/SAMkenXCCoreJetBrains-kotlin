@@ -33,6 +33,7 @@ import org.jetbrains.org.objectweb.asm.Type.INT_TYPE
 import org.jetbrains.org.objectweb.asm.Type.VOID_TYPE
 import org.jetbrains.org.objectweb.asm.commons.InstructionAdapter
 import org.jetbrains.org.objectweb.asm.tree.AbstractInsnNode
+import org.jetbrains.org.objectweb.asm.tree.FieldInsnNode
 import org.jetbrains.org.objectweb.asm.tree.InsnList
 
 class IrInlineIntrinsicsSupport(
@@ -57,7 +58,7 @@ class IrInlineIntrinsicsSupport(
         when (val parent = typeParameter.owner.parent) {
             is IrClass -> putClassInstance(v, parent.defaultType).also { AsmUtil.wrapJavaClassIntoKClass(v) }
             is IrSimpleFunction -> {
-                check(classCodegen.context.state.generateOptimizedCallableReferenceSuperClasses) {
+                check(classCodegen.context.config.generateOptimizedCallableReferenceSuperClasses) {
                     "typeOf() of a non-reified type parameter is only allowed if optimized callable references are enabled.\n" +
                             "Please make sure API version is set to 1.4, and -Xno-optimized-callable-references is NOT used.\n" +
                             "Container: $parent"
@@ -118,6 +119,9 @@ class IrInlineIntrinsicsSupport(
     }
 
     override fun toKotlinType(type: IrType): KotlinType = type.toIrBasedKotlinType()
+
+    override fun generateExternalEntriesForEnumTypeIfNeeded(type: IrType): FieldInsnNode? =
+        generateExternalEntriesForEnumTypeIfNeeded(type, classCodegen)
 
     override fun reportSuspendTypeUnsupported() {
         classCodegen.context.ktDiagnosticReporter.at(reportErrorsOn, containingFile).report(JvmBackendErrors.TYPEOF_SUSPEND_TYPE)

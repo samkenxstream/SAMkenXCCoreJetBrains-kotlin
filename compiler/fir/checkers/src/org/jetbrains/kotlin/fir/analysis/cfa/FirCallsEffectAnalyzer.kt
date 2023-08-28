@@ -39,7 +39,7 @@ import kotlin.contracts.contract
 object FirCallsEffectAnalyzer : FirControlFlowChecker() {
 
     override fun analyze(graph: ControlFlowGraph, reporter: DiagnosticReporter, context: CheckerContext) {
-        // TODO: this is quadratic due to `graph.traverse`, surely there is a better way?
+        // TODO, KT-59816: this is quadratic due to `graph.traverse`, surely there is a better way?
         for (subGraph in graph.subGraphs) {
             analyze(subGraph, reporter, context)
         }
@@ -156,7 +156,7 @@ object FirCallsEffectAnalyzer : FirControlFlowChecker() {
         override fun visitNode(node: CFGNode<*>, data: IllegalScopeContext) {}
 
         override fun visitFunctionEnterNode(node: FunctionEnterNode, data: IllegalScopeContext) {
-            // TODO: this is not how CFG works, this should be done by FIR tree traversal. Especially considering that
+            // TODO, KT-59668: this is not how CFG works, this should be done by FIR tree traversal. Especially considering that
             //  none of these methods use anything from the CFG other than `node.fir`, which should've been a hint.
             data.enterScope(node.fir === rootFunction || node.fir.isInPlaceLambda())
         }

@@ -7,7 +7,7 @@ package org.jetbrains.kotlin.fir.checkers.generator.diagnostics.model
 
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.diagnostics.Severity
-import org.jetbrains.kotlin.fir.PrivateForInline
+import org.jetbrains.kotlin.util.PrivateForInline
 import kotlin.properties.ReadOnlyProperty
 import kotlin.reflect.KProperty
 import kotlin.reflect.KType
@@ -79,6 +79,8 @@ sealed class DiagnosticBuilder(
         psiType: KType,
         positioningStrategy: PositioningStrategy,
     ) : DiagnosticBuilder(containingObjectName, name, psiType, positioningStrategy) {
+        var isSuppressible: Boolean = false
+
         @OptIn(PrivateForInline::class)
         override fun build(): RegularDiagnosticData {
             return RegularDiagnosticData(
@@ -88,6 +90,7 @@ sealed class DiagnosticBuilder(
                 psiType,
                 parameters,
                 positioningStrategy,
+                isSuppressible,
             )
         }
     }

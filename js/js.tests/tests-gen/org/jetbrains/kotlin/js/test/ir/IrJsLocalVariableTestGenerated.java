@@ -68,6 +68,12 @@ public class IrJsLocalVariableTestGenerated extends AbstractIrJsLocalVariableTes
     }
 
     @Test
+    @TestMetadata("inlineFunInObject.kt")
+    public void testInlineFunInObject() throws Exception {
+        runTest("compiler/testData/debug/localVariables/inlineFunInObject.kt");
+    }
+
+    @Test
     @TestMetadata("inlineProperty.kt")
     public void testInlineProperty() throws Exception {
         runTest("compiler/testData/debug/localVariables/inlineProperty.kt");
@@ -77,6 +83,18 @@ public class IrJsLocalVariableTestGenerated extends AbstractIrJsLocalVariableTes
     @TestMetadata("jsCode.kt")
     public void testJsCode() throws Exception {
         runTest("compiler/testData/debug/localVariables/jsCode.kt");
+    }
+
+    @Test
+    @TestMetadata("lambdaInObject.kt")
+    public void testLambdaInObject() throws Exception {
+        runTest("compiler/testData/debug/localVariables/lambdaInObject.kt");
+    }
+
+    @Test
+    @TestMetadata("lambdaWithLambdaParameter.kt")
+    public void testLambdaWithLambdaParameter() throws Exception {
+        runTest("compiler/testData/debug/localVariables/lambdaWithLambdaParameter.kt");
     }
 
     @Test
@@ -170,9 +188,15 @@ public class IrJsLocalVariableTestGenerated extends AbstractIrJsLocalVariableTes
     }
 
     @Test
-    @TestMetadata("tryFinally6.kt")
-    public void testTryFinally6() throws Exception {
-        runTest("compiler/testData/debug/localVariables/tryFinally6.kt");
+    @TestMetadata("tryFinally6_1.kt")
+    public void testTryFinally6_1() throws Exception {
+        runTest("compiler/testData/debug/localVariables/tryFinally6_1.kt");
+    }
+
+    @Test
+    @TestMetadata("tryFinally6_2.kt")
+    public void testTryFinally6_2() throws Exception {
+        runTest("compiler/testData/debug/localVariables/tryFinally6_2.kt");
     }
 
     @Test
@@ -392,6 +416,24 @@ public class IrJsLocalVariableTestGenerated extends AbstractIrJsLocalVariableTes
         @TestMetadata("mergeLvt.kt")
         public void testMergeLvt() throws Exception {
             runTest("compiler/testData/debug/localVariables/suspend/mergeLvt.kt");
+        }
+
+        @Test
+        @TestMetadata("nestedInsideSuspendUnintercepted.kt")
+        public void testNestedInsideSuspendUnintercepted() throws Exception {
+            runTest("compiler/testData/debug/localVariables/suspend/nestedInsideSuspendUnintercepted.kt");
+        }
+
+        @Test
+        @TestMetadata("nestedSuspendUnintercepted.kt")
+        public void testNestedSuspendUnintercepted() throws Exception {
+            runTest("compiler/testData/debug/localVariables/suspend/nestedSuspendUnintercepted.kt");
+        }
+
+        @Test
+        @TestMetadata("nestedSuspendUninterceptedWithDeepLambdaCall.kt")
+        public void testNestedSuspendUninterceptedWithDeepLambdaCall() throws Exception {
+            runTest("compiler/testData/debug/localVariables/suspend/nestedSuspendUninterceptedWithDeepLambdaCall.kt");
         }
 
         @Test

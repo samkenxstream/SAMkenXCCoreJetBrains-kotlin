@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -9,11 +9,12 @@ import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirConstExpression
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirSmartCastExpression
-import org.jetbrains.kotlin.fir.render
 import org.jetbrains.kotlin.fir.types.impl.FirImplicitBuiltinTypeRef
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.ConstantValueKind
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.contract
 
@@ -29,20 +30,53 @@ inline fun <reified T : ConeKotlinType> FirTypeRef.coneTypeSafe(): T? {
 
 val FirTypeRef.coneType: ConeKotlinType
     get() = coneTypeSafe()
-        ?: error("Expected FirResolvedTypeRef with ConeKotlinType but was ${this::class.simpleName} ${render()}")
+        ?: errorWithAttachment("Expected ${FirResolvedTypeRef::class.simpleName} with ${ConeKotlinType::class.simpleName} but was ${this::class.simpleName}") {
+            withFirEntry("typeRef", this@coneType)
+        }
 
 val FirTypeRef.coneTypeOrNull: ConeKotlinType?
     get() = coneTypeSafe()
 
+val FirExpression.resolvedType: ConeKotlinType get() = requireNotNull(coneTypeOrNull) { "Expected type to be resolved" }
+
+inline fun <reified T : ConeKotlinType> FirExpression.coneTypeSafe(): T? = (coneTypeOrNull as? T)
+
+inline fun <reified T : ConeKotlinType> FirExpression.coneTypeUnsafe(): T = coneTypeOrNull as T
+
+@RequiresOptIn(
+    "This type check never expands type aliases. Use with care (probably Ok for expression & constructor types). " +
+            "Generally this.coneType.fullyExpandedType(session).isSomeType is better"
+)
+annotation class UnexpandedTypeCheck
+
+@UnexpandedTypeCheck
 val FirTypeRef.isAny: Boolean get() = isBuiltinType(StandardClassIds.Any, false)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isNullableAny: Boolean get() = isBuiltinType(StandardClassIds.Any, true)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isNothing: Boolean get() = isBuiltinType(StandardClassIds.Nothing, false)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isNullableNothing: Boolean get() = isBuiltinType(StandardClassIds.Nothing, true)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isUnit: Boolean get() = isBuiltinType(StandardClassIds.Unit, false)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isBoolean: Boolean get() = isBuiltinType(StandardClassIds.Boolean, false)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isInt: Boolean get() = isBuiltinType(StandardClassIds.Int, false)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isString: Boolean get() = isBuiltinType(StandardClassIds.String, false)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isEnum: Boolean get() = isBuiltinType(StandardClassIds.Enum, false)
+
+@UnexpandedTypeCheck
 val FirTypeRef.isArrayType: Boolean
     get() =
         isBuiltinType(StandardClassIds.Array, false)
@@ -112,25 +146,13 @@ fun ConeClassLikeType.toConstKind(): ConstantValueKind<*>? = when (lookupTag.cla
     else -> null
 }
 
-fun FirTypeProjection.toConeTypeProjection(): ConeTypeProjection =
-    when (this) {
-        is FirStarProjection -> ConeStarProjection
-        is FirTypeProjectionWithVariance -> {
-            val type = typeRef.coneType
-            type.toTypeProjection(this.variance)
-        }
-        else -> error("!")
+fun FirTypeProjection.toConeTypeProjection(): ConeTypeProjection = when (this) {
+    is FirStarProjection -> ConeStarProjection
+    is FirTypeProjectionWithVariance -> {
+        val type = typeRef.coneType
+        type.toTypeProjection(this.variance)
     }
-
-private fun ConeTypeParameterType.hasNotNullUpperBound(): Boolean {
-    return lookupTag.typeParameterSymbol.resolvedBounds.any {
-        val boundType = it.coneType
-        if (boundType is ConeTypeParameterType) {
-            boundType.hasNotNullUpperBound()
-        } else {
-            boundType.nullability == ConeNullability.NOT_NULL
-        }
-    }
+    else -> errorWithAttachment("Unexpected ${this::class.simpleName}") { withFirEntry("projection", this@toConeTypeProjection) }
 }
 
 val FirTypeRef.canBeNull: Boolean

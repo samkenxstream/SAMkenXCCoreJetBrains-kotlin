@@ -9,6 +9,7 @@
 #include <pthread.h>
 
 #include "Common.h"
+#include "Logging.hpp"
 #include "Porting.h"
 #include "Utils.hpp"
 #include "std_support/Optional.hpp"
@@ -32,7 +33,6 @@ struct SweepStats {
 
 struct MarkStats {
     uint64_t markedCount = 0;
-    uint64_t markedSizeBytes = 0;
 };
 
 class GCHandle {
@@ -95,19 +95,7 @@ public:
         void addThreadLocalRoot() { threadLocalRoots_++; }
     };
 
-    class GCMarkScope : GCStageScopeUsTimer, Pinned {
-        GCHandle& handle_;
-        MarkStats stats_;
-
-    public:
-        explicit GCMarkScope(GCHandle& handle);
-        ~GCMarkScope();
-
-        void addObject(uint64_t objectSize) noexcept {
-            ++stats_.markedCount;
-            stats_.markedSizeBytes += objectSize;
-        }
-    };
+    class GCMarkScope;
 
     class GCProcessWeaksScope : GCStageScopeUsTimer, Pinned {
         GCHandle& handle_;
@@ -139,9 +127,11 @@ public:
     static GCHandle createFakeForTests();
     static GCHandle getByEpoch(uint64_t epoch);
     static std::optional<GCHandle> currentEpoch() noexcept;
+    static GCHandle invalid();
     static void ClearForTests();
 
     uint64_t getEpoch() { return epoch_; }
+    bool isValid() const;
     void finished();
     void finalizersDone();
     void finalizersScheduled(uint64_t finalizersCount);
@@ -152,9 +142,24 @@ public:
     GCSweepExtraObjectsScope sweepExtraObjects() { return GCSweepExtraObjectsScope(*this); }
     GCGlobalRootSetScope collectGlobalRoots() { return GCGlobalRootSetScope(*this); }
     GCThreadRootSetScope collectThreadRoots(mm::ThreadData& threadData) { return GCThreadRootSetScope(*this, threadData); }
-    GCMarkScope mark() { return GCMarkScope(*this); }
+    GCMarkScope mark();
     GCProcessWeaksScope processWeaks() noexcept { return GCProcessWeaksScope(*this); }
 
     MarkStats getMarked();
+};
+
+class GCHandle::GCMarkScope : GCStageScopeUsTimer {
+    GCHandle handle_ = GCHandle::invalid();
+    MarkStats stats_;
+
+    void swap(GCMarkScope& other) noexcept;
+
+public:
+    explicit GCMarkScope(GCHandle& handle);
+    GCMarkScope(GCMarkScope&& that) noexcept;
+    GCMarkScope& operator=(GCMarkScope that) noexcept;
+    ~GCMarkScope();
+
+    void addObject() noexcept { ++stats_.markedCount; }
 };
 }

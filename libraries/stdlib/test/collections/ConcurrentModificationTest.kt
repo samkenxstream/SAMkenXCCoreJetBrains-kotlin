@@ -6,6 +6,10 @@
 package test.collections
 
 import test.TestPlatform
+import test.collections.js.linkedStringMapOf
+import test.collections.js.linkedStringSetOf
+import test.collections.js.stringMapOf
+import test.collections.js.stringSetOf
 import test.current
 import kotlin.test.Test
 import kotlin.test.assertFailsWith
@@ -14,7 +18,7 @@ import kotlin.test.fail
 
 class ConcurrentModificationTest {
 
-    private fun <C, I : Iterator<*>> testThrowsCME(
+    private fun <C, I : Iterator<*>> testIteratorThrowsCME(
         withCollection: WithCollection<C>,
         createIterator: C.() -> I,
         collectionOp: CollectionOperation<C>,
@@ -46,19 +50,45 @@ class ConcurrentModificationTest {
         assertTrue(invoked)
     }
 
-    private fun <C : MutableList<String>> testThrowsCME(
+    private fun <C : MutableList<String>> testIteratorThrowsCME(
         withMutableList: WithCollection<C>,
         listOps: List<CollectionOperation<C>>
     ) {
         for (listOp in listOps) {
             for (iteratorOp in iteratorOperations<String>()) {
-                testThrowsCME(withMutableList, { iterator() }, listOp, iteratorOp)
+                testIteratorThrowsCME(withMutableList, { iterator() }, listOp, iteratorOp)
             }
             for (iteratorOp in listIteratorOperations) {
-                testThrowsCME(withMutableList, { listIterator() }, listOp, iteratorOp)
-                testThrowsCME(withMutableList, { listIterator(2) }, listOp, iteratorOp)
+                testIteratorThrowsCME(withMutableList, { listIterator() }, listOp, iteratorOp)
+                testIteratorThrowsCME(withMutableList, { listIterator(2) }, listOp, iteratorOp)
             }
         }
+    }
+
+    private fun <C : MutableList<String>> testSubListThrowsCME(
+        withSubList: WithCollection<C>,
+        subListOps: List<CollectionOperation<C>>
+    ) {
+        var invoked = false
+        withSubList { subList ->
+            invoked = true
+
+            for (subListOp in subListOps) {
+                val message = "subListOp: ${subListOp.description}"
+                if (subListOp.throwsCME) {
+                    assertFailsWith<ConcurrentModificationException>(message) {
+                        subListOp.function.invoke(subList)
+                    }
+                } else {
+                    try {
+                        subListOp.function.invoke(subList)
+                    } catch (e: Throwable) {
+                        fail("$message. Expected no exception, but was $e")
+                    }
+                }
+            }
+        }
+        assertTrue(invoked)
     }
 
     @Test
@@ -98,7 +128,7 @@ class ConcurrentModificationTest {
         }
 
         fun testThrowsCME(withMutableList: WithCollection<MutableList<String>>) {
-            testThrowsCME(withMutableList, operations)
+            testIteratorThrowsCME(withMutableList, operations)
         }
 
         // size == capacity
@@ -142,7 +172,7 @@ class ConcurrentModificationTest {
         )
 
         fun testThrowsCME(withArrayList: WithCollection<ArrayList<String>>) {
-            testThrowsCME(withArrayList, operations)
+            testIteratorThrowsCME(withArrayList, operations)
         }
 
         // size == capacity
@@ -166,9 +196,66 @@ class ConcurrentModificationTest {
     }
 
     @Test
-    fun mutableSet() {
+    fun subList() {
         if (TestPlatform.current == TestPlatform.Js) return
 
+        val operations = listOf<CollectionOperation<MutableList<String>>>(
+            CollectionOperation("isEmpty()") { isEmpty() },
+            CollectionOperation("size") { size },
+
+            CollectionOperation("equals()") { equals(listOf("x")) },
+            CollectionOperation("hashCode()") { hashCode() },
+            CollectionOperation("toString()") { toString() },
+
+            CollectionOperation("indexOf") { indexOf("d") },
+            CollectionOperation("lastIndexOf") { lastIndexOf("d") },
+            CollectionOperation("contains") { contains("d") },
+
+            CollectionOperation("get()") { get(2) },
+            CollectionOperation("set()") { set(2, "e") },
+
+            CollectionOperation("add()") { add("e") },
+            CollectionOperation("add(index)") { add(2, "e") },
+
+            CollectionOperation("remove()") { remove("d") },
+            CollectionOperation("removeAt()") { removeAt(2) },
+
+            CollectionOperation("addAll()") { addAll(listOf("e", "f")) },
+            CollectionOperation("addAll(index)") { addAll(2, listOf("e", "f")) },
+
+            CollectionOperation("removeAll()") { removeAll(listOf("d", "e")) },
+
+            CollectionOperation("retainAll()") { retainAll(listOf("d", "e")) },
+
+            CollectionOperation("clear()") { clear() },
+            CollectionOperation("iterator()") { iterator() },
+            CollectionOperation("listIterator()") { listIterator() },
+
+            CollectionOperation("subList()", throwsCME = false) { subList(0, 1) },
+        )
+
+        fun testThrowsCME(withMutableList: WithCollection<MutableList<String>>) {
+            testSubListThrowsCME(withMutableList, operations)
+        }
+
+        testThrowsCME { action ->
+            val arrayList = arrayListOf("a", "b", "c", "d")
+            val subList = arrayList.subList(0, arrayList.size)
+            arrayList.add("e")
+            action(subList)
+        }
+        testThrowsCME { action ->
+            buildList {
+                addAll(listOf("a", "b", "c", "d"))
+                val subList = subList(0, size)
+                add("e")
+                action(subList)
+            }
+        }
+    }
+
+    @Test
+    fun mutableSet() {
         val operations = listOf<CollectionOperation<MutableSet<String>>>(
             CollectionOperation("add(non-existing)") { add("e") },
             CollectionOperation("add(existing)", throwsCME = false) { add("d") },
@@ -197,7 +284,7 @@ class ConcurrentModificationTest {
         fun testThrowsCME(withMutableSet: WithCollection<MutableSet<String>>) {
             for (setOp in operations) {
                 for (iteratorOp in iteratorOperations<String>()) {
-                    testThrowsCME(withMutableSet, { iterator() }, setOp, iteratorOp)
+                    testIteratorThrowsCME(withMutableSet, { iterator() }, setOp, iteratorOp)
                 }
             }
         }
@@ -226,12 +313,25 @@ class ConcurrentModificationTest {
                 action(this)
             }
         }
+
+        if (TestPlatform.current == TestPlatform.Js) {
+            testThrowsCME { action ->
+                stringSetOf().apply {
+                    addAll(elements)
+                    action(this)
+                }
+            }
+            testThrowsCME { action ->
+                linkedStringSetOf().apply {
+                    addAll(elements)
+                    action(this)
+                }
+            }
+        }
     }
 
     @Test
     fun mutableMap() {
-        if (TestPlatform.current == TestPlatform.Js) return
-
         val operations = listOf<CollectionOperation<MutableMap<String, String>>>(
             CollectionOperation("put(non-existing)") { put("e", "e") },
             CollectionOperation("put(existing)", throwsCME = false) { put("d", "d") },
@@ -253,11 +353,11 @@ class ConcurrentModificationTest {
         fun testThrowsCME(withMutableMap: WithCollection<MutableMap<String, String>>) {
             for (mapOp in operations) {
                 for (iteratorOp in iteratorOperations<String>()) {
-                    testThrowsCME(withMutableMap, { keys.iterator() }, mapOp, iteratorOp)
-                    testThrowsCME(withMutableMap, { values.iterator() }, mapOp, iteratorOp)
+                    testIteratorThrowsCME(withMutableMap, { keys.iterator() }, mapOp, iteratorOp)
+                    testIteratorThrowsCME(withMutableMap, { values.iterator() }, mapOp, iteratorOp)
                 }
                 for (iteratorOp in iteratorOperations<MutableMap.MutableEntry<String, String>>()) {
-                    testThrowsCME(withMutableMap, { entries.iterator() }, mapOp, iteratorOp)
+                    testIteratorThrowsCME(withMutableMap, { entries.iterator() }, mapOp, iteratorOp)
                 }
             }
         }
@@ -283,6 +383,21 @@ class ConcurrentModificationTest {
             buildMap(10) {
                 putAll(entries)
                 action(this)
+            }
+        }
+
+        if (TestPlatform.current == TestPlatform.Js) {
+            testThrowsCME { action ->
+                stringMapOf<String>().apply {
+                    putAll(entries)
+                    action(this)
+                }
+            }
+            testThrowsCME { action ->
+                linkedStringMapOf<String>().apply {
+                    putAll(entries)
+                    action(this)
+                }
             }
         }
     }

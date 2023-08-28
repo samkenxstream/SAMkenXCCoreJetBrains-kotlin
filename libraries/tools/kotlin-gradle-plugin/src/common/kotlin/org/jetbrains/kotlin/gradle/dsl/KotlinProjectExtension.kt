@@ -251,14 +251,6 @@ abstract class KotlinJsProjectExtension(project: Project) :
     }
 
     companion object {
-        internal fun reportJsCompilerMode(compilerType: KotlinJsCompilerType) {
-            when (compilerType) {
-                KotlinJsCompilerType.LEGACY -> KotlinBuildStatsService.getInstance()?.report(StringMetrics.JS_COMPILER_MODE, "legacy")
-                KotlinJsCompilerType.IR -> KotlinBuildStatsService.getInstance()?.report(StringMetrics.JS_COMPILER_MODE, "ir")
-                KotlinJsCompilerType.BOTH -> KotlinBuildStatsService.getInstance()?.report(StringMetrics.JS_COMPILER_MODE, "both")
-            }
-        }
-
         internal fun warnAboutDeprecatedCompiler(project: Project, compilerType: KotlinJsCompilerType) {
             if (PropertiesProvider(project).jsCompilerNoWarn) return
             val logger = project.logger
@@ -320,27 +312,26 @@ abstract class KotlinJsProjectExtension(project: Project) :
         if (_target == null) {
             val compilerOrFromProperties = compiler ?: compilerTypeFromProperties
             val compilerOrDefault = compilerOrFromProperties ?: defaultJsCompilerType
-            reportJsCompilerMode(compilerOrDefault)
             warnAboutDeprecatedCompiler(project, compilerOrDefault)
             val target: KotlinJsTargetDsl = when (compilerOrDefault) {
                 KotlinJsCompilerType.LEGACY -> legacyPreset
                     .also {
                         it.irPreset = null
                     }
-                    .createTarget("js")
+                    .createTargetInternal("js")
 
                 KotlinJsCompilerType.IR -> irPreset
                     .also {
                         it.mixedMode = false
                     }
-                    .createTarget("js")
+                    .createTargetInternal("js")
 
                 KotlinJsCompilerType.BOTH -> legacyPreset
                     .also {
                         irPreset.mixedMode = true
                         it.irPreset = irPreset
                     }
-                    .createTarget(
+                    .createTargetInternal(
                         lowerCamelCaseName(
                             "js",
                             LEGACY.lowerName

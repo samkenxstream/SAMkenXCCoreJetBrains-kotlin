@@ -6,19 +6,17 @@
 package org.jetbrains.kotlin.fir.analysis.checkers.declaration
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirElement
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
-import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
-import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.diagnostics.ConeSimpleDiagnostic
 import org.jetbrains.kotlin.fir.diagnostics.DiagnosticKind
 import org.jetbrains.kotlin.fir.expressions.FirFunctionCall
 import org.jetbrains.kotlin.fir.expressions.FirImplicitInvokeCall
 import org.jetbrains.kotlin.fir.expressions.arguments
-import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
-import org.jetbrains.kotlin.fir.references.FirResolvedErrorReference
 import org.jetbrains.kotlin.fir.references.isError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.*
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -30,12 +28,9 @@ import org.jetbrains.kotlin.types.AbstractTypeChecker
 object FirDelegatedPropertyChecker : FirPropertyChecker() {
     override fun check(declaration: FirProperty, context: CheckerContext, reporter: DiagnosticReporter) {
         val delegate = declaration.delegate ?: return
-        val delegateType = delegate.typeRef.coneType
+        val delegateType = delegate.resolvedType
         val source = delegate.source;
 
-        // TODO: Also suppress delegate issue if type inference failed. For example, in
-        //  compiler/testData/diagnostics/tests/delegatedProperty/inference/differentDelegatedExpressions.fir.kt, no delegate issues are
-        //  reported due to the inference issue.
         if (delegateType is ConeErrorType) {
             // Implicit recursion type is not reported since the type ref does not have a real source.
             if (source != null && (delegateType.diagnostic as? ConeSimpleDiagnostic)?.kind == DiagnosticKind.RecursionInImplicitTypes) {
@@ -69,7 +64,7 @@ object FirDelegatedPropertyChecker : FirPropertyChecker() {
                 val diagnostic = if (reference.isError()) reference.diagnostic else return false
                 if (reference.source?.kind != KtFakeSourceElementKind.DelegatedPropertyAccessor) return false
                 val expectedFunctionSignature =
-                    (if (isGet) "getValue" else "setValue") + "(${functionCall.arguments.joinToString(", ") { it.typeRef.coneType.renderReadable() }})"
+                    (if (isGet) "getValue" else "setValue") + "(${functionCall.arguments.joinToString(", ") { it.resolvedType.renderReadable() }})"
                 val delegateDescription = if (isGet) "delegate" else "delegate for var (read-write property)"
 
                 fun reportInapplicableDiagnostics(candidates: Collection<FirBasedSymbol<*>>) {
@@ -127,7 +122,7 @@ object FirDelegatedPropertyChecker : FirPropertyChecker() {
             }
 
             private fun checkReturnType(functionCall: FirFunctionCall) {
-                val returnType = functionCall.typeRef.coneType
+                val returnType = functionCall.resolvedType
                 val propertyType = declaration.returnTypeRef.coneType
                 if (!AbstractTypeChecker.isSubtypeOf(context.session.typeContext, returnType, propertyType)) {
                     reporter.reportOn(

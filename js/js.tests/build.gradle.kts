@@ -1,8 +1,10 @@
 import com.github.gradle.node.npm.task.NpmTask
+import com.github.gradle.node.variant.computeNodeExec
 import org.jetbrains.kotlin.gradle.plugin.KotlinPlatformType
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
 import org.jetbrains.kotlin.ideaExt.idea
 import org.apache.tools.ant.filters.FixCrLfFilter
+import org.jetbrains.kotlin.gradle.targets.js.KotlinJsCompilerAttribute
 import java.util.Properties
 
 plugins {
@@ -23,8 +25,10 @@ node {
 val antLauncherJar by configurations.creating
 val testJsRuntime by configurations.creating {
     attributes {
+        attribute(Category.CATEGORY_ATTRIBUTE, objects.named(Category.LIBRARY))
         attribute(Usage.USAGE_ATTRIBUTE, objects.named(KotlinUsages.KOTLIN_RUNTIME))
         attribute(KotlinPlatformType.attribute, KotlinPlatformType.js)
+        attribute(KotlinJsCompilerAttribute.jsCompilerAttribute, KotlinJsCompilerAttribute.legacy)
     }
 }
 
@@ -60,11 +64,11 @@ dependencies {
     testApi(project(":compiler:util"))
 
     testRuntimeOnly(commonDependency("org.jetbrains.intellij.deps:trove4j"))
-    testRuntimeOnly(commonDependency("com.google.guava:guava"))
+    testRuntimeOnly(libs.guava)
     testRuntimeOnly(commonDependency("org.jetbrains.intellij.deps:jdom"))
 
     testRuntimeOnly(kotlinStdlib())
-    testJsRuntime(kotlinStdlib("js"))
+    testJsRuntime(kotlinStdlib())
     if (!kotlinBuildProperties.isInJpsBuildIdeaSync) {
         testJsRuntime(project(":kotlin-test:kotlin-test-js")) // to be sure that kotlin-test-js built before tests runned
     }
@@ -78,9 +82,9 @@ dependencies {
     testRuntimeOnly("org.junit.vintage:junit-vintage-engine:${commonDependencyVersion("org.junit", "junit-bom")}")
 
     testImplementation(commonDependency("org.jetbrains.kotlinx", "kotlinx-serialization-json"))
-    testImplementation(commonDependency("io.ktor", "ktor-client-core"))
-    testImplementation(commonDependency("io.ktor", "ktor-client-cio"))
-    testImplementation(commonDependency("io.ktor", "ktor-client-websockets"))
+    testImplementation(libs.ktor.client.cio)
+    testImplementation(libs.ktor.client.core)
+    testImplementation(libs.ktor.client.websockets)
 }
 
 val generationRoot = projectDir.resolve("tests-gen")
@@ -214,11 +218,7 @@ val generateTypeScriptJsExportOnFileTests by parallel(
 fun Test.setupNodeJs() {
     systemProperty("javascript.engine.path.NodeJs", com.github.gradle.node.variant.VariantComputer()
         .let { variantComputer ->
-            variantComputer
-                .computeNodeDir(node)
-                .let { variantComputer.computeNodeBinDir(it) }
-                .let { variantComputer.computeNodeExec(node, it) }
-                .get()
+            computeNodeExec(node, variantComputer.computeNodeBinDir(node.computedNodeDir)).get()
         }
     )
 }
@@ -242,12 +242,12 @@ fun Test.setUpJsBoxTests(jsEnabled: Boolean, jsIrEnabled: Boolean, firEnabled: B
     }
 
     if (jsIrEnabled) {
-        dependsOn(":kotlin-stdlib-js-ir:compileKotlinJs")
-        systemProperty("kotlin.js.full.stdlib.path", "libraries/stdlib/js-ir/build/classes/kotlin/js/main")
-        inputs.dir(rootDir.resolve("libraries/stdlib/js-ir/build/classes/kotlin/js/main"))
+        dependsOn(":kotlin-stdlib:jsJar")
+        systemProperty("kotlin.js.full.stdlib.path", "libraries/stdlib/build/classes/kotlin/js/main")
+        inputs.dir(rootDir.resolve("libraries/stdlib/build/classes/kotlin/js/main"))
 
-        systemProperty("kotlin.js.stdlib.klib.path", "libraries/stdlib/js-ir/build/libs/kotlin-stdlib-js-ir-js-$version.klib")
-        inputs.file(rootDir.resolve("libraries/stdlib/js-ir/build/libs/kotlin-stdlib-js-ir-js-$version.klib"))
+        systemProperty("kotlin.js.stdlib.klib.path", "libraries/stdlib/build/libs/kotlin-stdlib-js-$version.klib")
+        inputs.file(rootDir.resolve("libraries/stdlib/build/libs/kotlin-stdlib-js-$version.klib"))
 
         dependsOn(":kotlin-stdlib-js-ir-minimal-for-test:compileKotlinJs")
         systemProperty("kotlin.js.reduced.stdlib.path", "libraries/stdlib/js-ir-minimal-for-test/build/classes/kotlin/js/main")
@@ -269,16 +269,30 @@ fun Test.setUpJsBoxTests(jsEnabled: Boolean, jsIrEnabled: Boolean, firEnabled: B
     }
     if (!jsEnabled) {
         when {
-            firEnabled -> {
+            firEnabled && !es6Enabled -> {
                 include("org/jetbrains/kotlin/js/test/fir/*")
+
+                exclude("org/jetbrains/kotlin/js/test/fir/FirJsES6BoxTestGenerated.class")
+                exclude("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenBoxTestGenerated.class")
+                exclude("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenInlineTestGenerated.class")
+                exclude("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenBoxErrorTestGenerated.class")
+                exclude("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenWasmJsInteropTestGenerated.class")
             }
             es6Enabled -> {
-                include("org/jetbrains/kotlin/js/test/ir/IrBoxJsES6TestGenerated.class")
-                include("org/jetbrains/kotlin/js/test/ir/IrJsES6CodegenBoxTestGenerated.class")
-                include("org/jetbrains/kotlin/js/test/ir/IrJsES6CodegenInlineTestGenerated.class")
-                include("org/jetbrains/kotlin/js/test/ir/IrJsES6CodegenBoxErrorTestGenerated.class")
+                if (firEnabled) {
+                    include("org/jetbrains/kotlin/js/test/fir/FirJsES6BoxTestGenerated.class")
+                    include("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenBoxTestGenerated.class")
+                    include("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenInlineTestGenerated.class")
+                    include("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenBoxErrorTestGenerated.class")
+                    include("org/jetbrains/kotlin/js/test/fir/FirJsES6CodegenWasmJsInteropTestGenerated.class")
+                } else {
+                    include("org/jetbrains/kotlin/js/test/ir/IrBoxJsES6TestGenerated.class")
+                    include("org/jetbrains/kotlin/js/test/ir/IrJsES6CodegenBoxTestGenerated.class")
+                    include("org/jetbrains/kotlin/js/test/ir/IrJsES6CodegenInlineTestGenerated.class")
+                    include("org/jetbrains/kotlin/js/test/ir/IrJsES6CodegenBoxErrorTestGenerated.class")
 
-                include("org/jetbrains/kotlin/incremental/JsIrES6InvalidationTestGenerated.class")
+                    include("org/jetbrains/kotlin/incremental/JsIrES6InvalidationTestGenerated.class")
+                }
             }
             else -> {
                 include("org/jetbrains/kotlin/js/test/ir/*")
@@ -361,6 +375,7 @@ projectTest("jsIrTest", jUnitMode = JUnitMode.JUnit5) {
     setUpJsBoxTests(jsEnabled = false, jsIrEnabled = true, firEnabled = false, es6Enabled = false)
     useJUnitPlatform()
 }
+
 projectTest("jsIrES6Test", jUnitMode = JUnitMode.JUnit5) {
     setUpJsBoxTests(jsEnabled = false, jsIrEnabled = true, firEnabled = false, es6Enabled = true)
     useJUnitPlatform()
@@ -368,6 +383,11 @@ projectTest("jsIrES6Test", jUnitMode = JUnitMode.JUnit5) {
 
 projectTest("jsFirTest", jUnitMode = JUnitMode.JUnit5) {
     setUpJsBoxTests(jsEnabled = false, jsIrEnabled = true, firEnabled = true, es6Enabled = false)
+    useJUnitPlatform()
+}
+
+projectTest("jsFirES6Test", jUnitMode = JUnitMode.JUnit5) {
+    setUpJsBoxTests(jsEnabled = false, jsIrEnabled = true, firEnabled = true, es6Enabled = true)
     useJUnitPlatform()
 }
 
@@ -388,9 +408,9 @@ projectTest("jsStdlibApiTest", parallel = true, maxHeapSizeMb = 4096) {
     include("org/jetbrains/kotlin/js/testOld/api/*")
     inputs.dir(rootDir.resolve("libraries/stdlib/api/js"))
 
-    dependsOn(":kotlin-stdlib-js-ir:compileKotlinJs")
-    systemProperty("kotlin.js.full.stdlib.path", "libraries/stdlib/js-ir/build/classes/kotlin/js/main")
-    inputs.dir(rootDir.resolve("libraries/stdlib/js-ir/build/classes/kotlin/js/main"))
+    dependsOn(":kotlin-stdlib:jsJar")
+    systemProperty("kotlin.js.full.stdlib.path", "libraries/stdlib/build/classes/kotlin/js/main")
+    inputs.dir(rootDir.resolve("libraries/stdlib/build/classes/kotlin/js/main"))
 
     setTestNameIncludePatterns(listOf("org.jetbrains.kotlin.js.testOld.api.ApiTest.*"))
 

@@ -35,7 +35,7 @@ import org.jetbrains.kotlin.serialization.deserialization.ProtoEnumFlags
 import org.jetbrains.kotlin.serialization.deserialization.getClassId
 import org.jetbrains.kotlin.serialization.deserialization.getName
 import org.jetbrains.kotlin.types.Variance
-import org.jetbrains.kotlin.util.shouldIjPlatformExceptionBeRethrown
+import org.jetbrains.kotlin.utils.exceptions.shouldIjPlatformExceptionBeRethrown
 
 class FirTypeDeserializer(
     private val moduleData: FirModuleData,
@@ -108,7 +108,7 @@ class FirTypeDeserializer(
         }
     }
 
-    fun typeRef(proto: ProtoBuf.Type): FirTypeRef {
+    fun typeRef(proto: ProtoBuf.Type): FirResolvedTypeRef {
         return buildResolvedTypeRef {
             annotations += annotationDeserializer.loadTypeAnnotations(proto, nameResolver)
             type = type(proto, annotations.computeTypeAttributes(moduleData.session, shouldExpandTypeAliases = false))

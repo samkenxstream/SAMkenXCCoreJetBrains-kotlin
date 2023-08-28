@@ -169,6 +169,7 @@ private val functionInliningPhase = makeCustomWasmModulePhase(
         FunctionInlining(
             context = context,
             innerClassesSupport = context.innerClassesSupport,
+            inlineFunctionResolver = WasmInlineFunctionResolver(context),
             insertAdditionalImplicitCasts = true,
         ).inline(module)
         module.patchDeclarationParents()
@@ -742,5 +743,6 @@ val wasmPhases = SameTypeNamedCompilerPhase(
             virtualDispatchReceiverExtractionPhase then
             staticMembersLoweringPhase then
             inlineObjectsWithPureInitializationLoweringPhase then
-            validateIrAfterLowering
+            validateIrAfterLowering,
+    actions = setOf(defaultDumper.toMultiModuleAction())
 )

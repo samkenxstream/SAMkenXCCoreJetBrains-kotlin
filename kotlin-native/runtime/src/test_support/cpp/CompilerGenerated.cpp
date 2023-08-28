@@ -74,6 +74,13 @@ extern const int32_t Kotlin_disableMmap = 1;
 extern const int32_t Kotlin_disableMmap = 0;
 #endif
 extern const char* const Kotlin_runtimeLogs = nullptr;
+extern const int32_t Kotlin_concurrentWeakSweep = 1;
+#if KONAN_WINDOWS
+// parallel mark tests hang on mingw due to (presumably) a bug in winpthread
+extern const int32_t Kotlin_gcMarkSingleThreaded = 1;
+#else
+extern const int32_t Kotlin_gcMarkSingleThreaded = 0;
+#endif
 extern const int32_t Kotlin_freezingChecksEnabled = 1;
 extern const int32_t Kotlin_freezingEnabled = 1;
 
@@ -241,10 +248,22 @@ void Kotlin_Internal_GC_GCInfoBuilder_setStartTime(KRef thiz, KLong value) {
 void Kotlin_Internal_GC_GCInfoBuilder_setEndTime(KRef thiz, KLong value) {
     throw std::runtime_error("Not implemented for tests");
 }
-void Kotlin_Internal_GC_GCInfoBuilder_setPauseStartTime(KRef thiz, KLong value) {
+void Kotlin_Internal_GC_GCInfoBuilder_setFirstPauseRequestTime(KRef thiz, KLong value) {
     throw std::runtime_error("Not implemented for tests");
 }
-void Kotlin_Internal_GC_GCInfoBuilder_setPauseEndTime(KRef thiz, KLong value) {
+void Kotlin_Internal_GC_GCInfoBuilder_setFirstPauseStartTime(KRef thiz, KLong value) {
+    throw std::runtime_error("Not implemented for tests");
+}
+void Kotlin_Internal_GC_GCInfoBuilder_setFirstPauseEndTime(KRef thiz, KLong value) {
+    throw std::runtime_error("Not implemented for tests");
+}
+void Kotlin_Internal_GC_GCInfoBuilder_setSecondPauseRequestTime(KRef thiz, KLong value) {
+    throw std::runtime_error("Not implemented for tests");
+}
+void Kotlin_Internal_GC_GCInfoBuilder_setSecondPauseStartTime(KRef thiz, KLong value) {
+    throw std::runtime_error("Not implemented for tests");
+}
+void Kotlin_Internal_GC_GCInfoBuilder_setSecondPauseEndTime(KRef thiz, KLong value) {
     throw std::runtime_error("Not implemented for tests");
 }
 void Kotlin_Internal_GC_GCInfoBuilder_setPostGcCleanupTime(KRef thiz, KLong value) {

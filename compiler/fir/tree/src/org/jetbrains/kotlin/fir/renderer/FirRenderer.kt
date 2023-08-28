@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.fir.renderer
 
-import org.jetbrains.kotlin.builtins.functions.FunctionTypeKindExtractor
 import org.jetbrains.kotlin.builtins.functions.AllowedToUsedOnlyInK1
+import org.jetbrains.kotlin.builtins.functions.FunctionTypeKindExtractor
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.contracts.FirContractDescription
@@ -160,6 +160,13 @@ class FirRenderer(
         printer.renderSeparated(elements, visitor)
     }
 
+    private fun renderType(type: ConeKotlinType?) {
+        if (type == null) return
+        print("R|")
+        typeRenderer.render(type)
+        print("|")
+    }
+
     inner class Visitor internal constructor() : FirVisitorVoid() {
 
         override fun visitElement(element: FirElement) {
@@ -172,11 +179,39 @@ class FirRenderer(
             printer.println(file.name)
 
             printer.pushIndent()
-            visitFileAnnotationsContainer(file.annotationsContainer)
+            file.annotationsContainer?.let { visitFileAnnotationsContainer(it) }
             visitPackageDirective(file.packageDirective)
             file.imports.forEach { it.accept(this) }
             file.declarations.forEach { it.accept(this) }
             printer.popIndent()
+        }
+
+        override fun visitScript(script: FirScript) {
+            renderContexts(script.contextReceivers)
+            annotationRenderer?.render(script)
+            printer.print("SCRIPT: ")
+            declarationRenderer?.renderPhaseAndAttributes(script) ?: resolvePhaseRenderer?.render(script)
+            printer.newLine()
+
+            printer.pushIndent()
+            script.parameters.forEach {
+                it.accept(this)
+                printer.newLine()
+            }
+
+            printer.newLine()
+
+            script.statements.forEach {
+                it.accept(this)
+                printer.newLine()
+            }
+
+            printer.popIndent()
+        }
+
+        override fun visitCodeFragment(codeFragment: FirCodeFragment) {
+            printer.print("CODE FRAGMENT:")
+            bodyRenderer?.renderBody(codeFragment.block)
         }
 
         override fun visitFileAnnotationsContainer(fileAnnotationsContainer: FirFileAnnotationsContainer) {
@@ -245,6 +280,14 @@ class FirRenderer(
             typeParameterRef.symbol.fir.accept(this)
         }
 
+        override fun visitOuterClassTypeParameterRef(outerClassTypeParameterRef: FirOuterClassTypeParameterRef) {
+            renderTypeParameter(outerClassTypeParameterRef.symbol.fir, forOuterTypeRef = true)
+        }
+
+        override fun visitConstructedClassTypeParameterRef(constructedClassTypeParameterRef: FirConstructedClassTypeParameterRef) {
+            visitTypeParameterRef(constructedClassTypeParameterRef)
+        }
+
         override fun visitMemberDeclaration(memberDeclaration: FirMemberDeclaration) {
             modifierRenderer?.renderModifiers(memberDeclaration)
             declarationRenderer?.render(memberDeclaration)
@@ -297,14 +340,7 @@ class FirRenderer(
 
         override fun visitVariable(variable: FirVariable) {
             visitCallableDeclaration(variable)
-            variable.initializer?.let {
-                print(" = ")
-                it.accept(this)
-            }
-            variable.delegate?.let {
-                print("by ")
-                it.accept(this)
-            }
+            bodyRenderer?.render(variable)
         }
 
         override fun visitField(field: FirField) {
@@ -369,6 +405,8 @@ class FirRenderer(
             }
             bodyRenderer?.renderBody(body, listOfNotNull<FirStatement>(delegatedConstructor))
         }
+
+        override fun visitErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor) = visitConstructor(errorPrimaryConstructor)
 
         override fun visitPropertyAccessor(propertyAccessor: FirPropertyAccessor) {
             annotationRenderer?.render(propertyAccessor)
@@ -442,11 +480,20 @@ class FirRenderer(
         }
 
         override fun visitTypeParameter(typeParameter: FirTypeParameter) {
+            renderTypeParameter(typeParameter)
+        }
+
+        private fun renderTypeParameter(typeParameter: FirTypeParameter, forOuterTypeRef: Boolean = false) {
             annotationRenderer?.render(typeParameter)
             modifierRenderer?.renderModifiers(typeParameter)
             resolvePhaseRenderer?.render(typeParameter)
             typeParameter.variance.renderVariance()
-            print(typeParameter.name)
+
+            if (!forOuterTypeRef) {
+                print(typeParameter.name)
+            } else {
+                print("Outer(${typeParameter.name})")
+            }
 
             val meaningfulBounds = typeParameter.bounds.filter {
                 if (it !is FirResolvedTypeRef) return@filter true
@@ -481,11 +528,7 @@ class FirRenderer(
         }
 
         override fun visitStatement(statement: FirStatement) {
-            if (statement is FirStubStatement) {
-                print("[StubStatement]")
-            } else {
-                visitElement(statement)
-            }
+            visitElement(statement)
         }
 
         override fun visitReturnExpression(returnExpression: FirReturnExpression) {
@@ -1106,10 +1149,10 @@ class FirRenderer(
             print(")")
         }
 
-        override fun visitArrayOfCall(arrayOfCall: FirArrayOfCall) {
-            annotationRenderer?.render(arrayOfCall)
+        override fun visitArrayLiteral(arrayLiteral: FirArrayLiteral) {
+            annotationRenderer?.render(arrayLiteral)
             print("<implicitArrayOf>")
-            visitCall(arrayOfCall)
+            visitCall(arrayLiteral)
         }
 
         override fun visitThrowExpression(throwExpression: FirThrowExpression) {
@@ -1153,6 +1196,15 @@ class FirRenderer(
 
         override fun visitPackageDirective(packageDirective: FirPackageDirective) {
             packageDirectiveRenderer?.render(packageDirective)
+        }
+
+        override fun visitResolvedReifiedParameterReference(resolvedReifiedParameterReference: FirResolvedReifiedParameterReference) {
+            renderType(resolvedReifiedParameterReference.coneTypeOrNull)
+        }
+
+        override fun visitInaccessibleReceiverExpression(inaccessibleReceiverExpression: FirInaccessibleReceiverExpression) {
+            renderType(inaccessibleReceiverExpression.coneTypeOrNull)
+            visitElement(inaccessibleReceiverExpression)
         }
     }
 }

@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.backend.common.lower.inline.LocalClassesExtractionFr
 import org.jetbrains.kotlin.backend.common.lower.inline.LocalClassesInInlineFunctionsLowering
 import org.jetbrains.kotlin.backend.common.lower.inline.LocalClassesInInlineLambdasLowering
 import org.jetbrains.kotlin.backend.common.lower.loops.ForLoopsLowering
-import org.jetbrains.kotlin.backend.common.lower.optimizations.FoldConstantLowering
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.ir.backend.js.lower.*
 import org.jetbrains.kotlin.ir.backend.js.lower.calls.CallsLowering
@@ -23,9 +22,10 @@ import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.AddContinuationToFunc
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.JsSuspendArityStoreLowering
 import org.jetbrains.kotlin.ir.backend.js.lower.coroutines.JsSuspendFunctionsLowering
 import org.jetbrains.kotlin.ir.backend.js.lower.inline.*
-import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsGenerationGranularity
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.interpreter.IrInterpreterConfiguration
+import org.jetbrains.kotlin.platform.js.JsPlatforms
 
 private fun DeclarationContainerLoweringPass.runOnFilesPostfix(files: Iterable<IrFile>) = files.forEach { runOnFilePostfix(it) }
 
@@ -137,6 +137,12 @@ private val validateIrAfterLowering = makeCustomJsModulePhase(
     description = "Validate IR after lowering"
 ).toModuleLowering()
 
+private val collectClassDefaultConstructorsPhase = makeDeclarationTransformerPhase(
+    ::CollectClassDefaultConstructorsLowering,
+    name = "CollectClassDefaultConstructorsLowering",
+    description = "Collect classes default constructors to add it to metadata on code generating phase"
+)
+
 private val preventExportOfSyntheticDeclarationsLowering = makeDeclarationTransformerPhase(
     ::ExcludeSyntheticDeclarationsFromExportLowering,
     name = "ExcludeSyntheticDeclarationsFromExportLowering",
@@ -153,6 +159,12 @@ val createScriptFunctionsPhase = makeJsModulePhase(
     ::CreateScriptFunctionsPhase,
     name = "CreateScriptFunctionsPhase",
     description = "Create functions for initialize and evaluate script"
+).toModuleLowering()
+
+private val collectClassIdentifiersLowering = makeJsModulePhase(
+    ::JsCollectClassIdentifiersLowering,
+    name = "CollectClassIdentifiersLowering",
+    description = "Save classId before all the lowerings",
 ).toModuleLowering()
 
 private val inventNamesForLocalClassesPhase = makeJsModulePhase(
@@ -470,19 +482,6 @@ private val booleanPropertyInExternalLowering = makeBodyLoweringPhase(
     description = "Lowering which wrap boolean in external declarations with Boolean() call and add diagnostic for such cases"
 )
 
-private val foldConstantLoweringPhase = makeBodyLoweringPhase(
-    { FoldConstantLowering(it, true) },
-    name = "FoldConstantLowering",
-    description = "[Optimization] Constant Folding",
-    prerequisite = setOf(propertyAccessorInlinerLoweringPhase)
-)
-
-private val computeStringTrimPhase = makeJsModulePhase(
-    ::StringTrimLowering,
-    name = "StringTrimLowering",
-    description = "Compute trimIndent and trimMargin operations on constant strings"
-).toModuleLowering()
-
 private val localDelegatedPropertiesLoweringPhase = makeBodyLoweringPhase(
     { LocalDelegatedPropertiesLowering() },
     name = "LocalDelegatedPropertiesLowering",
@@ -737,7 +736,7 @@ private val inlineClassUsageLoweringPhase = makeBodyLoweringPhase(
 )
 
 private val autoboxingTransformerPhase = makeBodyLoweringPhase(
-    ::AutoboxingTransformer,
+    { AutoboxingTransformer(it, shouldCalculateActualTypeForInlinedFunction = true) },
     name = "AutoboxingTransformer",
     description = "Insert box/unbox intrinsics"
 )
@@ -846,11 +845,28 @@ private val jsSuspendArityStorePhase = makeDeclarationTransformerPhase(
     description = "Store arity for suspend functions to not remove it during DCE"
 )
 
+val constEvaluationPhase = makeJsModulePhase(
+    { context ->
+        // We can't inline `const val`s because this lowering can mess up incremental compilation.
+        // For example, if we inline some constant located in `lib` module then we are not going to track and update its value on change.
+        // The only usages of `const val`s that we allow to inline are the ones that are located at the same file as declaration.
+        val configuration = IrInterpreterConfiguration(
+            printOnlyExceptionMessage = true,
+            platform = JsPlatforms.defaultJsPlatform,
+            inlineConstVal = false
+        )
+        ConstEvaluationLowering(context, configuration = configuration)
+    },
+    name = "ConstEvaluationLowering",
+    description = "Evaluate functions that are marked as `IntrinsicConstEvaluation`",
+).toModuleLowering()
+
 val loweringList = listOf<Lowering>(
     scriptRemoveReceiverLowering,
     validateIrBeforeLowering,
     preventExportOfSyntheticDeclarationsLowering,
     inventNamesForLocalClassesPhase,
+    collectClassIdentifiersLowering,
     annotationInstantiationLowering,
     expectDeclarationsRemovingPhase,
     stripTypeAliasDeclarationsPhase,
@@ -868,6 +884,7 @@ val loweringList = listOf<Lowering>(
     wrapInlineDeclarationsWithReifiedTypeParametersLowering,
     saveInlineFunctionsBeforeInlining,
     functionInliningPhase,
+    constEvaluationPhase,
     copyInlineFunctionBodyLoweringPhase,
     removeInlineDeclarationsWithReifiedTypeParametersLoweringPhase,
     createScriptFunctionsPhase,
@@ -891,6 +908,7 @@ val loweringList = listOf<Lowering>(
     initializersLoweringPhase,
     initializersCleanupLoweringPhase,
     kotlinNothingValueExceptionPhase,
+    collectClassDefaultConstructorsPhase,
     // Common prefix ends
     enumWhenPhase,
     enumEntryInstancesLoweringPhase,
@@ -917,8 +935,6 @@ val loweringList = listOf<Lowering>(
     propertyAccessorInlinerLoweringPhase,
     copyPropertyAccessorBodiesLoweringPass,
     booleanPropertyInExternalLowering,
-    foldConstantLoweringPhase,
-    computeStringTrimPhase,
     privateMembersLoweringPhase,
     privateMemberUsagesLoweringPhase,
     defaultArgumentStubGeneratorPhase,

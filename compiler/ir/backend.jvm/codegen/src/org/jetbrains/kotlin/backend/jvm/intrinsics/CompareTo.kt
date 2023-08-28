@@ -54,20 +54,20 @@ object CompareTo : IntrinsicMethod() {
         expression: IrFunctionAccessExpression,
         signature: JvmMethodSignature,
         classCodegen: ClassCodegen
-    ): IrIntrinsicFunction {
+    ): IntrinsicFunction {
         val callee = expression.symbol.owner
         val calleeParameter = callee.dispatchReceiverParameter ?: callee.extensionReceiverParameter!!
         val parameterType = comparisonOperandType(
             classCodegen.typeMapper.mapType(calleeParameter.type),
             signature.valueParameters.single().asmType,
         )
-        return IrIntrinsicFunction.create(expression, signature, classCodegen, listOf(parameterType, parameterType)) {
+        return IntrinsicFunction.create(expression, signature, classCodegen, listOf(parameterType, parameterType)) {
             genInvoke(parameterType, it)
         }
     }
 }
 
-class IntegerZeroComparison(val op: IElementType, val a: MaterialValue) : BooleanValue(a.codegen) {
+class IntegerZeroComparison(val a: MaterialValue) : BooleanValue(a.codegen) {
     override fun jumpIfFalse(target: Label) {
         mv.visitJumpInsn(Opcodes.IFNE, target)
     }

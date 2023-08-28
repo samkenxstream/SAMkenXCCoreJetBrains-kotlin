@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.ir.backend.js.lower.StaticMembersLowering
 import org.jetbrains.kotlin.ir.backend.js.lower.isBuiltInClass
 import org.jetbrains.kotlin.ir.backend.js.utils.*
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.util.IdSignatureRenderer
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.js.backend.JsToStringGenerationVisitor
@@ -45,6 +46,12 @@ val String.safeModuleName: String
 
 val IrModuleFragment.safeName: String
     get() = name.asString().safeModuleName
+
+fun generateProxyIrModuleWith(safeName: String, externalName: String) = JsIrModule(
+    safeName,
+    externalName,
+    listOf(JsIrProgramFragment(safeName, "<proxy-file>"))
+)
 
 enum class JsGenerationGranularity {
     WHOLE_PROGRAM,
@@ -263,12 +270,12 @@ class IrModuleToJsTransformer(
 
                 for (fileExports in module.files) {
                     if (fileExports.file.couldBeSkipped()) continue
-                    val (programFragment, exportProgramFragment) = generateProgramFragment(fileExports, mode)
+                    val programFragments = generateProgramFragment(fileExports, mode)
 
-                    add(fileExports.toJsIrModule(mode, programFragment))
+                    add(fileExports.toJsIrModule(programFragments.mainFragment))
 
-                    if (fileExports.exports.isNotEmpty()) {
-                        add(fileExports.toJsIrModuleForExport(module, mode, exportProgramFragment))
+                    programFragments.exportFragment?.let {
+                        add(fileExports.toJsIrModuleForExport(module, it))
                         hasFileWithJsExportedDeclaration = true
                     }
                 }
@@ -282,32 +289,27 @@ class IrModuleToJsTransformer(
         return JsIrProgram(modulesPerFile)
     }
 
-    private fun IrFileExports.toJsIrModule(mode: TranslationMode, programFragment: JsIrProgramFragment): JsIrModule {
+    private fun IrFileExports.toJsIrModule(programFragment: JsIrProgramFragment): JsIrModule {
         return JsIrModule(
             moduleFragmentToNameMapper.getSafeNameFor(file),
-            moduleFragmentToNameMapper.getExternalNameFor(file, mode.granularity),
+            moduleFragmentToNameMapper.getExternalNameFor(file),
             listOf(programFragment),
         )
     }
 
-    private fun IrFileExports.toJsIrModuleForExport(
-        module: IrAndExportedDeclarations,
-        mode: TranslationMode,
-        programFragment: JsIrProgramFragment
-    ): JsIrModule {
+    private fun IrFileExports.toJsIrModuleForExport(module: IrAndExportedDeclarations, programFragment: JsIrProgramFragment): JsIrModule {
         return JsIrModule(
             moduleFragmentToNameMapper.getSafeNameExporterFor(file),
-            moduleFragmentToNameMapper.getExternalNameForExporterFile(file, mode.granularity),
+            moduleFragmentToNameMapper.getExternalNameForExporterFile(file),
             listOf(programFragment),
             module.fragment.safeName
         )
     }
 
     private fun IrAndExportedDeclarations.toJsIrProxyModule(): JsIrModule {
-        return JsIrModule(
+        return generateProxyIrModuleWith(
             fragment.safeName,
             moduleFragmentToNameMapper.getExternalNameFor(fragment),
-            listOf(JsIrProgramFragment("<proxy-file>"))
         )
     }
 
@@ -318,22 +320,21 @@ class IrModuleToJsTransformer(
     private fun IrFileExports.generateProgramFragmentForExport(
         mode: TranslationMode,
         nameScope: NameTable<IrDeclaration>
-    ): JsIrProgramFragment {
+    ): JsIrProgramFragment? {
+        if (exports.isEmpty()) return null
+
         val globalNames = NameTable<String>(nameScope)
         val nameGenerator = JsNameLinkingNamer(backendContext, mode.minimizedMemberNames, isEsModules)
         val internalModuleName = ReservedJsNames.makeInternalModuleName().takeIf { !isEsModules }
         val staticContext = JsStaticContext(backendContext, nameGenerator, nameScope, mode)
 
-        return JsIrProgramFragment(file.packageFqName.asString()).apply {
-            dts = tsDeclarations
-            exports.statements += ExportModelToJsStatements(staticContext, backendContext.es6mode, { globalNames.declareFreshName(it, it) })
-                .generateModuleExport(
-                    ExportedModule(mainModuleName, moduleKind, this@generateProgramFragmentForExport.exports),
-                    internalModuleName,
-                    isEsModules
-                )
-            computeAndSaveNameBindings(emptySet(), nameGenerator)
-        }
+        return JsIrProgramFragment("", file.packageFqName.asString())
+            .also {
+                it.dts = tsDeclarations
+                it.exports.statements += ExportModelToJsStatements(staticContext, backendContext.es6mode, { globalNames.declareFreshName(it, it) })
+                    .generateModuleExport(ExportedModule(mainModuleName, moduleKind, exports), internalModuleName, isEsModules)
+                it.computeAndSaveNameBindings(emptySet(), nameGenerator)
+            }
     }
 
     private fun generateProgramFragment(fileExports: IrFileExports, mode: TranslationMode): List<JsIrProgramFragment> {
@@ -341,7 +342,10 @@ class IrModuleToJsTransformer(
         val nameGenerator = JsNameLinkingNamer(backendContext, mode.minimizedMemberNames, isEsModules)
         val staticContext = JsStaticContext(backendContext, nameGenerator, globalNameScope, mode)
 
-        val result = JsIrProgramFragment(fileExports.file.packageFqName.asString()).apply {
+        val result = JsIrProgramFragment(
+            fileExports.file.getJsFileName() ?: fileExports.file.nameWithoutExtension,
+            fileExports.file.packageFqName.asString()
+        ).apply {
             if (shouldGeneratePolyfills) {
                 polyfills.statements += backendContext.polyfills.getAllPolyfillsFor(fileExports.file)
             }
@@ -414,11 +418,18 @@ class IrModuleToJsTransformer(
             optimizeFragmentByJsAst(result)
         }
 
-        return listOf(result, exportFragment)
+        return listOfNotNull(result, exportFragment)
     }
 
     private fun Set<IrDeclaration>.computeTag(declaration: IrDeclaration): String? {
-        val tag = (backendContext.irFactory as IdSignatureRetriever).declarationSignature(declaration)?.render()
+        // Use LEGACY here because the declaration may come from an old klib, in which its `IdSignature.CommonSignature`
+        // doesn't have `description`, but only `id`. Hence, we always render the signature with `id` instead of `description`,
+        // because otherwise there may be a mismatch when we're computing the tag first for the IrDeclaration deserialized from klib,
+        // and then for the same declaration but constructed from a descriptor.
+        //
+        // The former won't have `description` in its `IdSignature`, the latter will have it,
+        // which will result in different renders unless we use the LEGACY renderer.
+        val tag = (backendContext.irFactory as IdSignatureRetriever).declarationSignature(declaration)?.render(IdSignatureRenderer.LEGACY)
 
         if (tag == null && !contains(declaration)) {
             error("signature for ${declaration.render()} not found")

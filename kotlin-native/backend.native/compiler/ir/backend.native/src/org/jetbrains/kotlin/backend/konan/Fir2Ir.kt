@@ -6,8 +6,8 @@ import org.jetbrains.kotlin.backend.common.serialization.metadata.DynamicTypeDes
 import org.jetbrains.kotlin.backend.konan.driver.PhaseContext
 import org.jetbrains.kotlin.backend.konan.driver.phases.Fir2IrOutput
 import org.jetbrains.kotlin.backend.konan.driver.phases.FirOutput
-import org.jetbrains.kotlin.backend.konan.ir.SymbolOverIrLookupUtils
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
+import org.jetbrains.kotlin.backend.konan.ir.SymbolOverIrLookupUtils
 import org.jetbrains.kotlin.backend.konan.serialization.KonanIdSignaturer
 import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerDesc
 import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerIr
@@ -19,26 +19,26 @@ import org.jetbrains.kotlin.cli.common.fir.FirDiagnosticsCompilerResultsReporter
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.constant.EvaluatedConstTracker
-import org.jetbrains.kotlin.descriptors.deserialization.PlatformDependentTypeTransformer
 import org.jetbrains.kotlin.descriptors.isEmpty
 import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
-import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.fir.backend.*
+import org.jetbrains.kotlin.fir.backend.native.FirNativeKotlinMangler
 import org.jetbrains.kotlin.fir.descriptors.FirModuleDescriptor
 import org.jetbrains.kotlin.fir.pipeline.convertToIrAndActualize
 import org.jetbrains.kotlin.fir.signaturer.Ir2FirManglerAdapter
 import org.jetbrains.kotlin.incremental.components.LookupTracker
+import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
 import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.library.metadata.KlibMetadataFactories
-import org.jetbrains.kotlin.library.metadata.impl.ForwardDeclarationKind
+import org.jetbrains.kotlin.name.NativeForwardDeclarationKind
 import org.jetbrains.kotlin.storage.LockBasedStorageManager
 
-internal val KlibFactories = KlibMetadataFactories(::KonanBuiltIns, DynamicTypeDeserializer, PlatformDependentTypeTransformer.None)
+internal val KlibFactories = KlibMetadataFactories(::KonanBuiltIns, DynamicTypeDeserializer)
 
 internal fun PhaseContext.fir2Ir(
         input: FirOutput.Full,
@@ -73,27 +73,33 @@ internal fun PhaseContext.fir2Ir(
     }
     val diagnosticsReporter = DiagnosticReporterFactory.createPendingReporter()
 
+    val fir2IrConfiguration = Fir2IrConfiguration(
+            languageVersionSettings = configuration.languageVersionSettings,
+            diagnosticReporter = diagnosticsReporter,
+            linkViaSignatures = false,
+            evaluatedConstTracker = configuration
+                    .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+            inlineConstTracker = null,
+            allowNonCachedDeclarations = false,
+    )
     val (irModuleFragment, components, pluginContext, irActualizedResult) = input.firResult.convertToIrAndActualize(
             fir2IrExtensions,
-            Fir2IrConfiguration(
-                    languageVersionSettings = configuration.languageVersionSettings,
-                    linkViaSignatures = false,
-                    evaluatedConstTracker = configuration
-                            .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
-                    inlineConstTracker = null,
-            ),
+            fir2IrConfiguration,
             IrGenerationExtension.getInstances(config.project),
             signatureComposer = DescriptorSignatureComposerStub(KonanManglerDesc),
             irMangler = KonanManglerIr,
             firMangler = FirNativeKotlinMangler(),
             visibilityConverter = Fir2IrVisibilityConverter.Default,
-            diagnosticReporter = diagnosticsReporter,
             kotlinBuiltIns = builtInsModule ?: DefaultBuiltIns.Instance,
             actualizerTypeContextProvider = ::IrTypeSystemContextImpl,
             fir2IrResultPostCompute = {
                 // it's important to compare manglers before actualization, since IR will be actualized, while FIR won't
                 irModuleFragment.acceptVoid(
-                        ManglerChecker(KonanManglerIr, Ir2FirManglerAdapter(FirNativeKotlinMangler()), needsChecking = ManglerChecker.hasMetadata)
+                        ManglerChecker(
+                                KonanManglerIr,
+                                Ir2FirManglerAdapter(FirNativeKotlinMangler()),
+                                needsChecking = { false }, // FIXME(KT-60648): Re-enable
+                        )
                 )
             }
     ).also {
@@ -103,15 +109,16 @@ internal fun PhaseContext.fir2Ir(
         "`${irModuleFragment.name}` must be Name.special, since it's required by KlibMetadataModuleDescriptorFactoryImpl.createDescriptorOptionalBuiltIns()"
     }
 
+    @OptIn(ObsoleteDescriptorBasedAPI::class, DelicateSymbolTableApi::class)
     val usedPackages = buildSet {
-        components.symbolTable.forEachDeclarationSymbol {
+        components.symbolTable.descriptorExtension.forEachDeclarationSymbol {
             val p = it.owner as? IrDeclaration ?: return@forEachDeclarationSymbol
             val fragment = (p.getPackageFragment() as? IrExternalPackageFragment) ?: return@forEachDeclarationSymbol
             add(fragment.packageFqName)
         }
         // This packages exists in all platform libraries, but can contain only synthetic declarations.
         // These declarations are not really located in klib, so we don't need to depend on klib to use them.
-        removeAll(ForwardDeclarationKind.values().map { it.packageFqName })
+        removeAll(NativeForwardDeclarationKind.entries.map { it.packageFqName })
     }.toList()
 
 

@@ -8,6 +8,8 @@
 package org.jetbrains.kotlin.gradle.unitTests
 
 import org.gradle.kotlin.dsl.provideDelegate
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformSourceSetConventionsImpl.jvmMain
+import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformSourceSetConventionsImpl.jvmTest
 import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.configurationResult
@@ -50,21 +52,48 @@ class KotlinMultiplatformSourceSetConventionsTest {
     }
 
     @Test
-    fun `test - languageSettings`() = buildProjectWithMPP().runLifecycleAwareTest {
-        multiplatformExtension.apply {
-            jvm()
-
-            sourceSets.jvmMain.languageSettings {
-                this.optIn("jvmMain.optIn")
+    fun `test - invoke - allows creating new source set in closure`() {
+        val project = buildProjectWithMPP()
+        project.multiplatformExtension.apply {
+            sourceSets.jvmMain {
+                /*
+                When done wrong, expect:
+                org.gradle.api.internal.AbstractMutationGuard$IllegalMutationException:
+                    NamedDomainObjectContainer#create(String) on KotlinSourceSet container cannot be executed in the current context
+                 */
+                dependsOn(sourceSets.create("foo"))
             }
 
-            sourceSets.jvmTest.languageSettings {
-                this.optIn("jvmTest.optIn")
-            }
-
-            assertEquals(setOf("jvmMain.optIn"), sourceSets.jvmMain.get().languageSettings.optInAnnotationsInUse)
-            assertEquals(setOf("jvmTest.optIn"), sourceSets.jvmTest.get().languageSettings.optInAnnotationsInUse)
+            assertEquals(setOf("foo"), sourceSets.jvmMain.get().dependsOn.map { it.name }.toSet())
         }
+    }
+
+    @Test
+    fun `test - languageSettings`() {
+        val project = buildProjectWithMPP()
+        project.runLifecycleAwareTest {
+            multiplatformExtension.apply {
+                jvm()
+
+                sourceSets.jvmMain.languageSettings {
+                    optIn("jvmMain.optIn")
+                }
+
+                sourceSets.jvmTest.languageSettings {
+                    this.optIn("jvmTest.optIn")
+                }
+
+            }
+        }
+
+        assertEquals(
+            setOf("jvmMain.optIn"),
+            project.multiplatformExtension.sourceSets.jvmMain.get().languageSettings.optInAnnotationsInUse
+        )
+        assertEquals(
+            setOf("jvmTest.optIn"),
+            project.multiplatformExtension.sourceSets.jvmTest.get().languageSettings.optInAnnotationsInUse
+        )
     }
 
     @Test

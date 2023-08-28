@@ -43,12 +43,36 @@ public class FirStandaloneNormalAnalysisSourceModuleReferenceShortenerForWholeFi
 
     @Test
     public void testAllFilesPresentInReferenceShortenerWholeFile() throws Exception {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/components/referenceShortener/referenceShortenerWholeFile"), Pattern.compile("^(.+)\\.kt$"), null, true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/components/referenceShortener/referenceShortenerWholeFile"), Pattern.compile("^(.+)\\.(kt|kts)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("callInsideScriptExpression.kts")
+    public void testCallInsideScriptExpression() throws Exception {
+        runTest("analysis/analysis-api/testData/components/referenceShortener/referenceShortenerWholeFile/callInsideScriptExpression.kts");
+    }
+
+    @Test
+    @TestMetadata("fileWithKDoc.kt")
+    public void testFileWithKDoc() throws Exception {
+        runTest("analysis/analysis-api/testData/components/referenceShortener/referenceShortenerWholeFile/fileWithKDoc.kt");
     }
 
     @Test
     @TestMetadata("fileWithMultipleDeclarations.kt")
     public void testFileWithMultipleDeclarations() throws Exception {
         runTest("analysis/analysis-api/testData/components/referenceShortener/referenceShortenerWholeFile/fileWithMultipleDeclarations.kt");
+    }
+
+    @Test
+    @TestMetadata("scriptFileWithImportStatement.kts")
+    public void testScriptFileWithImportStatement() throws Exception {
+        runTest("analysis/analysis-api/testData/components/referenceShortener/referenceShortenerWholeFile/scriptFileWithImportStatement.kts");
+    }
+
+    @Test
+    @TestMetadata("scriptFileWithoutImportStatements.kts")
+    public void testScriptFileWithoutImportStatements() throws Exception {
+        runTest("analysis/analysis-api/testData/components/referenceShortener/referenceShortenerWholeFile/scriptFileWithoutImportStatements.kts");
     }
 }

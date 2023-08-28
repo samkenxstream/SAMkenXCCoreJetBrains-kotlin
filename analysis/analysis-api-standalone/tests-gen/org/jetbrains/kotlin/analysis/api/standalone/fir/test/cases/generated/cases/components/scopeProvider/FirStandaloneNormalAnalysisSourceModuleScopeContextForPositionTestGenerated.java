@@ -75,4 +75,28 @@ public class FirStandaloneNormalAnalysisSourceModuleScopeContextForPositionTestG
     public void testSimpleScopeContextForPosition() throws Exception {
         runTest("analysis/analysis-api/testData/components/scopeProvider/scopeContextForPosition/simpleScopeContextForPosition.kt");
     }
+
+    @Test
+    @TestMetadata("smartCastInAnonymousFunction.kt")
+    public void testSmartCastInAnonymousFunction() throws Exception {
+        runTest("analysis/analysis-api/testData/components/scopeProvider/scopeContextForPosition/smartCastInAnonymousFunction.kt");
+    }
+
+    @Test
+    @TestMetadata("smartCastInAnonymousFunctionInWhenEntry.kt")
+    public void testSmartCastInAnonymousFunctionInWhenEntry() throws Exception {
+        runTest("analysis/analysis-api/testData/components/scopeProvider/scopeContextForPosition/smartCastInAnonymousFunctionInWhenEntry.kt");
+    }
+
+    @Test
+    @TestMetadata("smartCastInWhenEntryCondition.kt")
+    public void testSmartCastInWhenEntryCondition() throws Exception {
+        runTest("analysis/analysis-api/testData/components/scopeProvider/scopeContextForPosition/smartCastInWhenEntryCondition.kt");
+    }
+
+    @Test
+    @TestMetadata("syntheticPropertiesScope.kt")
+    public void testSyntheticPropertiesScope() throws Exception {
+        runTest("analysis/analysis-api/testData/components/scopeProvider/scopeContextForPosition/syntheticPropertiesScope.kt");
+    }
 }

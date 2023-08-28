@@ -6,10 +6,16 @@
 package org.jetbrains.kotlin.fir.resolve.transformers
 
 import org.jetbrains.kotlin.KtFakeSourceElementKind
+import org.jetbrains.kotlin.builtins.PrimitiveType
+import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.FirElement
+import org.jetbrains.kotlin.fir.caches.FirCache
+import org.jetbrains.kotlin.fir.caches.createCache
+import org.jetbrains.kotlin.fir.caches.firCachesFactory
+import org.jetbrains.kotlin.fir.caches.getValue
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.builder.FirSimpleFunctionBuilder
 import org.jetbrains.kotlin.fir.declarations.builder.buildTypeParameter
@@ -20,15 +26,21 @@ import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.buildArgumentList
 import org.jetbrains.kotlin.fir.expressions.builder.buildFunctionCall
 import org.jetbrains.kotlin.fir.moduleData
+import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
 import org.jetbrains.kotlin.fir.references.FirReference
+import org.jetbrains.kotlin.fir.references.FirResolvedCallableReference
+import org.jetbrains.kotlin.fir.references.builder.buildErrorNamedReference
+import org.jetbrains.kotlin.fir.references.builder.buildResolvedErrorReference
+import org.jetbrains.kotlin.fir.references.impl.FirSimpleNamedReference
 import org.jetbrains.kotlin.fir.references.impl.FirStubReference
 import org.jetbrains.kotlin.fir.references.isError
-import org.jetbrains.kotlin.fir.resolve.BodyResolveComponents
-import org.jetbrains.kotlin.fir.resolve.ResolutionMode
+import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.*
-import org.jetbrains.kotlin.fir.resolve.createErrorReferenceWithExistingCandidate
+import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeAmbiguityError
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeInapplicableCandidateError
-import org.jetbrains.kotlin.fir.resolve.toErrorReference
+import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeUnresolvedNameError
+import org.jetbrains.kotlin.fir.resolve.providers.symbolProvider
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.resultType
 import org.jetbrains.kotlin.fir.resolvedTypeFromPrototype
 import org.jetbrains.kotlin.fir.symbols.SyntheticCallableId
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
@@ -42,8 +54,10 @@ import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.ArrayFqNames
 import org.jetbrains.kotlin.resolve.calls.tasks.ExplicitReceiverKind
 import org.jetbrains.kotlin.resolve.calls.tower.CandidateApplicability
+import org.jetbrains.kotlin.resolve.calls.tower.isSuccess
 import org.jetbrains.kotlin.types.Variance
 
 class FirSyntheticCallGenerator(
@@ -56,6 +70,7 @@ class FirSyntheticCallGenerator(
     private val idFunction: FirSimpleFunction = generateSyntheticSelectFunction(SyntheticCallableId.ID)
     private val checkNotNullFunction: FirSimpleFunction = generateSyntheticCheckNotNullFunction()
     private val elvisFunction: FirSimpleFunction = generateSyntheticElvisFunction()
+    private val arrayOfSymbolCache: FirCache<Name, FirNamedFunctionSymbol?, Nothing?> = session.firCachesFactory.createCache(::getArrayOfSymbol)
 
     private fun assertSyntheticResolvableReferenceIsNotResolved(resolvable: FirResolvable) {
         // All synthetic calls (FirWhenExpression, FirTryExpression, FirElvisExpression, FirCheckNotNullCall)
@@ -137,14 +152,14 @@ class FirSyntheticCallGenerator(
         return elvisExpression.transformCalleeReference(UpdateReference, reference)
     }
 
-    fun generateSyntheticCallForArrayOfCall(arrayOfCall: FirArrayOfCall, context: ResolutionContext): FirFunctionCall {
+    fun generateSyntheticIdCall(arrayLiteral: FirExpression, context: ResolutionContext): FirFunctionCall {
         val argumentList = buildArgumentList {
-            arguments += arrayOfCall
+            arguments += arrayLiteral
         }
         return buildFunctionCall {
             this.argumentList = argumentList
             calleeReference = generateCalleeReferenceWithCandidate(
-                arrayOfCall,
+                arrayLiteral,
                 idFunction,
                 argumentList,
                 SyntheticCallableId.ID.callableName,
@@ -153,11 +168,65 @@ class FirSyntheticCallGenerator(
         }
     }
 
+    fun generateSyntheticArrayOfCall(
+        arrayLiteral: FirArrayLiteral,
+        expectedTypeRef: FirTypeRef,
+        context: ResolutionContext
+    ): FirFunctionCall {
+        val argumentList = arrayLiteral.argumentList
+        val arrayOfSymbol = calculateArrayOfSymbol(expectedTypeRef)
+        return buildFunctionCall {
+            this.argumentList = argumentList
+            calleeReference = arrayOfSymbol?.let {
+                generateCalleeReferenceWithCandidate(
+                    arrayLiteral,
+                    it.fir,
+                    argumentList,
+                    ArrayFqNames.ARRAY_OF_FUNCTION,
+                    callKind = CallKind.Function,
+                    context = context,
+                )
+            } ?: buildErrorNamedReference {
+                diagnostic = ConeUnresolvedNameError(ArrayFqNames.ARRAY_OF_FUNCTION)
+            }
+            source = arrayLiteral.source
+        }.also {
+            if (arrayOfSymbol == null) {
+                it.resultType = components.typeFromCallee(it).type
+            }
+        }
+    }
+
+    private fun calculateArrayOfSymbol(expectedTypeRef: FirTypeRef): FirNamedFunctionSymbol? {
+        val coneType = expectedTypeRef.coneType
+        val arrayCallName = when {
+            coneType.isPrimitiveArray -> {
+                val arrayElementClassId = coneType.arrayElementType()!!.classId
+                val primitiveType = PrimitiveType.getByShortName(arrayElementClassId!!.shortClassName.asString())
+                ArrayFqNames.PRIMITIVE_TYPE_TO_ARRAY[primitiveType]!!
+            }
+            coneType.isUnsignedArray -> {
+                val arrayElementClassId = coneType.arrayElementType()!!.classId
+                ArrayFqNames.UNSIGNED_TYPE_TO_ARRAY[arrayElementClassId!!.asSingleFqName()]!!
+            }
+            else -> {
+                ArrayFqNames.ARRAY_OF_FUNCTION
+            }
+        }
+        return arrayOfSymbolCache.getValue(arrayCallName)
+    }
+
+    private fun getArrayOfSymbol(arrayOfName: Name): FirNamedFunctionSymbol? {
+        return session.symbolProvider
+            .getTopLevelFunctionSymbols(StandardNames.BUILT_INS_PACKAGE_FQ_NAME, arrayOfName)
+            .firstOrNull() // TODO: it should be single() after KTIJ-26465 is fixed
+    }
+
     fun resolveCallableReferenceWithSyntheticOuterCall(
         callableReferenceAccess: FirCallableReferenceAccess,
         expectedTypeRef: FirTypeRef?,
         context: ResolutionContext
-    ): FirCallableReferenceAccess? {
+    ): FirCallableReferenceAccess {
         val argumentList = buildUnaryArgumentList(callableReferenceAccess)
 
         val parameterTypeRef =
@@ -166,6 +235,80 @@ class FirSyntheticCallGenerator(
                 else -> context.session.builtinTypes.anyType
             }
 
+        var reference = generateCalleeReferenceWithCandidate(callableReferenceAccess, argumentList, parameterTypeRef, context)
+        var initialCallWasUnresolved = false
+
+        if (reference is FirErrorReferenceWithCandidate && reference.diagnostic is ConeInapplicableCandidateError) {
+            // If the callable reference cannot be resolved with the expected type, let's try to resolve it with any type and report
+            // something like INITIALIZER_TYPE_MISMATCH or NONE_APPLICABLE instead of UNRESOLVED_REFERENCE.
+
+            check(callableReferenceAccess.calleeReference is FirSimpleNamedReference && callableReferenceAccess.coneTypeOrNull == null) {
+                "Expected FirCallableReferenceAccess to be unresolved."
+            }
+
+            reference =
+                generateCalleeReferenceWithCandidate(callableReferenceAccess, argumentList, context.session.builtinTypes.anyType, context)
+            initialCallWasUnresolved = true
+        }
+
+        val fakeCall = buildFunctionCall {
+            calleeReference = reference
+            this.argumentList = argumentList
+        }
+
+        components.callCompleter.completeCall(fakeCall, ResolutionMode.ContextIndependent)
+
+        return callableReferenceAccess.apply { updateErrorsIfNecessary(fakeCall, initialCallWasUnresolved) }
+    }
+
+    private fun FirCallableReferenceAccess.updateErrorsIfNecessary(fakeCall: FirFunctionCall, initialCallWasUnresolved: Boolean) {
+        val fakeCallCalleeReference = fakeCall.calleeReference
+        val calleeReference = calleeReference
+
+        if (fakeCallCalleeReference.isError()) {
+            (calleeReference as? FirNamedReferenceWithCandidate)
+                ?.toErrorReference(fakeCallCalleeReference.diagnostic)
+                ?.let { replaceCalleeReference(it) }
+
+            if (!calleeReference.isError()) {
+                val resolvedReference = calleeReference as? FirResolvedCallableReference
+                    ?: error("By this time the actual callable reference must have already been resolved")
+
+                replaceCalleeReference(
+                    buildResolvedErrorReference {
+                        this.name = resolvedReference.name
+                        this.source = resolvedReference.source
+                        this.resolvedSymbol = resolvedReference.resolvedSymbol
+                        this.diagnostic = fakeCallCalleeReference.diagnostic
+                    }
+                )
+            }
+        } else if (initialCallWasUnresolved && calleeReference is FirErrorNamedReference) {
+            // If the initial call was unresolved, we tried to resolve with target type Any.
+            // If there are multiple applicable overloads, the applicability of the error reference is set to RESOLVED meaning we would
+            // report OVERLOAD_RESOLUTION_AMBIGUITY.
+            // This would be misleading since the opposite is actually true - no overloads were applicable.
+            // To fix this, we manually set the applicability to INAPPLICABLE.
+            (calleeReference.diagnostic as? ConeAmbiguityError)?.let {
+                val newCalleeReference = buildErrorNamedReference {
+                    source = calleeReference.source
+                    diagnostic = ConeAmbiguityError(
+                        it.name,
+                        CandidateApplicability.INAPPLICABLE,
+                        it.candidates,
+                    )
+                }
+                replaceCalleeReference(newCalleeReference)
+            }
+        }
+    }
+
+    private fun generateCalleeReferenceWithCandidate(
+        callableReferenceAccess: FirCallableReferenceAccess,
+        argumentList: FirArgumentList,
+        parameterTypeRef: FirResolvedTypeRef,
+        context: ResolutionContext,
+    ): FirNamedReferenceWithCandidate {
         val callableId = SyntheticCallableId.ACCEPT_SPECIFIC_TYPE
         val functionSymbol = FirSyntheticFunctionSymbol(callableId)
         // fun accept(p: <parameterTypeRef>): Unit
@@ -174,31 +317,14 @@ class FirSyntheticCallGenerator(
                 valueParameters += parameterTypeRef.toValueParameter("reference", functionSymbol, isVararg = false)
             }.build()
 
-        val reference =
-            generateCalleeReferenceWithCandidate(
-                callableReferenceAccess,
-                function,
-                argumentList,
-                callableId.callableName,
-                CallKind.SyntheticIdForCallableReferencesResolution,
-                context,
-            )
-        val fakeCallElement = buildFunctionCall {
-            calleeReference = reference
-            this.argumentList = argumentList
-        }
-
-        val result = components.callCompleter.completeCall(fakeCallElement, ResolutionMode.ContextIndependent).result
-        val completedCallableReference = result.argument as FirCallableReferenceAccess?
-
-        val callCalleeReference = result.calleeReference
-        if (callCalleeReference.isError()) {
-            (completedCallableReference?.calleeReference as? FirNamedReferenceWithCandidate)
-                ?.toErrorReference(callCalleeReference.diagnostic)
-                ?.let { completedCallableReference.replaceCalleeReference(it) }
-        }
-
-        return completedCallableReference
+        return generateCalleeReferenceWithCandidate(
+            callableReferenceAccess,
+            function,
+            argumentList,
+            callableId.callableName,
+            CallKind.SyntheticIdForCallableReferencesResolution,
+            context,
+        )
     }
 
     private fun generateCalleeReferenceWithCandidate(
@@ -212,17 +338,18 @@ class FirSyntheticCallGenerator(
         val callInfo = generateCallInfo(callSite, name, argumentList, callKind)
         val candidate = generateCandidate(callInfo, function, context)
         val applicability = components.resolutionStageRunner.processCandidate(candidate, context)
-        if (applicability <= CandidateApplicability.INAPPLICABLE) {
+        val source = callSite.source?.fakeElement(KtFakeSourceElementKind.SyntheticCall)
+        if (!applicability.isSuccess) {
             return createErrorReferenceWithExistingCandidate(
                 candidate,
                 ConeInapplicableCandidateError(applicability, candidate),
-                source = null,
+                source,
                 context,
                 components.resolutionStageRunner
             )
         }
 
-        return FirNamedReferenceWithCandidate(callSite.source?.fakeElement(KtFakeSourceElementKind.SyntheticCall), name, candidate)
+        return FirNamedReferenceWithCandidate(source, name, candidate)
     }
 
     private fun generateCandidate(callInfo: CallInfo, function: FirSimpleFunction, context: ResolutionContext): Candidate {
@@ -365,7 +492,7 @@ class FirSyntheticCallGenerator(
     ): FirSimpleFunctionBuilder {
         return FirSimpleFunctionBuilder().apply {
             moduleData = session.moduleData
-            origin = FirDeclarationOrigin.Synthetic
+            origin = FirDeclarationOrigin.Synthetic.FakeFunction
             this.symbol = symbol
             this.name = name
             status = FirDeclarationStatusImpl(Visibilities.Public, Modality.FINAL)

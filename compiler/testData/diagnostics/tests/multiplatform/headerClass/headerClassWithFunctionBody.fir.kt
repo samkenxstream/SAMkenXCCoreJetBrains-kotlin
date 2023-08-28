@@ -1,19 +1,19 @@
 // IGNORE_REVERSED_RESOLVE
 // MODULE: m1-common
 // FILE: common.kt
-expect class Foo(
+<!NO_ACTUAL_FOR_EXPECT!>expect class Foo(
         val constructorProperty: String,
         constructorParameter: String
 ) {
-    init {
+    <!EXPECTED_DECLARATION_WITH_BODY!>init<!> {
         "no"
     }
 
-    constructor(s: String) {
+    <!EXPECTED_DECLARATION_WITH_BODY!>constructor(s: String)<!> {
         "no"
     }
 
-    constructor() : this("no")
+    constructor() : <!EXPECTED_CLASS_CONSTRUCTOR_DELEGATION_CALL!>this<!>("no")
 
     val prop: String = <!EXPECTED_PROPERTY_INITIALIZER!>"no"<!>
 
@@ -24,4 +24,4 @@ expect class Foo(
     <!EXPECTED_DECLARATION_WITH_BODY!>fun functionWithBody(x: Int): Int<!> {
         return x + 1
     }
-}
+}<!>

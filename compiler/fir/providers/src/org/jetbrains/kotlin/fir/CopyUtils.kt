@@ -5,11 +5,10 @@
 
 package org.jetbrains.kotlin.fir
 
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
-import org.jetbrains.kotlin.fir.declarations.toAnnotationClassId
 import org.jetbrains.kotlin.fir.declarations.utils.expandedConeType
-import org.jetbrains.kotlin.fir.diagnostics.ConeDiagnostic
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.FirImplicitInvokeCallBuilder
 import org.jetbrains.kotlin.fir.expressions.builder.buildImplicitInvokeCall
@@ -42,17 +41,18 @@ inline fun FirFunctionCall.copyAsImplicitInvokeCall(
 }
 
 fun FirTypeRef.resolvedTypeFromPrototype(
-    type: ConeKotlinType
+    type: ConeKotlinType,
+    fallbackSource: KtSourceElement? = null,
 ): FirResolvedTypeRef {
     return if (type is ConeErrorType) {
         buildErrorTypeRef {
-            source = this@resolvedTypeFromPrototype.source
+            source = this@resolvedTypeFromPrototype.source ?: fallbackSource
             this.type = type
             diagnostic = type.diagnostic
         }
     } else {
         buildResolvedTypeRef {
-            source = this@resolvedTypeFromPrototype.source
+            source = this@resolvedTypeFromPrototype.source ?: fallbackSource
             this.type = type
             delegatedTypeRef = when (val original = this@resolvedTypeFromPrototype) {
                 is FirResolvedTypeRef -> original.delegatedTypeRef
@@ -61,15 +61,6 @@ fun FirTypeRef.resolvedTypeFromPrototype(
             }
             annotations += this@resolvedTypeFromPrototype.annotations
         }
-    }
-}
-
-fun FirTypeRef.errorTypeFromPrototype(
-    diagnostic: ConeDiagnostic
-): FirErrorTypeRef {
-    return buildErrorTypeRef {
-        source = this@errorTypeFromPrototype.source
-        this.diagnostic = diagnostic
     }
 }
 
@@ -93,7 +84,7 @@ fun List<FirAnnotation>.computeTypeAttributes(
     for (annotation in this) {
         val classId = when (shouldExpandTypeAliases) {
             true -> annotation.tryExpandClassId(session)
-            false -> annotation.typeRef.coneType.classId
+            false -> annotation.resolvedType.classId
         }
         when (classId) {
             CompilerConeAttributes.Exact.ANNOTATION_CLASS_ID -> attributes += CompilerConeAttributes.Exact

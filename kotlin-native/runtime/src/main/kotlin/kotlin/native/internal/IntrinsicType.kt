@@ -59,6 +59,7 @@ internal class IntrinsicType {
         // Enums
         const val ENUM_VALUES                   = "ENUM_VALUES"
         const val ENUM_VALUE_OF                 = "ENUM_VALUE_OF"
+        const val ENUM_ENTRIES                  = "ENUM_ENTRIES"
 
         // Coroutines
         const val GET_CONTINUATION              = "GET_CONTINUATION"
@@ -83,6 +84,8 @@ internal class IntrinsicType {
         const val WORKER_EXECUTE                = "WORKER_EXECUTE"
 
         // Atomic
+        const val ATOMIC_GET_FIELD              = "ATOMIC_GET_FIELD"
+        const val ATOMIC_SET_FIELD              = "ATOMIC_SET_FIELD"
         const val COMPARE_AND_SET_FIELD         = "COMPARE_AND_SET_FIELD"
         const val COMPARE_AND_EXCHANGE_FIELD    = "COMPARE_AND_EXCHANGE_FIELD"
         const val GET_AND_SET_FIELD             = "GET_AND_SET_FIELD"
@@ -91,5 +94,12 @@ internal class IntrinsicType {
         const val COMPARE_AND_EXCHANGE          = "COMPARE_AND_EXCHANGE"
         const val GET_AND_SET                   = "GET_AND_SET"
         const val GET_AND_ADD                   = "GET_AND_ADD"
+        const val ATOMIC_GET_ARRAY_ELEMENT      = "ATOMIC_GET_ARRAY_ELEMENT"
+        const val ATOMIC_SET_ARRAY_ELEMENT      = "ATOMIC_SET_ARRAY_ELEMENT"
+        const val COMPARE_AND_EXCHANGE_ARRAY_ELEMENT = "COMPARE_AND_EXCHANGE_ARRAY_ELEMENT"
+        const val GET_AND_SET_ARRAY_ELEMENT     = "GET_AND_SET_ARRAY_ELEMENT"
+        const val GET_AND_ADD_ARRAY_ELEMENT     = "GET_AND_ADD_ARRAY_ELEMENT"
+        const val COMPARE_AND_SET_ARRAY_ELEMENT = "COMPARE_AND_SET_ARRAY_ELEMENT"
+
     }
 }

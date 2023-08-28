@@ -29,6 +29,8 @@ import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
 import org.jetbrains.kotlin.fir.declarations.FirCallableDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameter
+import org.jetbrains.kotlin.fir.declarations.FirConstructedClassTypeParameterRef
+import org.jetbrains.kotlin.fir.declarations.FirOuterClassTypeParameterRef
 import org.jetbrains.kotlin.fir.declarations.FirVariable
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
 import org.jetbrains.kotlin.fir.declarations.FirReceiverParameter
@@ -48,6 +50,7 @@ import org.jetbrains.kotlin.fir.declarations.FirBackingField
 import org.jetbrains.kotlin.fir.declarations.FirConstructor
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirScript
+import org.jetbrains.kotlin.fir.declarations.FirCodeFragment
 import org.jetbrains.kotlin.fir.FirPackageDirective
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousFunction
 import org.jetbrains.kotlin.fir.expressions.FirAnonymousFunctionExpression
@@ -91,12 +94,13 @@ import org.jetbrains.kotlin.fir.expressions.FirWhenBranch
 import org.jetbrains.kotlin.fir.expressions.FirContextReceiverArgumentListOwner
 import org.jetbrains.kotlin.fir.expressions.FirCheckNotNullCall
 import org.jetbrains.kotlin.fir.expressions.FirElvisExpression
-import org.jetbrains.kotlin.fir.expressions.FirArrayOfCall
+import org.jetbrains.kotlin.fir.expressions.FirArrayLiteral
 import org.jetbrains.kotlin.fir.expressions.FirAugmentedArraySetCall
 import org.jetbrains.kotlin.fir.expressions.FirClassReferenceExpression
 import org.jetbrains.kotlin.fir.expressions.FirErrorExpression
 import org.jetbrains.kotlin.fir.declarations.FirErrorFunction
 import org.jetbrains.kotlin.fir.declarations.FirErrorProperty
+import org.jetbrains.kotlin.fir.declarations.FirErrorPrimaryConstructor
 import org.jetbrains.kotlin.fir.declarations.FirDanglingModifierList
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedErrorAccessExpression
@@ -259,6 +263,14 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
         return transformElement(typeParameter, data)
     }
 
+    open fun transformConstructedClassTypeParameterRef(constructedClassTypeParameterRef: FirConstructedClassTypeParameterRef, data: D): FirTypeParameterRef {
+        return transformElement(constructedClassTypeParameterRef, data)
+    }
+
+    open fun transformOuterClassTypeParameterRef(outerClassTypeParameterRef: FirOuterClassTypeParameterRef, data: D): FirTypeParameterRef {
+        return transformElement(outerClassTypeParameterRef, data)
+    }
+
     open fun transformVariable(variable: FirVariable, data: D): FirStatement {
         return transformElement(variable, data)
     }
@@ -333,6 +345,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     open fun transformScript(script: FirScript, data: D): FirScript {
         return transformElement(script, data)
+    }
+
+    open fun transformCodeFragment(codeFragment: FirCodeFragment, data: D): FirCodeFragment {
+        return transformElement(codeFragment, data)
     }
 
     open fun transformPackageDirective(packageDirective: FirPackageDirective, data: D): FirPackageDirective {
@@ -507,8 +523,8 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
         return transformElement(elvisExpression, data)
     }
 
-    open fun transformArrayOfCall(arrayOfCall: FirArrayOfCall, data: D): FirStatement {
-        return transformElement(arrayOfCall, data)
+    open fun transformArrayLiteral(arrayLiteral: FirArrayLiteral, data: D): FirStatement {
+        return transformElement(arrayLiteral, data)
     }
 
     open fun transformAugmentedArraySetCall(augmentedArraySetCall: FirAugmentedArraySetCall, data: D): FirStatement {
@@ -529,6 +545,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     open fun transformErrorProperty(errorProperty: FirErrorProperty, data: D): FirStatement {
         return transformElement(errorProperty, data)
+    }
+
+    open fun transformErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: D): FirStatement {
+        return transformElement(errorPrimaryConstructor, data)
     }
 
     open fun transformDanglingModifierList(danglingModifierList: FirDanglingModifierList, data: D): FirDanglingModifierList {
@@ -867,6 +887,14 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
         return transformTypeParameter(typeParameter, data)
     }
 
+    final override fun visitConstructedClassTypeParameterRef(constructedClassTypeParameterRef: FirConstructedClassTypeParameterRef, data: D): FirTypeParameterRef {
+        return transformConstructedClassTypeParameterRef(constructedClassTypeParameterRef, data)
+    }
+
+    final override fun visitOuterClassTypeParameterRef(outerClassTypeParameterRef: FirOuterClassTypeParameterRef, data: D): FirTypeParameterRef {
+        return transformOuterClassTypeParameterRef(outerClassTypeParameterRef, data)
+    }
+
     final override fun visitVariable(variable: FirVariable, data: D): FirStatement {
         return transformVariable(variable, data)
     }
@@ -941,6 +969,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     final override fun visitScript(script: FirScript, data: D): FirScript {
         return transformScript(script, data)
+    }
+
+    final override fun visitCodeFragment(codeFragment: FirCodeFragment, data: D): FirCodeFragment {
+        return transformCodeFragment(codeFragment, data)
     }
 
     final override fun visitPackageDirective(packageDirective: FirPackageDirective, data: D): FirPackageDirective {
@@ -1115,8 +1147,8 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
         return transformElvisExpression(elvisExpression, data)
     }
 
-    final override fun visitArrayOfCall(arrayOfCall: FirArrayOfCall, data: D): FirStatement {
-        return transformArrayOfCall(arrayOfCall, data)
+    final override fun visitArrayLiteral(arrayLiteral: FirArrayLiteral, data: D): FirStatement {
+        return transformArrayLiteral(arrayLiteral, data)
     }
 
     final override fun visitAugmentedArraySetCall(augmentedArraySetCall: FirAugmentedArraySetCall, data: D): FirStatement {
@@ -1137,6 +1169,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     final override fun visitErrorProperty(errorProperty: FirErrorProperty, data: D): FirStatement {
         return transformErrorProperty(errorProperty, data)
+    }
+
+    final override fun visitErrorPrimaryConstructor(errorPrimaryConstructor: FirErrorPrimaryConstructor, data: D): FirStatement {
+        return transformErrorPrimaryConstructor(errorPrimaryConstructor, data)
     }
 
     final override fun visitDanglingModifierList(danglingModifierList: FirDanglingModifierList, data: D): FirDanglingModifierList {

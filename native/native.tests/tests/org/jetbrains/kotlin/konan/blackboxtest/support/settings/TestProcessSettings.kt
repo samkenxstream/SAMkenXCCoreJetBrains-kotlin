@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.konan.blackboxtest.support.settings
 
+import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.konan.blackboxtest.support.MutedOption
 import org.jetbrains.kotlin.konan.blackboxtest.support.TestKind
 import org.jetbrains.kotlin.konan.blackboxtest.support.runner.LocalTestRunner
@@ -74,6 +75,19 @@ internal enum class TestMode(private val description: String) {
     );
 
     override fun toString() = description
+}
+
+/**
+ * Kotlin compiler plugins to be used together with the the Kotlin/Native compiler.
+ */
+@JvmInline
+internal value class CompilerPlugins(val compilerPluginJars: Set<File>) {
+    init {
+        val invalidJars = compilerPluginJars.filterNot { it.isDirectory || (it.isFile && it.extension == "jar") }
+        assertTrue(invalidJars.isEmpty()) {
+            "There are invalid compiler plugin JARs that should be passed for the Kotlin/Native compiler: ${invalidJars.joinToString { "[$it]" }}"
+        }
+    }
 }
 
 /**
@@ -260,8 +274,14 @@ internal sealed class CacheMode {
 }
 
 internal enum class PipelineType(val mutedOption: MutedOption, val compilerFlags: List<String>) {
-    K1(MutedOption.K1, emptyList()),
-    K2(MutedOption.K2, listOf("-language-version", "2.0"));
+    K1(
+        MutedOption.K1,
+        listOf("-language-version", "1.9")
+    ),
+    K2(
+        MutedOption.K2,
+        listOf("-language-version", if (LanguageVersion.LATEST_STABLE.major < 2) "2.0" else LanguageVersion.LATEST_STABLE.toString())
+    );
 
     override fun toString() = if (compilerFlags.isEmpty()) "" else compilerFlags.joinToString(prefix = "(", postfix = ")", separator = " ")
 }

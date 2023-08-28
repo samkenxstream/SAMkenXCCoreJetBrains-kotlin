@@ -21,7 +21,13 @@ import java.util.regex.Pattern;
 public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFirTest {
     @Test
     public void testAllFilesPresentInGetOrBuildFir() throws Exception {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir"), Pattern.compile("^(.+)\\.kt$"), null, true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("kt60638.kt")
+    public void testKt60638() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/kt60638.kt");
     }
 
     @Nested
@@ -30,7 +36,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class Annotations {
         @Test
         public void testAllFilesPresentInAnnotations() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -207,7 +213,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
         public class UseSite {
             @Test
             public void testAllFilesPresentInUseSite() throws Exception {
-                KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/useSite"), Pattern.compile("^(.+)\\.kt$"), null, true);
+                KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/annotations/useSite"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
             }
 
             @Test
@@ -266,7 +272,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class Calls {
         @Test
         public void testAllFilesPresentInCalls() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/calls"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/calls"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -474,7 +480,13 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class Declarations {
         @Test
         public void testAllFilesPresentInDeclarations() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("constructorParameter.kt")
+        public void testConstructorParameter() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations/constructorParameter.kt");
         }
 
         @Test
@@ -499,6 +511,12 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
         @TestMetadata("destructuringEntry.kt")
         public void testDestructuringEntry() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations/destructuringEntry.kt");
+        }
+
+        @Test
+        @TestMetadata("kt60387.kt")
+        public void testKt60387() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/declarations/kt60387.kt");
         }
 
         @Test
@@ -551,12 +569,64 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     }
 
     @Nested
+    @TestMetadata("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring")
+    @TestDataPath("$PROJECT_ROOT")
+    public class Destructuring {
+        @Test
+        public void testAllFilesPresentInDestructuring() throws Exception {
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("destructuringDeclaration.kt")
+        public void testDestructuringDeclaration() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring/destructuringDeclaration.kt");
+        }
+
+        @Test
+        @TestMetadata("destructuringDeclarationInLambda.kt")
+        public void testDestructuringDeclarationInLambda() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring/destructuringDeclarationInLambda.kt");
+        }
+
+        @Test
+        @TestMetadata("destructuringDeclarationParameterInLambda.kt")
+        public void testDestructuringDeclarationParameterInLambda() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring/destructuringDeclarationParameterInLambda.kt");
+        }
+
+        @Test
+        @TestMetadata("entryInDestructuringDeclaration.kt")
+        public void testEntryInDestructuringDeclaration() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring/entryInDestructuringDeclaration.kt");
+        }
+
+        @Test
+        @TestMetadata("entryInDestructuringDeclarationParameterInLambda.kt")
+        public void testEntryInDestructuringDeclarationParameterInLambda() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring/entryInDestructuringDeclarationParameterInLambda.kt");
+        }
+
+        @Test
+        @TestMetadata("entryUnderscoreInDestructuringDeclaration.kt")
+        public void testEntryUnderscoreInDestructuringDeclaration() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring/entryUnderscoreInDestructuringDeclaration.kt");
+        }
+
+        @Test
+        @TestMetadata("entryUnderscoreInDestructuringDeclarationParameterInLambda.kt")
+        public void testEntryUnderscoreInDestructuringDeclarationParameterInLambda() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/destructuring/entryUnderscoreInDestructuringDeclarationParameterInLambda.kt");
+        }
+    }
+
+    @Nested
     @TestMetadata("analysis/low-level-api-fir/testdata/getOrBuildFir/expressions")
     @TestDataPath("$PROJECT_ROOT")
     public class Expressions {
         @Test
         public void testAllFilesPresentInExpressions() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/expressions"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/expressions"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -764,7 +834,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class InImport {
         @Test
         public void testAllFilesPresentInInImport() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/inImport"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/inImport"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -810,7 +880,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class InPackage {
         @Test
         public void testAllFilesPresentInInPackage() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/inPackage"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/inPackage"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -850,7 +920,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class InvalidCode {
         @Test
         public void testAllFilesPresentInInvalidCode() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -890,6 +960,12 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
         }
 
         @Test
+        @TestMetadata("missedTypeArgumentsInAnnotationCall.kt")
+        public void testMissedTypeArgumentsInAnnotationCall() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode/missedTypeArgumentsInAnnotationCall.kt");
+        }
+
+        @Test
         @TestMetadata("secondaryConstructor.kt")
         public void testSecondaryConstructor() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/invalidCode/secondaryConstructor.kt");
@@ -902,7 +978,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class QualifiedExpressions {
         @Test
         public void testAllFilesPresentInQualifiedExpressions() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/qualifiedExpressions"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/qualifiedExpressions"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -942,7 +1018,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class Types {
         @Test
         public void testAllFilesPresentInTypes() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/types"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/types"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -1060,7 +1136,7 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
     public class WholeDeclaration {
         @Test
         public void testAllFilesPresentInWholeDeclaration() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/wholeDeclaration"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/getOrBuildFir/wholeDeclaration"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -1145,6 +1221,18 @@ public class SourceGetOrBuildFirTestGenerated extends AbstractSourceGetOrBuildFi
         @TestMetadata("primaryConstructorValueParameter.kt")
         public void testPrimaryConstructorValueParameter() throws Exception {
             runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/wholeDeclaration/primaryConstructorValueParameter.kt");
+        }
+
+        @Test
+        @TestMetadata("propagateFlexibleTypeToAnonymousFunction.kt")
+        public void testPropagateFlexibleTypeToAnonymousFunction() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/wholeDeclaration/propagateFlexibleTypeToAnonymousFunction.kt");
+        }
+
+        @Test
+        @TestMetadata("propagateFlexibleTypeToAnonymousFunction2.kt")
+        public void testPropagateFlexibleTypeToAnonymousFunction2() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/getOrBuildFir/wholeDeclaration/propagateFlexibleTypeToAnonymousFunction2.kt");
         }
 
         @Test

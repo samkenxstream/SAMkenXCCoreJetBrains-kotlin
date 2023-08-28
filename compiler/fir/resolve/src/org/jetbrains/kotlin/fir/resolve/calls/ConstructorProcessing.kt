@@ -13,10 +13,7 @@ import org.jetbrains.kotlin.fir.declarations.builder.buildConstructorCopy
 import org.jetbrains.kotlin.fir.declarations.builder.buildReceiverParameter
 import org.jetbrains.kotlin.fir.declarations.utils.isInner
 import org.jetbrains.kotlin.fir.languageVersionSettings
-import org.jetbrains.kotlin.fir.resolve.BodyResolveComponents
-import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
-import org.jetbrains.kotlin.fir.resolve.originalConstructorIfTypeAlias
-import org.jetbrains.kotlin.fir.resolve.scope
+import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.substitution.ConeSubstitutor
 import org.jetbrains.kotlin.fir.scopes.FakeOverrideTypeCalculator
 import org.jetbrains.kotlin.fir.scopes.FirScope
@@ -106,7 +103,7 @@ private fun FirDeclaration.isInvisibleOrHidden(session: FirSession, bodyResolveC
         }
     }
 
-    val deprecation = symbol.getDeprecationForCallSite(session.languageVersionSettings.apiVersion)
+    val deprecation = symbol.getDeprecationForCallSite(session)
     return deprecation != null && deprecation.deprecationLevel == DeprecationLevelValue.HIDDEN
 }
 
@@ -185,15 +182,15 @@ private fun processConstructors(
 
                 val outerType = bodyResolveComponents.outerClassManager.outerType(type)
 
-                if (basicScope != null &&
-                    (matchedSymbol.fir.typeParameters.isNotEmpty() || outerType != null || type.typeArguments.isNotEmpty())
-                ) {
+                if (basicScope != null) {
                     TypeAliasConstructorsSubstitutingScope(
                         matchedSymbol,
                         basicScope,
                         outerType
                     )
-                } else basicScope
+                } else {
+                    null
+                }
             }
             is FirClassSymbol -> {
                 val firClass = matchedSymbol.fir as FirClass
@@ -210,10 +207,10 @@ private fun processConstructors(
             }
         }
 
-        //TODO: why don't we use declared member scope at this point?
-        scope?.processDeclaredConstructors {
-            if (includeInnerConstructors || !it.fir.isInner) {
-                processor(it)
+            scope?.processDeclaredConstructors {
+                if (includeInnerConstructors || !it.fir.isInner) {
+                    processor(it)
+
             }
         }
     }
@@ -232,10 +229,10 @@ private class TypeAliasConstructorsSubstitutingScope(
             processor(
                 buildConstructorCopy(originalConstructorSymbol.fir) {
                     symbol = FirConstructorSymbol(originalConstructorSymbol.callableId)
-                    origin = FirDeclarationOrigin.Synthetic
+                    origin = FirDeclarationOrigin.Synthetic.TypeAliasConstructor
 
                     this.typeParameters.clear()
-                    this.typeParameters += typeParameters.map { buildConstructedClassTypeParameterRef { symbol = it.symbol } }
+                    typeParameters.mapTo(this.typeParameters) { buildConstructedClassTypeParameterRef { symbol = it.symbol } }
 
                     if (outerType != null) {
                         // If the matched symbol is a type alias, and the expanded type is a nested class, e.g.,
@@ -264,6 +261,7 @@ private class TypeAliasConstructorsSubstitutingScope(
 
                 }.apply {
                     originalConstructorIfTypeAlias = originalConstructorSymbol.fir
+                    typeAliasForConstructor = typeAliasSymbol
                 }.symbol
             )
         }

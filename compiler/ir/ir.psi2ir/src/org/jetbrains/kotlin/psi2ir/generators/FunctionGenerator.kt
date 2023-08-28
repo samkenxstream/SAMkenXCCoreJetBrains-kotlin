@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.ir.expressions.IrBody
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.expressions.impl.*
+import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
 import org.jetbrains.kotlin.ir.types.impl.IrUninitializedType
 import org.jetbrains.kotlin.ir.util.declareSimpleFunctionWithOverrides
 import org.jetbrains.kotlin.name.Name
@@ -86,6 +87,14 @@ internal class FunctionGenerator(declarationGenerator: DeclarationGenerator) : D
         generateBody: BodyGenerator.() -> IrBody?
     ): IrSimpleFunction =
         declareSimpleFunctionInner(descriptor, ktFunction, origin).buildWithScope { irFunction ->
+            if (descriptor != irFunction.descriptor) {
+                val message = """
+                    |IrSymbolTable contains function with wrong descriptor.
+                    |Expected: $descriptor
+                    |Actual: ${irFunction.descriptor}
+                """.trimMargin()
+                error(message)
+            }
             generateFunctionParameterDeclarationsAndReturnType(irFunction, ktFunction, ktReceiver, ktContextReceivers)
             irFunction.body = createBodyGenerator(irFunction.symbol, parentLoopResolver).generateBody()
         }
@@ -179,7 +188,7 @@ internal class FunctionGenerator(declarationGenerator: DeclarationGenerator) : D
                 irAccessor.symbol,
                 IrGetFieldImpl(
                     startOffset, endOffset,
-                    context.symbolTable.referenceField(property),
+                    context.symbolTable.descriptorExtension.referenceField(property),
                     property.type.toIrType(),
                     receiver
                 )
@@ -204,7 +213,7 @@ internal class FunctionGenerator(declarationGenerator: DeclarationGenerator) : D
         irBody.statements.add(
             IrSetFieldImpl(
                 startOffset, endOffset,
-                context.symbolTable.referenceField(property),
+                context.symbolTable.descriptorExtension.referenceField(property),
                 receiver,
                 IrGetValueImpl(startOffset, endOffset, irValueParameter.type, irValueParameter.symbol),
                 context.irBuiltIns.unitType
@@ -223,7 +232,7 @@ internal class FunctionGenerator(declarationGenerator: DeclarationGenerator) : D
                 IrGetValueImpl(
                     irAccessor.startOffset, irAccessor.endOffset,
                     thisAsReceiverParameter.type.toIrType(),
-                    context.symbolTable.referenceValue(thisAsReceiverParameter)
+                    context.symbolTable.descriptorExtension.referenceValue(thisAsReceiverParameter)
                 )
             }
             else -> null
@@ -281,7 +290,7 @@ internal class FunctionGenerator(declarationGenerator: DeclarationGenerator) : D
         val startOffset = ktConstructorElement.getStartOffsetOfConstructorDeclarationKeywordOrNull() ?: ktConstructorElement.pureStartOffset
         val endOffset = ktConstructorElement.pureEndOffset
         val origin = IrDeclarationOrigin.DEFINED
-        return context.symbolTable.declareConstructor(constructorDescriptor) {
+        return context.symbolTable.descriptorExtension.declareConstructor(constructorDescriptor) {
             with(constructorDescriptor) {
                 context.irFactory.createConstructor(
                     startOffset = startOffset,
@@ -434,7 +443,7 @@ internal class FunctionGenerator(declarationGenerator: DeclarationGenerator) : D
                 origin = IrDeclarationOrigin.DESTRUCTURED_OBJECT_PARAMETER
             }
         }
-        return context.symbolTable.declareValueParameter(
+        return context.symbolTable.descriptorExtension.declareValueParameter(
             ktElement?.pureStartOffset ?: irOwnerElement.startOffset,
             ktElement?.pureEndOffset ?: irOwnerElement.endOffset,
             origin,

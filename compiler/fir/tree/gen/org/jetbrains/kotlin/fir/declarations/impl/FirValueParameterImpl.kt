@@ -3,7 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("DuplicatedCode")
+@file:Suppress("DuplicatedCode", "unused")
 
 package org.jetbrains.kotlin.fir.declarations.impl
 
@@ -169,6 +169,8 @@ internal class FirValueParameterImpl(
     }
 
     override fun replaceInitializer(newInitializer: FirExpression?) {}
+
+    override fun replaceDelegate(newDelegate: FirExpression?) {}
 
     override fun replaceGetter(newGetter: FirPropertyAccessor?) {}
 

@@ -12,6 +12,7 @@ import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.ProviderFactory
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.TaskAction
@@ -35,6 +36,7 @@ import java.net.URL
 import java.net.URLClassLoader
 import javax.inject.Inject
 
+@CacheableTask
 abstract class KaptWithoutKotlincTask @Inject constructor(
     objectFactory: ObjectFactory,
     private val providerFactory: ProviderFactory,
@@ -364,7 +366,8 @@ private class KaptExecution @Inject constructor(
 
             processingClassLoader,
             disableClassloaderCacheForProcessors,
-            /*processorsPerfReportFile=*/null
+            /*processorsPerfReportFile=*/null,
+            /*fileReadHistoryReportFile*/null,
         )
     }
 

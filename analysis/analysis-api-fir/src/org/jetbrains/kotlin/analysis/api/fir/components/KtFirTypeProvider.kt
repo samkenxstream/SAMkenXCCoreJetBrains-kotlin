@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.analysis.api.symbols.KtNamedClassOrObjectSymbol
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.types.KtTypeNullability
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.getOrBuildFir
-import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbol
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.resolveToFirSymbolOfTypeSafe
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.throwUnexpectedFirElementError
 import org.jetbrains.kotlin.fir.analysis.checkers.ConeTypeCompatibilityChecker
@@ -30,31 +29,20 @@ import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.fullyExpandedClass
-import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirCallableReferenceAccess
 import org.jetbrains.kotlin.fir.expressions.FirDelegatedConstructorCall
 import org.jetbrains.kotlin.fir.expressions.FirGetClassCall
-import org.jetbrains.kotlin.fir.realPsi
+import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.renderer.FirRenderer
 import org.jetbrains.kotlin.fir.resolve.substitution.substitutorByMap
 import org.jetbrains.kotlin.fir.resolve.toSymbol
-import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.symbols.impl.*
+import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.name.StandardClassIds
-import org.jetbrains.kotlin.psi.KtAnnotationEntry
-import org.jetbrains.kotlin.psi.KtCallableDeclaration
-import org.jetbrains.kotlin.psi.KtClassOrObject
-import org.jetbrains.kotlin.psi.KtConstructorCalleeExpression
-import org.jetbrains.kotlin.psi.KtDoubleColonExpression
-import org.jetbrains.kotlin.psi.KtElement
-import org.jetbrains.kotlin.psi.KtNamedDeclaration
-import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtParameter
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.KtTypeReference
+import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.types.TypeApproximatorConfiguration
 import org.jetbrains.kotlin.types.model.CaptureStatus
 import org.jetbrains.kotlin.util.bfs
@@ -120,10 +108,18 @@ internal class KtFirTypeProvider(
                 if (parent.receiverTypeReference === ktTypeReference) firCallable?.receiverParameter?.typeRef else firCallable?.returnTypeRef
             }
             parent is KtConstructorCalleeExpression && parent.parent is KtAnnotationEntry -> {
-                val firDeclaration = getFirDeclaration(parent.parent as KtAnnotationEntry, ktTypeReference)
+                fun FirMemberDeclaration.findAnnotationTypeRef(annotationEntry: KtAnnotationEntry) = annotations.find {
+                    it.psi === annotationEntry
+                }?.annotationTypeRef
+
+                val annotationEntry = parent.parent as KtAnnotationEntry
+                val firDeclaration = getFirDeclaration(annotationEntry, ktTypeReference)
                 if (firDeclaration != null) {
-                    firDeclaration.annotations.find { it.realPsi === parent.parent }?.annotationTypeRef
-                        ?: (firDeclaration as? FirProperty)?.backingField?.annotations?.find { it.realPsi === parent.parent }?.annotationTypeRef
+                    firDeclaration.findAnnotationTypeRef(annotationEntry) ?: (firDeclaration as? FirProperty)?.run {
+                        backingField?.findAnnotationTypeRef(annotationEntry)
+                            ?: getter?.findAnnotationTypeRef(annotationEntry)
+                            ?: setter?.findAnnotationTypeRef(annotationEntry)
+                    }
                 } else {
                     ktTypeReference.getOrBuildFir(firResolveSession)
                 }
@@ -166,9 +162,9 @@ internal class KtFirTypeProvider(
     override fun getReceiverTypeForDoubleColonExpression(expression: KtDoubleColonExpression): KtType? {
         return when (val fir = expression.getOrBuildFir(firResolveSession)) {
             is FirGetClassCall ->
-                fir.typeRef.coneType.getReceiverOfReflectionType()?.asKtType()
+                fir.resolvedType.getReceiverOfReflectionType()?.asKtType()
             is FirCallableReferenceAccess ->
-                fir.typeRef.coneType.getReceiverOfReflectionType()?.asKtType()
+                fir.resolvedType.getReceiverOfReflectionType()?.asKtType()
             else -> throwUnexpectedFirElementError(fir, expression)
         }
     }

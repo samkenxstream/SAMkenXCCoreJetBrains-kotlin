@@ -13,11 +13,20 @@ implicit receivers:
   owner symbol: KtFirNamedClassOrObjectSymbol
 
 scopes:
-  LocalScope, index = 0, empty
+  LocalScope, index = 0
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
-  LocalScope, index = 1, empty
+  LocalScope, index = 1
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
-  SimpleTypeScope, index = 2
+  TypeScope, index = 2
+    packages: 0
     classifiers: 1
       KtNamedClassOrObjectSymbol:
         annotationsList: []
@@ -25,7 +34,9 @@ scopes:
         classKind: COMPANION_OBJECT
         companionObject: null
         contextReceivers: []
+        isActual: false
         isData: false
+        isExpect: false
         isExternal: false
         isFun: false
         isInline: false
@@ -87,8 +98,10 @@ scopes:
         hasGetter: true
         hasSetter: false
         initializer: KtConstantInitializerValue("")
+        isActual: false
         isConst: false
         isDelegatedProperty: false
+        isExpect: false
         isExtension: false
         isFromPrimaryConstructor: false
         isLateInit: false
@@ -113,7 +126,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -140,7 +155,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -167,7 +184,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -215,7 +234,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -263,7 +284,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -290,7 +313,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -338,8 +363,10 @@ scopes:
         hasGetter: false
         hasSetter: false
         initializer: null
+        isActual: false
         isConst: false
         isDelegatedProperty: false
+        isExpect: false
         isExtension: false
         isFromPrimaryConstructor: false
         isLateInit: false
@@ -382,8 +409,10 @@ scopes:
         hasGetter: false
         hasSetter: false
         initializer: null
+        isActual: false
         isConst: false
         isDelegatedProperty: false
+        isExpect: false
         isExtension: false
         isFromPrimaryConstructor: false
         isLateInit: false
@@ -408,7 +437,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: false
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -434,7 +465,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: false
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -455,8 +488,30 @@ scopes:
         typeParameters: []
         valueParameters: []
         visibility: ProtectedAndPackage
+    constructors: 1
+      KtConstructorSymbol:
+        annotationsList: []
+        callableIdIfNonLocal: null
+        containingClassIdIfNonLocal: null
+        contextReceivers: []
+        hasStableParameterNames: true
+        isActual: false
+        isExpect: false
+        isExtension: false
+        isPrimary: true
+        origin: SOURCE_MEMBER_GENERATED
+        receiverParameter: null
+        returnType: KtUsualClassType:
+          annotationsList: []
+          ownTypeArguments: []
+          type: <anonymous>
+        symbolKind: CLASS_MEMBER
+        typeParameters: []
+        valueParameters: []
+        visibility: Private
 
   StaticMemberScope, index = 3
+    packages: 0
     classifiers: 0
     callables: 4
       KtEnumEntrySymbol:
@@ -480,7 +535,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -512,7 +569,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -589,8 +648,10 @@ scopes:
         hasGetter: true
         hasSetter: false
         initializer: null
+        isActual: false
         isConst: false
         isDelegatedProperty: false
+        isExpect: false
         isExtension: false
         isFromPrimaryConstructor: false
         isLateInit: false
@@ -614,8 +675,10 @@ scopes:
         symbolKind: CLASS_MEMBER
         typeParameters: []
         visibility: Public
+    constructors: 0
 
   StaticMemberScope, index = 4
+    packages: 0
     classifiers: 1
       KtNamedClassOrObjectSymbol:
         annotationsList: []
@@ -623,7 +686,9 @@ scopes:
         classKind: COMPANION_OBJECT
         companionObject: null
         contextReceivers: []
+        isActual: false
         isData: false
+        isExpect: false
         isExternal: false
         isFun: false
         isInline: false
@@ -641,8 +706,10 @@ scopes:
         typeParameters: []
         visibility: Public
     callables: 0
+    constructors: 0
 
-  SimpleTypeScope, index = 5
+  TypeScope, index = 5
+    packages: 0
     classifiers: 0
     callables: 3
       KtFunctionSymbol:
@@ -651,7 +718,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -699,7 +768,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -726,7 +797,9 @@ scopes:
         contextReceivers: []
         contractEffects: []
         hasStableParameterNames: true
+        isActual: false
         isBuiltinFunctionInvoke: false
+        isExpect: false
         isExtension: false
         isExternal: false
         isInfix: false
@@ -747,10 +820,34 @@ scopes:
         typeParameters: []
         valueParameters: []
         visibility: Public
+    constructors: 0
 
-  ExplicitSimpleImportingScope, index = 6, empty
+  ExplicitSimpleImportingScope, index = 6
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
   PackageMemberScope, index = 7
+    packages: 6
+      KtPackageSymbol:
+        fqName: META-INF
+        origin: SOURCE
+      KtPackageSymbol:
+        fqName: java
+        origin: SOURCE
+      KtPackageSymbol:
+        fqName: javax
+        origin: SOURCE
+      KtPackageSymbol:
+        fqName: kotlin
+        origin: SOURCE
+      KtPackageSymbol:
+        fqName: org
+        origin: SOURCE
+      KtPackageSymbol:
+        fqName: sun
+        origin: SOURCE
     classifiers: 1
       KtNamedClassOrObjectSymbol:
         annotationsList: []
@@ -758,7 +855,9 @@ scopes:
         classKind: ENUM_CLASS
         companionObject: null
         contextReceivers: []
+        isActual: false
         isData: false
+        isExpect: false
         isExternal: false
         isFun: false
         isInline: false
@@ -781,15 +880,18 @@ scopes:
         typeParameters: []
         visibility: Public
     callables: 0
+    constructors: 0
 
   DefaultSimpleImportingScope, index = 8
 
   DefaultSimpleImportingScope, index = 9
 
-  ExplicitStarImportingScope, index = 10, empty
+  ExplicitStarImportingScope, index = 10
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
   DefaultSimpleImportingScope, index = 11
 
   DefaultStarImportingScope, index = 12
-
-  DefaultStarImportingScope, index = 13

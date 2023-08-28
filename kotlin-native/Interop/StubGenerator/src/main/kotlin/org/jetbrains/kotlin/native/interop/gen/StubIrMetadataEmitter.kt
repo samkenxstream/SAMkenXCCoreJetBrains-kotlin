@@ -141,6 +141,7 @@ internal class ModuleMetadataEmitter(
         override fun visitTypealias(element: TypealiasStub, data: VisitingContext): KmTypeAlias =
                 data.withMappingExtensions {
                     KmTypeAlias(element.alias.topLevelName).also { km ->
+                        element.annotations.mapTo(km.annotations) { it.map() }
                         km.visibility = Visibility.PUBLIC
                         km.underlyingType = element.aliasee.map(shouldExpandTypeAliases = false)
                         km.expandedType = element.aliasee.map()
@@ -154,7 +155,7 @@ internal class ModuleMetadataEmitter(
                     } else {
                         element.copy(
                                 external = false,
-                                annotations = listOf(AnnotationStub.Deprecated.unableToImport)
+                                annotations = mutableListOf(AnnotationStub.Deprecated.unableToImport)
                         )
                     }
                     KmFunction(function.name).also { km ->
@@ -172,7 +173,7 @@ internal class ModuleMetadataEmitter(
                     val property = when (val bridgeSupportedKind = element.bridgeSupportedKind) {
                         null -> element.copy(
                                 kind = PropertyStub.Kind.Val(PropertyAccessor.Getter.SimpleGetter()),
-                                annotations = listOf(AnnotationStub.Deprecated.unableToImport)
+                                annotations = mutableListOf(AnnotationStub.Deprecated.unableToImport)
                         )
                         element.kind -> element
                         else -> element.copy(kind = bridgeSupportedKind)
@@ -280,12 +281,10 @@ private class MappingExtensions(
         modality = ps.modality.kmModality
         kind = MemberKind.DECLARATION
         hasAnnotations = ps.annotations.isNotEmpty()
-        hasGetter = true
         when (ps.kind) {
             is PropertyStub.Kind.Val -> {}
             is PropertyStub.Kind.Var -> {
                 isVar = true
-                hasGetter = true
             }
             is PropertyStub.Kind.Constant -> {
                 isConst = true
@@ -443,6 +442,7 @@ private class MappingExtensions(
             )
             is AnnotationStub.CStruct.CPlusPlusClass -> emptyMap()
             is AnnotationStub.CStruct.ManagedType -> emptyMap()
+            is AnnotationStub.ExperimentalForeignApi -> emptyMap()
         }
         return KmAnnotation(classifier.fqNameSerialized, args)
     }

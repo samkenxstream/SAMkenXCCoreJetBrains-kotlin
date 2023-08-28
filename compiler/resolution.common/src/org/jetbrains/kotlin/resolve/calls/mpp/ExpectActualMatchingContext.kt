@@ -39,6 +39,9 @@ interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemC
     val enumConstructorsAreAlwaysCompatible: Boolean
         get() = false
 
+    // Try to drop it once KT-61105 is fixed
+    val shouldCheckAbsenceOfDefaultParamsInActual: Boolean
+
     /**
      * This flag determines, how visibilities for classes/typealiases will be matched
      * - `false` means that visibilities should be identical
@@ -108,12 +111,18 @@ interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemC
     fun RegularClassSymbolMarker.getMembersForExpectClass(name: Name): List<DeclarationSymbolMarker>
 
     fun RegularClassSymbolMarker.collectEnumEntryNames(): List<Name>
+    fun RegularClassSymbolMarker.collectEnumEntries(): List<DeclarationSymbolMarker>
 
     val CallableSymbolMarker.dispatchReceiverType: KotlinTypeMarker?
     val CallableSymbolMarker.extensionReceiverType: KotlinTypeMarker?
     val CallableSymbolMarker.returnType: KotlinTypeMarker
     val CallableSymbolMarker.typeParameters: List<TypeParameterSymbolMarker>
     val FunctionSymbolMarker.valueParameters: List<ValueParameterSymbolMarker>
+
+    /**
+     * Returns all symbols that are overridden by [this] symbol
+     */
+    fun FunctionSymbolMarker.allOverriddenDeclarationsRecursive(): Sequence<CallableSymbolMarker>
 
     val CallableSymbolMarker.valueParameters: List<ValueParameterSymbolMarker>
         get() = (this as? FunctionSymbolMarker)?.valueParameters ?: emptyList()
@@ -151,10 +160,57 @@ interface ExpectActualMatchingContext<T : DeclarationSymbolMarker> : TypeSystemC
 
     val CallableSymbolMarker.hasStableParameterNames: Boolean
 
-    fun onMatchedMembers(expectSymbol: DeclarationSymbolMarker, actualSymbol: DeclarationSymbolMarker) {}
+    fun onMatchedMembers(
+        expectSymbol: DeclarationSymbolMarker,
+        actualSymbol: DeclarationSymbolMarker,
+        containingExpectClassSymbol: RegularClassSymbolMarker?,
+        containingActualClassSymbol: RegularClassSymbolMarker?,
+    ) {}
 
     fun onMismatchedMembersFromClassScope(
         expectSymbol: DeclarationSymbolMarker,
-        actualSymbolsByIncompatibility: Map<ExpectActualCompatibility.Incompatible<*>, List<DeclarationSymbolMarker>>
+        actualSymbolsByIncompatibility: Map<ExpectActualCompatibility.Incompatible<*>, List<DeclarationSymbolMarker>>,
+        containingExpectClassSymbol: RegularClassSymbolMarker?,
+        containingActualClassSymbol: RegularClassSymbolMarker?,
     ) {}
+
+    val DeclarationSymbolMarker.annotations: List<AnnotationCallInfo>
+
+    fun areAnnotationArgumentsEqual(
+        expectAnnotation: AnnotationCallInfo,
+        actualAnnotation: AnnotationCallInfo,
+        collectionArgumentsCompatibilityCheckStrategy: ExpectActualCollectionArgumentsCompatibilityCheckStrategy,
+    ): Boolean
+
+    val DeclarationSymbolMarker.hasSourceAnnotationsErased: Boolean
+
+    interface AnnotationCallInfo {
+        val annotationSymbol: Any
+        val classId: ClassId?
+        val isRetentionSource: Boolean
+        val isOptIn: Boolean
+    }
+
+    val checkClassScopesForAnnotationCompatibility: Boolean
+
+    /**
+     * Determines whether it is needed to skip checking annotations on class member in [AbstractExpectActualAnnotationMatchChecker].
+     *
+     * This is needed to prevent checking member twice if it is real `actual` member (not fake override or member of
+     * class being typealiased).
+     * Example:
+     * ```
+     * actual class A {
+     *   actual fun foo() {} // 1: checked itself, 2: checked as member of A
+     * }
+     * ```
+     */
+    fun skipCheckingAnnotationsOfActualClassMember(actualMember: DeclarationSymbolMarker): Boolean
+
+    fun findPotentialExpectClassMembersForActual(
+        expectClass: RegularClassSymbolMarker,
+        actualClass: RegularClassSymbolMarker,
+        actualMember: DeclarationSymbolMarker,
+        checkClassScopesCompatibility: Boolean,
+    ): Map<out DeclarationSymbolMarker, ExpectActualCompatibility<*>>
 }

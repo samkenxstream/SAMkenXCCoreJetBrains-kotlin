@@ -1,0 +1,18 @@
+// WITH_RESOLVE_EXTENSION
+// RESOLVE_EXTENSION_PACKAGE: generated
+// RESOLVE_EXTENSION_SHADOWED: \.hidden\.[a-z]+$
+// UNRESOLVED_REFERENCE
+
+// FILE: TestClass.hidden.java
+package foo;
+
+public class TestClass {
+    public TestClass() {}
+}
+
+// FILE: main.kt
+package foo
+
+fun main() {
+    val x = <caret>TestClass()
+}

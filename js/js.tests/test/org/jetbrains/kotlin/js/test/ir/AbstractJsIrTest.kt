@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.parsing.parseBoolean
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.ir.IrBackendInput
+import org.jetbrains.kotlin.test.bind
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.configureJsArtifactsHandlersStep
 import org.jetbrains.kotlin.test.builders.jsArtifactsHandlersStep
@@ -146,6 +147,42 @@ open class AbstractSourceMapGenerationSmokeTest : AbstractJsIrTest(
     }
 }
 
+open class AbstractMultiModuleOrderTest : AbstractJsIrTest(
+    pathToTestDir = "${JsEnvironmentConfigurator.TEST_DATA_DIR_PATH}/multiModuleOrder/",
+    testGroupOutputDirPrefix = "multiModuleOrder/"
+) {
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        with(builder) {
+            configureJsArtifactsHandlersStep {
+                useHandlers(
+                    ::JsWrongModuleHandler
+                )
+            }
+        }
+    }
+}
+
+open class AbstractWebDemoExamplesTest : AbstractJsIrTest(
+    pathToTestDir = "${JsEnvironmentConfigurator.TEST_DATA_DIR_PATH}/webDemoExamples/",
+    testGroupOutputDirPrefix = "webDemoExamples/"
+) {
+    override fun configure(builder: TestConfigurationBuilder) {
+        super.configure(builder)
+        with(builder) {
+            defaultDirectives {
+                +JsEnvironmentConfigurationDirectives.KJS_WITH_FULL_RUNTIME
+                -JsEnvironmentConfigurationDirectives.GENERATE_NODE_JS_RUNNER
+                JsEnvironmentConfigurationDirectives.DONT_RUN_GENERATED_CODE.with("JS_IR")
+            }
+
+            configureJsArtifactsHandlersStep {
+                useHandlers(::MainCallWithArgumentsHandler)
+            }
+        }
+    }
+}
+
 private fun configureJsIrLineNumberTest(builder: TestConfigurationBuilder) {
     with(builder) {
         defaultDirectives {
@@ -171,7 +208,9 @@ open class AbstractIrJsSteppingTest : AbstractJsIrTest(
         }
         useAdditionalSourceProviders(::JsSteppingTestAdditionalSourceProvider)
         jsArtifactsHandlersStep {
-            useHandlers({ JsDebugRunner(it, localVariables = false) })
+            useHandlers(
+                ::JsDebugRunner.bind(false)
+            )
         }
     }
 }
@@ -187,7 +226,9 @@ open class AbstractIrJsLocalVariableTest : AbstractJsIrTest(
         }
         useAdditionalSourceProviders(::JsSteppingTestAdditionalSourceProvider)
         jsArtifactsHandlersStep {
-            useHandlers({ JsDebugRunner(it, localVariables = true) })
+            useHandlers(
+                ::JsDebugRunner.bind(true)
+            )
         }
     }
 }

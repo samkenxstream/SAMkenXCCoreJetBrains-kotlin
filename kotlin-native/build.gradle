@@ -38,7 +38,7 @@ buildscript {
     }
 
     dependencies {
-        classpath 'gradle.plugin.com.github.johnrengelman:shadow:7.1.2'
+        classpath 'com.github.johnrengelman:shadow:8.1.1'
     }
 }
 
@@ -54,9 +54,10 @@ apply plugin: "kotlin.native.build-tools-conventions"
 
 ext {
     distDir = UtilsKt.getKotlinNativeDist(project)
-    dependenciesDir = DependencyProcessor.defaultDependenciesRoot
+    def konanDataDir = project.hasProperty('konan.data.dir') ? project.property('konan.data.dir').toString() : null
+    dependenciesDir = DependencyDirectories.INSTANCE.getDependenciesRoot(konanDataDir)
     experimentalEnabled = project.hasProperty("org.jetbrains.kotlin.native.experimentalTargets")
-    platformManager = new PlatformManager(DistributionKt.buildDistribution(projectDir.absolutePath),
+    platformManager = new PlatformManager(DistributionKt.buildDistribution(projectDir.absolutePath, konanDataDir),
             ext.experimentalEnabled)
 
     cacheableTargetNames = platformManager.hostPlatform.cacheableTargets
@@ -97,8 +98,8 @@ allprojects {
 
 void setupHostAndTarget() {
     ext.hostName = platformManager.hostName
-    ext.targetList = platformManager.enabled.collect { it.visibleName } as List
-    ext.konanTargetList = platformManager.enabled as List
+    ext.targetList = EnabledTargetsKt.enabledTargets(platformManager).collect { it.visibleName } as List
+    ext.konanTargetList = EnabledTargetsKt.enabledTargets(platformManager) as List
 }
 
 void setupClang(Project project) {

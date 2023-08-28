@@ -30,8 +30,10 @@ kotlin {
                 "org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi",
                 "org.jetbrains.kotlin.gradle.ExternalKotlinTargetApi",
                 "org.jetbrains.kotlin.compiler.plugin.ExperimentalCompilerApi",
+                "org.jetbrains.kotlin.gradle.DeprecatedTargetPresetApi",
             )
         )
+        suppressWarnings = true
     }
 }
 
@@ -90,7 +92,7 @@ dependencies {
     }
     commonCompileOnly(intellijCore())
     commonCompileOnly(commonDependency("org.jetbrains.teamcity:serviceMessages"))
-    commonCompileOnly("com.gradle:gradle-enterprise-gradle-plugin:3.12.4")
+    commonCompileOnly(libs.gradle.enterprise.gradlePlugin)
     commonCompileOnly(commonDependency("com.google.code.gson:gson"))
     commonCompileOnly("de.undercouch:gradle-download-task:4.1.1")
     commonCompileOnly("com.github.gundy:semver4j:0.16.4:nodeps") {
@@ -119,7 +121,7 @@ dependencies {
     embedded(project(":kotlin-gradle-statistics"))
     embedded(commonDependency("org.jetbrains.intellij.deps:asm-all")) { isTransitive = false }
     embedded(commonDependency("com.google.code.gson:gson")) { isTransitive = false }
-    embedded(commonDependency("com.google.guava:guava")) { isTransitive = false }
+    embedded(libs.guava) { isTransitive = false }
     embedded(commonDependency("org.jetbrains.teamcity:serviceMessages")) { isTransitive = false }
     embedded(project(":kotlin-tooling-metadata")) { isTransitive = false }
     embedded("de.undercouch:gradle-download-task:4.1.1")
@@ -170,11 +172,6 @@ tasks {
         }
     }
 
-    withType<ValidatePlugins>().configureEach {
-        failOnWarning.set(true)
-        enableStricterValidation.set(true)
-    }
-
     withType<ShadowJar>().configureEach {
         relocate("com.github.gundy", "$kotlinEmbeddableRootPackage.com.github.gundy")
         relocate("de.undercouch.gradle.tasks.download", "$kotlinEmbeddableRootPackage.de.undercouch.gradle.tasks.download")
@@ -187,9 +184,12 @@ tasks {
     }
 }
 
-projectTest {
-    dependsOn(tasks.named("validatePlugins"))
+tasks.named("validatePlugins") {
+    // We're manually registering and wiring validation tasks for each plugin variant
+    enabled = false
+}
 
+projectTest {
     workingDir = rootDir
 }
 
@@ -248,12 +248,6 @@ gradlePlugin {
             description = "Kotlin Native plugin for CocoaPods integration"
             displayName = description
             implementationClass = "org.jetbrains.kotlin.gradle.plugin.cocoapods.KotlinCocoapodsPlugin"
-        }
-        create("kotlinMultiplatformPluginPm20") {
-            id = "org.jetbrains.kotlin.multiplatform.pm20"
-            description = "Kotlin Multiplatform plugin with PM2.0"
-            displayName = description
-            implementationClass = "org.jetbrains.kotlin.gradle.plugin.KotlinPm20PluginWrapper"
         }
     }
 }

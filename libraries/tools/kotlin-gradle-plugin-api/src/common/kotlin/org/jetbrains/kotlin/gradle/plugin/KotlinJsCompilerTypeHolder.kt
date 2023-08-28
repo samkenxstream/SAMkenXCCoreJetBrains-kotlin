@@ -8,6 +8,7 @@
 package org.jetbrains.kotlin.gradle.plugin
 
 interface KotlinJsCompilerTypeHolder {
+    @Deprecated("Because only IR compiler is left, no more necessary to know about compiler type in properties")
     val compilerTypeFromProperties: KotlinJsCompilerType?
 
     val defaultJsCompilerType: KotlinJsCompilerType

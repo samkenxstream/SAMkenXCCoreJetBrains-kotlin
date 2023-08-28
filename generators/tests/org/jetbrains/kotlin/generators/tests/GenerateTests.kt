@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.kapt3.test.runners.AbstractClassFileToSourceStubConv
 import org.jetbrains.kotlin.kapt3.test.runners.AbstractIrClassFileToSourceStubConverterTest
 import org.jetbrains.kotlin.kapt3.test.runners.AbstractIrKotlinKaptContextTest
 import org.jetbrains.kotlin.kapt3.test.runners.AbstractKotlinKaptContextTest
+import org.jetbrains.kotlin.kapt4.AbstractKotlinKapt4ContextTest
 import org.jetbrains.kotlin.lombok.*
 import org.jetbrains.kotlin.noarg.*
 import org.jetbrains.kotlin.parcelize.test.runners.*
@@ -51,7 +52,7 @@ fun main(args: Array<String>) {
     System.setProperty("java.awt.headless", "true")
     generateTestGroupSuite(args) {
         testGroup("compiler/incremental-compilation-impl/test", "jps/jps-plugin/testData") {
-            testClass<AbstractIncrementalJvmCompilerRunnerTest>(
+            testClass<AbstractIncrementalK1JvmCompilerRunnerTest>(
                 init = incrementalJvmTestData(
                     targetBackend = TargetBackend.JVM_IR,
                     folderToExcludePatternMap = mapOf(
@@ -62,7 +63,7 @@ fun main(args: Array<String>) {
             )
 
             // K2
-            testClass<AbstractIncrementalFirJvmCompilerRunnerTest>(
+            testClass<AbstractIncrementalK2JvmCompilerRunnerTest>(
                 init = incrementalJvmTestData(
                     TargetBackend.JVM_IR,
                     folderToExcludePatternMap = mapOf(
@@ -95,18 +96,22 @@ fun main(args: Array<String>) {
                 )
             )
 
-            testClass<AbstractIncrementalJsKlibCompilerRunnerTest>() {
+            testClass<AbstractIncrementalK1JsKlibCompilerRunnerTest>() {
                 // IC of sealed interfaces are not supported in JS
                 model("incremental/pureKotlin", extension = null, recursive = false, excludedPattern = "(^sealed.*)|(.*SinceK2)")
                 model("incremental/classHierarchyAffected", extension = null, recursive = false)
                 model("incremental/js", extension = null, excludeParentDirs = true)
             }
 
-            testClass<AbstractIncrementalMultiModuleJsKlibCompilerRunnerTest> {
+            testClass<AbstractIncrementalK1JsKlibMultiModuleCompilerRunnerTest> {
                 model("incremental/multiModule/common", extension = null, excludeParentDirs = true)
             }
 
-            testClass<AbstractIncrementalJsKlibCompilerWithScopeExpansionRunnerTest> {
+            testClass<AbstractIncrementalK2JsKlibMultiModuleCompilerRunnerTest> {
+                model("incremental/multiModule/common", extension = null, excludeParentDirs = true)
+            }
+
+            testClass<AbstractIncrementalK1JsKlibCompilerWithScopeExpansionRunnerTest> {
                 // IC of sealed interfaces are not supported in JS
                 model("incremental/pureKotlin", extension = null, recursive = false, excludedPattern = "^sealed.*")
                 model("incremental/classHierarchyAffected", extension = null, recursive = false)
@@ -114,7 +119,7 @@ fun main(args: Array<String>) {
                 model("incremental/scopeExpansion", extension = null, excludeParentDirs = true)
             }
 
-            testClass<AbstractIncrementalJsFirKlibCompilerWithScopeExpansionRunnerTest> {
+            testClass<AbstractIncrementalK2JsKlibCompilerWithScopeExpansionRunnerTest> {
                 // IC of sealed interfaces are not supported in JS
                 model("incremental/pureKotlin", extension = null, recursive = false,
                     // TODO: 'fileWithConstantRemoved' should be fixed in https://youtrack.jetbrains.com/issue/KT-58824
@@ -124,7 +129,7 @@ fun main(args: Array<String>) {
                 model("incremental/scopeExpansion", extension = null, excludeParentDirs = true)
             }
 
-            testClass<AbstractIncrementalJsCompilerRunnerWithFriendModulesDisabledTest> {
+            testClass<AbstractIncrementalK1JsLegacyCompilerRunnerWithFriendModulesDisabledTest> {
                 model("incremental/js/friendsModuleDisabled", extension = null, recursive = false)
             }
 
@@ -132,7 +137,7 @@ fun main(args: Array<String>) {
                 model("incremental/mpp/allPlatforms", extension = null, excludeParentDirs = true)
                 model("incremental/mpp/jvmOnly", extension = null, excludeParentDirs = true)
             }
-            testClass<AbstractIncrementalMultiplatformJsCompilerRunnerTest> {
+            testClass<AbstractIncrementalK1JsLegacyMultiplatformJsCompilerRunnerTest> {
                 model("incremental/mpp/allPlatforms", extension = null, excludeParentDirs = true)
             }
         }
@@ -207,7 +212,7 @@ fun main(args: Array<String>) {
         }
 
         testGroup("plugins/fir-plugin-prototype/fir-plugin-ic-test/tests-gen", "plugins/fir-plugin-prototype/fir-plugin-ic-test/testData") {
-            testClass<AbstractIncrementalFirJvmWithPluginCompilerRunnerTest> {
+            testClass<AbstractIncrementalK2JvmWithPluginCompilerRunnerTest> {
                 model("pureKotlin", extension = null, recursive = false, targetBackend = TargetBackend.JVM_IR)
             }
         }
@@ -285,6 +290,9 @@ fun main(args: Array<String>) {
             }
             testClass<AbstractFirPsiBytecodeListingTestForAllOpen> {
                 model("bytecodeListing", excludedPattern = excludedFirTestdataPattern)
+            }
+            testClass<AbstractDiagnosticTestForAllOpenBase> {
+                model("diagnostics", excludedPattern = excludedFirTestdataPattern)
             }
             testClass<AbstractFirLightTreeDiagnosticTestForAllOpen> {
                 model("diagnostics", excludedPattern = excludedFirTestdataPattern)
@@ -380,6 +388,11 @@ fun main(args: Array<String>) {
 
             testClass<AbstractIrClassFileToSourceStubConverterTest> {
                 model("converter")
+            }
+        }
+        testGroup("plugins/kapt4/tests-gen", "plugins/kapt4/") {
+            testClass<AbstractKotlinKapt4ContextTest> {
+                model("../kapt3/kapt3-compiler/testData/converter")
             }
         }
 

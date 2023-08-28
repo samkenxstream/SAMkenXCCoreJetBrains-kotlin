@@ -8,24 +8,28 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.transformers
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirResolveTarget
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirLockProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.FirLazyBodiesCalculator
-import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.LLFirPhaseUpdater
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkPhase
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkAnnotationTypeIsResolved
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkContextReceiverTypeRefIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkReceiverTypeRefIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkReturnTypeRefIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkTypeRefIsResolved
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.forEachDependentDeclaration
+import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.FirFileAnnotationsContainer
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.PrivateForInline
+import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.transformers.FirTypeResolveTransformer
-import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirTowerDataContextCollector
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirResolveContextCollector
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.FirTypeRef
+import org.jetbrains.kotlin.fir.utils.exceptions.withFirEntry
 import org.jetbrains.kotlin.fir.visitors.transformSingle
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 internal object LLFirTypeLazyResolver : LLFirLazyResolver(FirResolvePhase.TYPES) {
     override fun resolve(
@@ -33,27 +37,28 @@ internal object LLFirTypeLazyResolver : LLFirLazyResolver(FirResolvePhase.TYPES)
         lockProvider: LLFirLockProvider,
         session: FirSession,
         scopeSession: ScopeSession,
-        towerDataContextCollector: FirTowerDataContextCollector?,
+        towerDataContextCollector: FirResolveContextCollector?,
     ) {
         val resolver = LLFirTypeTargetResolver(target, lockProvider, session, scopeSession)
         resolver.resolveDesignation()
     }
 
-    override fun updatePhaseForDeclarationInternals(target: FirElementWithResolveState) {
-        LLFirPhaseUpdater.updateDeclarationInternalsPhase(target, resolverPhase, updateForLocalDeclarations = false)
-    }
+    override fun phaseSpecificCheckIsResolved(target: FirElementWithResolveState) {
+        if (target is FirAnnotationContainer) {
+            checkAnnotationTypeIsResolved(target)
+        }
 
-    override fun checkIsResolved(target: FirElementWithResolveState) {
-        target.checkPhase(resolverPhase)
         if (target is FirConstructor) {
             target.delegatedConstructor?.let { delegated ->
                 checkTypeRefIsResolved(delegated.constructedTypeRef, "constructor type reference", target, acceptImplicitTypeRef = true)
             }
         }
+
         when (target) {
             is FirCallableDeclaration -> {
                 checkReturnTypeRefIsResolved(target, acceptImplicitTypeRef = true)
                 checkReceiverTypeRefIsResolved(target)
+                checkContextReceiverTypeRefIsResolved(target)
             }
 
             is FirTypeParameter -> {
@@ -61,11 +66,7 @@ internal object LLFirTypeLazyResolver : LLFirLazyResolver(FirResolvePhase.TYPES)
                     checkTypeRefIsResolved(bound, "type parameter bound", target)
                 }
             }
-
-            else -> {}
         }
-
-        checkNestedDeclarationsAreResolved(target)
     }
 }
 
@@ -83,9 +84,7 @@ private class LLFirTypeTargetResolver(
     }
 
     override fun withFile(firFile: FirFile, action: () -> Unit) {
-        transformer.withFileScope(firFile) {
-            action()
-        }
+        transformer.withFileScope(firFile, action)
     }
 
     @Deprecated("Should never be called directly, only for override purposes, please use withRegularClass", level = DeprecationLevel.ERROR)
@@ -104,6 +103,31 @@ private class LLFirTypeTargetResolver(
     }
 
     override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {
+        when (target) {
+            is FirFunction -> resolve(target, TypeStateKeepers.FUNCTION)
+            is FirProperty -> resolve(target, TypeStateKeepers.PROPERTY)
+            is FirCallableDeclaration,
+            is FirDanglingModifierList,
+            is FirFileAnnotationsContainer,
+            is FirTypeAlias,
+            is FirScript,
+            is FirRegularClass,
+            -> rawResolve(target)
+
+            is FirFile, is FirAnonymousInitializer, is FirCodeFragment -> {}
+            else -> errorWithAttachment("Unknown declaration ${target::class.simpleName}") {
+                withFirEntry("declaration", target)
+            }
+        }
+    }
+
+    private fun <T : FirElementWithResolveState> resolve(target: T, keeper: StateKeeper<T, Unit>) {
+        resolveWithKeeper(target, Unit, keeper) {
+            rawResolve(target)
+        }
+    }
+
+    private fun rawResolve(target: FirElementWithResolveState) {
         when (target) {
             is FirConstructor -> {
                 // ConstructedTypeRef should be resolved only with type parameters, but not with nested classes and classes from supertypes
@@ -125,15 +149,22 @@ private class LLFirTypeTargetResolver(
 
                 target.accept(transformer, null)
             }
-            is FirDanglingModifierList, is FirFileAnnotationsContainer, is FirCallableDeclaration, is FirTypeAlias, is FirScript -> {
+            is FirScript -> resolveScriptTypes(target)
+            is FirDanglingModifierList, is FirFileAnnotationsContainer, is FirCallableDeclaration, is FirTypeAlias -> {
                 target.accept(transformer, null)
             }
-            is FirRegularClass -> {
-                resolveClassTypes(target)
+
+            is FirRegularClass -> resolveClassTypes(target)
+            else -> errorWithAttachment("Unknown declaration ${target::class.simpleName}") {
+                withFirEntry("declaration", target)
             }
-            is FirAnonymousInitializer -> {}
-            else -> error("Unknown declaration ${target::class.java}")
         }
+    }
+
+    private fun resolveScriptTypes(firScript: FirScript) {
+        firScript.annotations.forEach { it.accept(transformer, null) }
+        firScript.contextReceivers.forEach { it.accept(transformer, null) }
+        firScript.forEachDependentDeclaration { it.accept(transformer, null) }
     }
 
     private fun resolveClassTypes(firClass: FirRegularClass) {
@@ -147,5 +178,23 @@ private class LLFirTypeTargetResolver(
                 contextReceiver.transformSingle(transformer, null)
             }
         }
+    }
+}
+
+private object TypeStateKeepers {
+    val FUNCTION: StateKeeper<FirFunction, Unit> = stateKeeper { function, context ->
+        add(CALLABLE_DECLARATION, context)
+        entityList(function.valueParameters, CALLABLE_DECLARATION, context)
+    }
+
+    val PROPERTY: StateKeeper<FirProperty, Unit> = stateKeeper { property, context ->
+        add(CALLABLE_DECLARATION, context)
+        entity(property.getter, FUNCTION, context)
+        entity(property.setter, FUNCTION, context)
+        entity(property.backingField, CALLABLE_DECLARATION, context)
+    }
+
+    private val CALLABLE_DECLARATION: StateKeeper<FirCallableDeclaration, Unit> = stateKeeper { _, _ ->
+        add(FirCallableDeclaration::returnTypeRef, FirCallableDeclaration::replaceReturnTypeRef)
     }
 }

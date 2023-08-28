@@ -10,9 +10,7 @@ import org.jetbrains.kotlin.generators.util.TestGeneratorUtil
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.runners.*
 import org.jetbrains.kotlin.test.runners.codegen.*
-import org.jetbrains.kotlin.test.runners.ir.AbstractClassicJvmIrTextTest
-import org.jetbrains.kotlin.test.runners.ir.AbstractFirLightTreeJvmIrTextTest
-import org.jetbrains.kotlin.test.runners.ir.AbstractFirPsiJvmIrTextTest
+import org.jetbrains.kotlin.test.runners.ir.*
 import org.jetbrains.kotlin.test.runners.ir.interpreter.AbstractJvmIrInterpreterAfterFirPsi2IrTest
 import org.jetbrains.kotlin.test.runners.ir.interpreter.AbstractJvmIrInterpreterAfterPsi2IrTest
 import org.jetbrains.kotlin.test.utils.CUSTOM_TEST_DATA_EXTENSION_PATTERN
@@ -39,14 +37,6 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
 
             testClass<AbstractDiagnosticsTestWithJsStdLib> {
                 model("diagnostics/testsWithJsStdLib", excludedPattern = excludedCustomTestdataPattern)
-            }
-
-            testClass<AbstractDiagnosticsTestWithOldJvmBackend> {
-                model(
-                    "diagnostics/testsWithJvmBackend",
-                    targetBackend = TargetBackend.JVM_OLD,
-                    excludedPattern = excludedCustomTestdataPattern
-                )
             }
 
             testClass<AbstractDiagnosticsTestWithJvmIrBackend> {
@@ -111,7 +101,11 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
                 model("debug/localVariables")
             }
 
-            testClass<AbstractIrLocalVariableTest> {
+            testClass<AbstractIrLocalVariableBytecodeInlinerTest> {
+                model("debug/localVariables")
+            }
+
+            testClass<AbstractIrLocalVariableIrInlinerTest> {
                 model("debug/localVariables")
             }
 
@@ -325,11 +319,19 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
                 model("debug/localVariables")
             }
 
-            testClass<AbstractFirPsiDiagnosticsTestWithJvmIrBackend> {
-                model("diagnostics/firTestWithJvmBackend")
+            testClass<AbstractFirPsiWithInterpreterDiagnosticsTest> {
+                model("diagnostics/irInterpreter")
             }
 
-            testClass<AbstractFirPsiDiagnosticsTestWithJvmIrBackend>(suiteTestClassName = "FirPsiOldDiagnosticsTestWithJvmIrBackendGenerated") {
+            testClass<AbstractFirLightTreeWithInterpreterDiagnosticsTest> {
+                model("diagnostics/irInterpreter")
+            }
+
+            testClass<AbstractFirPsiDiagnosticsTestWithJvmIrBackend> {
+                model("diagnostics/testsWithJvmBackend", excludedPattern = excludedCustomTestdataPattern)
+            }
+
+            testClass<AbstractFirLightTreeDiagnosticsTestWithJvmIrBackend> {
                 model("diagnostics/testsWithJvmBackend", excludedPattern = excludedCustomTestdataPattern)
             }
 
@@ -347,6 +349,10 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
 
             testClass<AbstractFirLightTreeBytecodeListingTest> {
                 model("codegen/bytecodeListing")
+            }
+
+            testClass<AbstractFirScriptCodegenTest> {
+                model("codegen/script", pattern = "^(.*)\\.kts?$", excludedPattern = excludedCustomTestdataPattern)
             }
         }
 

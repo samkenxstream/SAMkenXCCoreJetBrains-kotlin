@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.light.classes.symbol.classes
 
 import com.intellij.navigation.ItemPresentation
 import com.intellij.navigation.ItemPresentationProviders
+import com.intellij.openapi.util.ModificationTracker
 import com.intellij.openapi.util.Pair
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.*
@@ -21,8 +22,6 @@ import com.intellij.psi.util.PsiUtil
 import org.jetbrains.annotations.NonNls
 import org.jetbrains.kotlin.analysis.project.structure.KtModule
 import org.jetbrains.kotlin.analysis.providers.createProjectWideOutOfBlockModificationTracker
-import org.jetbrains.kotlin.analysis.utils.errors.buildErrorWithAttachment
-import org.jetbrains.kotlin.analysis.utils.errors.withClassEntry
 import org.jetbrains.kotlin.asJava.classes.*
 import org.jetbrains.kotlin.asJava.toLightClass
 import org.jetbrains.kotlin.idea.KotlinLanguage
@@ -39,8 +38,12 @@ abstract class SymbolLightClassBase protected constructor(val ktModule: KtModule
         ClassInnerStuffCache(
             /* aClass = */ this,
             /* generateEnumMethods = */ false,
-            /* modificationTracker = */ project.createProjectWideOutOfBlockModificationTracker(),
+            /* modificationTrackers = */ modificationTrackerForClassInnerStuff(),
         )
+    }
+
+    protected open fun modificationTrackerForClassInnerStuff(): List<ModificationTracker> {
+        return listOf(project.createProjectWideOutOfBlockModificationTracker())
     }
 
     override fun getFields(): Array<PsiField> = myInnersCache.fields

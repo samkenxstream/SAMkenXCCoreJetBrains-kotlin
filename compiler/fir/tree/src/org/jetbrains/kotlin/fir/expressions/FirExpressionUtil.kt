@@ -20,9 +20,7 @@ import org.jetbrains.kotlin.fir.expressions.impl.FirResolvedArgumentList
 import org.jetbrains.kotlin.fir.expressions.impl.FirSingleExpressionBlock
 import org.jetbrains.kotlin.fir.references.*
 import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
-import org.jetbrains.kotlin.fir.types.ConeClassLikeType
-import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
-import org.jetbrains.kotlin.fir.types.builder.buildErrorTypeRef
+import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.fir.visitors.FirTransformer
 import org.jetbrains.kotlin.fir.visitors.TransformData
 import org.jetbrains.kotlin.fir.visitors.transformInplace
@@ -38,7 +36,7 @@ inline val FirAnnotation.unexpandedClassId: ClassId?
 
 fun <T> buildConstOrErrorExpression(source: KtSourceElement?, kind: ConstantValueKind<T>, value: T?, diagnostic: ConeDiagnostic): FirExpression =
     value?.let {
-        buildConstExpression(source, kind, it)
+        buildConstExpression(source, kind, it, setType = false)
     } ?: buildErrorExpression {
         this.source = source
         this.diagnostic = diagnostic
@@ -55,7 +53,7 @@ inline val FirCall.dynamicVarargArguments: List<FirExpression>?
     get() = dynamicVararg?.arguments
 
 inline val FirFunctionCall.isCalleeDynamic: Boolean
-    get() = calleeReference.toResolvedFunctionSymbol()?.origin == FirDeclarationOrigin.DynamicScope
+    get() = calleeReference.toResolvedNamedFunctionSymbol()?.origin == FirDeclarationOrigin.DynamicScope
 
 inline val FirCall.resolvedArgumentMapping: LinkedHashMap<FirExpression, FirValueParameter>?
     get() = when (val argumentList = argumentList) {
@@ -86,9 +84,7 @@ fun buildErrorLoop(source: KtSourceElement?, diagnostic: ConeDiagnostic): FirErr
         this.source = source
         this.diagnostic = diagnostic
     }.also {
-        it.block.replaceTypeRef(buildErrorTypeRef {
-            this.diagnostic = diagnostic
-        })
+        it.block.replaceConeTypeOrNull(ConeErrorType(diagnostic))
     }
 }
 
@@ -131,7 +127,7 @@ fun FirExpression.unwrapAndFlattenArgument(): List<FirExpression> = buildList { 
 
 private fun FirExpression.unwrapAndFlattenArgumentTo(list: MutableList<FirExpression>) {
     when (val unwrapped = unwrapArgument()) {
-        is FirArrayOfCall, is FirFunctionCall -> (unwrapped as FirCall).arguments.forEach { it.unwrapAndFlattenArgumentTo(list) }
+        is FirArrayLiteral, is FirFunctionCall -> (unwrapped as FirCall).arguments.forEach { it.unwrapAndFlattenArgumentTo(list) }
         is FirVarargArgumentsExpression -> unwrapped.arguments.forEach { it.unwrapAndFlattenArgumentTo(list) }
         else -> list.add(unwrapped)
     }
@@ -177,3 +173,14 @@ val FirQualifiedAccessExpression.allReceiverExpressions: List<FirExpression>
         addIfNotNull(extensionReceiver)
         addAll(contextReceiverArguments)
     }
+
+inline fun FirFunctionCall.forAllReifiedTypeParameters(block: (ConeKotlinType, FirTypeProjectionWithVariance) -> Unit) {
+    val functionSymbol = calleeReference.toResolvedNamedFunctionSymbol() ?: return
+
+    for ((typeParameterSymbol, typeArgument) in functionSymbol.typeParameterSymbols.zip(typeArguments)) {
+        if (typeParameterSymbol.isReified && typeArgument is FirTypeProjectionWithVariance) {
+            val type = typeArgument.typeRef.coneTypeOrNull ?: continue
+            block(type, typeArgument)
+        }
+    }
+}

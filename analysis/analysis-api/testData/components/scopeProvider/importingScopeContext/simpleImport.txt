@@ -2,19 +2,22 @@ implicit receivers:
 scopes:
   DefaultStarImportingScope, index = 0
 
-  DefaultStarImportingScope, index = 1
+  DefaultSimpleImportingScope, index = 1
 
-  DefaultSimpleImportingScope, index = 2
+  ExplicitStarImportingScope, index = 2
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
-  ExplicitStarImportingScope, index = 3, empty
+  DefaultSimpleImportingScope, index = 3
 
   DefaultSimpleImportingScope, index = 4
 
-  DefaultSimpleImportingScope, index = 5
+  PackageMemberScope, index = 5
 
-  PackageMemberScope, index = 6
-
-  ExplicitSimpleImportingScope, index = 7
+  ExplicitSimpleImportingScope, index = 6
+    packages: 0
     classifiers: 1
       KtNamedClassOrObjectSymbol:
         annotationsList: []
@@ -22,7 +25,9 @@ scopes:
         classKind: CLASS
         companionObject: null
         contextReceivers: []
+        isActual: false
         isData: false
+        isExpect: false
         isExternal: false
         isFun: false
         isInline: false
@@ -40,4 +45,4 @@ scopes:
         typeParameters: []
         visibility: Public
     callables: 0
-
+    constructors: 0

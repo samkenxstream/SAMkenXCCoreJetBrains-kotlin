@@ -128,6 +128,12 @@ public class IrClassFileToSourceStubConverterTestGenerated extends AbstractIrCla
     }
 
     @Test
+    @TestMetadata("defaultImplsWithTypeParameters.kt")
+    public void testDefaultImplsWithTypeParameters() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/defaultImplsWithTypeParameters.kt");
+    }
+
+    @Test
     @TestMetadata("defaultPackage.kt")
     public void testDefaultPackage() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/defaultPackage.kt");
@@ -530,6 +536,12 @@ public class IrClassFileToSourceStubConverterTestGenerated extends AbstractIrCla
     }
 
     @Test
+    @TestMetadata("multifileClassDefaultPackage.kt")
+    public void testMultifileClassDefaultPackage() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/multifileClassDefaultPackage.kt");
+    }
+
+    @Test
     @TestMetadata("nestedClasses.kt")
     public void testNestedClasses() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/nestedClasses.kt");
@@ -605,6 +617,12 @@ public class IrClassFileToSourceStubConverterTestGenerated extends AbstractIrCla
     @TestMetadata("severalPackageParts.kt")
     public void testSeveralPackageParts() throws Exception {
         runTest("plugins/kapt3/kapt3-compiler/testData/converter/severalPackageParts.kt");
+    }
+
+    @Test
+    @TestMetadata("starImports.kt")
+    public void testStarImports() throws Exception {
+        runTest("plugins/kapt3/kapt3-compiler/testData/converter/starImports.kt");
     }
 
     @Test

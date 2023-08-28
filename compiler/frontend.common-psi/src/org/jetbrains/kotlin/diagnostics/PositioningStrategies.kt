@@ -65,7 +65,7 @@ object PositioningStrategies {
     val SUPERTYPES_LIST: PositioningStrategy<PsiElement> = object : PositioningStrategy<PsiElement>() {
         override fun mark(element: PsiElement): List<TextRange> {
             val supertypes = ((
-                    element as? KtClass
+                    element as? KtClassOrObject
                     ) ?: return markElement(element)
                     ).superTypeListEntries
             return if (supertypes.isEmpty())
@@ -511,6 +511,15 @@ object PositioningStrategies {
     }
 
     @JvmField
+    val PARAMETERS_WITH_DEFAULT_VALUE: PositioningStrategy<KtFunction> = object : PositioningStrategy<KtFunction>() {
+        override fun mark(element: KtFunction): List<TextRange> =
+            element.valueParameters.filter(KtParameter::hasDefaultValue).takeIf(List<*>::isNotEmpty)?.flatMap { markNode(it.node) }
+                ?: element.valueParameterList?.let { markNode(it.node) }
+                ?: element.nameIdentifier?.let { markNode(it.node) }
+                ?: markNode(element.node)
+    }
+
+    @JvmField
     val PARAMETER_VARARG_MODIFIER: PositioningStrategy<KtParameter> = object : PositioningStrategy<KtParameter>() {
         override fun mark(element: KtParameter): List<TextRange> {
             val varargModifier = element.modifierList!!.getModifier(KtTokens.VARARG_KEYWORD)!!
@@ -693,7 +702,8 @@ object PositioningStrategies {
                     if (lastArgument != null) {
                         markRange(lastArgument, rightParenthesis)
                     } else {
-                        markRange(qualifiedAccess, rightParenthesis)
+                        val leftParenthesis = argumentList.leftParenthesis
+                        markRange(leftParenthesis ?: qualifiedAccess, rightParenthesis)
                     }
                 }
 
@@ -703,6 +713,13 @@ object PositioningStrategies {
 
                 else -> markElement(qualifiedAccess)
             }
+        }
+    }
+
+    @JvmField
+    val VALUE_ARGUMENTS_LIST: PositioningStrategy<KtElement> = object : PositioningStrategy<KtElement>() {
+        override fun mark(element: KtElement): List<TextRange> {
+            return markElement(element.getChildOfType<KtValueArgumentList>() ?: element)
         }
     }
 
@@ -1020,6 +1037,13 @@ object PositioningStrategies {
         override fun mark(element: KtTypeReference): List<TextRange> {
             val parent = element.parent as? KtDelegatedSuperTypeEntry ?: return super.mark(element)
             return markElement(parent.byKeywordNode.psi ?: element)
+        }
+    }
+
+    @JvmField
+    val TYPEALIAS_TYPE_REFERENCE = object : PositioningStrategy<KtTypeAlias>() {
+        override fun mark(element: KtTypeAlias): List<TextRange> {
+            return markElement(element.getTypeReference() ?: element)
         }
     }
 

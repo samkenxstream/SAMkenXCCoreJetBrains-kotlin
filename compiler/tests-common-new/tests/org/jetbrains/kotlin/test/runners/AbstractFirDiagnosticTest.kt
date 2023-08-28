@@ -11,7 +11,7 @@ import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.symbols.FirLazyDeclarationResolver
 import org.jetbrains.kotlin.platform.jvm.JvmPlatforms
 import org.jetbrains.kotlin.test.*
-import org.jetbrains.kotlin.test.backend.ir.ActualizerOnlyFacade
+import org.jetbrains.kotlin.test.backend.ir.IrActualizerAndPluginsFacade
 import org.jetbrains.kotlin.test.backend.ir.IrDiagnosticsHandler
 import org.jetbrains.kotlin.test.builders.TestConfigurationBuilder
 import org.jetbrains.kotlin.test.builders.configureFirHandlersStep
@@ -99,7 +99,7 @@ abstract class AbstractFirWithActualizerDiagnosticsTest(val parser: FirParser) :
         baseFirDiagnosticTestConfiguration()
 
         facadeStep(::Fir2IrResultsConverter)
-        facadeStep(::ActualizerOnlyFacade)
+        facadeStep(::IrActualizerAndPluginsFacade)
         irHandlersStep {
             useHandlers(
                 ::IrDiagnosticsHandler
@@ -193,7 +193,9 @@ fun TestConfigurationBuilder.baseFirDiagnosticTestConfiguration(
 
     forTestsMatching(
         "compiler/fir/analysis-tests/testData/resolve/extendedCheckers/*" or
-                "compiler/testData/diagnostics/tests/controlFlowAnalysis/deadCode/*"
+                "compiler/testData/diagnostics/tests/controlFlowAnalysis/deadCode/*" or
+                "compiler/fir/analysis-tests/testData/resolveWithStdlib/contracts/fromSource/bad/returnsImplies/*" or
+                "compiler/fir/analysis-tests/testData/resolveWithStdlib/contracts/fromSource/good/returnsImplies/*"
     ) {
         defaultDirectives {
             +WITH_EXTENDED_CHECKERS
@@ -239,9 +241,10 @@ fun TestConfigurationBuilder.enableLazyResolvePhaseChecking() {
         service<FirSessionComponentRegistrar>(::FirLazyDeclarationResolverWithPhaseCheckingSessionComponentRegistrar.coerce())
     )
 
-    useAfterAnalysisCheckers(
-        ::DisableLazyResolveChecksAfterAnalysisChecker,
-    )
+    // It's important to filter out failures from lazy resolve before calling other suppressors like BlackBoxCodegenSuppressor
+    // Otherwise other suppressors can filter out every failure from test and keep it as ignored even if
+    // the only problem in lazy resolve contracts, which disables with special directive
+    useAfterAnalysisCheckers(::DisableLazyResolveChecksAfterAnalysisChecker, insertAtFirst = true)
 
     configureFirHandlersStep {
         useHandlers(

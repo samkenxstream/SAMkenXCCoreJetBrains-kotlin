@@ -10,7 +10,9 @@ import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.isAnnotationClass
 import org.jetbrains.kotlin.fir.backend.*
-import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.backend.generators.generateOverriddenPropertySymbols
+import org.jetbrains.kotlin.fir.declarations.FirProperty
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertyGetter
 import org.jetbrains.kotlin.fir.declarations.impl.FirDefaultPropertySetter
 import org.jetbrains.kotlin.fir.declarations.utils.*
@@ -18,17 +20,14 @@ import org.jetbrains.kotlin.fir.expressions.FirConstExpression
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.symbols.Fir2IrPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.Fir2IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.ir.ObsoleteDescriptorBasedAPI
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.lazy.lazyVar
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
-import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrExpressionBody
 import org.jetbrains.kotlin.ir.symbols.IrPropertySymbol
-import org.jetbrains.kotlin.ir.types.IrErrorType
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.util.isComposite
-import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.NameUtils
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedContainerSource
@@ -97,17 +96,10 @@ class Fir2IrLazyProperty(
     private fun toIrInitializer(initializer: FirExpression?): IrExpressionBody? {
         // Annotations need full initializer information to instantiate them correctly
         return when {
-            containingClass?.classKind?.isAnnotationClass == true -> {
-                when (val elem = initializer?.accept(Fir2IrVisitor(components, Fir2IrConversionScope()), null)) {
-                    is IrExpressionBody -> elem
-                    is IrExpression -> factory.createExpressionBody(elem)
-                    else -> null
-                }
-            }
+            containingClass?.classKind?.isAnnotationClass == true -> initializer?.asCompileTimeIrInitializer(components)
             // Setting initializers to every other class causes some cryptic errors in lowerings
             initializer is FirConstExpression<*> -> {
-                // TODO: Normally we shouldn't have error type here
-                val constType = with(typeConverter) { initializer.typeRef.toIrType().takeIf { it !is IrErrorType } ?: type }
+                val constType = with(typeConverter) { initializer.resolvedType.toIrType() }
                 factory.createExpressionBody(initializer.toIrConst(constType))
             }
             else -> null
@@ -115,12 +107,7 @@ class Fir2IrLazyProperty(
     }
 
     override var backingField: IrField? by lazyVar(lock) {
-        // TODO: this checks are very preliminary, FIR resolve should determine backing field presence itself
-        val parent = parent
         when {
-            !fir.isConst && (fir.modality == Modality.ABSTRACT || parent is IrClass && parent.isInterface) -> {
-                null
-            }
             fir.hasExplicitBackingField -> {
                 with(declarationStorage) {
                     val backingFieldType = with(typeConverter) {
@@ -176,8 +163,7 @@ class Fir2IrLazyProperty(
         val signature = signatureComposer.composeAccessorSignature(
             fir,
             isSetter = false,
-            containingClass?.symbol?.toLookupTag(),
-            forceTopLevelPrivate = symbol.signature.isComposite()
+            containingClass?.symbol?.toLookupTag()
         )!!
         symbolTable.declareSimpleFunction(signature, symbolFactory = { Fir2IrSimpleFunctionSymbol(signature) }) { symbol ->
             Fir2IrLazyPropertyAccessor(
@@ -197,7 +183,7 @@ class Fir2IrLazyProperty(
             correspondingPropertySymbol = this@Fir2IrLazyProperty.symbol
             with(classifierStorage) {
                 setTypeParameters(
-                    this@Fir2IrLazyProperty.fir, ConversionTypeContext.DEFAULT
+                    this@Fir2IrLazyProperty.fir, ConversionTypeOrigin.DEFAULT
                 )
             }
         }
@@ -209,8 +195,7 @@ class Fir2IrLazyProperty(
             val signature = signatureComposer.composeAccessorSignature(
                 fir,
                 isSetter = true,
-                containingClass?.symbol?.toLookupTag(),
-                forceTopLevelPrivate = symbol.signature.isComposite()
+                containingClass?.symbol?.toLookupTag()
             )!!
             symbolTable.declareSimpleFunction(signature, symbolFactory = { Fir2IrSimpleFunctionSymbol(signature) }) { symbol ->
                 Fir2IrLazyPropertyAccessor(
@@ -229,7 +214,7 @@ class Fir2IrLazyProperty(
                     correspondingPropertySymbol = this@Fir2IrLazyProperty.symbol
                     with(classifierStorage) {
                         setTypeParameters(
-                            this@Fir2IrLazyProperty.fir, ConversionTypeContext.IN_SETTER
+                            this@Fir2IrLazyProperty.fir, ConversionTypeOrigin.SETTER
                         )
                     }
                 }

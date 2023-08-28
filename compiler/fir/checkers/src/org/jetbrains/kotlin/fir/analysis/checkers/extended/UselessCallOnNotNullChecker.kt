@@ -12,14 +12,14 @@ import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirQualifiedAccessE
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.expressions.FirQualifiedAccessExpression
-import org.jetbrains.kotlin.fir.references.toResolvedFunctionSymbol
+import org.jetbrains.kotlin.fir.references.toResolvedNamedFunctionSymbol
 import org.jetbrains.kotlin.fir.types.ConeNullability
 import org.jetbrains.kotlin.fir.types.classId
-import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.name.CallableId
 
 object UselessCallOnNotNullChecker : FirQualifiedAccessExpressionChecker() {
-    // todo: add 'call may be reduced' in cases like 's?.isNullOrEmpty()' where 's: String? = ""'
+    // todo, KT-59829: add 'call may be reduced' in cases like 's?.isNullOrEmpty()' where 's: String? = ""'
     override fun check(expression: FirQualifiedAccessExpression, context: CheckerContext, reporter: DiagnosticReporter) {
         val method = expression.getCallableId() ?: return
         val calleeOn = expression.explicitReceiver ?: return
@@ -33,14 +33,14 @@ object UselessCallOnNotNullChecker : FirQualifiedAccessExpressionChecker() {
     }
 
     private fun FirQualifiedAccessExpression.getCallableId(): CallableId? {
-        return calleeReference.toResolvedFunctionSymbol()?.callableId
+        return calleeReference.toResolvedNamedFunctionSymbol()?.callableId
     }
 
     private fun FirExpression.getPackage(): String {
-        return typeRef.coneType.classId?.packageFqName.toString()
+        return resolvedType.classId?.packageFqName.toString()
     }
 
-    private fun FirExpression.getNullability() = typeRef.coneType.nullability
+    private fun FirExpression.getNullability() = resolvedType.nullability
 
 
     private val triggerOn = setOf(

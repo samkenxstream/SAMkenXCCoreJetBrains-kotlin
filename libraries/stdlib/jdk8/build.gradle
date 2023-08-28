@@ -2,9 +2,9 @@ description = 'Kotlin Standard Library JDK 8 extension'
 
 apply plugin: 'kotlin'
 
-configurePublishing(project)
-configureSourcesJar()
-configureJavadocJar()
+RepoArtifacts.publish(project)
+RepoArtifacts.sourcesJar(project)
+RepoArtifacts.javadocJar(project)
 
 dependencies {
     api project(':kotlin-stdlib')
@@ -42,7 +42,7 @@ dependencies {
 }
 
 jar {
-    manifestAttributes(manifest, project, 'Main', true)
+    LibrariesCommon.manifestAttributes(project, manifest, 'Main', true)
     from sourceSets.java9.output
 }
 
@@ -62,7 +62,7 @@ compileKotlin {
 compileTestKotlin {
 }
 
-configureFrontendIr(project)
+LibrariesCommon.configureFrontendIr(project)
 
 LibrariesCommon.configureJava9Compilation(project, 'kotlin.stdlib.jdk8')
 

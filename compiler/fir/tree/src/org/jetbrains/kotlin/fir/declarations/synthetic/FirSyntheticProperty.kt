@@ -51,7 +51,7 @@ class FirSyntheticProperty(
         get() = null
 
     override val origin: FirDeclarationOrigin
-        get() = FirDeclarationOrigin.Synthetic
+        get() = FirDeclarationOrigin.Synthetic.JavaProperty
 
     override val initializer: FirExpression?
         get() = null
@@ -164,6 +164,10 @@ class FirSyntheticProperty(
     }
 
     override fun replaceInitializer(newInitializer: FirExpression?) {
+        notSupported()
+    }
+
+    override fun replaceDelegate(newDelegate: FirExpression?) {
         notSupported()
     }
 

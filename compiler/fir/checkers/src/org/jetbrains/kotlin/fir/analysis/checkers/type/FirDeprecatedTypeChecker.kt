@@ -23,28 +23,9 @@ object FirDeprecatedTypeChecker : FirTypeRefChecker() {
         if (source.kind is KtFakeSourceElementKind) return
 
         val resolved = typeRef.coneTypeSafe<ConeClassLikeType>() ?: return
-        checkType(resolved, null, source, context, reporter)
+        val symbol = resolved.lookupTag.toSymbol(context.session) ?: return
+
+        FirDeprecationChecker.reportApiStatusIfNeeded(source, symbol, context, reporter)
     }
-
-    @OptIn(SymbolInternals::class)
-    private fun checkType(
-        type: ConeClassLikeType,
-        typeAliasSymbol: FirTypeAliasSymbol?,
-        source: KtSourceElement,
-        context: CheckerContext,
-        reporter: DiagnosticReporter
-    ) {
-        val symbol = type.lookupTag.toSymbol(context.session) ?: return
-        FirDeprecationChecker.reportApiStatusIfNeeded(source, symbol, context, reporter, typealiasSymbol = typeAliasSymbol)
-
-        if (symbol is FirTypeAliasSymbol) {
-            val typeAlias = symbol.fir
-            typeAlias.lazyResolveToPhase(FirResolvePhase.TYPES)
-            typeAlias.expandedTypeRef.coneType.forEachType {
-                if (it is ConeClassLikeType) checkType(it, symbol, source, context, reporter)
-            }
-        }
-    }
-
 }
 

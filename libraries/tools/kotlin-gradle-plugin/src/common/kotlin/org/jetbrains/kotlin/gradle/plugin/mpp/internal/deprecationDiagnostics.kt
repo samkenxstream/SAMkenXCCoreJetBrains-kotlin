@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLI
 import org.jetbrains.kotlin.gradle.plugin.PropertiesProvider.PropertyNames.KOTLIN_NATIVE_DEPENDENCY_PROPAGATION
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.KotlinToolingDiagnostics
 import org.jetbrains.kotlin.gradle.plugin.diagnostics.kotlinToolingDiagnosticsCollector
-import org.jetbrains.kotlin.gradle.utils.runProjectConfigurationHealthCheckWhenEvaluated
 import org.jetbrains.kotlin.tooling.core.UnsafeApi
 
 internal fun runDeprecationDiagnostics(project: Project) {
@@ -28,7 +27,6 @@ internal fun runDeprecationDiagnostics(project: Project) {
  */
 private fun checkAndReportDeprecatedMppProperties(project: Project) {
     val projectProperties = project.kotlinPropertiesProvider
-    if (projectProperties.ignoreHmppDeprecationWarnings == true) return
 
     val usedProperties = deprecatedMppProperties.mapNotNull { propertyName ->
         if (propertyName in propertiesSetByPlugin && projectProperties.mpp13XFlagsSetByPlugin)
@@ -42,7 +40,7 @@ private fun checkAndReportDeprecatedMppProperties(project: Project) {
 
     project.kotlinToolingDiagnosticsCollector.reportOncePerGradleBuild(
         project,
-        KotlinToolingDiagnostics.HierarchicalMultiplatformFlagsWarning(usedProperties)
+        KotlinToolingDiagnostics.PreHMPPFlagsError(usedProperties)
     )
 }
 
@@ -56,5 +54,4 @@ internal val deprecatedMppProperties: List<String> = listOf(
 
 private val propertiesSetByPlugin: Set<String> = setOf(
     KOTLIN_MPP_ENABLE_GRANULAR_SOURCE_SETS_METADATA,
-    KOTLIN_NATIVE_DEPENDENCY_PROPAGATION,
 )

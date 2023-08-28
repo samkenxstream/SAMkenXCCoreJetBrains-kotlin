@@ -8,11 +8,7 @@ package org.jetbrains.kotlin.gradle.plugin.mpp
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.plugins.JavaBasePlugin
-import org.gradle.util.GradleVersion
-import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
-import org.jetbrains.kotlin.gradle.dsl.explicitApiModeAsCompilerArg
-import org.jetbrains.kotlin.gradle.dsl.kotlinExtension
-import org.jetbrains.kotlin.gradle.dsl.multiplatformExtension
+import org.jetbrains.kotlin.gradle.dsl.*
 import org.jetbrains.kotlin.gradle.internal.customizeKotlinDependencies
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.hierarchy.orNull
@@ -22,20 +18,19 @@ import org.jetbrains.kotlin.gradle.plugin.ide.locateOrRegisterIdeResolveDependen
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinMultiplatformPlugin.Companion.sourceSetFreeCompilerArgsPropertyName
 import org.jetbrains.kotlin.gradle.plugin.mpp.apple.addBuildListenerForXcode
 import org.jetbrains.kotlin.gradle.plugin.mpp.internal.runDeprecationDiagnostics
-import org.jetbrains.kotlin.gradle.plugin.mpp.pm20.util.copyAttributes
 import org.jetbrains.kotlin.gradle.plugin.sources.DefaultLanguageSettingsBuilder
 import org.jetbrains.kotlin.gradle.plugin.sources.awaitPlatformCompilations
-import org.jetbrains.kotlin.gradle.plugin.sources.checkSourceSetVisibilityRequirements
 import org.jetbrains.kotlin.gradle.plugin.sources.internal
 import org.jetbrains.kotlin.gradle.plugin.statistics.KotlinBuildStatsService
 import org.jetbrains.kotlin.gradle.scripting.internal.ScriptingGradleSubplugin
+import org.jetbrains.kotlin.gradle.targets.js.KotlinWasmTargetType
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinJsIrTargetPreset
 import org.jetbrains.kotlin.gradle.targets.js.ir.KotlinWasmTargetPreset
 import org.jetbrains.kotlin.gradle.targets.native.createFatFrameworks
+import org.jetbrains.kotlin.gradle.targets.native.internal.setupCInteropCommonizedCInteropApiElementsConfigurations
 import org.jetbrains.kotlin.gradle.targets.native.tasks.artifact.registerKotlinArtifactsExtension
 import org.jetbrains.kotlin.gradle.tasks.AbstractKotlinCompileTool
 import org.jetbrains.kotlin.gradle.utils.checkGradleCompatibility
-import org.jetbrains.kotlin.gradle.utils.runProjectConfigurationHealthCheck
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget.*
 import org.jetbrains.kotlin.konan.target.presetName
@@ -44,7 +39,7 @@ import org.jetbrains.kotlin.statistics.metrics.StringMetrics
 class KotlinMultiplatformPlugin : Plugin<Project> {
 
     override fun apply(project: Project) {
-        checkGradleCompatibility("the Kotlin Multiplatform plugin", GradleVersion.version("6.0"))
+        checkGradleCompatibility("the Kotlin Multiplatform plugin")
         runDeprecationDiagnostics(project)
 
         project.plugins.apply(JavaBasePlugin::class.java)
@@ -57,7 +52,7 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
         setupTargetsBuildStatsReport(project)
 
         // set up metadata publishing
-        kotlinMultiplatformExtension.targetFromPreset(
+        kotlinMultiplatformExtension.targetFromPresetInternal(
             KotlinMetadataTargetPreset(project),
             METADATA_TARGET_NAME
         )
@@ -65,7 +60,7 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
 
         configurePublishingWithMavenPublish(project)
 
-        kotlinMultiplatformExtension.targets.withType(AbstractKotlinTarget::class.java).all { applyUserDefinedAttributes(it) }
+        kotlinMultiplatformExtension.targets.withType(InternalKotlinTarget::class.java).all { applyUserDefinedAttributes(it) }
 
         // propagate compiler plugin options to the source set language settings
         setupAdditionalCompilerArguments(project)
@@ -78,7 +73,7 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
         // Ensure that the instance is created and configured during apply
         project.kotlinIdeMultiplatformImport
         project.locateOrRegisterIdeResolveDependenciesTask()
-
+        project.launch { project.setupCInteropCommonizedCInteropApiElementsConfigurations() }
         project.addBuildListenerForXcode()
         project.whenEvaluated { kotlinMultiplatformExtension.createFatFrameworks() }
     }
@@ -130,6 +125,7 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
     }
 
     fun setupDefaultPresets(project: Project) {
+        @Suppress("DEPRECATION")
         with(project.multiplatformExtension.presets) {
             add(KotlinJvmTargetPreset(project))
             add(KotlinJsTargetPreset(project).apply { irPreset = null })
@@ -139,7 +135,8 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
                     irPreset = KotlinJsIrTargetPreset(project).apply { mixedMode = true }
                 }
             )
-            add(KotlinWasmTargetPreset(project))
+            add(KotlinWasmTargetPreset(project, KotlinWasmTargetType.JS))
+            add(KotlinWasmTargetPreset(project, KotlinWasmTargetType.WASI))
             add(project.objects.newInstance(KotlinAndroidTargetPreset::class.java, project))
             add(KotlinJvmWithJavaTargetPreset(project))
 
@@ -174,12 +171,6 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
         project.launch {
             project.setupDefaultKotlinHierarchy()
         }
-
-        project.launchInStage(KotlinPluginLifecycle.Stage.ReadyForExecution) {
-            project.runProjectConfigurationHealthCheck {
-                checkSourceSetVisibilityRequirements(project)
-            }
-        }
     }
 
     private fun setupTargetsBuildStatsReport(project: Project) {
@@ -202,60 +193,6 @@ class KotlinMultiplatformPlugin : Plugin<Project> {
     }
 }
 
-/**
- * The attributes attached to the targets and compilations need to be propagated to the relevant Gradle configurations:
- * 1. Output configurations of each target need the corresponding compilation's attributes (and, indirectly, the target's attributes)
- * 2. Resolvable configurations of each compilation need the compilation's attributes
- */
-internal fun applyUserDefinedAttributes(target: AbstractKotlinTarget) {
-    val project = target.project
-    project.whenEvaluated {
-        // To copy the attributes to the output configurations, find those output configurations and their producing compilations
-        // based on the target's components:
-        val outputConfigurationsWithCompilations = target.kotlinComponents.filterIsInstance<KotlinVariant>().flatMap { kotlinVariant ->
-            kotlinVariant.usages.mapNotNull { usageContext ->
-                project.configurations.findByName(usageContext.dependencyConfigurationName)?.let { configuration ->
-                    configuration to usageContext.compilation
-                }
-            }
-        }.toMutableList()
-
-        val mainCompilation = target.compilations.findByName(KotlinCompilation.MAIN_COMPILATION_NAME)
-
-        // Add usages of android library when its variants are grouped by flavor
-        outputConfigurationsWithCompilations += target.kotlinComponents
-            .filterIsInstance<JointAndroidKotlinTargetComponent>()
-            .flatMap { variant -> variant.usages }
-            .mapNotNull { usage ->
-                val configuration = project.configurations.findByName(usage.dependencyConfigurationName) ?: return@mapNotNull null
-                configuration to usage.compilation
-            }
-
-        outputConfigurationsWithCompilations.forEach { (configuration, compilation) ->
-            copyAttributes(compilation.attributes, configuration.attributes)
-        }
-
-        target.compilations.all { compilation ->
-            val compilationAttributes = compilation.attributes
-
-            @Suppress("DEPRECATION")
-            compilation.relatedConfigurationNames
-                .mapNotNull { configurationName -> target.project.configurations.findByName(configurationName) }
-                .forEach { configuration -> copyAttributes(compilationAttributes, configuration.attributes) }
-        }
-
-        // Copy to host-specific metadata elements configurations
-        if (target is KotlinNativeTarget) {
-            val hostSpecificMetadataElements = project.configurations.findByName(target.hostSpecificMetadataElementsConfigurationName)
-            if (hostSpecificMetadataElements != null) {
-                copyAttributes(from = target.attributes, to = hostSpecificMetadataElements.attributes)
-            }
-        }
-    }
-}
-
-
-
 internal fun Project.setupGeneralKotlinExtensionParameters() {
     project.launch {
         for (sourceSet in kotlinExtension.awaitSourceSets()) {
@@ -267,9 +204,10 @@ internal fun Project.setupGeneralKotlinExtensionParameters() {
                 .awaitPlatformCompilations()
                 .any { KotlinSourceSetTree.orNull(it) == KotlinSourceSetTree.main }
 
-            languageSettings.explicitApi = project.providers.provider {
-                val explicitApiFlag = project.kotlinExtension.explicitApiModeAsCompilerArg()
-                explicitApiFlag.takeIf { isMainSourceSet }
+            if (isMainSourceSet) {
+                languageSettings.explicitApi = project.providers.provider {
+                    project.kotlinExtension.explicitApiModeAsCompilerArg()
+                }
             }
 
             languageSettings.freeCompilerArgsProvider = project.provider {

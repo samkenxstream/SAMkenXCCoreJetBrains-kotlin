@@ -4,7 +4,7 @@ apply plugin: 'kotlin'
 
 JvmToolchain.configureJvmToolchain(project, JdkMajorVersion.JDK_1_8)
 
-configurePublishing(project)
+RepoArtifacts.publish(project)
 
 sourceSets {
     main {
@@ -15,11 +15,11 @@ sourceSets {
 }
 
 dependencies {
-    compileOnly DependenciesKt.kotlinBuiltins(project)
+    compileOnly RepoDependencies.kotlinBuiltins(project)
 }
 
-configureSourcesJar()
-configureJavadocJar()
+RepoArtifacts.sourcesJar(project)
+RepoArtifacts.javadocJar(project)
 
 compileKotlin {
     kotlinOptions.freeCompilerArgs = [
@@ -28,4 +28,4 @@ compileKotlin {
     kotlinOptions.moduleName = project.name
 }
 
-configureFrontendIr(project)
+LibrariesCommon.configureFrontendIr(project)

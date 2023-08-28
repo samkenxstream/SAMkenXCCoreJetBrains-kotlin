@@ -183,7 +183,6 @@ object FirModifierChecker : FirBasicDeclarationChecker() {
             val set = map[modifierToken] ?: emptySet()
             val checkResult = if (factory == FirErrors.WRONG_MODIFIER_TARGET) {
                 actualTargets.none { it in set } ||
-                        // TODO: Implement some generic feature-checking mechanism
                         (modifierToken == DATA_KEYWORD
                                 && actualTargets.contains(KotlinTarget.STANDALONE_OBJECT)
                                 && !context.languageVersionSettings.supportsFeature(LanguageFeature.DataObjects))
@@ -262,13 +261,17 @@ object FirModifierChecker : FirBasicDeclarationChecker() {
         val possibleParentPredicate = possibleParentTargetPredicateMap[modifierToken] ?: return true
         if (actualParents.any { possibleParentPredicate.isAllowed(it, context.session.languageVersionSettings) }) return true
 
-        reporter.reportOn(
-            modifierSource,
-            FirErrors.WRONG_MODIFIER_CONTAINING_DECLARATION,
-            modifierToken,
-            actualParents.firstOrThis(),
-            context
-        )
+        if (modifierToken == KtTokens.INNER_KEYWORD && parent is FirScript) {
+            reporter.reportOn(modifierSource, FirErrors.INNER_ON_TOP_LEVEL_SCRIPT_CLASS, context)
+        } else {
+            reporter.reportOn(
+                modifierSource,
+                FirErrors.WRONG_MODIFIER_CONTAINING_DECLARATION,
+                modifierToken,
+                actualParents.firstOrThis(),
+                context
+            )
+        }
 
         return false
     }

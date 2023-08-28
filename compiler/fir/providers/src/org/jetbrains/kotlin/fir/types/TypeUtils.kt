@@ -30,10 +30,13 @@ import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.impl.ConeClassLikeTypeImpl
 import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
+import org.jetbrains.kotlin.fir.utils.exceptions.withConeTypeEntry
 import org.jetbrains.kotlin.resolve.calls.NewCommonSuperTypeCalculator
 import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.model.*
+import org.jetbrains.kotlin.utils.addToStdlib.butIf
 import org.jetbrains.kotlin.utils.addToStdlib.runIf
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible as coneLowerBoundIfFlexible
 import org.jetbrains.kotlin.fir.types.upperBoundIfFlexible as coneUpperBoundIfFlexible
 
@@ -98,6 +101,88 @@ fun ConeDefinitelyNotNullType.Companion.create(
 fun ConeDynamicType.Companion.create(session: FirSession): ConeDynamicType =
     ConeDynamicType(session.builtinTypes.nothingType.type, session.builtinTypes.nullableAnyType.type)
 
+/**
+ * This call is required if you want to use a type with annotations that are linked to a declaration from this declaration inside another
+ * to avoid concurrent modification problems (see KT-60387).
+ *
+ * Otherwise, those annotations can be transformed from different threads simultaneously that is error-prone.
+ * Example:
+ * ```kotlin
+ * val declaration: @Anno("outer") Int? get() = null
+ * val anotherDeclaration: String get() = declaration?.let { "$it" }.toString()
+ * ```
+ * here for `declaration?.let { "$it" }` will be created an anonymous function with argument that
+ * will have the same type as the return type of `declaration`.
+ * So, now we have 2 possible scenarios:
+ *
+ * Wrong case 1 – The type was inserted to a new type ref as it is.
+ * This means that a type reference from `declaration` and from the anonymous lambda will have the same instance of `Anno`.
+ * Now we resole `anotherDeclaration` to [FirResolvePhase.BODY_RESOLVE] phase
+ * and as a result we will have resolved annotation arguments in the type.
+ * At the same time, `declaration` can be still in [FirResolvePhase.CONTRACTS] phase, because no one called a resolution yet.
+ * So now imagine a situation when one thread (1) wants to read annotation arguments from the fully resolved anonymous function,
+ * and another thread (2) wants to resolve `declaration` to [FirResolvePhase.ANNOTATIONS_ARGUMENTS_MAPPING] phase.
+ * As a result, we will have a moment there thread 2 will replace arguments with a lazy expression
+ * to be sure that we will have a safe basis for resolution (see StateKeeper concept in LL FIR).
+ * And thread 1 will see unexpected unresolved annotation arguments in fully resolved function, because those type references
+ * use the same instance of the type (`FirArgumentListImpl` cannot be cast to `FirResolvedArgumentList`).
+ * So we lost here.
+ *
+ * Right case 2 – The type was "copied" by [independentInstance].
+ * In this case, `declaration` and `anotherDeclaration` will have different instances of one `@Anno("outer") Int?` type.
+ * This means that we can't come to a situation where we can modify a fully resolved annotation from another thread.
+ *
+ * @return an instance of a type that has no annotations associated with any declaration,
+ * so it won't be changed from LL FIR lazy transformers concurrently
+ *
+ * @see CustomAnnotationTypeAttribute.independentInstance
+ */
+@OptIn(DynamicTypeConstructor::class)
+fun ConeKotlinType.independentInstance(): ConeKotlinType = if (this is ConeFlexibleType) {
+    val newLowerBound = lowerBound.independentInstance() as ConeSimpleKotlinType
+    val newUpperBound = upperBound.independentInstance() as ConeSimpleKotlinType
+    if (newLowerBound !== lowerBound || newUpperBound !== upperBound) {
+        when (this) {
+            is ConeRawType -> ConeRawType.create(newLowerBound, newUpperBound)
+            is ConeDynamicType -> ConeDynamicType(newLowerBound, newUpperBound)
+            else -> ConeFlexibleType(newLowerBound, newUpperBound)
+        }
+    } else {
+        this
+    }
+} else {
+    instanceWithIndependentArguments().instanceWithIndependentAnnotations()
+}
+
+private fun ConeKotlinType.instanceWithIndependentArguments(): ConeKotlinType {
+    val typeProjections = typeArguments
+    if (typeProjections.isEmpty()) return this
+
+    var argumentsChanged = false
+    val newArguments = type.typeArguments.map { originalArgument ->
+        if (originalArgument !is ConeKotlinType)
+            originalArgument
+        else
+            originalArgument.independentInstance().also {
+                if (it !== originalArgument) {
+                    argumentsChanged = true
+                }
+            }
+    }
+
+    return if (argumentsChanged) withArguments(newArguments.toTypedArray()) else this
+}
+
+private fun ConeKotlinType.instanceWithIndependentAnnotations(): ConeKotlinType {
+    val custom = attributes.custom ?: return this
+    val newAnnotations = custom.independentInstance()
+    if (newAnnotations === custom) {
+        return this
+    }
+
+    val newAttributes = attributes.remove(custom).plus(newAnnotations)
+    return withAttributes(newAttributes)
+}
 
 fun ConeKotlinType.makeConeTypeDefinitelyNotNullOrNotNull(
     typeContext: ConeTypeContext,
@@ -122,7 +207,9 @@ fun <T : ConeKotlinType> T.withArguments(arguments: Array<out ConeTypeProjection
         is ConeErrorType -> ConeErrorType(diagnostic, isUninferredParameter, arguments, attributes) as T
         is ConeClassLikeTypeImpl -> ConeClassLikeTypeImpl(lookupTag, arguments, nullability.isNullable, attributes) as T
         is ConeDefinitelyNotNullType -> ConeDefinitelyNotNullType(original.withArguments(arguments)) as T
-        else -> error("Not supported: $this: ${this.renderForDebugging()}")
+        else -> errorWithAttachment("Not supported: ${this::class}") {
+            withConeTypeEntry("type", this@withArguments)
+        }
     }
 }
 
@@ -154,7 +241,9 @@ fun <T : ConeKotlinType> T.withAttributes(attributes: ConeAttributes): T {
         // Attributes for stub types are not supported, and it's not obvious if it should
         is ConeStubType -> this
         is ConeIntegerLiteralType -> this
-        else -> error("Not supported: $this: ${this.renderForDebugging()}")
+        else -> errorWithAttachment("Not supported: ${this::class}") {
+            withConeTypeEntry("type", this@withAttributes)
+        }
     } as T
 }
 
@@ -162,16 +251,21 @@ fun <T : ConeKotlinType> T.withNullability(
     nullability: ConeNullability,
     typeContext: ConeTypeContext,
     attributes: ConeAttributes = this.attributes,
+    preserveEnhancedNullability: Boolean = false,
 ): T {
-    if (this.nullability == nullability && this.attributes == attributes) {
+    val theAttributes = attributes.butIf(!preserveEnhancedNullability) {
+        it.remove(CompilerConeAttributes.EnhancedNullability)
+    }
+
+    if (this.nullability == nullability && this.attributes == theAttributes) {
         return this
     }
 
     @Suppress("UNCHECKED_CAST")
     return when (this) {
         is ConeErrorType -> this
-        is ConeClassLikeTypeImpl -> ConeClassLikeTypeImpl(lookupTag, typeArguments, nullability.isNullable, attributes)
-        is ConeTypeParameterTypeImpl -> ConeTypeParameterTypeImpl(lookupTag, nullability.isNullable, attributes)
+        is ConeClassLikeTypeImpl -> ConeClassLikeTypeImpl(lookupTag, typeArguments, nullability.isNullable, theAttributes)
+        is ConeTypeParameterTypeImpl -> ConeTypeParameterTypeImpl(lookupTag, nullability.isNullable, theAttributes)
         is ConeDynamicType -> this
         is ConeFlexibleType -> {
             if (nullability == ConeNullability.UNKNOWN) {
@@ -181,16 +275,16 @@ fun <T : ConeKotlinType> T.withNullability(
             }
             coneFlexibleOrSimpleType(
                 typeContext,
-                lowerBound.withNullability(nullability, typeContext),
-                upperBound.withNullability(nullability, typeContext)
+                lowerBound.withNullability(nullability, typeContext, preserveEnhancedNullability = preserveEnhancedNullability),
+                upperBound.withNullability(nullability, typeContext, preserveEnhancedNullability = preserveEnhancedNullability)
             )
         }
 
-        is ConeTypeVariableType -> ConeTypeVariableType(nullability, lookupTag, attributes)
-        is ConeCapturedType -> ConeCapturedType(captureStatus, lowerType, nullability, constructor, attributes)
+        is ConeTypeVariableType -> ConeTypeVariableType(nullability, lookupTag, theAttributes)
+        is ConeCapturedType -> ConeCapturedType(captureStatus, lowerType, nullability, constructor, theAttributes)
         is ConeIntersectionType -> when (nullability) {
             ConeNullability.NULLABLE -> this.mapTypes {
-                it.withNullability(nullability, typeContext)
+                it.withNullability(nullability, typeContext, preserveEnhancedNullability = preserveEnhancedNullability)
             }
 
             ConeNullability.UNKNOWN -> this // TODO: is that correct?
@@ -202,8 +296,12 @@ fun <T : ConeKotlinType> T.withNullability(
         is ConeStubTypeForTypeVariableInSubtyping -> ConeStubTypeForTypeVariableInSubtyping(constructor, nullability)
         is ConeDefinitelyNotNullType -> when (nullability) {
             ConeNullability.NOT_NULL -> this
-            ConeNullability.NULLABLE -> original.withNullability(nullability, typeContext)
-            ConeNullability.UNKNOWN -> original.withNullability(nullability, typeContext)
+            ConeNullability.NULLABLE -> original.withNullability(
+                nullability, typeContext, preserveEnhancedNullability = preserveEnhancedNullability,
+            )
+            ConeNullability.UNKNOWN -> original.withNullability(
+                nullability, typeContext, preserveEnhancedNullability = preserveEnhancedNullability,
+            )
         }
 
         is ConeIntegerLiteralConstantType -> ConeIntegerLiteralConstantTypeImpl(value, possibleTypes, isUnsigned, nullability)
@@ -317,7 +415,6 @@ fun FirTypeRef.withReplacedConeType(
             type = newType
             annotations += this@withReplacedConeType.annotations
             delegatedTypeRef = this@withReplacedConeType.delegatedTypeRef
-            isFromStubType = this@withReplacedConeType.type is ConeStubType
         }
     }
 }
@@ -729,7 +826,9 @@ private fun ConeKotlinType.eraseAsUpperBound(
             original.eraseAsUpperBound(session, cache, mode)
                 .makeConeTypeDefinitelyNotNullOrNotNull(session.typeContext)
 
-        else -> error("unexpected Java type parameter upper bound kind: $this")
+        else -> errorWithAttachment("unexpected Java type parameter upper bound kind: ${this::class}") {
+            withConeTypeEntry("type", this@eraseAsUpperBound)
+        }
     }
 
 fun ConeKotlinType.isRaw(): Boolean = lowerBoundIfFlexible().attributes.contains(CompilerConeAttributes.RawType)

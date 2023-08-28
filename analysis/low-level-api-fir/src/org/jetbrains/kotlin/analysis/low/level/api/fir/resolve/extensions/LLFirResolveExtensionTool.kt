@@ -6,14 +6,13 @@
 package org.jetbrains.kotlin.analysis.low.level.api.fir.resolve.extensions
 
 import com.intellij.openapi.util.Key
-import com.intellij.openapi.util.ModificationTracker
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.search.GlobalSearchScope
 import org.jetbrains.kotlin.analysis.api.KtAnalysisAllowanceManager
 import org.jetbrains.kotlin.analysis.api.resolve.extensions.KtResolveExtension
 import org.jetbrains.kotlin.analysis.api.resolve.extensions.KtResolveExtensionFile
 import org.jetbrains.kotlin.analysis.api.resolve.extensions.KtResolveExtensionProvider
-import org.jetbrains.kotlin.analysis.api.resolve.extensions.KtResolveExtensionReferencePsiTargetsProvider
+import org.jetbrains.kotlin.analysis.api.resolve.extensions.KtResolveExtensionNavigationTargetsProvider
 import org.jetbrains.kotlin.analysis.providers.impl.declarationProviders.FileBasedKotlinDeclarationProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.LLFirSession
 import org.jetbrains.kotlin.analysis.project.structure.KtModule
@@ -37,7 +36,6 @@ import java.util.concurrent.ConcurrentHashMap
  * for the [org.jetbrains.kotlin.fir.resolve.providers.FirSymbolProvider].
  */
 abstract class LLFirResolveExtensionTool : FirSessionComponent {
-    abstract val modificationTrackers: List<ModificationTracker>
     abstract val declarationProvider: LLFirResolveExtensionToolDeclarationProvider
     abstract val packageProvider: KotlinPackageProvider
     abstract val packageFilter: LLFirResolveExtensionToolPackageFilter
@@ -58,8 +56,6 @@ internal class LLFirNonEmptyResolveExtensionTool(
     private val fileProvider = LLFirResolveExtensionsFileProvider(extensions)
 
     override val packageFilter = LLFirResolveExtensionToolPackageFilter(extensions)
-
-    override val modificationTrackers by lazy { forbidAnalysis { extensions.map { it.getModificationTracker() } } }
 
     override val declarationProvider: LLFirResolveExtensionToolDeclarationProvider =
         LLFirResolveExtensionToolDeclarationProvider(fileProvider, session.ktModule)
@@ -271,9 +267,12 @@ class LLFirResolveExtensionToolDeclarationProvider internal constructor(
                 markGenerated = true,
                 eventSystemEnabled = true // so every generated KtFile backed by some VirtualFile
             )
-            val text = file.buildFileText()
-            val psiTargetsProvider = file.createPsiTargetsProvider()
-            val ktFile = createKtFile(factory, file.getFileName(), text, psiTargetsProvider)
+            val ktFile = createKtFile(
+                factory,
+                file.getFileName(),
+                file.buildFileText(),
+                file.createNavigationTargetsProvider(),
+            )
             FileBasedKotlinDeclarationProvider(ktFile)
         }
     }
@@ -284,12 +283,12 @@ class LLFirResolveExtensionToolDeclarationProvider internal constructor(
         factory: KtPsiFactory,
         fileName: String,
         fileText: String,
-        psiTargetsProvider: KtResolveExtensionReferencePsiTargetsProvider
+        navigationTargetsProvider: KtResolveExtensionNavigationTargetsProvider
     ): KtFile {
         val ktFile = factory.createFile(fileName, fileText)
         val virtualFile = ktFile.virtualFile
         virtualFile.analysisExtensionFileContextModule = ktModule
-        virtualFile.psiTargetsProvider = psiTargetsProvider
+        virtualFile.navigationTargetsProvider = navigationTargetsProvider
         return ktFile
     }
 
@@ -362,7 +361,8 @@ private fun KtResolveExtensionFile.mayHaveTopLevelCallable(name: Name): Boolean 
 }
 
 @KtModuleStructureInternals
-public var VirtualFile.psiTargetsProvider: KtResolveExtensionReferencePsiTargetsProvider? by UserDataProperty(Key.create("KT_RESOLVE_EXTENSION_PSI_TARGETS_PROVIDER"))
+public var VirtualFile.navigationTargetsProvider: KtResolveExtensionNavigationTargetsProvider?
+        by UserDataProperty(Key.create("KT_RESOLVE_EXTENSION_NAVIGATION_TARGETS_PROVIDER"))
 
 private inline fun <R> forbidAnalysis(action: () -> R): R {
     return KtAnalysisAllowanceManager.forbidAnalysisInside(KtResolveExtensionProvider::class.java.simpleName, action)

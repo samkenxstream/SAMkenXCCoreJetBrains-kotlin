@@ -4,9 +4,9 @@ apply plugin: 'kotlin'
 
 JvmToolchain.configureJvmToolchain(project, JdkMajorVersion.JDK_1_8)
 
-configurePublishing(project)
-configureSourcesJar()
-configureJavadocJar()
+RepoArtifacts.publish(project)
+RepoArtifacts.sourcesJar(project)
+RepoArtifacts.javadocJar(project)
 
 sourceSets {
     main {
@@ -30,7 +30,7 @@ dependencies {
 }
 
 jar {
-    manifestAttributes(manifest, project, 'Main', true)
+    LibrariesCommon.manifestAttributes(project, manifest, 'Main', true)
     from sourceSets.java9.output
 }
 
@@ -53,7 +53,7 @@ compileKotlin {
 compileTestKotlin {
 }
 
-configureFrontendIr(project)
+LibrariesCommon.configureFrontendIr(project)
 
 LibrariesCommon.configureJava9Compilation(project, 'kotlin.stdlib.jdk7')
 

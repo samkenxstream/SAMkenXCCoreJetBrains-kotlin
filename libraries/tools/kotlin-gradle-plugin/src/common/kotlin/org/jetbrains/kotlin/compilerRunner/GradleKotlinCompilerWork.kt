@@ -7,6 +7,8 @@ package org.jetbrains.kotlin.compilerRunner
 
 import org.gradle.api.logging.Logger
 import org.jetbrains.kotlin.build.report.metrics.*
+import org.jetbrains.kotlin.build.report.statistics.StatTag
+import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.Services
@@ -15,13 +17,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 import org.jetbrains.kotlin.gradle.logging.*
 import org.jetbrains.kotlin.gradle.plugin.internal.state.TaskExecutionResults
 import org.jetbrains.kotlin.gradle.plugin.internal.state.TaskLoggers
-import org.jetbrains.kotlin.build.report.statistics.StatTag
-import org.jetbrains.kotlin.buildtools.api.KotlinLogger
 import org.jetbrains.kotlin.gradle.report.*
 import org.jetbrains.kotlin.gradle.tasks.*
-import org.jetbrains.kotlin.gradle.tasks.OOMErrorException
-import org.jetbrains.kotlin.gradle.tasks.cleanOutputsAndLocalState
-import org.jetbrains.kotlin.gradle.tasks.kotlinDaemonOOMHelperMessage
 import org.jetbrains.kotlin.gradle.utils.stackTraceAsString
 import org.jetbrains.kotlin.incremental.ChangedFiles
 import org.jetbrains.kotlin.incremental.ClasspathChanges
@@ -38,7 +35,6 @@ import java.util.*
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import javax.inject.Inject
-import kotlin.collections.HashSet
 
 internal class ProjectFilesForCompilation(
     val projectRootFile: File,
@@ -131,8 +127,8 @@ internal class GradleKotlinCompilerWork @Inject constructor(
         get() = incrementalCompilationEnvironment != null
 
     override fun run() {
-        metrics.addTimeMetric(BuildPerformanceMetric.START_WORKER_EXECUTION)
-        metrics.startMeasure(BuildTime.RUN_COMPILATION_IN_WORKER)
+        metrics.addTimeMetric(GradleBuildPerformanceMetric.START_WORKER_EXECUTION)
+        metrics.startMeasure(GradleBuildTime.RUN_COMPILATION_IN_WORKER)
         try {
             val gradlePrintingMessageCollector = GradlePrintingMessageCollector(log, allWarningsAsErrors)
             val gradleMessageCollector = GradleErrorMessageCollector(gradlePrintingMessageCollector, kotlinPluginVersion = kotlinPluginVersion)
@@ -150,7 +146,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
                 compilerArguments = if (reportingSettings.includeCompilerArguments) compilerArgs else emptyArray(),
                 tags = collectStatTags(),
             )
-            metrics.endMeasure(BuildTime.RUN_COMPILATION_IN_WORKER)
+            metrics.endMeasure(GradleBuildTime.RUN_COMPILATION_IN_WORKER)
             val result = TaskExecutionResult(buildMetrics = metrics.getMetrics(), icLogLines = icLogLines, taskInfo = taskInfo)
             TaskExecutionResults[taskPath] = result
         }
@@ -210,7 +206,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
         val daemonMessageCollector =
             if (isDebugEnabled) messageCollector else MessageCollector.NONE
         val connection =
-            metrics.measure(BuildTime.CONNECT_TO_DAEMON) {
+            metrics.measure(GradleBuildTime.CONNECT_TO_DAEMON) {
                 GradleCompilerRunner.getDaemonConnectionImpl(
                     clientIsAliveFlagFile,
                     sessionFlagFile,
@@ -261,8 +257,8 @@ internal class GradleKotlinCompilerWork @Inject constructor(
             if (memoryUsageAfterBuild == null || memoryUsageBeforeBuild == null) {
                 log.debug("Unable to calculate memory usage")
             } else {
-                metrics.addMetric(BuildPerformanceMetric.DAEMON_INCREASED_MEMORY, memoryUsageAfterBuild - memoryUsageBeforeBuild)
-                metrics.addMetric(BuildPerformanceMetric.DAEMON_MEMORY_USAGE, memoryUsageAfterBuild)
+                metrics.addMetric(GradleBuildPerformanceMetric.DAEMON_INCREASED_MEMORY, memoryUsageAfterBuild - memoryUsageBeforeBuild)
+                metrics.addMetric(GradleBuildPerformanceMetric.DAEMON_MEMORY_USAGE, memoryUsageAfterBuild)
             }
 
 
@@ -270,7 +266,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
             // often source of the NoSuchObjectException and UnmarshalException, probably caused by the failed/crashed/exited daemon
             // TODO: implement a proper logic to avoid remote calls in such cases
             try {
-                metrics.measure(BuildTime.CLEAR_JAR_CACHE) {
+                metrics.measure(GradleBuildTime.CLEAR_JAR_CACHE) {
                     daemon.clearJarCache()
                 }
             } catch (e: RemoteException) {
@@ -298,7 +294,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
         )
         val servicesFacade = GradleCompilerServicesFacadeImpl(log, bufferingMessageCollector)
         val compilationResults = GradleCompilationResults(log, projectRootFile)
-        return metrics.measure(BuildTime.NON_INCREMENTAL_COMPILATION_DAEMON) {
+        return metrics.measure(GradleBuildTime.NON_INCREMENTAL_COMPILATION_DAEMON) {
             daemon.compile(sessionId, compilerArgs, compilationOptions, servicesFacade, compilationResults)
         }.also {
             metrics.addMetrics(compilationResults.buildMetrics)
@@ -330,6 +326,8 @@ internal class GradleKotlinCompilerWork @Inject constructor(
             outputFiles = outputFiles,
             multiModuleICSettings = icEnv.multiModuleICSettings,
             modulesInfo = incrementalModuleInfo!!,
+            rootProjectDir = icEnv.rootProjectDir,
+            buildDir = icEnv.buildDir,
             kotlinScriptExtensions = kotlinScriptExtensions,
             withAbiSnapshot = icEnv.withAbiSnapshot,
             preciseCompilationResultsBackup = icEnv.preciseCompilationResultsBackup,
@@ -339,8 +337,8 @@ internal class GradleKotlinCompilerWork @Inject constructor(
         log.info("Options for KOTLIN DAEMON: $compilationOptions")
         val servicesFacade = GradleIncrementalCompilerServicesFacadeImpl(log, bufferingMessageCollector)
         val compilationResults = GradleCompilationResults(log, projectRootFile)
-        metrics.addTimeMetric(BuildPerformanceMetric.CALL_KOTLIN_DAEMON)
-        return metrics.measure(BuildTime.RUN_COMPILATION) {
+        metrics.addTimeMetric(GradleBuildPerformanceMetric.CALL_KOTLIN_DAEMON)
+        return metrics.measure(GradleBuildTime.RUN_COMPILATION) {
             daemon.compile(sessionId, compilerArgs, compilationOptions, servicesFacade, compilationResults)
         }.also {
             metrics.addMetrics(compilationResults.buildMetrics)
@@ -352,7 +350,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
         metrics.addAttribute(BuildAttribute.OUT_OF_PROCESS_EXECUTION)
         cleanOutputsAndLocalState(outputFiles, log, metrics, reason = "out-of-process execution strategy is non-incremental")
 
-        return metrics.measure(BuildTime.NON_INCREMENTAL_COMPILATION_OUT_OF_PROCESS) {
+        return metrics.measure(GradleBuildTime.NON_INCREMENTAL_COMPILATION_OUT_OF_PROCESS) {
             runToolInSeparateProcess(compilerArgs, compilerClassName, compilerFullClasspath, log, buildDir)
         }
     }
@@ -361,7 +359,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
         metrics.addAttribute(BuildAttribute.IN_PROCESS_EXECUTION)
         cleanOutputsAndLocalState(outputFiles, log, metrics, reason = "in-process execution strategy is non-incremental")
 
-        metrics.startMeasure(BuildTime.NON_INCREMENTAL_COMPILATION_IN_PROCESS)
+        metrics.startMeasure(GradleBuildTime.NON_INCREMENTAL_COMPILATION_IN_PROCESS)
         // in-process compiler should always be run in a different thread
         // to avoid leaking thread locals from compiler (see KT-28037)
         val threadPool = Executors.newSingleThreadExecutor()
@@ -375,7 +373,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
             bufferingMessageCollector.flush(messageCollector)
             threadPool.shutdown()
 
-            metrics.endMeasure(BuildTime.NON_INCREMENTAL_COMPILATION_IN_PROCESS)
+            metrics.endMeasure(GradleBuildTime.NON_INCREMENTAL_COMPILATION_IN_PROCESS)
         }
     }
 
@@ -404,7 +402,7 @@ internal class GradleKotlinCompilerWork @Inject constructor(
             exitCode
         )
         try {
-            metrics.measure(BuildTime.CLEAR_JAR_CACHE) {
+            metrics.measure(GradleBuildTime.CLEAR_JAR_CACHE) {
                 val coreEnvironment = Class.forName("org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment", true, classLoader)
                 val dispose = coreEnvironment.getMethod("disposeApplicationEnvironment")
                 dispose.invoke(null)

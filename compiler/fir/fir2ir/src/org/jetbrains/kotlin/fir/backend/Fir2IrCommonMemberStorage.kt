@@ -7,9 +7,9 @@ package org.jetbrains.kotlin.fir.backend
 
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.signaturer.FirBasedSignatureComposer
-import org.jetbrains.kotlin.fir.signaturer.FirMangler
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
+import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.util.IdSignatureComposer
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import java.util.concurrent.ConcurrentHashMap
@@ -20,10 +20,7 @@ class Fir2IrCommonMemberStorage(
 ) {
     val firSignatureComposer = FirBasedSignatureComposer(firMangler)
 
-    val symbolTable = SymbolTable(
-        signaturer = WrappedDescriptorSignatureComposer(signatureComposer, firSignatureComposer),
-        irFactory = IrFactoryImpl
-    )
+    val symbolTable = SymbolTable(signaturer = signatureComposer, irFactory = IrFactoryImpl)
 
     val classCache: MutableMap<FirRegularClass, IrClass> = mutableMapOf()
 
@@ -38,6 +35,13 @@ class Fir2IrCommonMemberStorage(
     val constructorCache: ConcurrentHashMap<FirConstructor, IrConstructor> = ConcurrentHashMap()
 
     val propertyCache: ConcurrentHashMap<FirProperty, IrProperty> = ConcurrentHashMap()
+    val getterForPropertyCache: ConcurrentHashMap<IrSymbol, IrSimpleFunctionSymbol> = ConcurrentHashMap()
+    val setterForPropertyCache: ConcurrentHashMap<IrSymbol, IrSimpleFunctionSymbol> = ConcurrentHashMap()
+    val backingFieldForPropertyCache: ConcurrentHashMap<IrPropertySymbol, IrFieldSymbol> = ConcurrentHashMap()
+    val propertyForBackingFieldCache: ConcurrentHashMap<IrFieldSymbol, IrPropertySymbol> = ConcurrentHashMap()
+    val delegateVariableForPropertyCache: ConcurrentHashMap<IrLocalDelegatedPropertySymbol, IrVariableSymbol> = ConcurrentHashMap()
 
     val fakeOverridesInClass: MutableMap<IrClass, MutableMap<Fir2IrDeclarationStorage.FakeOverrideKey, FirCallableDeclaration>> = mutableMapOf()
+
+    val irFakeOverridesForFirFakeOverrideMap: MutableMap<Fir2IrDeclarationStorage.FakeOverrideIdentifier, IrDeclaration> = mutableMapOf()
 }

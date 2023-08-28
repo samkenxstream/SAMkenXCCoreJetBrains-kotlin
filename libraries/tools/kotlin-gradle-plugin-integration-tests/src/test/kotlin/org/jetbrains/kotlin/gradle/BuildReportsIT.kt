@@ -16,6 +16,7 @@ import java.nio.file.Path
 import kotlin.io.path.*
 import kotlin.test.assertTrue
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+import org.jetbrains.kotlin.gradle.testbase.TestVersions.ThirdPartyDependencies.GRADLE_ENTERPRISE_PLUGIN_VERSION
 
 @DisplayName("Build reports")
 @JvmGradlePluginTests
@@ -30,9 +31,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Build report is created")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildReportSmokeTest(gradleVersion: GradleVersion) {
@@ -49,9 +48,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Build report output property accepts only certain values")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildReportOutputProperty(gradleVersion: GradleVersion) {
@@ -64,9 +61,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Build metrics produces valid report")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildMetricsSmokeTest(gradleVersion: GradleVersion) {
@@ -75,9 +70,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Build metrics produces valid report for mpp-jvm")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildMetricsForMppJvm(gradleVersion: GradleVersion) {
@@ -86,9 +79,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Build metrics produces valid report for mpp-js")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildMetricsForMppJs(gradleVersion: GradleVersion) {
@@ -97,9 +88,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Build metrics produces valid report for JS project")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildMetricsForJsProject(gradleVersion: GradleVersion) {
@@ -150,9 +139,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Compiler build metrics report is produced")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testCompilerBuildMetricsSmokeTest(gradleVersion: GradleVersion) {
@@ -171,9 +158,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("with no kotlin task executed")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testFileReportWithoutKotlinTask(gradleVersion: GradleVersion) {
@@ -190,9 +175,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("validation")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testSingleBuildMetricsFileValidation(gradleVersion: GradleVersion) {
@@ -207,9 +190,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("deprecated property")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testDeprecatedAndNewSingleBuildMetricsFile(gradleVersion: GradleVersion) {
@@ -227,9 +208,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("smoke")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testSingleBuildMetricsFileSmoke(gradleVersion: GradleVersion) {
@@ -251,9 +230,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("custom value limit")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testCustomValueLimitForBuildScan(gradleVersion: GradleVersion) {
@@ -271,9 +248,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("build scan listener lazy initialisation")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildScanListenerLazyInitialisation(gradleVersion: GradleVersion) {
@@ -292,9 +267,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Error file is created")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testErrorsFileSmokeTest(gradleVersion: GradleVersion) {
@@ -336,9 +309,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("Error file should not contain compilation exceptions")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testErrorsFileWithCompilationError(gradleVersion: GradleVersion) {
@@ -356,9 +327,7 @@ class BuildReportsIT : KGPBaseTest() {
 
     @DisplayName("build scan metrics validation")
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     @GradleTest
     fun testBuildScanMetricsValidation(gradleVersion: GradleVersion) {
@@ -368,6 +337,47 @@ class BuildReportsIT : KGPBaseTest() {
             ) {
                 assertOutputContains("Unknown metric: 'unknown_prop', list of available metrics")
             }
+        }
+    }
+
+    @DisplayName("build reports work with init script")
+    @GradleTestVersions(
+        additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
+    )
+    @GradleTest
+    fun testBuildReportsWithInitScript(gradleVersion: GradleVersion) {
+        project("simpleProject", gradleVersion) {
+            gradleProperties.modify { "$it\nkotlin.build.report.output=BUILD_SCAN,FILE\n" }
+
+            val initScript = projectPath.resolve("init.gradle").createFile()
+            initScript.modify {
+                """
+                    initscript {
+                        repositories {
+                            maven { url = 'https://plugins.gradle.org/m2/' }
+                        }
+
+                        dependencies {
+                            classpath 'com.gradle:gradle-enterprise-gradle-plugin:$GRADLE_ENTERPRISE_PLUGIN_VERSION'
+                        }
+                    }
+
+                    beforeSettings {
+                        it.pluginManager.apply(com.gradle.enterprise.gradleplugin.GradleEnterprisePlugin)
+                    }
+                """.trimIndent()
+            }
+
+            build(
+                "compileKotlin",
+                "-I", "init.gradle",
+            )
+
+            build(
+                "compileKotlin",
+                "-I", "init.gradle",
+                enableBuildScan = true,
+            )
         }
     }
 

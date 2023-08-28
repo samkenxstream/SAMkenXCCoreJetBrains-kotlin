@@ -160,12 +160,6 @@ fun ControlFlowGraphBuilder.createConstExpressionNode(fir: FirConstExpression<*>
 fun ControlFlowGraphBuilder.createThrowExceptionNode(fir: FirThrowExpression): ThrowExceptionNode =
     ThrowExceptionNode(currentGraph, fir, levelCounter)
 
-fun ControlFlowGraphBuilder.createFinallyProxyExitNode(fir: FirTryExpression): FinallyProxyExitNode =
-    FinallyProxyExitNode(currentGraph, fir, levelCounter)
-
-fun ControlFlowGraphBuilder.createFinallyProxyEnterNode(fir: FirTryExpression): FinallyProxyEnterNode =
-    FinallyProxyEnterNode(currentGraph, fir, levelCounter)
-
 fun ControlFlowGraphBuilder.createFinallyBlockExitNode(fir: FirTryExpression): FinallyBlockExitNode =
     FinallyBlockExitNode(currentGraph, fir, levelCounter)
 
@@ -228,6 +222,12 @@ fun ControlFlowGraphBuilder.createScriptEnterNode(fir: FirScript): ScriptEnterNo
 
 fun ControlFlowGraphBuilder.createScriptExitNode(fir: FirScript): ScriptExitNode =
     ScriptExitNode(currentGraph, fir, levelCounter)
+
+fun ControlFlowGraphBuilder.createCodeFragmentEnterNode(fir: FirCodeFragment): CodeFragmentEnterNode =
+    CodeFragmentEnterNode(currentGraph, fir, levelCounter)
+
+fun ControlFlowGraphBuilder.createCodeFragmentExitNode(fir: FirCodeFragment): CodeFragmentExitNode =
+    CodeFragmentExitNode(currentGraph, fir, levelCounter)
 
 fun ControlFlowGraphBuilder.createClassEnterNode(fir: FirClass): ClassEnterNode =
     ClassEnterNode(currentGraph, fir, levelCounter)

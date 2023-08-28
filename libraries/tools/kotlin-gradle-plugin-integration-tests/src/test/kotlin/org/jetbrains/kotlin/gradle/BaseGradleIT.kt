@@ -8,12 +8,12 @@ package org.jetbrains.kotlin.gradle
 import com.intellij.testFramework.TestDataFile
 import org.gradle.api.logging.LogLevel
 import org.gradle.api.logging.configuration.WarningMode
+import org.gradle.internal.logging.LoggingConfigurationBuildOptions.StacktraceOption
 import org.gradle.tooling.GradleConnector
 import org.gradle.util.GradleVersion
 import org.jetbrains.kotlin.cli.common.CompilerSystemProperties.COMPILE_INCREMENTAL_WITH_ARTIFACT_TRANSFORM
 import org.jetbrains.kotlin.gradle.model.ModelContainer
 import org.jetbrains.kotlin.gradle.model.ModelFetcherBuildAction
-import org.jetbrains.kotlin.gradle.plugin.KotlinJsCompilerType
 import org.jetbrains.kotlin.gradle.report.BuildReportType
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.*
@@ -248,13 +248,12 @@ abstract class BaseGradleIT {
     }
 
     // the second parameter is for using with ToolingAPI, that do not like --daemon/--no-daemon  options at all
-    data class BuildOptions constructor(
+    data class BuildOptions(
         val withDaemon: Boolean = false,
         val daemonOptionSupported: Boolean = true,
         val incremental: Boolean? = null,
         val incrementalJs: Boolean? = null,
         val incrementalJsKlib: Boolean? = null,
-        val jsIrBackend: Boolean? = null,
         val androidHome: File? = null,
         val javaHome: File? = null,
         val gradleUserHome: File? = null,
@@ -269,7 +268,6 @@ abstract class BaseGradleIT {
         val withBuildCache: Boolean = false,
         val kaptOptions: KaptOptions? = null,
         val parallelTasksInProject: Boolean = false,
-        val jsCompilerType: KotlinJsCompilerType? = null,
         val configurationCache: Boolean = false,
         val configurationCacheProblems: ConfigurationCacheProblems = ConfigurationCacheProblems.FAIL,
         val warningMode: WarningMode = WarningMode.Fail,
@@ -283,7 +281,9 @@ abstract class BaseGradleIT {
         val withReports: List<BuildReportType> = emptyList(),
         val enableKpmModelMapping: Boolean? = null,
         val useDaemonFallbackStrategy: Boolean = false,
-        val useVerboseDiagnosticsReporting: Boolean = true,
+        val useParsableDiagnosticsFormatting: Boolean = true,
+        val showDiagnosticsStacktrace: Boolean? = false, // false by default to not clutter the testdata + stacktraces change often
+        val stacktraceMode: String? = StacktraceOption.FULL_STACKTRACE_LONG_OPTION,
     ) {
         val safeAndroidGradlePluginVersion: AGPVersion
             get() = androidGradlePluginVersion ?: error("AGP version is expected to be set")
@@ -859,7 +859,6 @@ abstract class BaseGradleIT {
 
     private fun Project.createGradleTailParameters(options: BuildOptions, params: Array<out String> = arrayOf()): List<String> =
         params.toMutableList().apply {
-            add("--stacktrace")
             when (minLogLevel) {
                 // Do not allow to configure Gradle project with `ERROR` log level (error logs visible on all log levels)
                 LogLevel.ERROR -> error("Log level ERROR is not supported by Gradle command-line")
@@ -881,9 +880,6 @@ abstract class BaseGradleIT {
             }
             options.incrementalJs?.let { add("-Pkotlin.incremental.js=$it") }
             options.incrementalJsKlib?.let { add("-Pkotlin.incremental.js.klib=$it") }
-            options.jsIrBackend?.let { add("-Pkotlin.js.useIrBackend=$it") }
-            // because we have legacy compiler tests, we need nowarn for compiler testing
-            add("-Pkotlin.js.compiler.nowarn=true")
             options.usePreciseJavaTracking?.let { add("-Pkotlin.incremental.usePreciseJavaTracking=$it") }
             options.useClasspathSnapshot?.let { add("-P${COMPILE_INCREMENTAL_WITH_ARTIFACT_TRANSFORM.property}=$it") }
             options.androidGradlePluginVersion?.let { add("-Pandroid_tools_version=$it") }
@@ -915,10 +911,6 @@ abstract class BaseGradleIT {
 
             if (options.parallelTasksInProject) add("--parallel") else add("--no-parallel")
 
-            options.jsCompilerType?.let {
-                add("-Pkotlin.js.compiler=$it")
-            }
-
             if (options.dryRun) {
                 add("--dry-run")
             }
@@ -947,8 +939,22 @@ abstract class BaseGradleIT {
             add("-Dorg.gradle.unsafe.configuration-cache=${options.configurationCache}")
             add("-Dorg.gradle.unsafe.configuration-cache-problems=${options.configurationCacheProblems.name.lowercase(Locale.getDefault())}")
 
-            if (options.useVerboseDiagnosticsReporting) {
-                add("-Pkotlin.internal.verboseDiagnostics=true")
+            if (options.useParsableDiagnosticsFormatting) {
+                add("-Pkotlin.internal.diagnostics.useParsableFormatting=true")
+            }
+
+            if (options.showDiagnosticsStacktrace != null) {
+                add("-Pkotlin.internal.diagnostics.showStacktrace=${options.showDiagnosticsStacktrace}")
+            }
+
+            if (options.stacktraceMode != null) {
+                add("--${options.stacktraceMode}")
+            }
+
+            // temporary suppression for the usage of deprecated pre-HMPP properties.
+            // Should be removed together with the flags support in 2.0
+            if (options.hierarchicalMPPStructureSupport != null || options.enableCompatibilityMetadataVariant != null) {
+                add("-Pkotlin.internal.suppressGradlePluginErrors=PreHMPPFlagsError")
             }
 
             // Workaround: override a console type set in the user machine gradle.properties (since Gradle 4.3):

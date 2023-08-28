@@ -7,12 +7,14 @@ package org.jetbrains.kotlin.gradle.targets.js.binaryen
 
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.*
+import org.gradle.work.DisableCachingByDefault
 import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
 import org.jetbrains.kotlin.gradle.tasks.registerTask
 import org.jetbrains.kotlin.gradle.utils.newFileProperty
 import javax.inject.Inject
 
+@DisableCachingByDefault
 open class BinaryenExec
 @Inject
 constructor() : AbstractExecTask<BinaryenExec>(BinaryenExec::class.java) {
@@ -36,7 +38,6 @@ constructor() : AbstractExecTask<BinaryenExec>(BinaryenExec::class.java) {
 
         // Other options
         "--enable-nontrapping-float-to-int",
-        "--nominal",
         // It's turned out that it's not safe
         // "--closed-world",
 
@@ -50,7 +51,8 @@ constructor() : AbstractExecTask<BinaryenExec>(BinaryenExec::class.java) {
         "--inline-functions-with-loops",
         "--traps-never-happen",
         "--fast-math",
-        "--type-ssa",
+        // without "--type-merging" it produces increases the size 
+        // "--type-ssa",
         "-O3",
         "-O3",
         "--gufa",
@@ -61,6 +63,7 @@ constructor() : AbstractExecTask<BinaryenExec>(BinaryenExec::class.java) {
         "-Oz",
     )
 
+    @PathSensitive(PathSensitivity.RELATIVE)
     @InputFile
     @NormalizeLineEndings
     val inputFileProperty: RegularFileProperty = project.newFileProperty()

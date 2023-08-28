@@ -90,6 +90,16 @@ abstract class ControlFlowGraphVisitor<out R, in D> {
         return visitNode(node, data)
     }
 
+    // ----------------------------------- Code Fragments ------------------------------------------
+
+    open fun visitCodeFragmentEnterNode(node: CodeFragmentEnterNode, data: D): R {
+        return visitNode(node, data)
+    }
+
+    open fun visitCodeFragmentExitNode(node: CodeFragmentExitNode, data: D): R {
+        return visitNode(node, data)
+    }
+
     // ----------------------------------- Property -----------------------------------
 
     open fun visitPropertyInitializerEnterNode(node: PropertyInitializerEnterNode, data: D): R {
@@ -218,14 +228,6 @@ abstract class ControlFlowGraphVisitor<out R, in D> {
     }
 
     open fun visitFinallyBlockExitNode(node: FinallyBlockExitNode, data: D): R {
-        return visitNode(node, data)
-    }
-
-    open fun visitFinallyProxyEnterNode(node: FinallyProxyEnterNode, data: D): R {
-        return visitNode(node, data)
-    }
-
-    open fun visitFinallyProxyExitNode(node: FinallyProxyExitNode, data: D): R {
         return visitNode(node, data)
     }
 

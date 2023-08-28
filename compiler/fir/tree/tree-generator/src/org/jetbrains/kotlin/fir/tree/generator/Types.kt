@@ -16,11 +16,13 @@ import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.fir.tree.generator.context.generatedType
 import org.jetbrains.kotlin.fir.tree.generator.context.type
 import org.jetbrains.kotlin.fir.types.ConeClassLikeType
+import org.jetbrains.kotlin.fir.types.ConeErrorType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeSimpleKotlinType
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.SmartcastStability
 import org.jetbrains.kotlin.types.Variance
 
@@ -44,8 +46,10 @@ val classIdType = type(ClassId::class)
 val annotationUseSiteTargetType = type(AnnotationUseSiteTarget::class)
 val operationKindType = type("contracts.description", "LogicOperationKind")
 val coneKotlinTypeType = type(ConeKotlinType::class)
+val coneErrorTypeType = type(ConeErrorType::class)
 val coneSimpleKotlinTypeType = type(ConeSimpleKotlinType::class)
 val coneClassLikeTypeType = type(ConeClassLikeType::class)
+val standardClassIdsType = type(StandardClassIds::class)
 
 val whenRefType = generatedType("", "FirExpressionRef<FirWhenExpression>")
 val referenceToSimpleExpressionType = generatedType("", "FirExpressionRef<FirExpression>")
@@ -71,7 +75,6 @@ val firBasedSymbolType = type("fir.symbols", "FirBasedSymbol")
 val functionSymbolType = type("fir.symbols.impl", "FirFunctionSymbol")
 val backingFieldSymbolType = type("fir.symbols.impl", "FirBackingFieldSymbol")
 val delegateFieldSymbolType = type("fir.symbols.impl", "FirDelegateFieldSymbol")
-val classSymbolType = type("fir.symbols.impl", "FirClassSymbol")
 val classLikeSymbolType = type("fir.symbols.impl", "FirClassLikeSymbol<*>")
 val regularClassSymbolType = type("fir.symbols.impl", "FirRegularClassSymbol")
 val typeParameterSymbolType = type("fir.symbols.impl", "FirTypeParameterSymbol")
@@ -85,7 +88,6 @@ val emptyContractDescriptionType = generatedType("contracts.impl", "FirEmptyCont
 val coneDiagnosticType = generatedType("diagnostics", "ConeDiagnostic")
 val coneStubDiagnosticType = generatedType("diagnostics", "ConeStubDiagnostic")
 
-val dslBuilderAnnotationType = generatedType("builder", "FirBuilderDsl")
 val firImplementationDetailType = generatedType("FirImplementationDetail")
 val declarationOriginType = generatedType("declarations", "FirDeclarationOrigin")
 val declarationAttributesType = generatedType("declarations", "FirDeclarationAttributes")

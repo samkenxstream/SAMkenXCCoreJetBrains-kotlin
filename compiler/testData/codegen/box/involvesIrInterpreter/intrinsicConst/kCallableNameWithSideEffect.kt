@@ -1,15 +1,19 @@
 // !LANGUAGE: +IntrinsicConstEvaluation
 // TARGET_BACKEND: JVM_IR
+// TARGET_BACKEND: JS_IR
+// TARGET_BACKEND: NATIVE
 // WITH_STDLIB
 
 fun <T> T.id() = this
+
+fun someSideEffect(value: Any?) = {}
 
 class A {
     val a = ""
     fun b() = ""
 
     init {
-        println("A init")
+        someSideEffect("A init")
     }
 
     fun test() {

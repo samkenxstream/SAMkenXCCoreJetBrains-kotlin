@@ -9,8 +9,10 @@ import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirNameConflictsTrackerComponent
-import org.jetbrains.kotlin.fir.analysis.checkers.FirDeclarationInspector
-import org.jetbrains.kotlin.fir.analysis.checkers.checkConflictingElements
+import org.jetbrains.kotlin.fir.analysis.checkers.FirDeclarationCollector
+import org.jetbrains.kotlin.fir.analysis.checkers.checkForLocalRedeclarations
+import org.jetbrains.kotlin.fir.analysis.checkers.collectClassMembers
+import org.jetbrains.kotlin.fir.analysis.checkers.collectTopLevel
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
 import org.jetbrains.kotlin.fir.declarations.*
@@ -18,73 +20,71 @@ import org.jetbrains.kotlin.fir.packageFqName
 import org.jetbrains.kotlin.fir.resolve.getContainingDeclaration
 import org.jetbrains.kotlin.fir.scopes.impl.FirPackageMemberScope
 import org.jetbrains.kotlin.fir.scopes.impl.PACKAGE_MEMBER
+import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
 import org.jetbrains.kotlin.name.ClassId
+import org.jetbrains.kotlin.utils.SmartSet
 
 object FirConflictsDeclarationChecker : FirBasicDeclarationChecker() {
     override fun check(declaration: FirDeclaration, context: CheckerContext, reporter: DiagnosticReporter) {
-        val inspector: FirDeclarationInspector?
-
         when (declaration) {
             is FirFile -> {
-                inspector = FirDeclarationInspector()
+                val inspector = FirDeclarationCollector<FirDeclaration>(context)
                 checkFile(declaration, inspector, context)
+                reportConflicts(reporter, context, inspector.declarationConflictingSymbols)
             }
             is FirRegularClass -> {
                 if (declaration.source?.kind !is KtFakeSourceElementKind) {
-                    checkConflictingElements(declaration.typeParameters, context, reporter)
+                    checkForLocalRedeclarations(declaration.typeParameters, context, reporter)
                 }
-                inspector = FirDeclarationInspector()
-                checkRegularClass(declaration, inspector)
+                val inspector = FirDeclarationCollector<FirDeclaration>(context)
+                inspector.collectClassMembers(declaration)
+                reportConflicts(reporter, context, inspector.declarationConflictingSymbols)
             }
             else -> {
                 if (declaration.source?.kind !is KtFakeSourceElementKind && declaration is FirTypeParameterRefsOwner) {
                     if (declaration is FirFunction) {
-                        checkConflictingElements(declaration.valueParameters, context, reporter)
+                        checkForLocalRedeclarations(declaration.valueParameters, context, reporter)
                     }
-                    checkConflictingElements(declaration.typeParameters, context, reporter)
-                }
-                return
-            }
-        }
-
-        inspector.declarationConflictingSymbols.forEach { (conflictingDeclaration, symbols) ->
-            val source = conflictingDeclaration.source
-            if (symbols.isNotEmpty()) {
-                when (conflictingDeclaration) {
-                    is FirSimpleFunction,
-                    is FirConstructor -> {
-                        reporter.reportOn(source, FirErrors.CONFLICTING_OVERLOADS, symbols, context)
-                    }
-                    else -> {
-                        val factory = if (conflictingDeclaration is FirClassLikeDeclaration &&
-                            conflictingDeclaration.getContainingDeclaration(context.session) == null &&
-                            symbols.any { it is FirClassLikeSymbol<*> }
-                        ) {
-                            FirErrors.PACKAGE_OR_CLASSIFIER_REDECLARATION
-                        } else {
-                            FirErrors.REDECLARATION
-                        }
-                        reporter.reportOn(source, factory, symbols, context)
-                    }
+                    checkForLocalRedeclarations(declaration.typeParameters, context, reporter)
                 }
             }
         }
     }
 
-    private fun checkFile(file: FirFile, inspector: FirDeclarationInspector, context: CheckerContext) {
+    private fun reportConflicts(
+        reporter: DiagnosticReporter,
+        context: CheckerContext,
+        declarationConflictingSymbols: Map<FirDeclaration, SmartSet<FirBasedSymbol<*>>>,
+    ) {
+        declarationConflictingSymbols.forEach { (conflictingDeclaration, symbols) ->
+            val source = conflictingDeclaration.source
+            if (symbols.isEmpty()) return@forEach
+
+            val factory =
+                if (conflictingDeclaration is FirSimpleFunction || conflictingDeclaration is FirConstructor) {
+                    FirErrors.CONFLICTING_OVERLOADS
+                } else if (conflictingDeclaration is FirClassLikeDeclaration &&
+                    conflictingDeclaration.getContainingDeclaration(context.session) == null &&
+                    symbols.any { it is FirClassLikeSymbol<*> }
+                ) {
+                    FirErrors.PACKAGE_OR_CLASSIFIER_REDECLARATION
+                } else {
+                    FirErrors.REDECLARATION
+                }
+
+            reporter.reportOn(source, factory, symbols, context)
+        }
+    }
+
+    private fun checkFile(file: FirFile, inspector: FirDeclarationCollector<FirDeclaration>, context: CheckerContext) {
         val packageMemberScope: FirPackageMemberScope = context.sessionHolder.scopeSession.getOrBuild(file.packageFqName, PACKAGE_MEMBER) {
             FirPackageMemberScope(file.packageFqName, context.sessionHolder.session)
         }
+        inspector.collectTopLevel(file, packageMemberScope)
         for (topLevelDeclaration in file.declarations) {
             if (topLevelDeclaration is FirErrorProperty || topLevelDeclaration is FirErrorFunction) continue
-            inspector.collectWithExternalConflicts(topLevelDeclaration, file, context.session, packageMemberScope)
-        }
-    }
 
-    private fun checkRegularClass(declaration: FirRegularClass, inspector: FirDeclarationInspector) {
-        for (it in declaration.declarations) {
-            inspector.collect(it)
         }
     }
 }
@@ -93,7 +93,7 @@ class FirNameConflictsTracker : FirNameConflictsTrackerComponent() {
 
     data class ClassifierWithFile(
         val classifier: FirClassLikeSymbol<*>,
-        val file: FirFile?
+        val file: FirFile?,
     )
 
     val redeclaredClassifiers = HashMap<ClassId, Set<ClassifierWithFile>>()
@@ -101,7 +101,7 @@ class FirNameConflictsTracker : FirNameConflictsTrackerComponent() {
     override fun registerClassifierRedeclaration(
         classId: ClassId,
         newSymbol: FirClassLikeSymbol<*>, newSymbolFile: FirFile,
-        prevSymbol: FirClassLikeSymbol<*>, prevSymbolFile: FirFile?
+        prevSymbol: FirClassLikeSymbol<*>, prevSymbolFile: FirFile?,
     ) {
         redeclaredClassifiers.merge(
             classId, linkedSetOf(ClassifierWithFile(newSymbol, newSymbolFile), ClassifierWithFile(prevSymbol, prevSymbolFile))

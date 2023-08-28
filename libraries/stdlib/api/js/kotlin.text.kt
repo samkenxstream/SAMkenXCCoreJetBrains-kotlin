@@ -74,6 +74,10 @@ public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Any?): kotl
 @kotlin.internal.InlineOnly
 public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Boolean): kotlin.text.StringBuilder
 
+@kotlin.SinceKotlin(version = "1.9")
+@kotlin.internal.InlineOnly
+public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Byte): kotlin.text.StringBuilder
+
 @kotlin.SinceKotlin(version = "1.4")
 @kotlin.internal.InlineOnly
 public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Char): kotlin.text.StringBuilder
@@ -85,6 +89,26 @@ public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.CharArray):
 @kotlin.SinceKotlin(version = "1.4")
 @kotlin.internal.InlineOnly
 public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.CharSequence?): kotlin.text.StringBuilder
+
+@kotlin.SinceKotlin(version = "1.9")
+@kotlin.internal.InlineOnly
+public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Double): kotlin.text.StringBuilder
+
+@kotlin.SinceKotlin(version = "1.9")
+@kotlin.internal.InlineOnly
+public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Float): kotlin.text.StringBuilder
+
+@kotlin.SinceKotlin(version = "1.9")
+@kotlin.internal.InlineOnly
+public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Int): kotlin.text.StringBuilder
+
+@kotlin.SinceKotlin(version = "1.9")
+@kotlin.internal.InlineOnly
+public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Long): kotlin.text.StringBuilder
+
+@kotlin.SinceKotlin(version = "1.9")
+@kotlin.internal.InlineOnly
+public inline fun kotlin.text.StringBuilder.appendLine(value: kotlin.Short): kotlin.text.StringBuilder
 
 @kotlin.SinceKotlin(version = "1.4")
 @kotlin.internal.InlineOnly
@@ -1028,6 +1052,10 @@ public fun kotlin.String.toByteOrNull(radix: kotlin.Int): kotlin.Byte?
 @kotlin.WasExperimental(markerClass = {kotlin.ExperimentalStdlibApi::class})
 public fun kotlin.String.toCharArray(): kotlin.CharArray
 
+@kotlin.ExperimentalStdlibApi
+@kotlin.SinceKotlin(version = "1.9")
+public fun kotlin.String.toCharArray(destination: kotlin.CharArray, destinationOffset: kotlin.Int = ..., startIndex: kotlin.Int = ..., endIndex: kotlin.Int = ...): kotlin.CharArray
+
 @kotlin.SinceKotlin(version = "1.4")
 @kotlin.WasExperimental(markerClass = {kotlin.ExperimentalStdlibApi::class})
 public fun kotlin.String.toCharArray(startIndex: kotlin.Int = ..., endIndex: kotlin.Int = ...): kotlin.CharArray
@@ -1665,6 +1693,9 @@ public final class StringBuilder : kotlin.text.Appendable, kotlin.CharSequence {
     @kotlin.SinceKotlin(version = "1.3")
     public final fun append(value: kotlin.Boolean): kotlin.text.StringBuilder
 
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun append(value: kotlin.Byte): kotlin.text.StringBuilder
+
     public open override fun append(value: kotlin.Char): kotlin.text.StringBuilder
 
     @kotlin.SinceKotlin(version = "1.4")
@@ -1674,6 +1705,21 @@ public final class StringBuilder : kotlin.text.Appendable, kotlin.CharSequence {
     public open override fun append(value: kotlin.CharSequence?): kotlin.text.StringBuilder
 
     public open override fun append(value: kotlin.CharSequence?, startIndex: kotlin.Int, endIndex: kotlin.Int): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun append(value: kotlin.Double): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun append(value: kotlin.Float): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun append(value: kotlin.Int): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun append(value: kotlin.Long): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun append(value: kotlin.Short): kotlin.text.StringBuilder
 
     @kotlin.SinceKotlin(version = "1.3")
     public final fun append(value: kotlin.String?): kotlin.text.StringBuilder
@@ -1723,6 +1769,9 @@ public final class StringBuilder : kotlin.text.Appendable, kotlin.CharSequence {
     @kotlin.WasExperimental(markerClass = {kotlin.ExperimentalStdlibApi::class})
     public final fun insert(index: kotlin.Int, value: kotlin.Boolean): kotlin.text.StringBuilder
 
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun insert(index: kotlin.Int, value: kotlin.Byte): kotlin.text.StringBuilder
+
     @kotlin.SinceKotlin(version = "1.4")
     @kotlin.WasExperimental(markerClass = {kotlin.ExperimentalStdlibApi::class})
     public final fun insert(index: kotlin.Int, value: kotlin.Char): kotlin.text.StringBuilder
@@ -1734,6 +1783,21 @@ public final class StringBuilder : kotlin.text.Appendable, kotlin.CharSequence {
     @kotlin.SinceKotlin(version = "1.4")
     @kotlin.WasExperimental(markerClass = {kotlin.ExperimentalStdlibApi::class})
     public final fun insert(index: kotlin.Int, value: kotlin.CharSequence?): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun insert(index: kotlin.Int, value: kotlin.Double): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun insert(index: kotlin.Int, value: kotlin.Float): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun insert(index: kotlin.Int, value: kotlin.Int): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun insert(index: kotlin.Int, value: kotlin.Long): kotlin.text.StringBuilder
+
+    @kotlin.SinceKotlin(version = "1.9")
+    public final fun insert(index: kotlin.Int, value: kotlin.Short): kotlin.text.StringBuilder
 
     @kotlin.SinceKotlin(version = "1.4")
     @kotlin.WasExperimental(markerClass = {kotlin.ExperimentalStdlibApi::class})

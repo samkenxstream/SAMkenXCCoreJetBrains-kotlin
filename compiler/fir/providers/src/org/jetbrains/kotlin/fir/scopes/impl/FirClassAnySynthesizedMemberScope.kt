@@ -24,6 +24,10 @@ import org.jetbrains.kotlin.fir.declarations.builder.FirSimpleFunctionBuilder
 import org.jetbrains.kotlin.fir.declarations.builder.buildSimpleFunction
 import org.jetbrains.kotlin.fir.declarations.builder.buildValueParameter
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
+import org.jetbrains.kotlin.fir.declarations.isEquals
+import org.jetbrains.kotlin.fir.declarations.utils.isData
+import org.jetbrains.kotlin.fir.declarations.utils.isInline
+import org.jetbrains.kotlin.fir.render
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
 import org.jetbrains.kotlin.fir.resolve.defaultType
 import org.jetbrains.kotlin.fir.resolve.lookupSuperTypes
@@ -46,11 +50,16 @@ import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
  * This declared scope wrapper is created for data/value classes and provides Any method stubs, if necessary
  */
 class FirClassAnySynthesizedMemberScope(
-    session: FirSession,
+    private val session: FirSession,
     private val declaredMemberScope: FirContainingNamesAwareScope,
     klass: FirRegularClass,
     scopeSession: ScopeSession,
 ) : FirContainingNamesAwareScope() {
+    private val originForFunctions = when {
+        klass.isData -> FirDeclarationOrigin.Synthetic.DataClassMember
+        klass.isInline -> FirDeclarationOrigin.Synthetic.ValueClassMember
+        else -> error("This scope should not be created for non-data and non-value class. ${klass.render()}")
+    }
     private val lookupTag = klass.symbol.toLookupTag()
 
     private val baseModuleData = klass.moduleData
@@ -118,7 +127,7 @@ class FirClassAnySynthesizedMemberScope(
             }
             else -> {
                 lazyResolveToPhase(FirResolvePhase.TYPES)
-                fir.isEquals()
+                fir.isEquals(session)
             }
         }
     }
@@ -138,7 +147,7 @@ class FirClassAnySynthesizedMemberScope(
             this.valueParameters.add(
                 buildValueParameter {
                     this.name = Name.identifier("other")
-                    origin = FirDeclarationOrigin.Synthetic
+                    origin = originForFunctions
                     moduleData = baseModuleData
                     this.returnTypeRef = FirImplicitNullableAnyTypeRef(null)
                     this.symbol = FirValueParameterSymbol(this.name)
@@ -168,7 +177,7 @@ class FirClassAnySynthesizedMemberScope(
     ) {
         this.source = synthesizedSource
         moduleData = baseModuleData
-        origin = FirDeclarationOrigin.Synthetic
+        origin = originForFunctions
         this.name = name
         status = FirResolvedDeclarationStatusImpl(Visibilities.Public, Modality.OPEN, EffectiveVisibility.Public).apply {
             this.isOperator = isOperator

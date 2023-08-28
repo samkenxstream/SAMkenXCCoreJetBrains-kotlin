@@ -17,6 +17,7 @@ package kotlin.collections
  *
  * @param E the type of elements contained in the list. The list is invariant in its element type.
  */
+@AllowDifferentMembersInActual // New 'removeRange', 'modCount' members are added compared to the expect declaration
 public actual abstract class AbstractMutableList<E> protected actual constructor() : AbstractMutableCollection<E>(), MutableList<E> {
     /**
      * The number of times this list is structurally modified.
@@ -185,9 +186,11 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
         init {
             AbstractList.checkRangeIndexes(fromIndex, toIndex, list.size)
             this._size = toIndex - fromIndex
+            this.modCount = list.modCount
         }
 
         override fun add(index: Int, element: E) {
+            checkForComodification()
             AbstractList.checkPositionIndex(index, _size)
 
             list.add(fromIndex + index, element)
@@ -196,12 +199,14 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
         }
 
         override fun get(index: Int): E {
+            checkForComodification()
             AbstractList.checkElementIndex(index, _size)
 
             return list[fromIndex + index]
         }
 
         override fun removeAt(index: Int): E {
+            checkForComodification()
             AbstractList.checkElementIndex(index, _size)
 
             val result = list.removeAt(fromIndex + index)
@@ -211,12 +216,22 @@ public actual abstract class AbstractMutableList<E> protected actual constructor
         }
 
         override fun set(index: Int, element: E): E {
+            checkForComodification()
             AbstractList.checkElementIndex(index, _size)
 
             return list.set(fromIndex + index, element)
         }
 
-        override val size: Int get() = _size
+        override val size: Int
+            get() {
+                checkForComodification()
+                return _size
+            }
+
+        private fun checkForComodification() {
+            if (list.modCount != modCount)
+                throw ConcurrentModificationException()
+        }
     }
 
 }

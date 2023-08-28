@@ -44,6 +44,8 @@ import org.jetbrains.kotlin.incremental.components.InlineConstTracker
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.backend.js.*
 import org.jetbrains.kotlin.js.analyze.TopDownAnalyzerFacadeForJS
+import org.jetbrains.kotlin.js.config.JSConfigurationKeys
+import org.jetbrains.kotlin.js.config.WasmTarget
 import org.jetbrains.kotlin.library.unresolvedDependencies
 import org.jetbrains.kotlin.load.java.lazy.SingleModuleClassResolver
 import org.jetbrains.kotlin.load.kotlin.ModuleVisibilityManager
@@ -75,6 +77,7 @@ import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurator
+import org.jetbrains.kotlin.test.services.configuration.NativeEnvironmentConfigurator
 import org.jetbrains.kotlin.test.services.configuration.getDependencies
 import org.jetbrains.kotlin.test.util.KtTestUtil
 import org.jetbrains.kotlin.types.typeUtil.closure
@@ -166,7 +169,7 @@ class ClassicFrontendFacade(
                 module, project, configuration, compilerEnvironment, files, dependencyDescriptors, friendsDescriptors
             )
             targetPlatform.isNative() -> performNativeModuleResolve(
-                module, project, compilerEnvironment, files, dependencyDescriptors, friendsDescriptors, dependsOnDescriptors
+                module, project, configuration, compilerEnvironment, files, dependencyDescriptors, friendsDescriptors, dependsOnDescriptors
             )
             targetPlatform.isCommon() -> performCommonModuleResolve(
                 module,
@@ -319,22 +322,18 @@ class ClassicFrontendFacade(
         val friendLibraries = getDependencies(module, testServices, DependencyRelation.FriendDependency)
         val allDependencies = runtimeKlibs + dependencyDescriptors + friendLibraries + friendsDescriptors + transitiveLibraries
 
-        val analyzer = AnalyzerWithCompilerReport(configuration)
         val builtInModuleDescriptor = allDependencies.firstNotNullOfOrNull { it.builtIns }?.builtInsModule
-        analyzer.analyzeAndReport(files) {
-            TopDownAnalyzerFacadeForJSIR.analyzeFiles(
-                files,
-                project,
-                configuration,
-                allDependencies,
-                friendsDescriptors + friendLibraries,
-                compilerEnvironment,
-                thisIsBuiltInsModule = builtInModuleDescriptor == null,
-                customBuiltInsModule = builtInModuleDescriptor
-            )
-        }
 
-        return analyzer.analysisResult
+        return TopDownAnalyzerFacadeForJSIR.analyzeFiles(
+            files,
+            project,
+            configuration,
+            allDependencies,
+            friendsDescriptors + friendLibraries,
+            compilerEnvironment,
+            thisIsBuiltInsModule = builtInModuleDescriptor == null,
+            customBuiltInsModule = builtInModuleDescriptor
+        )
     }
 
     private fun performWasmModuleResolve(
@@ -346,10 +345,16 @@ class ClassicFrontendFacade(
         dependencyDescriptors: List<ModuleDescriptor>,
         friendsDescriptors: List<ModuleDescriptor>,
     ): AnalysisResult {
+        val suffix = when (configuration.get(JSConfigurationKeys.WASM_TARGET, WasmTarget.JS)) {
+            WasmTarget.JS -> "-js"
+            WasmTarget.WASI -> "-wasi"
+            else -> error("Unexpected wasi target")
+        }
+
         val runtimeKlibsNames =
             listOfNotNull(
-                System.getProperty("kotlin.wasm.stdlib.path")!!,
-                System.getProperty("kotlin.wasm.kotlin.test.path")!!
+                System.getProperty("kotlin.wasm$suffix.stdlib.path")!!,
+                System.getProperty("kotlin.wasm$suffix.kotlin.test.path")!!
             ).map {
                 File(it).absolutePath
             }
@@ -360,7 +365,9 @@ class ClassicFrontendFacade(
         val allDependencies = runtimeKlibs + dependencyDescriptors + friendLibraries + friendsDescriptors + transitiveLibraries
 
         val builtInModuleDescriptor = allDependencies.firstNotNullOfOrNull { it.builtIns }?.builtInsModule
-        return TopDownAnalyzerFacadeForWasm.analyzeFiles(
+        val analyzerFacade = TopDownAnalyzerFacadeForWasm.facadeFor(configuration.get(JSConfigurationKeys.WASM_TARGET))
+
+        return analyzerFacade.analyzeFiles(
             files,
             project,
             configuration,
@@ -375,6 +382,7 @@ class ClassicFrontendFacade(
     private fun performNativeModuleResolve(
         module: TestModule,
         project: Project,
+        configuration: CompilerConfiguration,
         compilerEnvironment: TargetEnvironment,
         files: List<KtFile>,
         dependencyDescriptors: List<ModuleDescriptorImpl>,
@@ -382,9 +390,12 @@ class ClassicFrontendFacade(
         dependsOnDescriptors: List<ModuleDescriptorImpl>,
     ): AnalysisResult {
         val moduleTrace = NoScopeRecordCliBindingTrace()
+        val runtimeKlibsNames = NativeEnvironmentConfigurator.getRuntimePathsForModule(module, testServices)
+        val runtimeKlibs = loadKlib(runtimeKlibsNames, configuration).mapNotNull { it as? ModuleDescriptorImpl }
+
         val moduleContext = createModuleContext(
             module, project,
-            dependencyDescriptors = dependencyDescriptors,
+            dependencyDescriptors = dependencyDescriptors + runtimeKlibs,
             friendsDescriptors = friendsDescriptors,
             dependsOnDescriptors = dependsOnDescriptors
         ) {

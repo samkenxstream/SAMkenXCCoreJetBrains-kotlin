@@ -12,6 +12,7 @@
 #include "AtomicStack.hpp"
 #include "ExtraObjectPage.hpp"
 #include "GCStatistics.hpp"
+#include "std_support/Vector.hpp"
 
 namespace kotlin::alloc {
 
@@ -33,10 +34,14 @@ public:
 
 private:
     friend class AtomicStack<SingleObjectPage>;
+    friend class Heap;
 
     explicit SingleObjectPage(size_t size) noexcept;
 
-    SingleObjectPage* next_;
+    // Testing method
+    std_support::vector<uint8_t*> GetAllocatedBlocks() noexcept;
+
+    std::atomic<SingleObjectPage*> next_;
     bool isAllocated_ = false;
     size_t size_;
     struct alignas(8) {

@@ -5,7 +5,11 @@
 
 package org.jetbrains.kotlin.ir.util
 
+import org.jetbrains.kotlin.builtins.PrimitiveType
+import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.KotlinRetention
 import org.jetbrains.kotlin.ir.*
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.builders.declarations.*
@@ -27,6 +31,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
+import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.utils.*
 import java.io.StringWriter
@@ -346,6 +351,20 @@ fun IrAnnotationContainer.hasAnnotation(symbol: IrClassSymbol) =
         it.symbol.owner.parentAsClass.symbol == symbol
     }
 
+fun IrClass.getAnnotationRetention(): KotlinRetention? {
+    val retentionArgument =
+        getAnnotation(StandardNames.FqNames.retention)?.getValueArgument(StandardClassIds.Annotations.ParameterNames.retentionValue)
+                as? IrGetEnumValue ?: return null
+    val retentionArgumentValue = retentionArgument.symbol.owner
+    return KotlinRetention.valueOf(retentionArgumentValue.name.asString())
+}
+
+// To be generalized to IrMemberAccessExpression as soon as properties get symbols.
+fun IrConstructorCall.getValueArgument(name: Name): IrExpression? {
+    val index = symbol.owner.valueParameters.find { it.name == name }?.index ?: return null
+    return getValueArgument(index)
+}
+
 
 val IrConstructor.constructedClassType get() = (parent as IrClass).thisReceiver?.type!!
 
@@ -390,11 +409,11 @@ fun IrValueParameter.hasDefaultValue(): Boolean = DFS.ifAny(
 fun ReferenceSymbolTable.referenceClassifier(classifier: ClassifierDescriptor): IrClassifierSymbol =
     when (classifier) {
         is TypeParameterDescriptor ->
-            referenceTypeParameter(classifier)
+            descriptorExtension.referenceTypeParameter(classifier)
         is ScriptDescriptor ->
-            referenceScript(classifier)
+            descriptorExtension.referenceScript(classifier)
         is ClassDescriptor ->
-            referenceClass(classifier)
+            descriptorExtension.referenceClass(classifier)
         else ->
             throw IllegalArgumentException("Unexpected classifier descriptor: $classifier")
     }
@@ -403,9 +422,9 @@ fun ReferenceSymbolTable.referenceClassifier(classifier: ClassifierDescriptor): 
 fun ReferenceSymbolTable.referenceFunction(callable: CallableDescriptor): IrFunctionSymbol =
     when (callable) {
         is ClassConstructorDescriptor ->
-            referenceConstructor(callable)
+            descriptorExtension.referenceConstructor(callable)
         is FunctionDescriptor ->
-            referenceSimpleFunction(callable)
+            descriptorExtension.referenceSimpleFunction(callable)
         else ->
             throw IllegalArgumentException("Unexpected callable descriptor: $callable")
     }
@@ -938,7 +957,9 @@ fun IrFunction.copyValueParametersToStatic(
 
     var shift = 0
     source.dispatchReceiverParameter?.let { originalDispatchReceiver ->
-        assert(dispatchReceiverType!!.isSubtypeOfClass(originalDispatchReceiver.type.classOrNull!!))
+        assert(dispatchReceiverType!!.isSubtypeOfClass(originalDispatchReceiver.type.classOrNull!!)) {
+            "Dispatch receiver type ${dispatchReceiverType.render()} is not a subtype of ${originalDispatchReceiver.type.render()}"
+        }
         val type = dispatchReceiverType.remapTypeParameters(
             (originalDispatchReceiver.parent as IrTypeParametersContainer).classIfConstructor,
             target.classIfConstructor
@@ -1436,3 +1457,33 @@ fun IrAttributeContainer.extractRelatedDeclaration(): IrDeclaration? {
 inline fun <reified Symbol : IrSymbol> IrSymbol.unexpectedSymbolKind(): Nothing {
     throw IllegalArgumentException("Unexpected kind of ${Symbol::class.java.typeName}: $this")
 }
+
+private fun Any?.toIrConstOrNull(irType: IrType, startOffset: Int = SYNTHETIC_OFFSET, endOffset: Int = SYNTHETIC_OFFSET): IrConst<*>? {
+    if (this == null) return IrConstImpl.constNull(startOffset, endOffset, irType)
+
+    val constType = irType.makeNotNull().removeAnnotations()
+    return when (irType.getPrimitiveType()) {
+        PrimitiveType.BOOLEAN -> IrConstImpl.boolean(startOffset, endOffset, constType, this as Boolean)
+        PrimitiveType.CHAR -> IrConstImpl.char(startOffset, endOffset, constType, this as Char)
+        PrimitiveType.BYTE -> IrConstImpl.byte(startOffset, endOffset, constType, (this as Number).toByte())
+        PrimitiveType.SHORT -> IrConstImpl.short(startOffset, endOffset, constType, (this as Number).toShort())
+        PrimitiveType.INT -> IrConstImpl.int(startOffset, endOffset, constType, (this as Number).toInt())
+        PrimitiveType.FLOAT -> IrConstImpl.float(startOffset, endOffset, constType, (this as Number).toFloat())
+        PrimitiveType.LONG -> IrConstImpl.long(startOffset, endOffset, constType, (this as Number).toLong())
+        PrimitiveType.DOUBLE -> IrConstImpl.double(startOffset, endOffset, constType, (this as Number).toDouble())
+        null -> when (constType.getUnsignedType()) {
+            UnsignedType.UBYTE -> IrConstImpl.byte(startOffset, endOffset, constType, (this as Number).toByte())
+            UnsignedType.USHORT -> IrConstImpl.short(startOffset, endOffset, constType, (this as Number).toShort())
+            UnsignedType.UINT -> IrConstImpl.int(startOffset, endOffset, constType, (this as Number).toInt())
+            UnsignedType.ULONG -> IrConstImpl.long(startOffset, endOffset, constType, (this as Number).toLong())
+            null -> when {
+                constType.isString() -> IrConstImpl.string(startOffset, endOffset, constType, this as String)
+                else -> null
+            }
+        }
+    }
+}
+
+fun Any?.toIrConst(irType: IrType, startOffset: Int = SYNTHETIC_OFFSET, endOffset: Int = SYNTHETIC_OFFSET): IrConst<*> =
+    toIrConstOrNull(irType, startOffset, endOffset)
+        ?: throw UnsupportedOperationException("Unsupported const element type ${irType.makeNotNull().render()}")

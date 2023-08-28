@@ -10,6 +10,9 @@ import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.LLFirResolveSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.project.structure.llFirModuleData
 import org.jetbrains.kotlin.analysis.project.structure.KtModule
+import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
+import org.jetbrains.kotlin.fir.FirAnnotationContainer
+import org.jetbrains.kotlin.fir.analysis.checkers.getActualTargetList
 import org.jetbrains.kotlin.fir.dispatchReceiverClassLookupTagOrNull
 import org.jetbrains.kotlin.fir.resolve.toFirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
@@ -30,6 +33,7 @@ internal val KtEnumEntrySymbol.firSymbol: FirEnumEntrySymbol get() = (this as Kt
 internal val KtConstructorSymbol.firSymbol: FirConstructorSymbol get() = (this as KtFirSymbol<*>).firSymbol as FirConstructorSymbol
 internal val KtPropertyAccessorSymbol.firSymbol: FirPropertyAccessorSymbol get() = (this as KtFirSymbol<*>).firSymbol as FirPropertyAccessorSymbol
 internal val KtClassInitializerSymbol.firSymbol: FirAnonymousInitializerSymbol get() = (this as KtFirSymbol<*>).firSymbol as FirAnonymousInitializerSymbol
+internal val KtClassLikeSymbol.firSymbol: FirClassLikeSymbol<*> get() = (this as KtFirSymbol<*>).firSymbol as FirClassLikeSymbol<*>
 
 
 fun FirBasedSymbol<*>.getContainingKtModule(firResolveSession: LLFirResolveSession): KtModule {
@@ -47,4 +51,9 @@ fun KtSymbol.getContainingKtModule(firResolveSession: LLFirResolveSession): KtMo
     is KtFirSymbol<*> -> firSymbol.getContainingKtModule(firResolveSession)
     is KtReceiverParameterSymbol -> owningCallableSymbol.getContainingKtModule(firResolveSession)
     else -> TODO("${this::class}")
+}
+
+fun KtSymbol.getActualAnnotationTargets(): List<KotlinTarget>? {
+    val firSymbol = this.firSymbol.fir as? FirAnnotationContainer ?: return null
+    return getActualTargetList(firSymbol).defaultTargets
 }

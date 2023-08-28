@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2022 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2023 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -26,17 +26,14 @@ public sealed interface EnumEntries<E : Enum<E>> : List<E>
 /**
  * Returns [EnumEntries] list containing all enum entries for the given enum type [T].
  */
+@ExperimentalStdlibApi
+@SinceKotlin("1.9")
+public inline fun <reified T : Enum<T>> enumEntries(): EnumEntries<T> = enumEntriesIntrinsic()
+
 @PublishedApi
 @ExperimentalStdlibApi
 @SinceKotlin("1.9")
-internal inline fun <reified T : Enum<T>> enumEntries(): EnumEntries<T> {
-    /*
-     * Implementation note: this body will be replaced with `throw NotImplementedException()` the moment
-     * all backends starts intrinsifying this call.
-     * Then this method will also be promoted to public.
-     */
-    return enumEntries(enumValues<T>())
-}
+internal expect inline fun <reified T : Enum<T>> enumEntriesIntrinsic(): EnumEntries<T>
 
 @PublishedApi
 @SinceKotlin("1.8") // Used by pre-1.9.0 JVM compiler for the feature in preview mode. Can be safely removed around 2.1

@@ -35,11 +35,16 @@ interface Fe10AnalysisFacade {
     fun getOverloadingConflictResolver(element: KtElement): OverloadingConflictResolver<ResolvedCall<*>>
     fun getKotlinTypeRefiner(element: KtElement): KotlinTypeRefiner
 
-    fun analyze(element: KtElement, mode: AnalysisMode = AnalysisMode.FULL): BindingContext
+    fun analyze(elements: List<KtElement>, mode: AnalysisMode = AnalysisMode.FULL): BindingContext
+
+    fun analyze(element: KtElement, mode: AnalysisMode = AnalysisMode.FULL): BindingContext {
+        return analyze(listOf(element), mode)
+    }
 
     fun getOrigin(file: VirtualFile): KtSymbolOrigin
 
     enum class AnalysisMode {
+        ALL_COMPILER_CHECKS,
         FULL,
         PARTIAL_WITH_DIAGNOSTICS,
         PARTIAL

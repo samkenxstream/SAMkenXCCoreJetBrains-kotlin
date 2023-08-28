@@ -132,7 +132,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         expression.configure {
-            +typeRefField
+            +field("coneTypeOrNull", coneKotlinTypeType, nullable = true, withReplace = true)
             +annotations
         }
 
@@ -146,7 +146,6 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
 
         block.configure {
             +fieldList(statement).withTransform()
-            +typeRefField
             needTransformOtherChildren()
         }
 
@@ -250,6 +249,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         typeOperatorCall.configure {
             +field("operation", operationType)
             +field("conversionTypeRef", typeRef).withTransform()
+            +booleanField("argFromStubType", withReplace = true)
             needTransformOtherChildren()
         }
 
@@ -440,7 +440,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +name
             +symbol("FirVariableSymbol", "out FirVariable")
             +initializer.withTransform().withReplace()
-            +field("delegate", expression, nullable = true).withTransform()
+            +field("delegate", expression, nullable = true, withReplace = true).withTransform()
             generateBooleanFields("var", "val")
             +field("getter", propertyAccessor, nullable = true, withReplace = true).withTransform()
             +field("setter", propertyAccessor, nullable = true, withReplace = true).withTransform()
@@ -477,7 +477,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         file.configure {
-            +field("annotationsContainer", fileAnnotationsContainer).withTransform()
+            +field("annotationsContainer", fileAnnotationsContainer, nullable = true).withTransform()
             +field("packageDirective", packageDirective)
             +fieldList(import).withTransform()
             +declarations.withTransform()
@@ -489,10 +489,16 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
 
         script.configure {
             +name
-            +fieldList(statement).withTransform()
+            +fieldList(statement, withReplace = true, useMutableOrEmpty = true).withTransform()
             +symbol("FirScriptSymbol")
-            +FieldList("parameters", variable, withReplace = false)
+            +fieldList("parameters", variable, withReplace = false)
             +fieldList(contextReceiver, useMutableOrEmpty = true)
+            +field("resultPropertyName", nameType, nullable = true)
+        }
+
+        codeFragment.configure {
+            +symbol("FirCodeFragmentSymbol")
+            +field(block, withReplace = true).withTransform()
         }
 
         packageDirective.configure {
@@ -504,6 +510,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +booleanField("isAllUnder")
             +field("aliasName", nameType, nullable = true)
             +field("aliasSource", sourceElementType, nullable = true)
+            shouldBeAbstractClass()
         }
 
         resolvedImport.configure {
@@ -561,7 +568,6 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         smartCastExpression.configure {
-            +typeRefField
             +field("originalExpression", expression, withReplace = true).withTransform()
             +field("typesFromSmartCast", "Collection<ConeKotlinType>", null, customType = coneKotlinTypeType)
             +field("smartcastType", typeRef)
@@ -611,6 +617,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +field("symbol", classLikeSymbolType, nullable = true)
             +booleanField("isNullableLHSForCallableReference", withReplace = true)
             +booleanField("resolvedToCompanionObject", withReplace = true)
+            +booleanField("canBeValue", withReplace = true)
             +booleanField("isFullyQualified")
             +fieldList("nonFatalDiagnostics", coneDiagnosticType, useMutableOrEmpty = true)
             +typeArguments.withTransform()
@@ -641,11 +648,11 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         }
 
         wrappedExpression.configure {
-            +field(expression).withReplace()
+            +field(expression)
         }
 
         wrappedDelegateExpression.configure {
-            +field("delegateProvider", expression).withReplace()
+            +field("delegateProvider", expression)
         }
 
         enumEntryDeserializedAccessExpression.configure {
@@ -688,6 +695,7 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
             +field("boundSymbol", firBasedSymbolType, "*", nullable = true, withReplace = true)
             +intField("contextReceiverNumber", withReplace = true)
             +booleanField("isImplicit")
+            +field("diagnostic", coneDiagnosticType, nullable = true, withReplace = true)
         }
 
         typeRef.configure {
@@ -697,7 +705,6 @@ object NodeConfigurator : AbstractFieldConfigurator<FirTreeBuilder>(FirTreeBuild
         resolvedTypeRef.configure {
             +field("type", coneKotlinTypeType)
             +field("delegatedTypeRef", typeRef, nullable = true)
-            +booleanField("isFromStubType")
         }
 
         typeRefWithNullability.configure {

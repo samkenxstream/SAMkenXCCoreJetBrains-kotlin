@@ -30,7 +30,16 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtElement
 import org.jetbrains.kotlin.psi.KtFile
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.originalDeclaration
 
+/**
+ * An [LLFirResolveSession] which *depends* on an [originalFirResolveSession], but can provide its own FIR elements and symbols selectively.
+ * The dependent session mostly provides FIR elements and symbols from the original resolve session, but additionally provides FIR elements
+ * (and their associated symbols) from its own [ktToFirMapping].
+ *
+ * [LLFirResolveSessionDepended] is used by on-air resolve to provide FIR elements for a copied declaration in the larger context of the
+ * original resolve session.
+ */
 internal class LLFirResolveSessionDepended(
     val originalFirResolveSession: LLFirResolvableResolveSession,
     val towerProviderBuiltUponElement: FirTowerContextProvider,
@@ -60,7 +69,7 @@ internal class LLFirResolveSessionDepended(
 
     override fun getOrBuildFirFor(element: KtElement): FirElement? {
         val psi = FirElementBuilder.getPsiAsFirElementSource(element) ?: return null
-        ktToFirMapping?.getFirOfClosestParent(psi)?.let { return it }
+        ktToFirMapping?.getFir(psi)?.let { return it }
         return originalFirResolveSession.getOrBuildFirFor(element = element)
     }
 
@@ -78,7 +87,10 @@ internal class LLFirResolveSessionDepended(
         TODO("Diagnostics are not implemented for depended state")
 
     override fun resolveToFirSymbol(ktDeclaration: KtDeclaration, phase: FirResolvePhase): FirBasedSymbol<*> {
-        return originalFirResolveSession.resolveToFirSymbol(ktDeclaration, phase)
+        val declarationToResolve = ktDeclaration.originalDeclaration ?: ktDeclaration
+        ktToFirMapping?.getElement(declarationToResolve)?.let { it as? FirDeclaration }?.symbol?.let { return it }
+
+        return originalFirResolveSession.resolveToFirSymbol(declarationToResolve, phase)
     }
 
     override fun getTowerContextProvider(ktFile: KtFile): FirTowerContextProvider =

@@ -21,7 +21,13 @@ import java.util.regex.Pattern;
 public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends AbstractFirOutOfContentRootLazyDeclarationResolveTest {
     @Test
     public void testAllFilesPresentInLazyResolve() throws Exception {
-        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve"), Pattern.compile("^(.+)\\.kt$"), null, true);
+        KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+    }
+
+    @Test
+    @TestMetadata("annotationArgumentsMix.kt")
+    public void testAnnotationArgumentsMix() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/annotationArgumentsMix.kt");
     }
 
     @Test
@@ -64,6 +70,24 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     @TestMetadata("annotations.kt")
     public void testAnnotations() throws Exception {
         runTest("analysis/low-level-api-fir/testdata/lazyResolve/annotations.kt");
+    }
+
+    @Test
+    @TestMetadata("anonymousFunctionWithAnnotatedParameter.kt")
+    public void testAnonymousFunctionWithAnnotatedParameter() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/anonymousFunctionWithAnnotatedParameter.kt");
+    }
+
+    @Test
+    @TestMetadata("anonymousFunctionWithAnnotatedParameter2.kt")
+    public void testAnonymousFunctionWithAnnotatedParameter2() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/anonymousFunctionWithAnnotatedParameter2.kt");
+    }
+
+    @Test
+    @TestMetadata("anonymousFunctionWithAnnotatedParameterOnImplicitTypePhase.kt")
+    public void testAnonymousFunctionWithAnnotatedParameterOnImplicitTypePhase() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/anonymousFunctionWithAnnotatedParameterOnImplicitTypePhase.kt");
     }
 
     @Test
@@ -226,6 +250,12 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     @TestMetadata("fileAnnotations.kt")
     public void testFileAnnotations() throws Exception {
         runTest("analysis/low-level-api-fir/testdata/lazyResolve/fileAnnotations.kt");
+    }
+
+    @Test
+    @TestMetadata("fileElements.kt")
+    public void testFileElements() throws Exception {
+        runTest("analysis/low-level-api-fir/testdata/lazyResolve/fileElements.kt");
     }
 
     @Test
@@ -516,7 +546,7 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
 
         @Test
         public void testAllFilesPresentInClasses() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/classes"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/classes"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -598,7 +628,7 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     public class Errors {
         @Test
         public void testAllFilesPresentInErrors() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/errors"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/errors"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -620,7 +650,13 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     public class Functions {
         @Test
         public void testAllFilesPresentInFunctions() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/functions"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/functions"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("contract.kt")
+        public void testContract() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/lazyResolve/functions/contract.kt");
         }
 
         @Test
@@ -685,12 +721,34 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     }
 
     @Nested
+    @TestMetadata("analysis/low-level-api-fir/testdata/lazyResolve/noRuntime")
+    @TestDataPath("$PROJECT_ROOT")
+    public class NoRuntime {
+        @Test
+        public void testAllFilesPresentInNoRuntime() throws Exception {
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/noRuntime"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("arrayOfCall.kt")
+        public void testArrayOfCall() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/lazyResolve/noRuntime/arrayOfCall.kt");
+        }
+
+        @Test
+        @TestMetadata("integerLiteralCall.kt")
+        public void testIntegerLiteralCall() throws Exception {
+            runTest("analysis/low-level-api-fir/testdata/lazyResolve/noRuntime/integerLiteralCall.kt");
+        }
+    }
+
+    @Nested
     @TestMetadata("analysis/low-level-api-fir/testdata/lazyResolve/properties")
     @TestDataPath("$PROJECT_ROOT")
     public class Properties {
         @Test
         public void testAllFilesPresentInProperties() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/properties"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/properties"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test
@@ -778,7 +836,7 @@ public class FirOutOfContentRootLazyDeclarationResolveTestGenerated extends Abst
     public class TypeAliases {
         @Test
         public void testAllFilesPresentInTypeAliases() throws Exception {
-            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/typeAliases"), Pattern.compile("^(.+)\\.kt$"), null, true);
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/low-level-api-fir/testdata/lazyResolve/typeAliases"), Pattern.compile("^(.+)\\.(kt)$"), null, true);
         }
 
         @Test

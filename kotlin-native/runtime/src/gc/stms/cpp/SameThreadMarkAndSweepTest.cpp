@@ -180,6 +180,9 @@ test_support::Object<Payload>& AllocateObjectWithFinalizer(mm::ThreadData& threa
 }
 
 std_support::vector<ObjHeader*> Alive(mm::ThreadData& threadData) {
+#ifdef CUSTOM_ALLOCATOR
+    return threadData.gc().impl().alloc().heap().GetAllocatedObjects();
+#else
     std_support::vector<ObjHeader*> objects;
     for (auto node : threadData.gc().impl().objectFactoryThreadQueue()) {
         objects.push_back(node.GetObjHeader());
@@ -188,11 +191,7 @@ std_support::vector<ObjHeader*> Alive(mm::ThreadData& threadData) {
         objects.push_back(node.GetObjHeader());
     }
     return objects;
-}
-
-bool IsMarked(ObjHeader* objHeader) {
-    auto nodeRef = mm::ObjectFactory<gc::SameThreadMarkAndSweep>::NodeRef::From(objHeader);
-    return nodeRef.ObjectData().marked();
+#endif
 }
 
 test_support::RegularWeakReferenceImpl& InstallWeakReference(mm::ThreadData& threadData, ObjHeader* objHeader, ObjHeader** location) {
@@ -211,7 +210,6 @@ public:
     ~SameThreadMarkAndSweepTest() {
         mm::GlobalsRegistry::Instance().ClearForTests();
         mm::SpecialRefRegistry::instance().clearForTests();
-        mm::GlobalData::Instance().extraObjectDataFactory().ClearForTests();
         mm::GlobalData::Instance().gc().ClearForTests();
     }
 
@@ -236,25 +234,25 @@ TEST_F(SameThreadMarkAndSweepTest, RootSet) {
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global1.header(), global2.header(), global3.header(), stack1.header(), stack2.header(), stack3.header()));
-        ASSERT_THAT(IsMarked(global1.header()), false);
-        ASSERT_THAT(IsMarked(global2.header()), false);
-        ASSERT_THAT(IsMarked(global3.header()), false);
-        ASSERT_THAT(IsMarked(stack1.header()), false);
-        ASSERT_THAT(IsMarked(stack2.header()), false);
-        ASSERT_THAT(IsMarked(stack3.header()), false);
+        ASSERT_THAT(gc::isMarked(global1.header()), false);
+        ASSERT_THAT(gc::isMarked(global2.header()), false);
+        ASSERT_THAT(gc::isMarked(global3.header()), false);
+        ASSERT_THAT(gc::isMarked(stack1.header()), false);
+        ASSERT_THAT(gc::isMarked(stack2.header()), false);
+        ASSERT_THAT(gc::isMarked(stack3.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global1.header(), global2.header(), global3.header(), stack1.header(), stack2.header(), stack3.header()));
-        EXPECT_THAT(IsMarked(global1.header()), false);
-        EXPECT_THAT(IsMarked(global2.header()), false);
-        EXPECT_THAT(IsMarked(global3.header()), false);
-        EXPECT_THAT(IsMarked(stack1.header()), false);
-        EXPECT_THAT(IsMarked(stack2.header()), false);
-        EXPECT_THAT(IsMarked(stack3.header()), false);
+        EXPECT_THAT(gc::isMarked(global1.header()), false);
+        EXPECT_THAT(gc::isMarked(global2.header()), false);
+        EXPECT_THAT(gc::isMarked(global3.header()), false);
+        EXPECT_THAT(gc::isMarked(stack1.header()), false);
+        EXPECT_THAT(gc::isMarked(stack2.header()), false);
+        EXPECT_THAT(gc::isMarked(stack3.header()), false);
     });
 }
 
@@ -282,25 +280,25 @@ TEST_F(SameThreadMarkAndSweepTest, InterconnectedRootSet) {
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global1.header(), global2.header(), global3.header(), stack1.header(), stack2.header(), stack3.header()));
-        ASSERT_THAT(IsMarked(global1.header()), false);
-        ASSERT_THAT(IsMarked(global2.header()), false);
-        ASSERT_THAT(IsMarked(global3.header()), false);
-        ASSERT_THAT(IsMarked(stack1.header()), false);
-        ASSERT_THAT(IsMarked(stack2.header()), false);
-        ASSERT_THAT(IsMarked(stack3.header()), false);
+        ASSERT_THAT(gc::isMarked(global1.header()), false);
+        ASSERT_THAT(gc::isMarked(global2.header()), false);
+        ASSERT_THAT(gc::isMarked(global3.header()), false);
+        ASSERT_THAT(gc::isMarked(stack1.header()), false);
+        ASSERT_THAT(gc::isMarked(stack2.header()), false);
+        ASSERT_THAT(gc::isMarked(stack3.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global1.header(), global2.header(), global3.header(), stack1.header(), stack2.header(), stack3.header()));
-        EXPECT_THAT(IsMarked(global1.header()), false);
-        EXPECT_THAT(IsMarked(global2.header()), false);
-        EXPECT_THAT(IsMarked(global3.header()), false);
-        EXPECT_THAT(IsMarked(stack1.header()), false);
-        EXPECT_THAT(IsMarked(stack2.header()), false);
-        EXPECT_THAT(IsMarked(stack3.header()), false);
+        EXPECT_THAT(gc::isMarked(global1.header()), false);
+        EXPECT_THAT(gc::isMarked(global2.header()), false);
+        EXPECT_THAT(gc::isMarked(global3.header()), false);
+        EXPECT_THAT(gc::isMarked(stack1.header()), false);
+        EXPECT_THAT(gc::isMarked(stack2.header()), false);
+        EXPECT_THAT(gc::isMarked(stack3.header()), false);
     });
 }
 
@@ -310,10 +308,10 @@ TEST_F(SameThreadMarkAndSweepTest, FreeObjects) {
         auto& object2 = AllocateObject(threadData);
 
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(object1.header(), object2.header()));
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(object2.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(object2.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre());
     });
@@ -325,12 +323,12 @@ TEST_F(SameThreadMarkAndSweepTest, FreeObjectsWithFinalizers) {
         auto& object2 = AllocateObjectWithFinalizer(threadData);
 
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(object1.header(), object2.header()));
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(object2.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(object2.header()), false);
 
         EXPECT_CALL(finalizerHook(), Call(object1.header()));
         EXPECT_CALL(finalizerHook(), Call(object2.header()));
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre());
     });
@@ -345,12 +343,12 @@ TEST_F(SameThreadMarkAndSweepTest, FreeObjectWithFreeWeak) {
         })();
 
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(object1.header(), weak1.header()));
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(weak1.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(weak1.header()), false);
         ASSERT_THAT(weak1.get(), object1.header());
 
         EXPECT_CALL(finalizerHook(), Call(weak1.header()));
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre());
     });
@@ -363,14 +361,14 @@ TEST_F(SameThreadMarkAndSweepTest, FreeObjectWithHoldedWeak) {
         auto& weak1 = InstallWeakReference(threadData, object1.header(), &stack->field1);
 
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(object1.header(), weak1.header(), stack.header()));
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(weak1.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(weak1.header()), false);
         ASSERT_THAT(weak1.get(), object1.header());
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre(weak1.header(), stack.header()));
-        EXPECT_THAT(IsMarked(weak1.header()), false);
+        EXPECT_THAT(gc::isMarked(weak1.header()), false);
         EXPECT_THAT(weak1.get(), nullptr);
     });
 }
@@ -393,25 +391,25 @@ TEST_F(SameThreadMarkAndSweepTest, ObjectReferencedFromRootSet) {
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header()));
-        ASSERT_THAT(IsMarked(global.header()), false);
-        ASSERT_THAT(IsMarked(stack.header()), false);
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(object2.header()), false);
-        ASSERT_THAT(IsMarked(object3.header()), false);
-        ASSERT_THAT(IsMarked(object4.header()), false);
+        ASSERT_THAT(gc::isMarked(global.header()), false);
+        ASSERT_THAT(gc::isMarked(stack.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(object2.header()), false);
+        ASSERT_THAT(gc::isMarked(object3.header()), false);
+        ASSERT_THAT(gc::isMarked(object4.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header()));
-        EXPECT_THAT(IsMarked(global.header()), false);
-        EXPECT_THAT(IsMarked(stack.header()), false);
-        EXPECT_THAT(IsMarked(object1.header()), false);
-        EXPECT_THAT(IsMarked(object2.header()), false);
-        EXPECT_THAT(IsMarked(object3.header()), false);
-        EXPECT_THAT(IsMarked(object4.header()), false);
+        EXPECT_THAT(gc::isMarked(global.header()), false);
+        EXPECT_THAT(gc::isMarked(stack.header()), false);
+        EXPECT_THAT(gc::isMarked(object1.header()), false);
+        EXPECT_THAT(gc::isMarked(object2.header()), false);
+        EXPECT_THAT(gc::isMarked(object3.header()), false);
+        EXPECT_THAT(gc::isMarked(object4.header()), false);
     });
 }
 
@@ -440,27 +438,27 @@ TEST_F(SameThreadMarkAndSweepTest, ObjectsWithCycles) {
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header(),
                         object5.header(), object6.header()));
-        ASSERT_THAT(IsMarked(global.header()), false);
-        ASSERT_THAT(IsMarked(stack.header()), false);
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(object2.header()), false);
-        ASSERT_THAT(IsMarked(object3.header()), false);
-        ASSERT_THAT(IsMarked(object4.header()), false);
-        ASSERT_THAT(IsMarked(object5.header()), false);
-        ASSERT_THAT(IsMarked(object6.header()), false);
+        ASSERT_THAT(gc::isMarked(global.header()), false);
+        ASSERT_THAT(gc::isMarked(stack.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(object2.header()), false);
+        ASSERT_THAT(gc::isMarked(object3.header()), false);
+        ASSERT_THAT(gc::isMarked(object4.header()), false);
+        ASSERT_THAT(gc::isMarked(object5.header()), false);
+        ASSERT_THAT(gc::isMarked(object6.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header()));
-        EXPECT_THAT(IsMarked(global.header()), false);
-        EXPECT_THAT(IsMarked(stack.header()), false);
-        EXPECT_THAT(IsMarked(object1.header()), false);
-        EXPECT_THAT(IsMarked(object2.header()), false);
-        EXPECT_THAT(IsMarked(object3.header()), false);
-        EXPECT_THAT(IsMarked(object4.header()), false);
+        EXPECT_THAT(gc::isMarked(global.header()), false);
+        EXPECT_THAT(gc::isMarked(stack.header()), false);
+        EXPECT_THAT(gc::isMarked(object1.header()), false);
+        EXPECT_THAT(gc::isMarked(object2.header()), false);
+        EXPECT_THAT(gc::isMarked(object3.header()), false);
+        EXPECT_THAT(gc::isMarked(object4.header()), false);
     });
 }
 
@@ -489,29 +487,29 @@ TEST_F(SameThreadMarkAndSweepTest, ObjectsWithCyclesAndFinalizers) {
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header(),
                         object5.header(), object6.header()));
-        ASSERT_THAT(IsMarked(global.header()), false);
-        ASSERT_THAT(IsMarked(stack.header()), false);
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(object2.header()), false);
-        ASSERT_THAT(IsMarked(object3.header()), false);
-        ASSERT_THAT(IsMarked(object4.header()), false);
-        ASSERT_THAT(IsMarked(object5.header()), false);
-        ASSERT_THAT(IsMarked(object6.header()), false);
+        ASSERT_THAT(gc::isMarked(global.header()), false);
+        ASSERT_THAT(gc::isMarked(stack.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(object2.header()), false);
+        ASSERT_THAT(gc::isMarked(object3.header()), false);
+        ASSERT_THAT(gc::isMarked(object4.header()), false);
+        ASSERT_THAT(gc::isMarked(object5.header()), false);
+        ASSERT_THAT(gc::isMarked(object6.header()), false);
 
         EXPECT_CALL(finalizerHook(), Call(object5.header()));
         EXPECT_CALL(finalizerHook(), Call(object6.header()));
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header()));
-        EXPECT_THAT(IsMarked(global.header()), false);
-        EXPECT_THAT(IsMarked(stack.header()), false);
-        EXPECT_THAT(IsMarked(object1.header()), false);
-        EXPECT_THAT(IsMarked(object2.header()), false);
-        EXPECT_THAT(IsMarked(object3.header()), false);
-        EXPECT_THAT(IsMarked(object4.header()), false);
+        EXPECT_THAT(gc::isMarked(global.header()), false);
+        EXPECT_THAT(gc::isMarked(stack.header()), false);
+        EXPECT_THAT(gc::isMarked(object1.header()), false);
+        EXPECT_THAT(gc::isMarked(object2.header()), false);
+        EXPECT_THAT(gc::isMarked(object3.header()), false);
+        EXPECT_THAT(gc::isMarked(object4.header()), false);
     });
 }
 
@@ -528,18 +526,18 @@ TEST_F(SameThreadMarkAndSweepTest, ObjectsWithCyclesIntoRootSet) {
         object2->field1 = stack.header();
 
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(global.header(), stack.header(), object1.header(), object2.header()));
-        ASSERT_THAT(IsMarked(global.header()), false);
-        ASSERT_THAT(IsMarked(stack.header()), false);
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(object2.header()), false);
+        ASSERT_THAT(gc::isMarked(global.header()), false);
+        ASSERT_THAT(gc::isMarked(stack.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(object2.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre(global.header(), stack.header(), object1.header(), object2.header()));
-        EXPECT_THAT(IsMarked(global.header()), false);
-        EXPECT_THAT(IsMarked(stack.header()), false);
-        EXPECT_THAT(IsMarked(object1.header()), false);
-        EXPECT_THAT(IsMarked(object2.header()), false);
+        EXPECT_THAT(gc::isMarked(global.header()), false);
+        EXPECT_THAT(gc::isMarked(stack.header()), false);
+        EXPECT_THAT(gc::isMarked(object1.header()), false);
+        EXPECT_THAT(gc::isMarked(object2.header()), false);
     });
 }
 
@@ -568,28 +566,28 @@ TEST_F(SameThreadMarkAndSweepTest, RunGCTwice) {
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header(),
                         object5.header(), object6.header()));
-        ASSERT_THAT(IsMarked(global.header()), false);
-        ASSERT_THAT(IsMarked(stack.header()), false);
-        ASSERT_THAT(IsMarked(object1.header()), false);
-        ASSERT_THAT(IsMarked(object2.header()), false);
-        ASSERT_THAT(IsMarked(object3.header()), false);
-        ASSERT_THAT(IsMarked(object4.header()), false);
-        ASSERT_THAT(IsMarked(object5.header()), false);
-        ASSERT_THAT(IsMarked(object6.header()), false);
+        ASSERT_THAT(gc::isMarked(global.header()), false);
+        ASSERT_THAT(gc::isMarked(stack.header()), false);
+        ASSERT_THAT(gc::isMarked(object1.header()), false);
+        ASSERT_THAT(gc::isMarked(object2.header()), false);
+        ASSERT_THAT(gc::isMarked(object3.header()), false);
+        ASSERT_THAT(gc::isMarked(object4.header()), false);
+        ASSERT_THAT(gc::isMarked(object5.header()), false);
+        ASSERT_THAT(gc::isMarked(object6.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(
                 Alive(threadData),
                 testing::UnorderedElementsAre(
                         global.header(), stack.header(), object1.header(), object2.header(), object3.header(), object4.header()));
-        EXPECT_THAT(IsMarked(global.header()), false);
-        EXPECT_THAT(IsMarked(stack.header()), false);
-        EXPECT_THAT(IsMarked(object1.header()), false);
-        EXPECT_THAT(IsMarked(object2.header()), false);
-        EXPECT_THAT(IsMarked(object3.header()), false);
-        EXPECT_THAT(IsMarked(object4.header()), false);
+        EXPECT_THAT(gc::isMarked(global.header()), false);
+        EXPECT_THAT(gc::isMarked(stack.header()), false);
+        EXPECT_THAT(gc::isMarked(object1.header()), false);
+        EXPECT_THAT(gc::isMarked(object2.header()), false);
+        EXPECT_THAT(gc::isMarked(object3.header()), false);
+        EXPECT_THAT(gc::isMarked(object4.header()), false);
     });
 }
 
@@ -606,12 +604,12 @@ TEST_F(SameThreadMarkAndSweepTest, PermanentObjects) {
         global2->field1 = global1.header();
 
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(global2.header()));
-        EXPECT_THAT(IsMarked(global2.header()), false);
+        EXPECT_THAT(gc::isMarked(global2.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre(global2.header()));
-        EXPECT_THAT(IsMarked(global2.header()), false);
+        EXPECT_THAT(gc::isMarked(global2.header()), false);
     });
 }
 
@@ -625,14 +623,14 @@ TEST_F(SameThreadMarkAndSweepTest, SameObjectInRootSet) {
 
         ASSERT_THAT(global.header(), stack.header());
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(global.header(), object.header()));
-        EXPECT_THAT(IsMarked(global.header()), false);
-        EXPECT_THAT(IsMarked(object.header()), false);
+        EXPECT_THAT(gc::isMarked(global.header()), false);
+        EXPECT_THAT(gc::isMarked(object.header()), false);
 
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre(global.header(), object.header()));
-        EXPECT_THAT(IsMarked(global.header()), false);
-        EXPECT_THAT(IsMarked(object.header()), false);
+        EXPECT_THAT(gc::isMarked(global.header()), false);
+        EXPECT_THAT(gc::isMarked(object.header()), false);
     });
 }
 
@@ -724,18 +722,19 @@ TEST_F(SameThreadMarkAndSweepTest, MultipleMutatorsCollect) {
                 .wait();
     }
 
-    std_support::vector<std::future<void>> gcFutures(kDefaultThreadCount);
+    std_support::vector<std::future<void>> gcFutures;
 
-    gcFutures[0] = mutators[0].Execute(
-            [](mm::ThreadData& threadData, Mutator& mutator) { threadData.gc().ScheduleAndWaitFullGCWithFinalizers(); });
-
-    // Spin until thread suspension is requested.
-    while (!mm::IsThreadSuspensionRequested()) {
+    std::atomic<bool> gcDone = false;
+    for (auto& mutator : mutators) {
+        gcFutures.emplace_back(mutator.Execute([&](mm::ThreadData& threadData, Mutator& mutator) noexcept {
+            while (!gcDone.load(std::memory_order_relaxed)) {
+                mm::safePoint(threadData);
+            }
+        }));
     }
 
-    for (int i = 1; i < kDefaultThreadCount; ++i) {
-        gcFutures[i] = mutators[i].Execute([](mm::ThreadData& threadData, Mutator& mutator) { mm::safePoint(threadData); });
-    }
+    mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
+    gcDone.store(true, std::memory_order_relaxed);
 
     for (auto& future : gcFutures) {
         future.wait();
@@ -780,15 +779,15 @@ TEST_F(SameThreadMarkAndSweepTest, MultipleMutatorsAllCollect) {
                 .wait();
     }
 
-    std_support::vector<std::future<void>> gcFutures(kDefaultThreadCount);
+    std_support::vector<std::future<void>> gcFutures;
 
-    for (int i = 0; i < kDefaultThreadCount; ++i) {
-        gcFutures[i] = mutators[i].Execute([](mm::ThreadData& threadData, Mutator& mutator) {
-            threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+    for (auto& mutator : mutators) {
+        gcFutures.emplace_back(mutator.Execute([](mm::ThreadData& threadData, Mutator& mutator) {
+            mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
             // If GC starts before all thread executed line above, two gc will be run
-            // So we are temporary switch threads to native state and then return them back after all GC runs are done
+            // So we temporary switch threads to native state and then return them back after all GC runs are done
             SwitchThreadState(mm::GetMemoryState(), kotlin::ThreadState::kNative);
-        });
+        }));
     }
 
     for (auto& future : gcFutures) {
@@ -843,34 +842,32 @@ TEST_F(SameThreadMarkAndSweepTest, MultipleMutatorsAddToRootSetAfterCollectionRe
         mutator.AddStackRoot(locals[i]);
     };
 
-    mutators[0]
-            .Execute([expandRootSet, allocateInHeap](mm::ThreadData& threadData, Mutator& mutator) {
-                allocateInHeap(threadData, mutator, 0);
-                expandRootSet(threadData, mutator, 0);
-            })
-            .wait();
-
     // Allocate everything in heap before scheduling the GC.
-    for (int i = 1; i < kDefaultThreadCount; ++i) {
+    for (int i = 0; i < kDefaultThreadCount; ++i) {
         mutators[i]
                 .Execute([allocateInHeap, i](mm::ThreadData& threadData, Mutator& mutator) { allocateInHeap(threadData, mutator, i); })
                 .wait();
     }
 
-    std_support::vector<std::future<void>> gcFutures(kDefaultThreadCount);
-    gcFutures[0] = mutators[0].Execute(
-            [](mm::ThreadData& threadData, Mutator& mutator) { threadData.gc().ScheduleAndWaitFullGCWithFinalizers(); });
+    std_support::vector<std::future<void>> gcFutures;
+    auto epoch = mm::GlobalData::Instance().gc().Schedule();
+    std::atomic<bool> gcDone = false;
 
     // Spin until thread suspension is requested.
     while (!mm::IsThreadSuspensionRequested()) {
     }
 
-    for (int i = 1; i < kDefaultThreadCount; ++i) {
-        gcFutures[i] = mutators[i].Execute([i, expandRootSet](mm::ThreadData& threadData, Mutator& mutator) {
+    for (int i = 0; i < kDefaultThreadCount; ++i) {
+        gcFutures.emplace_back(mutators[i].Execute([&gcDone, i, expandRootSet](mm::ThreadData& threadData, Mutator& mutator) {
             expandRootSet(threadData, mutator, i);
-            mm::safePoint(threadData);
-        });
+            while (!gcDone.load(std::memory_order_relaxed)) {
+                mm::safePoint(threadData);
+            }
+        }));
     }
+
+    mm::GlobalData::Instance().gc().WaitFinalizers(epoch);
+    gcDone.store(true, std::memory_order_relaxed);
 
     for (auto& future : gcFutures) {
         future.wait();
@@ -922,18 +919,19 @@ TEST_F(SameThreadMarkAndSweepTest, CrossThreadReference) {
                 .wait();
     }
 
-    std_support::vector<std::future<void>> gcFutures(kDefaultThreadCount);
+    std_support::vector<std::future<void>> gcFutures;
 
-    gcFutures[0] = mutators[0].Execute(
-            [](mm::ThreadData& threadData, Mutator& mutator) { threadData.gc().ScheduleAndWaitFullGCWithFinalizers(); });
-
-    // Spin until thread suspension is requested.
-    while (!mm::IsThreadSuspensionRequested()) {
+    std::atomic<bool> gcDone = false;
+    for (auto& mutator : mutators) {
+        gcFutures.emplace_back(mutator.Execute([&](mm::ThreadData& threadData, Mutator& mutator) noexcept {
+            while (!gcDone.load(std::memory_order_relaxed)) {
+                mm::safePoint(threadData);
+            }
+        }));
     }
 
-    for (int i = 1; i < kDefaultThreadCount; ++i) {
-        gcFutures[i] = mutators[i].Execute([](mm::ThreadData& threadData, Mutator& mutator) { mm::safePoint(threadData); });
-    }
+    mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
+    gcDone.store(true, std::memory_order_relaxed);
 
     for (auto& future : gcFutures) {
         future.wait();
@@ -983,23 +981,25 @@ TEST_F(SameThreadMarkAndSweepTest, MultipleMutatorsWeaks) {
         mutators[i].Execute([](mm::ThreadData& threadData, Mutator& mutator) {}).wait();
     }
 
-    std_support::vector<std::future<void>> gcFutures(kDefaultThreadCount);
-
-    gcFutures[0] = mutators[0].Execute([weak](mm::ThreadData& threadData, Mutator& mutator) {
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
-        EXPECT_THAT(weak->get(), nullptr);
-    });
+    std_support::vector<std::future<void>> gcFutures;
+    auto epoch = mm::GlobalData::Instance().gc().Schedule();
+    std::atomic<bool> gcDone = false;
 
     // Spin until thread suspension is requested.
     while (!mm::IsThreadSuspensionRequested()) {
     }
 
-    for (int i = 1; i < kDefaultThreadCount; ++i) {
-        gcFutures[i] = mutators[i].Execute([weak](mm::ThreadData& threadData, Mutator& mutator) {
-            mm::safePoint(threadData);
-            EXPECT_THAT(weak->get(), nullptr);
-        });
+    for (auto& mutator : mutators) {
+        gcFutures.emplace_back(mutator.Execute([&](mm::ThreadData& threadData, Mutator& mutator) noexcept {
+            while (!gcDone.load(std::memory_order_relaxed)) {
+                mm::safePoint(threadData);
+                EXPECT_THAT(weak->get(), nullptr);
+            }
+        }));
     }
+
+    mm::GlobalData::Instance().gc().WaitFinalizers(epoch);
+    gcDone.store(true, std::memory_order_relaxed);
 
     for (auto& future : gcFutures) {
         future.wait();
@@ -1007,6 +1007,52 @@ TEST_F(SameThreadMarkAndSweepTest, MultipleMutatorsWeaks) {
 
     for (auto& mutator : mutators) {
         EXPECT_THAT(mutator.Alive(), testing::UnorderedElementsAre(globalRoot, weak->header()));
+    }
+}
+
+TEST_F(SameThreadMarkAndSweepTest, MultipleMutatorsWeakNewObj) {
+    std_support::vector<Mutator> mutators(kDefaultThreadCount);
+
+    // Make sure all mutators are initialized.
+    for (int i = 0; i < kDefaultThreadCount; ++i) {
+        mutators[i].Execute([](mm::ThreadData& threadData, Mutator& mutator) {}).wait();
+    }
+
+    std_support::vector<std::future<void>> gcFutures;
+    auto epoch = mm::GlobalData::Instance().gc().Schedule();
+    std::atomic<bool> gcDone = false;
+
+    // Spin until thread suspension is requested.
+    while (!mm::IsThreadSuspensionRequested()) {
+    }
+
+    for (auto& mutator : mutators) {
+        gcFutures.emplace_back(mutator.Execute([&](mm::ThreadData& threadData, Mutator& mutator) noexcept {
+            mm::safePoint(threadData);
+
+            auto& object = AllocateObject(threadData);
+            auto& objectWeak = ([&threadData, &object]() -> test_support::RegularWeakReferenceImpl& {
+                ObjHolder holder;
+                return InstallWeakReference(threadData, object.header(), holder.slot());
+            })();
+            EXPECT_NE(objectWeak.get(), nullptr);
+
+            auto& extraObj = *mm::ExtraObjectData::Get(object.header());
+            extraObj.ClearRegularWeakReferenceImpl();
+            extraObj.Uninstall();
+            mm::GlobalData::Instance().gc().DestroyExtraObjectData(extraObj);
+
+            while (!gcDone.load(std::memory_order_relaxed)) {
+                mm::safePoint(threadData);
+            }
+        }));
+    }
+
+    mm::GlobalData::Instance().gc().WaitFinalizers(epoch);
+    gcDone.store(true, std::memory_order_relaxed);
+
+    for (auto& future : gcFutures) {
+        future.wait();
     }
 }
 
@@ -1035,10 +1081,9 @@ TEST_F(SameThreadMarkAndSweepTest, NewThreadsWhileRequestingCollection) {
                 .wait();
     }
 
-    std_support::vector<std::future<void>> gcFutures(kDefaultThreadCount);
-
-    gcFutures[0] = mutators[0].Execute(
-            [](mm::ThreadData& threadData, Mutator& mutator) { threadData.gc().ScheduleAndWaitFullGCWithFinalizers(); });
+    std_support::vector<std::future<void>> gcFutures;
+    auto epoch = mm::GlobalData::Instance().gc().Schedule();
+    std::atomic<bool> gcDone = false;
 
     // Spin until thread suspension is requested.
     while (!mm::IsThreadSuspensionRequested()) {
@@ -1049,13 +1094,26 @@ TEST_F(SameThreadMarkAndSweepTest, NewThreadsWhileRequestingCollection) {
     std_support::vector<std::future<void>> attachFutures(kDefaultThreadCount);
 
     for (int i = 0; i < kDefaultThreadCount; ++i) {
-        attachFutures[i] = newMutators[i].Execute([i, expandRootSet](mm::ThreadData& threadData, Mutator& mutator) { expandRootSet(threadData, mutator, i + kDefaultThreadCount); });
+        attachFutures[i] = newMutators[i].Execute([&gcDone, i, expandRootSet](mm::ThreadData& threadData, Mutator& mutator) {
+            expandRootSet(threadData, mutator, i + kDefaultThreadCount);
+            while (!gcDone.load(std::memory_order_relaxed)) {
+                mm::safePoint(threadData);
+            }
+        });
     }
 
     // All the other threads are stopping at safe points.
-    for (int i = 1; i < kDefaultThreadCount; ++i) {
-        gcFutures[i] = mutators[i].Execute([](mm::ThreadData& threadData, Mutator& mutator) { mm::safePoint(threadData); });
+    for (auto& mutator : mutators) {
+        gcFutures.emplace_back(mutator.Execute([&gcDone](mm::ThreadData& threadData, Mutator& mutator) {
+            while (!gcDone.load(std::memory_order_relaxed)) {
+                mm::safePoint(threadData);
+            }
+        }));
     }
+
+    // Wait for the GC to be done.
+    mm::GlobalData::Instance().gc().WaitFinalizers(epoch);
+    gcDone.store(true, std::memory_order_relaxed);
 
     // GC will be completed first
     for (auto& future : gcFutures) {
@@ -1067,28 +1125,38 @@ TEST_F(SameThreadMarkAndSweepTest, NewThreadsWhileRequestingCollection) {
         future.wait();
     }
 
-    // Old mutators don't even see alive objects from the new threads yet (as the latter ones have not published anything).
-
     std_support::vector<ObjHeader*> expectedAlive;
     for (int i = 0; i < kDefaultThreadCount; ++i) {
         expectedAlive.push_back(globals[i]);
         expectedAlive.push_back(locals[i]);
         expectedAlive.push_back(reachables[i]);
-    }
-
-    for (auto& mutator : mutators) {
-        EXPECT_THAT(mutator.Alive(), testing::UnorderedElementsAreArray(expectedAlive));
-    }
-
-    for (int i = 0; i < kDefaultThreadCount; ++i) {
-        std_support::vector<ObjHeader*> aliveForThisThread(expectedAlive.begin(), expectedAlive.end());
-        aliveForThisThread.push_back(globals[kDefaultThreadCount + i]);
-        aliveForThisThread.push_back(locals[kDefaultThreadCount + i]);
-        aliveForThisThread.push_back(reachables[kDefaultThreadCount + i]);
+        expectedAlive.push_back(globals[kDefaultThreadCount + i]);
+        expectedAlive.push_back(locals[kDefaultThreadCount + i]);
+        expectedAlive.push_back(reachables[kDefaultThreadCount + i]);
         // Unreachables for new threads were not collected.
-        aliveForThisThread.push_back(unreachables[kDefaultThreadCount + i]);
-        EXPECT_THAT(newMutators[i].Alive(), testing::UnorderedElementsAreArray(aliveForThisThread));
+        expectedAlive.push_back(unreachables[kDefaultThreadCount + i]);
     }
+
+#ifndef CUSTOM_ALLOCATOR
+    // Force mutators to publish their internal heaps
+    std_support::vector<std::future<void>> publishFutures;
+    for (auto& mutator: mutators) {
+        publishFutures.emplace_back(mutator.Execute([](mm::ThreadData& threadData, Mutator& mutator) {
+            threadData.gc().PublishObjectFactory();
+        }));
+    }
+    for (auto& mutator: newMutators) {
+        publishFutures.emplace_back(mutator.Execute([](mm::ThreadData& threadData, Mutator& mutator) {
+            threadData.gc().PublishObjectFactory();
+        }));
+    }
+    for (auto& future : publishFutures) {
+        future.wait();
+    }
+#endif
+
+    // All threads see the same alive objects, enough to check a single mutator.
+    EXPECT_THAT(mutators[0].Alive(), testing::UnorderedElementsAreArray(expectedAlive));
 }
 
 
@@ -1104,23 +1172,23 @@ TEST_F(SameThreadMarkAndSweepTest, FreeObjectWithFreeWeakReversedOrder) {
         global1->field1 = object1_local.header();
         while (weak.load() == nullptr)
             ;
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         ASSERT_THAT(Alive(threadData), testing::UnorderedElementsAre(object1_local.header(), weak.load()->header(), global1.header()));
-        ASSERT_THAT(IsMarked(global1.header()), false);
-        ASSERT_THAT(IsMarked(object1_local.header()), false);
-        ASSERT_THAT(IsMarked(weak.load()->header()), false);
+        ASSERT_THAT(gc::isMarked(global1.header()), false);
+        ASSERT_THAT(gc::isMarked(object1_local.header()), false);
+        ASSERT_THAT(gc::isMarked(weak.load()->header()), false);
         ASSERT_THAT(weak.load()->get(), object1_local.header());
 
         global1->field1 = nullptr;
 
         EXPECT_CALL(finalizerHook(), Call(weak.load()->header()));
-        threadData.gc().ScheduleAndWaitFullGCWithFinalizers();
+        mm::GlobalData::Instance().gcScheduler().scheduleAndWaitFinalized();
 
         EXPECT_THAT(Alive(threadData), testing::UnorderedElementsAre(global1.header()));
         done = true;
     });
-    
+
     auto f1 = mutators[1].Execute([&](mm::ThreadData& threadData, Mutator &) {
         while (object1.load() == nullptr) {}
         ObjHolder holder;

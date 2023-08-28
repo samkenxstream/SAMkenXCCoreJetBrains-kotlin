@@ -12,7 +12,6 @@ import org.gradle.api.attributes.Category
 import org.gradle.api.attributes.Category.CATEGORY_ATTRIBUTE
 import org.gradle.api.attributes.Usage.USAGE_ATTRIBUTE
 import org.gradle.api.file.FileCollection
-import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.bundling.Jar
@@ -36,6 +35,7 @@ import org.jetbrains.kotlin.gradle.tasks.registerTask
 import org.jetbrains.kotlin.gradle.utils.*
 import org.jetbrains.kotlin.statistics.metrics.BooleanMetrics
 import org.jetbrains.kotlin.tooling.core.extrasLazyProperty
+import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 
 internal const val COMMON_MAIN_ELEMENTS_CONFIGURATION_NAME = "commonMainMetadataElements"
 
@@ -79,7 +79,8 @@ class KotlinMetadataTargetConfigurator :
                     // it isn't necessary for KLib compilations
                     // see [KotlinCompilationSourceSetInclusion.AddSourcesWithoutDependsOnClosure]
                     defaultSourceSet.internal.dependsOnClosure.forAll {
-                        source(it)
+                        @Suppress("DEPRECATION")
+                        addSourceSet(it)
                     }
                 } else {
                     // Clear the dependencies of the compilation so that they don't take time resolving during task graph construction:
@@ -151,6 +152,10 @@ class KotlinMetadataTargetConfigurator :
             if (target.project.isCompatibilityMetadataVariantEnabled) {
                 allMetadataJar.archiveClassifier.set("all")
             }
+
+            target.disambiguationClassifier?.let { classifier ->
+                allMetadataJar.archiveAppendix.set(classifier.toLowerCaseAsciiOnly())
+            }
         }
 
         if (target.project.isCompatibilityMetadataVariantEnabled) {
@@ -183,7 +188,7 @@ class KotlinMetadataTargetConfigurator :
 
     private fun createMetadataCompilationsForCommonSourceSets(
         target: KotlinMetadataTarget,
-        allMetadataJar: TaskProvider<out Jar>
+        allMetadataJar: TaskProvider<out Jar>,
     ) = target.project.launchInStage(KotlinPluginLifecycle.Stage.AfterFinaliseDsl) {
         withRestrictedStages(KotlinPluginLifecycle.Stage.upTo(KotlinPluginLifecycle.Stage.FinaliseCompilations)) {
             // Do this after all targets are configured by the user build script
@@ -249,7 +254,7 @@ class KotlinMetadataTargetConfigurator :
     }
 
     private fun exportDependenciesForPublishing(
-        compilation: KotlinCompilation<*>
+        compilation: KotlinCompilation<*>,
     ) {
         val sourceSet = compilation.defaultSourceSet
         val isSharedNativeCompilation = compilation is KotlinSharedNativeCompilation
@@ -289,7 +294,7 @@ class KotlinMetadataTargetConfigurator :
         target: KotlinMetadataTarget,
         sourceSet: KotlinSourceSet,
         allMetadataJar: TaskProvider<out Jar>,
-        isHostSpecific: Boolean
+        isHostSpecific: Boolean,
     ): KotlinCompilation<*> {
         val project = target.project
 
@@ -327,15 +332,6 @@ class KotlinMetadataTargetConfigurator :
                     // Also clear the dependency files (classpath) of the compilation so that the host-specific dependencies are
                     // not resolved:
                     compileDependencyFiles = project.files()
-                }
-            }
-
-            target.project.runOnceAfterEvaluated("Sync common compilation language settings to compiler options") {
-                target.compilations.all { compilation ->
-                    applyLanguageSettingsToCompilerOptions(
-                        compilation.defaultSourceSet.languageSettings,
-                        compilation.compilerOptions.options
-                    )
                 }
             }
         }
@@ -395,7 +391,7 @@ class KotlinMetadataTargetConfigurator :
 }
 
 internal class NativeSharedCompilationProcessor(
-    private val compilation: KotlinSharedNativeCompilation
+    private val compilation: KotlinSharedNativeCompilation,
 ) : KotlinCompilationProcessor<KotlinNativeCompile>(KotlinCompilationInfo(compilation)) {
 
     override val kotlinTask: TaskProvider<out KotlinNativeCompile> =
@@ -475,18 +471,14 @@ internal suspend fun getCommonSourceSetsForMetadataCompilation(project: Project)
 internal suspend fun getPublishedPlatformCompilations(project: Project): Map<KotlinUsageContext, KotlinCompilation<*>> {
     val result = mutableMapOf<KotlinUsageContext, KotlinCompilation<*>>()
 
-    project.multiplatformExtension.awaitTargets().withType(AbstractKotlinTarget::class.java).forEach { target ->
+    project.multiplatformExtension.awaitTargets().withType(InternalKotlinTarget::class.java).forEach { target ->
         if (target.platformType == KotlinPlatformType.common)
             return@forEach
 
         target.kotlinComponents
-            .filterIsInstance<SoftwareComponentInternal>()
-            .forEach { component ->
-                component.usages
-                    .filterIsInstance<KotlinUsageContext>()
-                    .filter { it.includeIntoProjectStructureMetadata }
-                    .forEach { usage -> result[usage] = usage.compilation }
-            }
+            .flatMap { component -> component.internal.usages }
+            .filter { it.includeIntoProjectStructureMetadata }
+            .forEach { usage -> result[usage] = usage.compilation }
     }
 
     return result

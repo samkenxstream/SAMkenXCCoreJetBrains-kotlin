@@ -9,17 +9,15 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.FirDesignation
 import org.jetbrains.kotlin.analysis.low.level.api.fir.project.structure.llFirModuleData
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.codeFragment
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.errorWithFirSpecificEntries
-import org.jetbrains.kotlin.analysis.utils.errors.buildErrorWithAttachment
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
 import org.jetbrains.kotlin.analysis.utils.errors.withPsiEntry
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.builder.BodyBuildingMode
 import org.jetbrains.kotlin.fir.builder.PsiRawFirBuilder
 import org.jetbrains.kotlin.fir.declarations.*
-import org.jetbrains.kotlin.fir.declarations.builder.FirBackingFieldBuilder
-import org.jetbrains.kotlin.fir.declarations.builder.FirFunctionBuilder
-import org.jetbrains.kotlin.fir.declarations.builder.FirPropertyAccessorBuilder
-import org.jetbrains.kotlin.fir.declarations.builder.FirPropertyBuilder
 import org.jetbrains.kotlin.fir.declarations.utils.isInner
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirMultiDelegatedConstructorCall
@@ -27,6 +25,7 @@ import org.jetbrains.kotlin.fir.references.FirSuperReference
 import org.jetbrains.kotlin.fir.scopes.FirScopeProvider
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.types.FirResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.FirTypeRef
 import org.jetbrains.kotlin.name.NameUtils
@@ -38,108 +37,38 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
     session: FirSession,
     baseScopeProvider: FirScopeProvider,
     private val originalDeclaration: FirDeclaration,
-    private val declarationToBuild: KtDeclaration,
+    private val declarationToBuild: KtElement,
     private val functionsToRebind: Set<FirFunction>? = null,
     private val replacementApplier: RawFirReplacement.Applier? = null,
-    private val additionalFunctionInit: FirFunctionBuilder.() -> Unit = {},
-    private val additionalPropertyInit: FirPropertyBuilder.() -> Unit = {},
-    private val additionalAccessorInit: FirPropertyAccessorBuilder.() -> Unit = {},
-    private val additionalBackingFieldInit: FirBackingFieldBuilder.() -> Unit = {},
 ) : PsiRawFirBuilder(session, baseScopeProvider, bodyBuildingMode = BodyBuildingMode.NORMAL) {
-    override fun FirFunctionBuilder.additionalFunctionInit() {
-        additionalFunctionInit.invoke(this)
-    }
-
-    override fun FirPropertyBuilder.additionalPropertyInit() {
-        additionalPropertyInit.invoke(this)
-    }
-
-    override fun FirPropertyAccessorBuilder.additionalPropertyAccessorInit() {
-        additionalAccessorInit.invoke(this)
-    }
-
-    override fun FirBackingFieldBuilder.additionalBackingFieldInit() {
-        additionalBackingFieldInit.invoke(this)
-    }
-
     companion object {
         fun buildNewFile(
             session: FirSession,
             scopeProvider: FirScopeProvider,
             file: KtFile,
         ): FirFile {
-            val builder = PsiRawFirBuilder(session, scopeProvider, bodyBuildingMode = BodyBuildingMode.LAZY_BODIES)
+            val builder = PsiRawFirBuilder(session, scopeProvider, bodyBuildingMode = BodyBuildingMode.NORMAL)
             return builder.buildFirFile(file)
-        }
-
-        fun buildNewSimpleFunction(
-            session: FirSession,
-            scopeProvider: FirScopeProvider,
-            designation: FirDesignation,
-            newFunction: KtNamedFunction,
-            additionalFunctionInit: FirFunctionBuilder.() -> Unit,
-        ): FirSimpleFunction {
-            val builder = RawFirNonLocalDeclarationBuilder(
-                session = session,
-                baseScopeProvider = scopeProvider,
-                originalDeclaration = designation.target as FirDeclaration,
-                declarationToBuild = newFunction,
-                additionalFunctionInit = additionalFunctionInit,
-            )
-
-            builder.context.packageFqName = newFunction.containingKtFile.packageFqName
-            return builder.moveNext(designation.path.iterator(), containingClass = null) as FirSimpleFunction
-        }
-
-        fun buildNewProperty(
-            session: FirSession,
-            scopeProvider: FirScopeProvider,
-            designation: FirDesignation,
-            newProperty: KtProperty,
-            additionalPropertyInit: FirPropertyBuilder.() -> Unit,
-            additionalAccessorInit: FirPropertyAccessorBuilder.() -> Unit,
-            additionalBackingFieldInit: FirBackingFieldBuilder.() -> Unit,
-        ): FirProperty {
-            val builder = RawFirNonLocalDeclarationBuilder(
-                session = session,
-                baseScopeProvider = scopeProvider,
-                originalDeclaration = designation.target as FirDeclaration,
-                declarationToBuild = newProperty,
-                additionalPropertyInit = additionalPropertyInit,
-                additionalAccessorInit = additionalAccessorInit,
-                additionalBackingFieldInit = additionalBackingFieldInit,
-            )
-
-            builder.context.packageFqName = newProperty.containingKtFile.packageFqName
-            return builder.moveNext(designation.path.iterator(), containingClass = null) as FirProperty
         }
 
         fun buildWithReplacement(
             session: FirSession,
             scopeProvider: FirScopeProvider,
             designation: FirDesignation,
-            rootNonLocalDeclaration: KtDeclaration,
-            replacement: RawFirReplacement?
+            rootNonLocalDeclaration: KtElement,
+            replacement: RawFirReplacement?,
         ): FirDeclaration {
             val replacementApplier = replacement?.Applier()
-            val builder = RawFirNonLocalDeclarationBuilder(
-                session = session,
-                baseScopeProvider = scopeProvider,
-                originalDeclaration = designation.target as FirDeclaration,
-                declarationToBuild = rootNonLocalDeclaration,
-                replacementApplier = replacementApplier
-            )
-            builder.context.packageFqName = rootNonLocalDeclaration.containingKtFile.packageFqName
-            return builder.moveNext(designation.path.iterator(), containingClass = null).also {
-                replacementApplier?.ensureApplied()
-            }
+            val result = build(session, scopeProvider, designation, rootNonLocalDeclaration, replacementApplier = replacementApplier)
+            replacementApplier?.ensureApplied()
+            return result
         }
 
         fun buildWithFunctionSymbolRebind(
             session: FirSession,
             scopeProvider: FirScopeProvider,
             designation: FirDesignation,
-            rootNonLocalDeclaration: KtDeclaration,
+            rootNonLocalDeclaration: KtAnnotated,
         ): FirDeclaration {
             val functionsToRebind = when (val originalDeclaration = designation.target) {
                 is FirFunction -> setOf(originalDeclaration)
@@ -147,12 +76,26 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
                 else -> null
             }
 
+            return build(session, scopeProvider, designation, rootNonLocalDeclaration, functionsToRebind)
+        }
+
+        fun build(
+            session: FirSession,
+            scopeProvider: FirScopeProvider,
+            designation: FirDesignation,
+            rootNonLocalDeclaration: KtElement,
+            functionsToRebind: Set<FirFunction>? = null,
+            replacementApplier: RawFirReplacement.Applier? = null
+        ): FirDeclaration {
+            check(rootNonLocalDeclaration is KtDeclaration || rootNonLocalDeclaration is KtCodeFragment)
+
             val builder = RawFirNonLocalDeclarationBuilder(
                 session = session,
                 baseScopeProvider = scopeProvider,
                 originalDeclaration = designation.target as FirDeclaration,
                 declarationToBuild = rootNonLocalDeclaration,
                 functionsToRebind = functionsToRebind,
+                replacementApplier = replacementApplier
             )
             builder.context.packageFqName = rootNonLocalDeclaration.containingKtFile.packageFqName
             return builder.moveNext(designation.path.iterator(), containingClass = null)
@@ -167,7 +110,7 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
     override fun addCapturedTypeParameters(
         status: Boolean,
         declarationSource: KtSourceElement?,
-        currentFirTypeParameters: List<FirTypeParameterRef>
+        currentFirTypeParameters: List<FirTypeParameterRef>,
     ) {
         if (originalDeclaration is FirTypeParameterRefsOwner && declarationSource?.psi == originalDeclaration.psi) {
             super.addCapturedTypeParameters(status, declarationSource, originalDeclaration.typeParameters)
@@ -177,13 +120,19 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
     }
 
     private inner class VisitorWithReplacement(private val containingClass: FirRegularClass?) : Visitor() {
+        fun convertDestructuringDeclaration(element: KtDestructuringDeclaration): FirVariable {
+            val replacementDeclaration = replacementApplier?.tryReplace(element) ?: element
+            requireIsInstance<KtDestructuringDeclaration>(replacementDeclaration)
+            return buildErrorTopLevelDestructuringDeclaration(replacementDeclaration.toFirSourceElement())
+        }
+
         override fun convertElement(element: KtElement, original: FirElement?): FirElement? =
             super.convertElement(replacementApplier?.tryReplace(element) ?: element, original)
 
         override fun convertProperty(
             property: KtProperty,
             ownerRegularOrAnonymousObjectSymbol: FirClassSymbol<*>?,
-            ownerRegularClassTypeParametersCount: Int?
+            ownerRegularClassTypeParametersCount: Int?,
         ): FirProperty {
             val replacementProperty = replacementApplier?.tryReplace(property) ?: property
             check(replacementProperty is KtProperty)
@@ -194,12 +143,40 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
             )
         }
 
+        override fun convertPropertyAccessor(
+            accessor: KtPropertyAccessor?,
+            property: KtProperty,
+            propertyTypeRef: FirTypeRef,
+            propertySymbol: FirPropertySymbol,
+            isGetter: Boolean,
+            accessorAnnotationsFromProperty: List<FirAnnotation>,
+            parameterAnnotationsFromProperty: List<FirAnnotation>,
+        ): FirPropertyAccessor? {
+            val replacementAccessor = if (accessor != null) {
+                val replacementAccessor = replacementApplier?.tryReplace(accessor) ?: accessor
+                check(replacementAccessor is KtPropertyAccessor)
+                replacementAccessor
+            } else {
+                accessor
+            }
+
+            return super.convertPropertyAccessor(
+                replacementAccessor,
+                property,
+                propertyTypeRef,
+                propertySymbol,
+                isGetter,
+                accessorAnnotationsFromProperty,
+                parameterAnnotationsFromProperty
+            )
+        }
+
         override fun convertValueParameter(
             valueParameter: KtParameter,
             functionSymbol: FirFunctionSymbol<*>,
             defaultTypeRef: FirTypeRef?,
             valueParameterDeclaration: ValueParameterDeclaration,
-            additionalAnnotations: List<FirAnnotation>
+            additionalAnnotations: List<FirAnnotation>,
         ): FirValueParameter {
             val replacementParameter = replacementApplier?.tryReplace(valueParameter) ?: valueParameter
             check(replacementParameter is KtParameter)
@@ -214,11 +191,11 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
 
         private fun extractContructorConversionParams(
             classOrObject: KtClassOrObject,
-            constructor: KtConstructor<*>?
+            constructor: KtConstructor<*>?,
         ): ConstructorConversionParams {
             val typeParameters = mutableListOf<FirTypeParameterRef>()
             context.appendOuterTypeParameters(ignoreLastLevel = false, typeParameters)
-            val containingClass = this.containingClass ?: buildErrorWithAttachment("Constructor outside of class") {
+            val containingClass = this.containingClass ?: errorWithAttachment("Constructor outside of class") {
                 withPsiEntry("constructor", constructor, baseSession.llFirModuleData.ktModule)
             }
             val selfType = classOrObject.toDelegatedSelfType(typeParameters, containingClass.symbol)
@@ -231,7 +208,7 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
             val classOrObject = constructor.getContainingClassOrObject()
             val params = extractContructorConversionParams(classOrObject, constructor)
             val delegatedTypeRef = (originalDeclaration as FirConstructor).delegatedConstructor?.constructedTypeRef
-                ?: buildErrorWithAttachment("Secondary constructor without delegated call") {
+                ?: errorWithAttachment("Secondary constructor without delegated call") {
                     withPsiEntry("constructor", constructor, baseSession.llFirModuleData.ktModule)
                 }
             return constructor.toFirConstructor(
@@ -283,7 +260,7 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
             processPrimaryConstructor(constructor.getContainingClassOrObject(), constructor)
 
         override fun visitEnumEntry(enumEntry: KtEnumEntry, data: FirElement?): FirElement {
-            val owner = containingClass ?: buildErrorWithAttachment("Enum entry outside of class") {
+            val owner = containingClass ?: errorWithAttachment("Enum entry outside of class") {
                 withPsiEntry("enumEntry", enumEntry, baseSession.llFirModuleData.ktModule)
             }
             val classOrObject = owner.psi as KtClassOrObject
@@ -338,6 +315,11 @@ internal class RawFirNonLocalDeclarationBuilder private constructor(
                         originalDeclaration is FirField -> visitor.processField(declarationToBuild, originalDeclaration)
                         else -> visitor.convertElement(declarationToBuild, originalDeclaration)
                     }
+                }
+                is KtDestructuringDeclaration -> visitor.convertDestructuringDeclaration(declarationToBuild)
+                is KtCodeFragment -> {
+                    val firFile = visitor.convertElement(declarationToBuild, originalDeclaration) as FirFile
+                    firFile.codeFragment
                 }
                 else -> visitor.convertElement(declarationToBuild, originalDeclaration)
             } as FirDeclaration

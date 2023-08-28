@@ -9,7 +9,6 @@ import kotlinx.collections.immutable.PersistentList
 import kotlinx.collections.immutable.persistentListOf
 import kotlinx.collections.immutable.toPersistentList
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.labelName
 import org.jetbrains.kotlin.fir.resolve.*
 import org.jetbrains.kotlin.fir.resolve.calls.*
@@ -23,8 +22,10 @@ import org.jetbrains.kotlin.fir.types.ConeErrorType
 import org.jetbrains.kotlin.fir.types.ConeKotlinType
 import org.jetbrains.kotlin.fir.types.ConeStubType
 import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.utils.exceptions.withConeTypeEntry
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.addIfNotNull
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 fun SessionHolder.collectImplicitReceivers(
     type: ConeKotlinType?,
@@ -269,18 +270,24 @@ class FirTowerDataElement(
      *
      * Note that a scope for a companion object is an implicit scope.
      */
-    fun getAvailableScopes(): List<FirScope> = when {
+    fun getAvailableScopes(
+        processTypeScope: FirTypeScope.(ConeKotlinType) -> FirTypeScope = { this },
+    ): List<FirScope> = when {
         scope != null -> listOf(scope)
-        implicitReceiver != null -> listOf(implicitReceiver.getImplicitScope())
-        contextReceiverGroup != null -> contextReceiverGroup.map { it.getImplicitScope() }
+        implicitReceiver != null -> listOf(implicitReceiver.getImplicitScope(processTypeScope))
+        contextReceiverGroup != null -> contextReceiverGroup.map { it.getImplicitScope(processTypeScope) }
         else -> error("Tower data element is expected to have either scope or implicit receivers.")
     }
 
-    private fun ImplicitReceiverValue<*>.getImplicitScope(): FirScope {
-        return when (type.fullyExpandedType(useSiteSession)) {
+    private fun ImplicitReceiverValue<*>.getImplicitScope(
+        processTypeScope: FirTypeScope.(ConeKotlinType) -> FirTypeScope,
+    ): FirScope {
+        return when (val type = type.fullyExpandedType(useSiteSession)) {
             is ConeErrorType,
             is ConeStubType -> FirTypeScope.Empty
-            else -> implicitScope ?: error("Scope for type ${type::class.simpleName} is null.")
+            else -> implicitScope?.processTypeScope(type) ?: errorWithAttachment("Scope for type ${type::class.simpleName} is null") {
+                withConeTypeEntry("type", type)
+            }
         }
     }
 }

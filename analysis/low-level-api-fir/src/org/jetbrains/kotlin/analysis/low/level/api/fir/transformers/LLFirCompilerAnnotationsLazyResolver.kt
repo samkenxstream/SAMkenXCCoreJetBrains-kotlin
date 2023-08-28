@@ -11,28 +11,28 @@ import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.asResolveTarg
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.throwUnexpectedFirElementError
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirLockProvider
 import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.FirLazyBodiesCalculator
-import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.LLFirPhaseUpdater
 import org.jetbrains.kotlin.analysis.low.level.api.fir.sessions.llFirSession
 import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkDeprecationProviderIsResolved
-import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkPhase
 import org.jetbrains.kotlin.analysis.utils.errors.requireIsInstance
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.FirFileAnnotationsContainer
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.PrivateForInline
+import org.jetbrains.kotlin.util.PrivateForInline
 import org.jetbrains.kotlin.fir.caches.firCachesFactory
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
 import org.jetbrains.kotlin.fir.expressions.FirAnnotationCall
 import org.jetbrains.kotlin.fir.expressions.builder.buildAnnotationCallCopy
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirTowerDataContextCollector
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirResolveContextCollector
 import org.jetbrains.kotlin.fir.resolve.transformers.plugin.CompilerRequiredAnnotationsComputationSession
 import org.jetbrains.kotlin.fir.resolve.transformers.plugin.FirCompilerRequiredAnnotationsResolveTransformer
 import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.FirUserTypeRef
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.forEachDependentDeclaration
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.isScriptDependentDeclaration
 
 internal object LLFirCompilerAnnotationsLazyResolver : LLFirLazyResolver(FirResolvePhase.COMPILER_REQUIRED_ANNOTATIONS) {
     override fun resolve(
@@ -40,24 +40,17 @@ internal object LLFirCompilerAnnotationsLazyResolver : LLFirLazyResolver(FirReso
         lockProvider: LLFirLockProvider,
         session: FirSession,
         scopeSession: ScopeSession,
-        towerDataContextCollector: FirTowerDataContextCollector?,
+        towerDataContextCollector: FirResolveContextCollector?,
     ) {
         val resolver = LLFirCompilerRequiredAnnotationsTargetResolver(target, lockProvider, session, scopeSession)
         resolver.resolveDesignation()
     }
 
-    override fun updatePhaseForDeclarationInternals(target: FirElementWithResolveState) {
-        LLFirPhaseUpdater.updateDeclarationInternalsPhase(target, resolverPhase, updateForLocalDeclarations = false)
-    }
-
-    override fun checkIsResolved(target: FirElementWithResolveState) {
-        target.checkPhase(resolverPhase)
+    override fun phaseSpecificCheckIsResolved(target: FirElementWithResolveState) {
         when (target) {
             is FirClassLikeDeclaration -> checkDeprecationProviderIsResolved(target, target.deprecationsProvider)
             is FirCallableDeclaration -> checkDeprecationProviderIsResolved(target, target.deprecationsProvider)
         }
-
-        checkNestedDeclarationsAreResolved(target)
     }
 }
 
@@ -100,27 +93,38 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
         get() = transformer.annotationTransformer.computationSession as LLFirCompilerRequiredAnnotationsComputationSession
 
     override fun withFile(firFile: FirFile, action: () -> Unit) {
-        transformer.annotationTransformer.withFileAndFileScopes(firFile) {
-            action()
-        }
+        transformer.annotationTransformer.withFileAndFileScopes(firFile, action)
     }
 
     @Deprecated("Should never be called directly, only for override purposes, please use withRegularClass", level = DeprecationLevel.ERROR)
     override fun withRegularClassImpl(firClass: FirRegularClass, action: () -> Unit) {
-        transformer.annotationTransformer.withRegularClass(firClass) {
-            action()
-        }
+        transformer.annotationTransformer.withRegularClass(firClass, action)
     }
 
     override fun doResolveWithoutLock(target: FirElementWithResolveState): Boolean {
-        if (target !is FirRegularClass && !target.isRegularDeclarationWithAnnotation) {
-            throwUnexpectedFirElementError(target)
+        if (target is FirFile) {
+            resolveFileAnnotationContainerIfNeeded(target)
+            return false
+        }
+
+        when (target) {
+            is FirRegularClass, is FirScript, is FirCodeFragment -> {}
+            else -> {
+                if (!target.isRegularDeclarationWithAnnotation) {
+                    throwUnexpectedFirElementError(target)
+                }
+            }
         }
 
         requireIsInstance<FirAnnotationContainer>(target)
         resolveTargetDeclaration(target)
 
         return true
+    }
+
+    override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {
+        if (target is FirFile) return
+        throwUnexpectedFirElementError(target)
     }
 
     private fun <T> resolveTargetDeclaration(target: T) where T : FirAnnotationContainer, T : FirElementWithResolveState {
@@ -245,6 +249,8 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
                     target.setter?.let(::publishResult)
                     target.backingField?.let(::publishResult)
                 }
+
+                is FirScript -> target.forEachDependentDeclaration(::publishResult)
             }
         }
     }
@@ -266,6 +272,10 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
                 getter?.annotationsForTransformationTo(map)
                 setter?.annotationsForTransformationTo(map)
                 backingField?.annotationsForTransformationTo(map)
+            }
+
+            is FirScript -> {
+                forEachDependentDeclaration { it.annotationsForTransformationTo(map) }
             }
         }
 
@@ -302,10 +312,6 @@ private class LLFirCompilerRequiredAnnotationsTargetResolver(
             map[this] = containerForAnnotations
         }
     }
-
-    override fun doLazyResolveUnderLock(target: FirElementWithResolveState) {
-        throwUnexpectedFirElementError(target)
-    }
 }
 
 private fun FirAnnotationContainer.hasAnnotationsToResolve(): Boolean {
@@ -317,6 +323,7 @@ private fun FirAnnotationContainer.hasAnnotationsToResolve(): Boolean {
                 this.setter?.hasAnnotationsToResolve() == true ||
                 this.backingField?.hasAnnotationsToResolve() == true
 
+        is FirScript -> statements.any { it.isScriptDependentDeclaration && it.hasAnnotationsToResolve() }
         else -> false
     }
 }

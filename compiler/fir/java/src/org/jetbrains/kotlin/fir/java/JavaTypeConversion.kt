@@ -16,11 +16,14 @@ import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.impl.ConeTypeParameterTypeImpl
 import org.jetbrains.kotlin.fir.types.jvm.FirJavaTypeRef
 import org.jetbrains.kotlin.fir.types.jvm.buildJavaTypeRef
+import org.jetbrains.kotlin.fir.utils.exceptions.withConeTypeEntry
 import org.jetbrains.kotlin.load.java.structure.*
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.utils.addToStdlib.runUnless
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
 
 private fun ClassId.toConeFlexibleType(
     typeArguments: Array<out ConeTypeProjection>,
@@ -33,12 +36,12 @@ private fun ClassId.toConeFlexibleType(
     )
 }
 
-internal enum class FirJavaTypeConversionMode {
+enum class FirJavaTypeConversionMode {
     DEFAULT, ANNOTATION_MEMBER, SUPERTYPE,
     TYPE_PARAMETER_BOUND_FIRST_ROUND, TYPE_PARAMETER_BOUND_AFTER_FIRST_ROUND
 }
 
-internal fun FirTypeRef.resolveIfJavaType(
+fun FirTypeRef.resolveIfJavaType(
     session: FirSession, javaTypeParameterStack: JavaTypeParameterStack,
     mode: FirJavaTypeConversionMode = FirJavaTypeConversionMode.DEFAULT
 ): FirTypeRef = when (this) {
@@ -54,11 +57,9 @@ internal fun FirTypeRef.toConeKotlinTypeProbablyFlexible(
     (resolveIfJavaType(session, javaTypeParameterStack, mode) as? FirResolvedTypeRef)?.type
         ?: ConeErrorType(ConeSimpleDiagnostic("Type reference in Java not resolved: ${this::class.java}", DiagnosticKind.Java))
 
-internal fun JavaType.toFirJavaTypeRef(session: FirSession, javaTypeParameterStack: JavaTypeParameterStack): FirJavaTypeRef {
-    return buildJavaTypeRef {
-        annotationBuilder = { convertAnnotationsToFir(session, javaTypeParameterStack) }
-        type = this@toFirJavaTypeRef
-    }
+internal fun JavaType.toFirJavaTypeRef(session: FirSession): FirJavaTypeRef = buildJavaTypeRef {
+    annotationBuilder = { convertAnnotationsToFir(session) }
+    type = this@toFirJavaTypeRef
 }
 
 internal fun JavaType?.toFirResolvedTypeRef(
@@ -88,10 +89,11 @@ private fun JavaType?.toConeTypeProjection(
     val attributes = if (this != null && (annotations.isNotEmpty() || additionalAnnotations != null)) {
         val convertedAnnotations = buildList {
             if (annotations.isNotEmpty()) {
-                addAll(this@toConeTypeProjection.convertAnnotationsToFir(session, javaTypeParameterStack))
+                addAll(this@toConeTypeProjection.convertAnnotationsToFir(session))
             }
+
             if (additionalAnnotations != null) {
-                addAll(additionalAnnotations.convertAnnotationsToFir(session, javaTypeParameterStack))
+                addAll(additionalAnnotations.convertAnnotationsToFir(session))
             }
         }
 
@@ -158,7 +160,9 @@ private fun JavaType?.toConeTypeProjection(
         }
 
         null -> ConeStarProjection
-        else -> error("Strange JavaType: ${this::class.java}")
+        else -> errorWithAttachment("Strange JavaType: ${this::class.java}") {
+            withEntry("type", this@toConeTypeProjection) { it.toString() }
+        }
     }
 }
 
@@ -192,9 +196,9 @@ private fun JavaClassifierType.toConeKotlinTypeForFlexibleBound(
                             ?.toFirRegularClassSymbol(session)?.typeParameterSymbols
                     // Given `C<T : X>`, `C` -> `C<X>..C<*>?`.
                     when (mode) {
-                        FirJavaTypeConversionMode.ANNOTATION_MEMBER -> Array(classifier.typeParameters.size) { ConeStarProjection }
+                        FirJavaTypeConversionMode.ANNOTATION_MEMBER -> Array(classifier.allTypeParametersNumber()) { ConeStarProjection }
                         else -> typeParameterSymbols?.getProjectionsForRawType(session)
-                            ?: Array(classifier.typeParameters.size) { ConeStarProjection }
+                            ?: Array(classifier.allTypeParametersNumber()) { ConeStarProjection }
                     }
                 }
 
@@ -214,7 +218,7 @@ private fun JavaClassifierType.toConeKotlinTypeForFlexibleBound(
                 else -> lowerBound?.typeArguments
             }
 
-            lookupTag.constructClassType(mappedTypeArguments ?: emptyArray(), isNullable = lowerBound != null, attributes)
+            lookupTag.constructClassType(mappedTypeArguments ?: ConeTypeProjection.EMPTY_ARRAY, isNullable = lowerBound != null, attributes)
         }
 
         is JavaTypeParameter -> {
@@ -229,6 +233,16 @@ private fun JavaClassifierType.toConeKotlinTypeForFlexibleBound(
 
         else -> ConeErrorType(ConeSimpleDiagnostic("Unexpected classifier: $classifier", DiagnosticKind.Java))
     }
+}
+
+private fun JavaClass.allTypeParametersNumber(): Int {
+    var current: JavaClass? = this
+    var result = 0
+    while (current != null) {
+        result += current.typeParameters.size
+        current = if (current.isStatic) null else current.outerClass
+    }
+    return result
 }
 
 // Returns true for covariant read-only container that has mutable pair with invariant parameter

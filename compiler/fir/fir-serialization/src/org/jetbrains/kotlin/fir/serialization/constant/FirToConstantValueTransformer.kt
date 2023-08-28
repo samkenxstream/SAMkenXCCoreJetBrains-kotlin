@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.fir.declarations.FirField
 import org.jetbrains.kotlin.fir.declarations.utils.isConst
 import org.jetbrains.kotlin.fir.declarations.utils.isFinal
 import org.jetbrains.kotlin.fir.expressions.*
+import org.jetbrains.kotlin.fir.references.toResolvedFunctionSymbol
 import org.jetbrains.kotlin.fir.render
 import org.jetbrains.kotlin.fir.resolve.toFirRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirArrayOfCallTransformer
@@ -24,6 +25,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirFieldSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.coneTypeUnsafe
+import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.fir.visitors.FirDefaultVisitor
 import org.jetbrains.kotlin.types.ConstantValueKind
 
@@ -32,16 +34,12 @@ internal inline fun <reified T : ConstantValue<*>> FirExpression.toConstantValue
     constValueProvider: ConstValueProvider? = null
 ): T? {
     return constValueProvider?.findConstantValueFor(this) as? T
-        ?: accept(FirToConstantValueTransformerUnsafe(), FirToConstantValueTransformerData(session, constValueProvider)) as? T
+        ?: accept(FirToConstantValueTransformer, FirToConstantValueTransformerData(session, constValueProvider)) as? T
 }
 
 internal fun FirExpression?.hasConstantValue(session: FirSession): Boolean {
     return this?.accept(FirToConstantValueChecker, session) == true
 }
-
-internal class FirToConstantValueTransformerSafe : FirToConstantValueTransformer(failOnNonConst = false)
-
-internal class FirToConstantValueTransformerUnsafe : FirToConstantValueTransformer(failOnNonConst = true)
 
 internal data class FirToConstantValueTransformerData(
     val session: FirSession,
@@ -50,9 +48,7 @@ internal data class FirToConstantValueTransformerData(
 
 private val constantIntrinsicCalls = setOf("toByte", "toLong", "toShort", "toFloat", "toDouble", "toChar", "unaryMinus")
 
-internal abstract class FirToConstantValueTransformer(
-    private val failOnNonConst: Boolean,
-) : FirDefaultVisitor<ConstantValue<*>?, FirToConstantValueTransformerData>() {
+internal object FirToConstantValueTransformer : FirDefaultVisitor<ConstantValue<*>?, FirToConstantValueTransformerData>() {
     private fun FirExpression.toConstantValue(data: FirToConstantValueTransformerData): ConstantValue<*>? {
         return data.constValueProvider?.findConstantValueFor(this)
             ?: accept(this@FirToConstantValueTransformer, data)
@@ -62,10 +58,7 @@ internal abstract class FirToConstantValueTransformer(
         element: FirElement,
         data: FirToConstantValueTransformerData
     ): ConstantValue<*>? {
-        if (failOnNonConst) {
-            error("Illegal element as annotation argument: ${element::class.qualifiedName} -> ${element.render()}")
-        }
-        return null
+        error("Illegal element as annotation argument: ${element::class.qualifiedName} -> ${element.render()}")
     }
 
     override fun <T> visitConstExpression(
@@ -101,18 +94,21 @@ internal abstract class FirToConstantValueTransformer(
         return StringValue(strings.joinToString(separator = "") { (it as StringValue).value })
     }
 
-    override fun visitArrayOfCall(
-        arrayOfCall: FirArrayOfCall,
+    override fun visitArrayLiteral(
+        arrayLiteral: FirArrayLiteral,
         data: FirToConstantValueTransformerData
     ): ConstantValue<*> {
-        return ArrayValue(arrayOfCall.argumentList.arguments.mapNotNull { it.toConstantValue(data) })
+        return ArrayValue(arrayLiteral.argumentList.arguments.mapNotNull { it.toConstantValue(data) })
     }
 
     override fun visitAnnotation(
         annotation: FirAnnotation,
-        data: FirToConstantValueTransformerData
+        data: FirToConstantValueTransformerData,
     ): ConstantValue<*> {
-        val mapping = annotation.argumentMapping.mapping.convertToConstantValues(data.session, data.constValueProvider)
+        val mapping = annotation.argumentMapping.mapping.convertToConstantValues(
+            data.session,
+            data.constValueProvider
+        ).addEmptyVarargValuesFor(annotation.toReference()?.toResolvedFunctionSymbol())
         return AnnotationValue.create(annotation.annotationTypeRef.coneType, mapping)
     }
 
@@ -124,7 +120,7 @@ internal abstract class FirToConstantValueTransformer(
         getClassCall: FirGetClassCall,
         data: FirToConstantValueTransformerData
     ): ConstantValue<*>? {
-        return create(getClassCall.argument.typeRef.coneTypeUnsafe())
+        return create(getClassCall.argument.coneTypeUnsafe())
     }
 
     override fun visitQualifiedAccessExpression(
@@ -158,9 +154,12 @@ internal abstract class FirToConstantValueTransformer(
                 if (constructedClassSymbol.classKind != ClassKind.ANNOTATION_CLASS) return null
 
                 val mapping = constructorCall.resolvedArgumentMapping
-                    ?.convertToConstantValues(data.session, data.constValueProvider)
+                    ?.convertToConstantValues(
+                        data.session,
+                        data.constValueProvider
+                    )?.addEmptyVarargValuesFor(symbol)
                     ?: return null
-                return AnnotationValue.create(qualifiedAccessExpression.typeRef.coneType, mapping)
+                return AnnotationValue.create(qualifiedAccessExpression.resolvedType, mapping)
             }
 
             symbol.callableId.packageName.asString() == "kotlin" -> {
@@ -205,8 +204,8 @@ internal abstract class FirToConstantValueTransformer(
         functionCall: FirFunctionCall,
         data: FirToConstantValueTransformerData
     ): ConstantValue<*>? {
-        if (functionCall.isArrayOfCall) {
-            return FirArrayOfCallTransformer().transformFunctionCall(functionCall, null).accept(this, data)
+        if (functionCall.isArrayOfCall(data.session)) {
+            return FirArrayOfCallTransformer().transformFunctionCall(functionCall, data.session).accept(this, data)
         }
         return visitQualifiedAccessExpression(functionCall, data)
     }
@@ -216,9 +215,9 @@ internal abstract class FirToConstantValueTransformer(
         data: FirToConstantValueTransformerData,
     ): ConstantValue<*> {
         val arguments = varargArgumentsExpression.arguments.let {
-            // Named, spread or array literal arguments for vararg parameters have the form Vararg(Named/Spread?(ArrayOfCall(..))).
-            // We need to extract the ArrayOfCall, otherwise we will get two nested ArrayValue as a result.
-            (it.singleOrNull()?.unwrapArgument() as? FirArrayOfCall)?.arguments ?: it
+            // Named, spread or array literal arguments for vararg parameters have the form Vararg(Named/Spread?(ArrayLiteral(..))).
+            // We need to extract the ArrayLiteral, otherwise we will get two nested ArrayValue as a result.
+            (it.singleOrNull()?.unwrapArgument() as? FirArrayLiteral)?.arguments ?: it
         }
 
         return ArrayValue(arguments.mapNotNull { it.toConstantValue(data) })
@@ -255,8 +254,8 @@ internal object FirToConstantValueChecker : FirDefaultVisitor<Boolean, FirSessio
         return stringConcatenationCall.argumentList.arguments.all { it.accept(this, data) }
     }
 
-    override fun visitArrayOfCall(arrayOfCall: FirArrayOfCall, data: FirSession): Boolean {
-        return arrayOfCall.arguments.all { it.accept(this, data) }
+    override fun visitArrayLiteral(arrayLiteral: FirArrayLiteral, data: FirSession): Boolean {
+        return arrayLiteral.arguments.all { it.accept(this, data) }
     }
 
     override fun visitAnnotation(annotation: FirAnnotation, data: FirSession): Boolean = true
@@ -264,7 +263,7 @@ internal object FirToConstantValueChecker : FirDefaultVisitor<Boolean, FirSessio
     override fun visitAnnotationCall(annotationCall: FirAnnotationCall, data: FirSession): Boolean = true
 
     override fun visitGetClassCall(getClassCall: FirGetClassCall, data: FirSession): Boolean {
-        return create(getClassCall.argument.typeRef.coneTypeUnsafe()) != null
+        return create(getClassCall.argument.coneTypeUnsafe()) != null
     }
 
     override fun visitQualifiedAccessExpression(qualifiedAccessExpression: FirQualifiedAccessExpression, data: FirSession): Boolean {
@@ -298,7 +297,7 @@ internal object FirToConstantValueChecker : FirDefaultVisitor<Boolean, FirSessio
     }
 
     override fun visitFunctionCall(functionCall: FirFunctionCall, data: FirSession): Boolean {
-        if (functionCall.isArrayOfCall) return functionCall.arguments.all { it.accept(this, data) }
+        if (functionCall.isArrayOfCall(data)) return functionCall.arguments.all { it.accept(this, data) }
         return visitQualifiedAccessExpression(functionCall, data)
     }
 

@@ -11,6 +11,7 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.tasks.*
 import org.gradle.process.internal.DefaultProcessForkOptions
+import org.gradle.work.DisableCachingByDefault
 import org.gradle.work.NormalizeLineEndings
 import org.jetbrains.kotlin.gradle.internal.testing.TCServiceMessagesTestExecutionSpec
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
@@ -27,6 +28,7 @@ import org.jetbrains.kotlin.gradle.utils.getValue
 import org.jetbrains.kotlin.gradle.utils.newFileProperty
 import javax.inject.Inject
 
+@DisableCachingByDefault
 abstract class KotlinJsTest
 @Inject
 constructor(
@@ -39,8 +41,6 @@ constructor(
     private val nodeJs = project.rootProject.kotlinNodeJsExtension
 
     private val nodeExecutable by project.provider { nodeJs.requireConfigured().nodeExecutable }
-
-    private val npmProjectDir by project.provider { compilation.npmProject.dir }
 
     @Input
     var environment = mutableMapOf<String, String>()
@@ -157,7 +157,7 @@ constructor(
 
     override fun createTestExecutionSpec(): TCServiceMessagesTestExecutionSpec {
         val forkOptions = DefaultProcessForkOptions(fileResolver)
-        forkOptions.workingDir = npmProjectDir
+        forkOptions.workingDir = testFramework!!.workingDir.toFile()
         forkOptions.executable = nodeExecutable
 
         environment.forEach { (key, value) ->

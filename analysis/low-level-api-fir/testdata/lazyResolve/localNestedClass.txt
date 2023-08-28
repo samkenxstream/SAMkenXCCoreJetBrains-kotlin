@@ -1,6 +1,5 @@
 RAW_FIR:
 FILE: [ResolvedTo(RAW_FIR)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -23,7 +22,6 @@ FILE: [ResolvedTo(RAW_FIR)] localNestedClass.kt
 
 IMPORTS:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -46,7 +44,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 COMPILER_REQUIRED_ANNOTATIONS:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -69,7 +66,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 COMPANION_GENERATION:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -92,7 +88,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 SUPER_TYPES:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -115,7 +110,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 TYPES:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -138,7 +132,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 STATUS:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -161,7 +154,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 EXPECT_ACTUAL_MATCHING:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -184,7 +176,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 ARGUMENTS_OF_ANNOTATIONS:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -207,7 +198,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 CONTRACTS:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -228,7 +218,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
     }
     public final [ResolvedTo(CONTRACTS)] fun resolveMe(): R|kotlin/Unit| {
         local final? [ResolvedTo(RAW_FIR)] class LocalClass : AnotherTopLevelClass {
-            public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] constructor(): R|LocalClass| {
+            public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] constructor(): R|<local>/LocalClass| {
                 super<AnotherTopLevelClass>()
             }
 
@@ -236,7 +226,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
             }
 
             local final? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] class NestedLocalClass : R|kotlin/Any| {
-                public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=NestedLocalClass] constructor(): R|LocalClass.NestedLocalClass| {
+                public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=NestedLocalClass] constructor(): R|<local>/LocalClass.NestedLocalClass| {
                     super<R|kotlin/Any|>()
                 }
 
@@ -248,7 +238,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 IMPLICIT_TYPES_BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -269,7 +258,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
     }
     public final [ResolvedTo(IMPLICIT_TYPES_BODY_RESOLVE)] fun resolveMe(): R|kotlin/Unit| {
         local final? [ResolvedTo(RAW_FIR)] class LocalClass : AnotherTopLevelClass {
-            public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] constructor(): R|LocalClass| {
+            public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] constructor(): R|<local>/LocalClass| {
                 super<AnotherTopLevelClass>()
             }
 
@@ -277,7 +266,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
             }
 
             local final? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] class NestedLocalClass : R|kotlin/Any| {
-                public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=NestedLocalClass] constructor(): R|LocalClass.NestedLocalClass| {
+                public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=NestedLocalClass] constructor(): R|<local>/LocalClass.NestedLocalClass| {
                     super<R|kotlin/Any|>()
                 }
 
@@ -289,7 +278,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 ANNOTATIONS_ARGUMENTS_MAPPING:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public? open [ResolvedTo(RAW_FIR)] class TopLevelClass : R|kotlin/Any| {
         public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -310,7 +298,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
     }
     public final [ResolvedTo(ANNOTATIONS_ARGUMENTS_MAPPING)] fun resolveMe(): R|kotlin/Unit| {
         local final? [ResolvedTo(RAW_FIR)] class LocalClass : AnotherTopLevelClass {
-            public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] constructor(): R|LocalClass| {
+            public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] constructor(): R|<local>/LocalClass| {
                 super<AnotherTopLevelClass>()
             }
 
@@ -318,7 +306,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
             }
 
             local final? [ResolvedTo(RAW_FIR)] [ContainingClassKey=LocalClass] class NestedLocalClass : R|kotlin/Any| {
-                public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=NestedLocalClass] constructor(): R|LocalClass.NestedLocalClass| {
+                public? [ResolvedTo(RAW_FIR)] [ContainingClassKey=NestedLocalClass] constructor(): R|<local>/LocalClass.NestedLocalClass| {
                     super<R|kotlin/Any|>()
                 }
 
@@ -330,7 +318,6 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
 
 BODY_RESOLVE:
 FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
     public open [ResolvedTo(STATUS)] class TopLevelClass : R|kotlin/Any| {
         public [ResolvedTo(STATUS)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             LAZY_super<R|kotlin/Any|>
@@ -351,7 +338,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
     }
     public final [ResolvedTo(BODY_RESOLVE)] fun resolveMe(): R|kotlin/Unit| {
         local final [ResolvedTo(BODY_RESOLVE)] class LocalClass : R|AnotherTopLevelClass| {
-            public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=LocalClass] constructor(): R|LocalClass| {
+            public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=LocalClass] constructor(): R|<local>/LocalClass| {
                 super<R|AnotherTopLevelClass|>()
             }
 
@@ -359,7 +346,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
             }
 
             local final [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=LocalClass] class NestedLocalClass : R|kotlin/Any| {
-                public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=NestedLocalClass] constructor(): R|LocalClass.NestedLocalClass| {
+                public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=NestedLocalClass] constructor(): R|<local>/LocalClass.NestedLocalClass| {
                     super<R|kotlin/Any|>()
                 }
 
@@ -370,8 +357,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
     }
 
 FILE RAW TO BODY:
-FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
-    [ResolvedTo(BODY_RESOLVE)] annotations container
+FILE: [ResolvedTo(BODY_RESOLVE)] localNestedClass.kt
     public open [ResolvedTo(BODY_RESOLVE)] class TopLevelClass : R|kotlin/Any| {
         public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=TopLevelClass] constructor(): R|TopLevelClass| {
             super<R|kotlin/Any|>()
@@ -395,7 +381,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
     }
     public final [ResolvedTo(BODY_RESOLVE)] fun resolveMe(): R|kotlin/Unit| {
         local final [ResolvedTo(BODY_RESOLVE)] class LocalClass : R|AnotherTopLevelClass| {
-            public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=LocalClass] constructor(): R|LocalClass| {
+            public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=LocalClass] constructor(): R|<local>/LocalClass| {
                 super<R|AnotherTopLevelClass|>()
             }
 
@@ -403,7 +389,7 @@ FILE: [ResolvedTo(IMPORTS)] localNestedClass.kt
             }
 
             local final [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=LocalClass] class NestedLocalClass : R|kotlin/Any| {
-                public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=NestedLocalClass] constructor(): R|LocalClass.NestedLocalClass| {
+                public [ResolvedTo(BODY_RESOLVE)] [ContainingClassKey=NestedLocalClass] constructor(): R|<local>/LocalClass.NestedLocalClass| {
                     super<R|kotlin/Any|>()
                 }
 

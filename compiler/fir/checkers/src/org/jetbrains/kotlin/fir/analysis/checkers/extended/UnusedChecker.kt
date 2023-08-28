@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.coneType
 import org.jetbrains.kotlin.fir.types.isBasicFunctionType
+import org.jetbrains.kotlin.name.SpecialNames
 
 object UnusedChecker : AbstractFirPropertyInitializationChecker() {
     override fun analyze(data: PropertyInitializationInfoData, reporter: DiagnosticReporter, context: CheckerContext) {
@@ -49,7 +50,7 @@ object UnusedChecker : AbstractFirPropertyInitializationChecker() {
             for (dataPerLabel in dataPerNode.values) {
                 val data = dataPerLabel[variableSymbol] ?: continue
                 if (data == VariableStatus.ONLY_WRITTEN_NEVER_READ) {
-                    // todo: report case like "a += 1" where `a` `doesn't writes` different way (special for Idea)
+                    // TODO, KT-59831: report case like "a += 1" where `a` `doesn't writes` different way (special for Idea)
                     val source = node.fir.lValue.source
                     reporter.reportOn(source, FirErrors.ASSIGNED_VALUE_IS_NEVER_READ, context)
                     // To avoid duplicate reports, stop investigating remaining paths once reported.
@@ -62,18 +63,18 @@ object UnusedChecker : AbstractFirPropertyInitializationChecker() {
             val variableSymbol = node.fir.symbol
             if (node.fir.source == null) return
             if (variableSymbol.isLoopIterator) return
+            if (variableSymbol.name == SpecialNames.UNDERSCORE_FOR_UNUSED_VAR) return
             val dataPerNode = data[node] ?: return
-            // TODO: merge values for labels, otherwise diagnostics are inconsistent
-            for (dataPerLabel in dataPerNode.values) {
-                val data = dataPerLabel[variableSymbol] ?: continue
 
+            val data = dataPerNode.values.mapNotNull { it[variableSymbol] }.reduceOrNull { acc, it -> acc.merge(it) }
+            if (data != null) {
                 variableSymbol.lazyResolveToPhase(FirResolvePhase.BODY_RESOLVE)
                 @OptIn(SymbolInternals::class)
                 val variable = variableSymbol.fir
                 val variableSource = variable.source
 
                 if (variableSource?.elementType == KtNodeTypes.DESTRUCTURING_DECLARATION) {
-                    continue
+                    return
                 }
 
                 when {
@@ -83,18 +84,15 @@ object UnusedChecker : AbstractFirPropertyInitializationChecker() {
                             node.fir.isCatchParameter == true -> {}
                             else -> {
                                 reporter.reportOn(variableSource, FirErrors.UNUSED_VARIABLE, context)
-                                break
                             }
                         }
                     }
                     data.isRedundantInit -> {
                         val source = variable.initializer?.source
                         reporter.reportOn(source, FirErrors.VARIABLE_INITIALIZER_IS_REDUNDANT, context)
-                        break
                     }
                     data == VariableStatus.ONLY_WRITTEN_NEVER_READ -> {
                         reporter.reportOn(variableSource, FirErrors.VARIABLE_NEVER_READ, context)
-                        break
                     }
                     else -> {
                     }
@@ -117,7 +115,7 @@ object UnusedChecker : AbstractFirPropertyInitializationChecker() {
             else variableUseState
 
             return base.also {
-                // TODO: is this modifying constant enum values???
+                // TODO, KT-59833: is this modifying constant enum values???
                 it.isRead = this.isRead || variableUseState?.isRead == true
                 it.isRedundantInit = this.isRedundantInit && variableUseState?.isRedundantInit == true
             }
@@ -146,7 +144,7 @@ object UnusedChecker : AbstractFirPropertyInitializationChecker() {
         }
 
         override fun plus(other: VariableStatusInfo): VariableStatusInfo =
-            merge(other) // TODO: not sure
+            merge(other) // TODO, KT-59834: not sure
     }
 
     private class ValueWritesWithoutReading(

@@ -119,13 +119,18 @@ fun generatePlatformLibraries(args: Array<String>) = usingNativeMemoryAllocator 
             description = "Override konan.properties.values"
     ).multiple().delimiter(";")
 
+    val konanDataDir by argParser.option(ArgType.String,
+            fullName = "Xkonan-data-dir",
+            description = "Path to konan and dependencies root folder")
+
     argParser.parse(args)
 
     val distribution = Distribution(
             KonanHomeProvider.determineKonanHome(),
             onlyDefaultProfiles = false,
             runtimeFileOverride = null,
-            propertyOverrides = parseKeyValuePairs(overrideKonanProperties)
+            propertyOverrides = parseKeyValuePairs(overrideKonanProperties),
+            konanDataDir = konanDataDir
     )
 
     val platformManager = PlatformManager(distribution)
@@ -162,6 +167,11 @@ fun generatePlatformLibraries(args: Array<String>) = usingNativeMemoryAllocator 
                 if (overrideKonanProperties.isNotEmpty()) {
                     add("-Xoverride-konan-properties")
                     add(overrideKonanProperties.joinToString(";"))
+                }
+
+                konanDataDir?.let {
+                    add("-Xkonan-data-dir")
+                    add(it)
                 }
             }
     )
@@ -260,6 +270,7 @@ private fun generateLibrary(
                 "-compiler-option", "-fmodules-cache-path=${tmpDirectory.child("clangModulesCache").absolutePath}",
                 "-repo", outputDirectory.absolutePath,
                 "-no-default-libs", "-no-endorsed-libs", "-Xpurge-user-libs", "-nopack",
+                "-Xdisable-experimental-annotation",
                 *cinteropOptions.additionalArguments.toTypedArray(),
                 "-$SHORT_MODULE_NAME", def.shortLibraryName,
                 *def.depends.flatMap { listOf("-l", "$outputDirectory/${it.libraryName}") }.toTypedArray()

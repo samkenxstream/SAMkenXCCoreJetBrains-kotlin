@@ -138,19 +138,33 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         origin: IrDeclarationOrigin,
         name: Name,
         visibility: DescriptorVisibility,
-        modality: Modality,
-        returnType: IrType,
         isInline: Boolean,
-        isExternal: Boolean,
+        isExpect: Boolean,
+        returnType: IrType,
+        modality: Modality,
         isTailrec: Boolean,
         isSuspend: Boolean,
         isOperator: Boolean,
         isInfix: Boolean,
-        isExpect: Boolean,
-    ): IrSimpleFunction =
+        isExternal: Boolean,
+        isFakeOverride: Boolean,
+    ): IrFunctionWithLateBinding =
         IrFunctionWithLateBindingImpl(
-            startOffset, endOffset, origin, name, visibility, modality, returnType,
-            isInline, isExternal, isTailrec, isSuspend, isOperator, isInfix, isExpect,
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = origin,
+            name = name,
+            visibility = visibility,
+            modality = modality,
+            returnType = returnType,
+            isInline = isInline,
+            isExternal = isExternal,
+            isTailrec = isTailrec,
+            isSuspend = isSuspend,
+            isOperator = isOperator,
+            isInfix = isInfix,
+            isExpect = isExpect,
+            isFakeOverride = isFakeOverride,
             factory = this
         )
 
@@ -201,10 +215,22 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         isDelegated: Boolean,
         isExternal: Boolean,
         isExpect: Boolean,
-    ): IrProperty =
+        isFakeOverride: Boolean,
+    ): IrPropertyWithLateBinding =
         IrPropertyWithLateBindingImpl(
-            startOffset, endOffset, origin, name, visibility, modality,
-            isVar, isConst, isLateinit, isDelegated, isExternal, isExpect,
+            startOffset = startOffset,
+            endOffset = endOffset,
+            origin = origin,
+            name = name,
+            visibility = visibility,
+            modality = modality,
+            isVar = isVar,
+            isConst = isConst,
+            isLateinit = isLateinit,
+            isDelegated = isDelegated,
+            isExternal = isExternal,
+            isExpect = isExpect,
+            isFakeOverride = isFakeOverride,
             factory = this
         )
 
@@ -263,18 +289,4 @@ abstract class AbstractIrFactoryImpl : IrFactory {
         endOffset: Int,
     ): IrBlockBody =
         IrBlockBodyImpl(startOffset, endOffset)
-
-    override fun createBlockBody(
-        startOffset: Int,
-        endOffset: Int,
-        statements: List<IrStatement>,
-    ): IrBlockBody =
-        IrBlockBodyImpl(startOffset, endOffset, statements)
-
-    override fun createBlockBody(
-        startOffset: Int,
-        endOffset: Int,
-        initializer: IrBlockBody.() -> Unit,
-    ): IrBlockBody =
-        IrBlockBodyImpl(startOffset, endOffset, initializer)
 }

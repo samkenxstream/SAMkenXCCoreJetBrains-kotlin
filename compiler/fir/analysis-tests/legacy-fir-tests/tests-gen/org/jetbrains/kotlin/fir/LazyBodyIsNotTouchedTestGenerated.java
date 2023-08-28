@@ -444,9 +444,19 @@ public class LazyBodyIsNotTouchedTestGenerated extends AbstractLazyBodyIsNotTouc
         runTest("compiler/fir/analysis-tests/testData/resolve/problems2.kt");
     }
 
+    @TestMetadata("properLocalPackages.kt")
+    public void testProperLocalPackages() throws Exception {
+        runTest("compiler/fir/analysis-tests/testData/resolve/properLocalPackages.kt");
+    }
+
     @TestMetadata("propertyFromJavaPlusAssign.kt")
     public void testPropertyFromJavaPlusAssign() throws Exception {
         runTest("compiler/fir/analysis-tests/testData/resolve/propertyFromJavaPlusAssign.kt");
+    }
+
+    @TestMetadata("propertyGetterWithoutType.kt")
+    public void testPropertyGetterWithoutType() throws Exception {
+        runTest("compiler/fir/analysis-tests/testData/resolve/propertyGetterWithoutType.kt");
     }
 
     @TestMetadata("qualifierWithCompanion.kt")
@@ -1197,6 +1207,11 @@ public class LazyBodyIsNotTouchedTestGenerated extends AbstractLazyBodyIsNotTouc
         @TestMetadata("loops.kt")
         public void testLoops() throws Exception {
             runTest("compiler/fir/analysis-tests/testData/resolve/cfg/loops.kt");
+        }
+
+        @TestMetadata("nestedClass.kt")
+        public void testNestedClass() throws Exception {
+            runTest("compiler/fir/analysis-tests/testData/resolve/cfg/nestedClass.kt");
         }
 
         @TestMetadata("postponedLambdaInConstructor.kt")

@@ -21,7 +21,10 @@ import org.jetbrains.kotlin.fir.declarations.builder.FirTypeParameterBuilder
 import org.jetbrains.kotlin.fir.declarations.builder.buildSimpleFunction
 import org.jetbrains.kotlin.fir.declarations.builder.buildValueParameter
 import org.jetbrains.kotlin.fir.declarations.impl.FirResolvedDeclarationStatusImpl
-import org.jetbrains.kotlin.fir.declarations.utils.*
+import org.jetbrains.kotlin.fir.declarations.utils.isAbstract
+import org.jetbrains.kotlin.fir.declarations.utils.isActual
+import org.jetbrains.kotlin.fir.declarations.utils.isExpect
+import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.diagnostics.ConeIntermediateDiagnostic
 import org.jetbrains.kotlin.fir.extensions.extensionService
 import org.jetbrains.kotlin.fir.moduleData
@@ -41,6 +44,9 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.utils.exceptions.errorWithAttachment
+import org.jetbrains.kotlin.utils.addToStdlib.runIf
+import org.jetbrains.kotlin.utils.addToStdlib.unreachableBranch
 
 private val SAM_PARAMETER_NAME = Name.identifier("function")
 
@@ -73,14 +79,13 @@ class FirSamResolver(
                 val upperType = getFunctionTypeForPossibleSamType(type.upperBound) ?: return null
                 ConeFlexibleType(lowerType.lowerBoundIfFlexible(), upperType.upperBoundIfFlexible())
             }
-            is ConeStubType -> null
-            // TODO: support those types as well
-            is ConeTypeParameterType, is ConeTypeVariableType,
+
+            is ConeStubType, is ConeTypeParameterType, is ConeTypeVariableType,
             is ConeCapturedType, is ConeDefinitelyNotNullType, is ConeIntersectionType,
             is ConeIntegerLiteralType,
             -> null
-            // TODO: Thing of getting rid of this branch since ConeLookupTagBasedType should be a sealed class
-            is ConeLookupTagBasedType -> null
+
+            is ConeLookupTagBasedType -> unreachableBranch(type)
         }
     }
 
@@ -116,7 +121,7 @@ class FirSamResolver(
         val syntheticFunctionSymbol = classSymbol.createSyntheticConstructorSymbol()
 
         val newTypeParameters = firRegularClass.typeParameters.map { typeParameter ->
-            val declaredTypeParameter = typeParameter.symbol.fir // TODO: or really declared?
+            val declaredTypeParameter = typeParameter.symbol.fir
             FirTypeParameterBuilder().apply {
                 source = declaredTypeParameter.source
                 moduleData = session.moduleData
@@ -143,7 +148,7 @@ class FirSamResolver(
         )
 
         for ((newTypeParameter, oldTypeParameter) in newTypeParameters.zip(firRegularClass.typeParameters)) {
-            val declared = oldTypeParameter.symbol.fir // TODO: or really declared?
+            val declared = oldTypeParameter.symbol.fir
             newTypeParameter.bounds += declared.symbol.resolvedBounds.map { typeRef ->
                 buildResolvedTypeRef {
                     source = typeRef.source
@@ -253,7 +258,8 @@ class FirSamResolver(
         return resolvedFunctionType.getOrPut(firRegularClass) {
             if (!firRegularClass.status.isFun) return@getOrPut null
             val abstractMethod = firRegularClass.getSingleAbstractMethodOrNull(session, scopeSession) ?: return@getOrPut null
-            // TODO: val shouldConvertFirstParameterToDescriptor = samWithReceiverResolvers.any { it.shouldConvertFirstSamParameterToReceiver(abstractMethod) }
+            // TODO: KT-59674
+            // val shouldConvertFirstParameterToDescriptor = samWithReceiverResolvers.any { it.shouldConvertFirstSamParameterToReceiver(abstractMethod) }
 
             val typeFromExtension = samConversionTransformers.firstNotNullOfOrNull {
                 it.getCustomFunctionTypeForSamConversion(abstractMethod)
@@ -282,7 +288,6 @@ private fun FirRegularClass.getSingleAbstractMethodOrNull(
     session: FirSession,
     scopeSession: ScopeSession,
 ): FirSimpleFunction? {
-    // TODO: restrict to Java interfaces
     if (classKind != ClassKind.INTERFACE || hasMoreThenOneAbstractFunctionOrHasAbstractProperty()) return null
 
     val samCandidateNames = computeSamCandidateNames(session)
@@ -400,7 +405,9 @@ fun FirSimpleFunction.isPublicInObject(checkOnlyName: Boolean): Boolean {
                     valueParameters[1].hasTypeOf(StandardClassIds.Int, allowNullable = false)
             else -> false
         }
-        else -> error("Unexpected method name: $name")
+        else -> errorWithAttachment("Unexpected method name") {
+            withEntry("methodName", name.asString())
+        }
     }
 }
 

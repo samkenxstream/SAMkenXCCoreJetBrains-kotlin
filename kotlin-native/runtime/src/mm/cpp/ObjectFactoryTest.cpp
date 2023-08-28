@@ -21,13 +21,18 @@
 #include "std_support/CStdlib.hpp"
 #include "std_support/Vector.hpp"
 
+// ObjectFactory is not used by custom allocator
 using namespace kotlin;
 
 using testing::_;
 
 namespace {
 
-using SimpleAllocator = gc::Allocator;
+class SimpleAllocator {
+public:
+    void* Alloc(size_t size) noexcept { return std_support::calloc(1, size); }
+    static void Free(void* instance, size_t size) noexcept { std_support::free(instance); }
+};
 
 struct DataSizeProvider {
     static size_t GetDataSize(void* data) noexcept { return 0; }
@@ -57,7 +62,7 @@ template <typename T, size_t DataAlignment>
 std_support::vector<T> Collect(ObjectFactoryStorage<DataAlignment>& storage) {
     std_support::vector<T> result;
     for (auto& node : storage.LockForIter()) {
-        result.push_back(*static_cast<T*>(node.Data()));
+        result.push_back(*reinterpret_cast<T*>(node.Data()));
     }
     return result;
 }
@@ -66,7 +71,7 @@ template <typename T, size_t DataAlignment>
 std_support::vector<T> Collect(Consumer<ObjectFactoryStorage<DataAlignment>>& consumer) {
     std_support::vector<T> result;
     for (auto& node : consumer) {
-        result.push_back(*static_cast<T*>(node.Data()));
+        result.push_back(*reinterpret_cast<T*>(node.Data()));
     }
     return result;
 }
@@ -705,7 +710,7 @@ TEST(ObjectFactoryStorageTest, IterWhileConcurrentPublish) {
         }
 
         for (auto& node : iter) {
-            int element = *static_cast<int*>(node.Data());
+            int element = *reinterpret_cast<int*>(node.Data());
             actualBefore.push_back(element);
         }
     }
@@ -788,9 +793,9 @@ public:
     MOCK_METHOD(void*, Alloc, (size_t));
     MOCK_METHOD(void, Free, (void*, size_t));
 
-    void* DefaultAlloc(size_t size) { return allocateInObjectPool(size); }
+    void* DefaultAlloc(size_t size) { return std_support::calloc(1, size); }
 
-    void DefaultFree(void* instance, size_t size) { freeInObjectPool(instance, size); }
+    void DefaultFree(void* instance, size_t size) { std_support::free(instance); }
 };
 
 class GlobalMockAllocator {

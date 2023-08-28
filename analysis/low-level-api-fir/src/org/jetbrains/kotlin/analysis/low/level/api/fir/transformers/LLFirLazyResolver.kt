@@ -7,11 +7,14 @@ package org.jetbrains.kotlin.analysis.low.level.api.fir.transformers
 
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.targets.LLFirResolveTarget
 import org.jetbrains.kotlin.analysis.low.level.api.fir.file.builder.LLFirLockProvider
+import org.jetbrains.kotlin.analysis.low.level.api.fir.lazy.resolve.LLFirPhaseUpdater
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.checkPhase
+import org.jetbrains.kotlin.analysis.low.level.api.fir.util.forEachDependentDeclaration
 import org.jetbrains.kotlin.fir.FirElementWithResolveState
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirTowerDataContextCollector
+import org.jetbrains.kotlin.fir.resolve.transformers.body.resolve.FirResolveContextCollector
 
 internal abstract class LLFirLazyResolver(
     val resolverPhase: FirResolvePhase,
@@ -21,23 +24,42 @@ internal abstract class LLFirLazyResolver(
         lockProvider: LLFirLockProvider,
         session: FirSession,
         scopeSession: ScopeSession,
-        towerDataContextCollector: FirTowerDataContextCollector?,
+        towerDataContextCollector: FirResolveContextCollector?,
     )
 
-    abstract fun checkIsResolved(target: FirElementWithResolveState)
+    fun checkIsResolved(target: FirElementWithResolveState) {
+        target.checkPhase(resolverPhase)
+        phaseSpecificCheckIsResolved(target)
+        checkNestedDeclarationsAreResolved(target)
+    }
 
-    abstract fun updatePhaseForDeclarationInternals(target: FirElementWithResolveState)
+    /**
+     * Check that phase-specific conditions are met
+     * Will be performed to resolved declaration and its nested declarations
+     * @see checkNestedDeclarationsAreResolved
+     */
+    protected open fun phaseSpecificCheckIsResolved(target: FirElementWithResolveState) {}
+
+    fun updatePhaseForDeclarationInternals(target: FirElementWithResolveState) {
+        LLFirPhaseUpdater.updateDeclarationInternalsPhase(
+            target = target,
+            newPhase = resolverPhase,
+            updateForLocalDeclarations = resolverPhase == FirResolvePhase.BODY_RESOLVE,
+        )
+    }
 
     fun checkIsResolved(designation: LLFirResolveTarget) {
         designation.forEachTarget(::checkIsResolved)
     }
 
-    protected fun checkNestedDeclarationsAreResolved(target: FirElementWithResolveState) {
+    private fun checkNestedDeclarationsAreResolved(target: FirElementWithResolveState) {
         if (target !is FirDeclaration) return
+
         checkFunctionParametersAreResolved(target)
         checkPropertyAccessorsAreResolved(target)
         checkPropertyBackingFieldIsResolved(target)
         checkTypeParametersAreResolved(target)
+        checkScriptDependentDeclaration(target)
     }
 
     private fun checkPropertyAccessorsAreResolved(declaration: FirDeclaration) {
@@ -71,5 +93,10 @@ internal abstract class LLFirLazyResolver(
                 }
             }
         }
+    }
+
+    private fun checkScriptDependentDeclaration(declaration: FirDeclaration) {
+        if (declaration !is FirScript) return
+        declaration.forEachDependentDeclaration(::checkIsResolved)
     }
 }

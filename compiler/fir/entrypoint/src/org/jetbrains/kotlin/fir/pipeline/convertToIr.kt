@@ -8,11 +8,11 @@ package org.jetbrains.kotlin.fir.pipeline
 import org.jetbrains.kotlin.backend.common.actualizer.IrActualizedResult
 import org.jetbrains.kotlin.backend.common.actualizer.IrActualizer
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
+import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.jvm.JvmIrTypeSystemContext
 import org.jetbrains.kotlin.backend.jvm.serialization.JvmIdSignatureDescriptor
 import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.backend.*
 import org.jetbrains.kotlin.fir.backend.jvm.Fir2IrJvmSpecialAnnotationSymbolProvider
@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.fir.backend.jvm.FirJvmKotlinMangler
 import org.jetbrains.kotlin.fir.backend.jvm.FirJvmVisibilityConverter
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.resolve.ScopeSession
-import org.jetbrains.kotlin.fir.signaturer.FirMangler
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmDescriptorMangler
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmIrMangler
@@ -36,7 +35,27 @@ data class ModuleCompilerAnalyzedOutput(
     val session: FirSession,
     val scopeSession: ScopeSession,
     val fir: List<FirFile>
-)
+) {
+    fun convertToIr(
+        fir2IrExtensions: Fir2IrExtensions,
+        fir2IrConfiguration: Fir2IrConfiguration,
+        commonMemberStorage: Fir2IrCommonMemberStorage,
+        irBuiltIns: IrBuiltInsOverFir?,
+        irMangler: KotlinMangler.IrMangler,
+        visibilityConverter: Fir2IrVisibilityConverter,
+        kotlinBuiltIns: KotlinBuiltIns,
+    ): Fir2IrResult {
+        return Fir2IrConverter.createModuleFragmentWithSignaturesIfNeeded(
+            session, scopeSession, fir,
+            fir2IrExtensions, fir2IrConfiguration,
+            irMangler, IrFactoryImpl, visibilityConverter,
+            Fir2IrJvmSpecialAnnotationSymbolProvider(), // TODO KT-60526: replace with appropriate (probably empty) implementation for other backends.
+            kotlinBuiltIns = kotlinBuiltIns,
+            commonMemberStorage = commonMemberStorage,
+            initializedIrBuiltIns = irBuiltIns
+        )
+    }
+}
 
 data class Fir2IrActualizedResult(
     val irModuleFragment: IrModuleFragment,
@@ -49,7 +68,6 @@ fun FirResult.convertToIrAndActualizeForJvm(
     fir2IrExtensions: Fir2IrExtensions,
     fir2IrConfiguration: Fir2IrConfiguration,
     irGeneratorExtensions: Collection<IrGenerationExtension>,
-    diagnosticReporter: DiagnosticReporter,
 ): Fir2IrActualizedResult = this.convertToIrAndActualize(
     fir2IrExtensions,
     fir2IrConfiguration,
@@ -58,7 +76,6 @@ fun FirResult.convertToIrAndActualizeForJvm(
     irMangler = JvmIrMangler,
     firMangler = FirJvmKotlinMangler(),
     visibilityConverter = FirJvmVisibilityConverter,
-    diagnosticReporter = diagnosticReporter,
     kotlinBuiltIns = DefaultBuiltIns.Instance,
     actualizerTypeContextProvider = ::JvmIrTypeSystemContext,
 )
@@ -81,7 +98,6 @@ fun FirResult.convertToIrAndActualize(
     firMangler: FirMangler,
     visibilityConverter: Fir2IrVisibilityConverter,
     kotlinBuiltIns: KotlinBuiltIns,
-    diagnosticReporter: DiagnosticReporter,
     actualizerTypeContextProvider: (IrBuiltIns) -> IrTypeSystemContext,
     fir2IrResultPostCompute: Fir2IrResult.() -> Unit = {},
 ): Fir2IrActualizedResult {
@@ -96,7 +112,6 @@ fun FirResult.convertToIrAndActualize(
             fir2IrResult = outputs.single().convertToIr(
                 fir2IrExtensions,
                 fir2IrConfiguration,
-                irGeneratorExtensions,
                 commonMemberStorage = commonMemberStorage,
                 irBuiltIns = null,
                 irMangler,
@@ -115,7 +130,6 @@ fun FirResult.convertToIrAndActualize(
                 it.convertToIr(
                     fir2IrExtensions,
                     fir2IrConfiguration,
-                    irGeneratorExtensions,
                     commonMemberStorage = commonMemberStorage,
                     irBuiltIns = irBuiltIns,
                     irMangler,
@@ -131,7 +145,6 @@ fun FirResult.convertToIrAndActualize(
             fir2IrResult = platformOutput.convertToIr(
                 fir2IrExtensions,
                 fir2IrConfiguration,
-                irGeneratorExtensions,
                 commonMemberStorage = commonMemberStorage,
                 irBuiltIns = irBuiltIns!!,
                 irMangler,
@@ -144,7 +157,7 @@ fun FirResult.convertToIrAndActualize(
             actualizationResult = IrActualizer.actualize(
                 fir2IrResult.irModuleFragment,
                 commonIrOutputs.map { it.irModuleFragment },
-                diagnosticReporter,
+                fir2IrConfiguration.diagnosticReporter,
                 actualizerTypeContextProvider(fir2IrResult.irModuleFragment.irBuiltins),
                 fir2IrConfiguration.languageVersionSettings
             )
@@ -152,27 +165,19 @@ fun FirResult.convertToIrAndActualize(
     }
 
     val (irModuleFragment, components, pluginContext) = fir2IrResult
+    components.applyIrGenerationExtensions(irModuleFragment, irGeneratorExtensions)
     return Fir2IrActualizedResult(irModuleFragment, components, pluginContext, actualizationResult)
 }
 
-private fun ModuleCompilerAnalyzedOutput.convertToIr(
-    fir2IrExtensions: Fir2IrExtensions,
-    fir2IrConfiguration: Fir2IrConfiguration,
-    irGeneratorExtensions: Collection<IrGenerationExtension>,
-    commonMemberStorage: Fir2IrCommonMemberStorage,
-    irBuiltIns: IrBuiltInsOverFir?,
-    irMangler: KotlinMangler.IrMangler,
-    visibilityConverter: Fir2IrVisibilityConverter,
-    kotlinBuiltIns: KotlinBuiltIns,
-): Fir2IrResult {
-    return Fir2IrConverter.createModuleFragmentWithSignaturesIfNeeded(
-        session, scopeSession, fir,
-        fir2IrExtensions, fir2IrConfiguration,
-        irMangler, IrFactoryImpl, visibilityConverter,
-        Fir2IrJvmSpecialAnnotationSymbolProvider(), // TODO: replace with appropriate (probably empty) implementation for other backends.
-        irGeneratorExtensions,
-        kotlinBuiltIns = kotlinBuiltIns,
-        commonMemberStorage = commonMemberStorage,
-        initializedIrBuiltIns = irBuiltIns
-    )
+fun Fir2IrComponents.applyIrGenerationExtensions(irModuleFragment: IrModuleFragment, irGenerationExtensions: Collection<IrGenerationExtension>) {
+    if (irGenerationExtensions.isEmpty()) return
+    Fir2IrPluginContext(this, irModuleFragment.descriptor).applyIrGenerationExtensions(irModuleFragment, irGenerationExtensions)
 }
+
+fun IrPluginContext.applyIrGenerationExtensions(irModuleFragment: IrModuleFragment, irGenerationExtensions: Collection<IrGenerationExtension>) {
+    if (irGenerationExtensions.isEmpty()) return
+    for (extension in irGenerationExtensions) {
+        extension.generate(irModuleFragment, this)
+    }
+}
+

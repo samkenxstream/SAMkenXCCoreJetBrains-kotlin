@@ -36,7 +36,7 @@ import kotlin.io.path.deleteExisting
 import kotlin.io.path.outputStream
 import kotlin.test.assertEquals
 
-abstract class Kapt3BaseIT : KGPBaseTest() {
+abstract class Kapt3BaseIT(val languageVersion: String = "1.9") : KGPBaseTest() {
     companion object {
         private const val KAPT_SUCCESSFUL_MESSAGE = "Annotation processing complete, errors: 0"
     }
@@ -44,6 +44,7 @@ abstract class Kapt3BaseIT : KGPBaseTest() {
     override val defaultBuildOptions: BuildOptions = super.defaultBuildOptions
         .copy(
             kaptOptions = this.kaptOptions(),
+            languageVersion = languageVersion,
         )
 
     protected open fun kaptOptions(): BuildOptions.KaptOptions = BuildOptions.KaptOptions(
@@ -160,14 +161,13 @@ open class Kapt3IT : Kapt3BaseIT() {
         project(
             "simple".withPrefix,
             gradleVersion,
-            buildJdk = jdk.location
         ) {
             //language=Groovy
             buildGradle.appendText(
                 """
                 |
                 |kotlin {
-                |    jvmToolchain(8)
+                |    jvmToolchain(${jdk.version.majorVersion})
                 |}
                 """.trimMargin()
             )
@@ -893,8 +893,6 @@ open class Kapt3IT : Kapt3BaseIT() {
     }
 
     @DisplayName("KT-31127: processor using Filer api does not break 'javaCompile' task")
-    @GradleTestVersions(maxVersion = TestVersions.Gradle.G_7_6)
-    @AndroidTestVersions(maxVersion = TestVersions.AGP.AGP_74)
     @GradleTest
     fun testKotlinProcessorUsingFiler(gradleVersion: GradleVersion) {
         project("kotlinProject", gradleVersion) {
@@ -931,7 +929,6 @@ open class Kapt3IT : Kapt3BaseIT() {
 
     @DisplayName("should do annotation processing when 'sourceCompatibility = 8' and JDK is 11+")
     @JdkVersions(versions = [JavaVersion.VERSION_11])
-    @GradleTestVersions(maxVersion = TestVersions.Gradle.G_7_6)
     @GradleWithJdkTest
     fun testSimpleWithJdk11AndSourceLevel8(
         gradleVersion: GradleVersion,
@@ -944,6 +941,14 @@ open class Kapt3IT : Kapt3BaseIT() {
         ) {
             buildGradle.append(
                 "\nsourceCompatibility = '8'"
+            )
+
+            // because Java sourceCompatibility is fixed JVM target will different with JDK 11 on Gradle 8
+            // as the toolchain by default will use the Gradle JDK version
+            gradleProperties.appendText(
+                """
+                |kotlin.jvm.target.validation.mode=warning
+                """.trimMargin()
             )
 
             build("assemble") {

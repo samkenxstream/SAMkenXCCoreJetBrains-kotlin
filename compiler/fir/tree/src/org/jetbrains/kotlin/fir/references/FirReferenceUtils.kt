@@ -48,7 +48,11 @@ fun FirReference.toResolvedValueParameterSymbol(discardErrorReference: Boolean =
     return this.toResolvedSymbol<FirValueParameterSymbol>(discardErrorReference)
 }
 
-fun FirReference.toResolvedFunctionSymbol(discardErrorReference: Boolean = false): FirNamedFunctionSymbol? {
+fun FirReference.toResolvedFunctionSymbol(discardErrorReference: Boolean = false): FirFunctionSymbol<*>? {
+    return this.toResolvedSymbol<FirFunctionSymbol<*>>(discardErrorReference)
+}
+
+fun FirReference.toResolvedNamedFunctionSymbol(discardErrorReference: Boolean = false): FirNamedFunctionSymbol? {
     return this.toResolvedSymbol<FirNamedFunctionSymbol>(discardErrorReference)
 }
 
@@ -71,9 +75,3 @@ fun FirReference.isError(): Boolean {
     }
 }
 
-fun FirReference.toNameString(): String? = when (this) {
-    is FirNamedReference -> name.asString()
-    is FirThisReference -> "this"
-    is FirSuperReference -> "super"
-    else -> null
-}

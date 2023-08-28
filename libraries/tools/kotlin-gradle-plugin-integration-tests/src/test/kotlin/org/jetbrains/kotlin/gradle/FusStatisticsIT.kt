@@ -6,10 +6,9 @@
 package org.jetbrains.kotlin.gradle
 
 import org.gradle.util.GradleVersion
-import org.jetbrains.kotlin.gradle.testbase.GradleTest
-import org.junit.jupiter.api.DisplayName
 import org.jetbrains.kotlin.gradle.testbase.*
 import org.jetbrains.kotlin.gradle.util.replaceText
+import org.junit.jupiter.api.DisplayName
 import java.nio.file.Path
 
 @DisplayName("FUS statistic")
@@ -25,12 +24,13 @@ class FusStatisticsIT : KGPDaemonsBaseTest() {
         "KOTLIN_COMPILER_VERSION",
     )
 
+    private val GradleProject.fusStatisticsPath: Path
+        get() = projectPath.getSingleFileInDir("kotlin-profile")
+
     @DisplayName("for dokka")
     @GradleTest
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     fun testDokka(gradleVersion: GradleVersion) {
         project(
@@ -48,32 +48,32 @@ class FusStatisticsIT : KGPDaemonsBaseTest() {
         }
     }
 
-    private fun TestProject.applyDokka() {
-        buildGradle.replaceText(
-            "plugins {",
-            """
-                    plugins {
-                        id("org.jetbrains.dokka") version "1.8.10"
-                    """.trimIndent()
-        )
+    @DisplayName("Verify that the metric for applying the Cocoapods plugin is being collected")
+    @GradleTest
+    fun testMetricCollectingOfApplyingCocoapodsPlugin(gradleVersion: GradleVersion) {
+        project("native-cocoapods-template", gradleVersion) {
+            build("assemble", "-Pkotlin.session.logger.root.path=$projectPath") {
+                assertFileContains(fusStatisticsPath, "COCOAPODS_PLUGIN_ENABLED=true")
+            }
+        }
     }
 
-    private val GradleProject.fusStatisticsPath: Path
-        get() = projectPath.getSingleFileInDir("kotlin-profile")
-
-    @DisplayName("general fields")
+    @DisplayName("Verify that the metric for applying the Kotlin JS plugin is being collected")
     @GradleTest
-    @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
-        additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
-    )
-    fun testFusStatistics(gradleVersion: GradleVersion) {
-        project(
-            "simpleProject",
-            gradleVersion,
-        ) {
-            build("compileKotlin", "-Pkotlin.session.logger.root.path=$projectPath") {
+    fun testMetricCollectingOfApplyingKotlinJsPlugin(gradleVersion: GradleVersion) {
+        project("simple-js-library", gradleVersion) {
+            build("assemble", "-Pkotlin.session.logger.root.path=$projectPath") {
+                assertFileContains(fusStatisticsPath, "KOTLIN_JS_PLUGIN_ENABLED=true")
+            }
+        }
+    }
+
+
+    @DisplayName("Ensure that the metric are not collected if plugins were not applied to simple project")
+    @GradleTest
+    fun testAppliedPluginsMetricsAreNotCollectedInSimpleProject(gradleVersion: GradleVersion) {
+        project("simpleProject", gradleVersion) {
+            build("assemble", "-Pkotlin.session.logger.root.path=$projectPath") {
                 val fusStatisticsPath = fusStatisticsPath
                 assertFileContains(
                     fusStatisticsPath,
@@ -81,9 +81,9 @@ class FusStatisticsIT : KGPDaemonsBaseTest() {
                 )
                 assertFileDoesNotContain(
                     fusStatisticsPath,
-                    "ENABLED_DOKKA",
-                    "ENABLED_DOKKA_HTML",
+                    "ENABLED_DOKKA_HTML"
                 ) // asserts that we do not put DOKKA metrics everywhere just in case
+                assertFileDoesNotContain(fusStatisticsPath, "KOTLIN_JS_PLUGIN_ENABLED")
             }
         }
     }
@@ -91,9 +91,7 @@ class FusStatisticsIT : KGPDaemonsBaseTest() {
     @DisplayName("for project with buildSrc")
     @GradleTest
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     fun testProjectWithBuildSrc(gradleVersion: GradleVersion) {
         project(
@@ -143,9 +141,7 @@ class FusStatisticsIT : KGPDaemonsBaseTest() {
     @DisplayName("for failed build")
     @GradleTest
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     fun testFusStatisticsForFailedBuild(gradleVersion: GradleVersion) {
         project(
@@ -173,9 +169,7 @@ class FusStatisticsIT : KGPDaemonsBaseTest() {
     @DisplayName("general fields with configuration cache")
     @GradleTest
     @GradleTestVersions(
-        minVersion = TestVersions.Gradle.MIN_SUPPORTED,
         additionalVersions = [TestVersions.Gradle.G_7_6, TestVersions.Gradle.G_8_0],
-        maxVersion = TestVersions.Gradle.G_8_1
     )
     fun testFusStatisticsWithConfigurationCache(gradleVersion: GradleVersion) {
         project(
@@ -198,4 +192,15 @@ class FusStatisticsIT : KGPDaemonsBaseTest() {
             }
         }
     }
+
+    private fun TestProject.applyDokka() {
+        buildGradle.replaceText(
+            "plugins {",
+            """
+                    plugins {
+                        id("org.jetbrains.dokka") version "1.8.10"
+                    """.trimIndent()
+        )
+    }
+
 }

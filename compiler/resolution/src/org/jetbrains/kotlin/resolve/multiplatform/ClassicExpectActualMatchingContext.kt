@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.resolve.multiplatform
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
+import org.jetbrains.kotlin.descriptors.annotations.KotlinRetention
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.mpp.*
 import org.jetbrains.kotlin.name.CallableId
@@ -13,28 +15,40 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.calls.components.ClassicTypeSystemContextForCS
+import org.jetbrains.kotlin.resolve.calls.mpp.ExpectActualCollectionArgumentsCompatibilityCheckStrategy
 import org.jetbrains.kotlin.resolve.calls.mpp.ExpectActualMatchingContext
-import org.jetbrains.kotlin.resolve.descriptorUtil.classId
-import org.jetbrains.kotlin.resolve.descriptorUtil.getKotlinTypeRefiner
-import org.jetbrains.kotlin.resolve.descriptorUtil.isTypeRefinementEnabled
+import org.jetbrains.kotlin.resolve.calls.mpp.ExpectActualMatchingContext.AnnotationCallInfo
+import org.jetbrains.kotlin.resolve.checkers.OptInNames
+import org.jetbrains.kotlin.resolve.descriptorUtil.*
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.checker.*
-import org.jetbrains.kotlin.types.model.*
+import org.jetbrains.kotlin.types.model.KotlinTypeMarker
+import org.jetbrains.kotlin.types.model.TypeConstructorMarker
+import org.jetbrains.kotlin.types.model.TypeSubstitutorMarker
+import org.jetbrains.kotlin.types.model.TypeSystemContext
 import org.jetbrains.kotlin.types.typeUtil.asTypeProjection
 import org.jetbrains.kotlin.utils.addToStdlib.UnsafeCastFunction
 import org.jetbrains.kotlin.utils.addToStdlib.castAll
 import org.jetbrains.kotlin.utils.addToStdlib.shouldNotBeCalled
 import org.jetbrains.kotlin.utils.keysToMap
 
-class ClassicExpectActualMatchingContext(val platformModule: ModuleDescriptor) : ExpectActualMatchingContext<MemberDescriptor>,
-    TypeSystemContext by ClassicTypeSystemContextForCS(platformModule.builtIns, KotlinTypeRefiner.Default)
-{
+class ClassicExpectActualMatchingContext(
+    val platformModule: ModuleDescriptor,
+    /**
+     * You want to enable this check only in expect-actual matcher checker. And disable everywhere else (especially on backends)
+     *
+     * Otherwise, it won't be possible to suppress the compilation error in user code
+     */
+    override val shouldCheckAbsenceOfDefaultParamsInActual: Boolean = false
+) : ExpectActualMatchingContext<MemberDescriptor>,
+    TypeSystemContext by ClassicTypeSystemContextForCS(platformModule.builtIns, KotlinTypeRefiner.Default) {
     override val shouldCheckReturnTypesOfCallables: Boolean
         get() = true
 
+    private fun DeclarationSymbolMarker.asDescriptor(): DeclarationDescriptor = this as DeclarationDescriptor
     private fun CallableSymbolMarker.asDescriptor(): CallableDescriptor = this as CallableDescriptor
     private fun FunctionSymbolMarker.asDescriptor(): FunctionDescriptor = this as FunctionDescriptor
     private fun PropertySymbolMarker.asDescriptor(): PropertyDescriptor = this as PropertyDescriptor
@@ -163,11 +177,14 @@ class ClassicExpectActualMatchingContext(val platformModule: ModuleDescriptor) :
     }
 
     override fun RegularClassSymbolMarker.collectEnumEntryNames(): List<Name> {
+        return collectEnumEntries().map { it.name }
+    }
+
+    override fun RegularClassSymbolMarker.collectEnumEntries(): List<DeclarationDescriptor> {
         return asDescriptor()
             .unsubstitutedMemberScope
             .getDescriptorsFiltered()
             .filter(DescriptorUtils::isEnumEntry)
-            .map { it.name }
     }
 
     override val CallableSymbolMarker.dispatchReceiverType: KotlinTypeMarker?
@@ -188,6 +205,12 @@ class ClassicExpectActualMatchingContext(val platformModule: ModuleDescriptor) :
         get() = asDescriptor().isCrossinline
     override val ValueParameterSymbolMarker.hasDefaultValue: Boolean
         get() = asDescriptor().declaresDefaultValue()
+    override fun FunctionSymbolMarker.allOverriddenDeclarationsRecursive(): Sequence<CallableSymbolMarker> =
+        (sequenceOf(asDescriptor()) + asDescriptor().overriddenTreeAsSequence(useOriginal = true))
+            // Tests work even if you don't filter out fake-overrides. Filtering fake-overrides is needed because
+            // the returned descriptors are compared by `equals`. And `equals` for fake-overrides is weird.
+            // I didn't manage to invent a test that would check this condition
+            .filter { it.kind != CallableMemberDescriptor.Kind.FAKE_OVERRIDE && it.kind != CallableMemberDescriptor.Kind.DELEGATION }
 
     override fun CallableSymbolMarker.isAnnotationConstructor(): Boolean {
         val descriptor = safeAsDescriptor<ConstructorDescriptor>() ?: return false
@@ -328,4 +351,95 @@ class ClassicExpectActualMatchingContext(val platformModule: ModuleDescriptor) :
 
     override val CallableSymbolMarker.hasStableParameterNames: Boolean
         get() = asDescriptor().hasStableParameterNames()
+
+    override val DeclarationSymbolMarker.annotations: List<AnnotationCallInfo>
+        get() = asDescriptor().annotations.map(::AnnotationCallInfoImpl)
+
+    override fun areAnnotationArgumentsEqual(
+        expectAnnotation: AnnotationCallInfo,
+        actualAnnotation: AnnotationCallInfo,
+        collectionArgumentsCompatibilityCheckStrategy: ExpectActualCollectionArgumentsCompatibilityCheckStrategy,
+    ): Boolean {
+        fun AnnotationCallInfo.getDescriptor(): AnnotationDescriptor = (this as AnnotationCallInfoImpl).annotationDescriptor
+
+        return areExpressionConstValuesEqual(
+            expectAnnotation.getDescriptor(),
+            actualAnnotation.getDescriptor(),
+            collectionArgumentsCompatibilityCheckStrategy,
+        )
+    }
+
+    private inner class AnnotationCallInfoImpl(
+        val annotationDescriptor: AnnotationDescriptor,
+    ) : AnnotationCallInfo {
+        override val annotationSymbol: AnnotationDescriptor = annotationDescriptor
+
+        override val classId: ClassId?
+            get() = getAnnotationClassDescriptor()?.classId
+
+        override val isRetentionSource: Boolean
+            get() = getAnnotationClassDescriptor()?.getAnnotationRetention() == KotlinRetention.SOURCE
+
+        override val isOptIn: Boolean
+            get() = getAnnotationClassDescriptor()?.annotations?.hasAnnotation(OptInNames.REQUIRES_OPT_IN_FQ_NAME) ?: false
+
+        private fun getAnnotationClassDescriptor(): ClassDescriptor? {
+            val classDescriptor = annotationDescriptor.annotationClass ?: return null
+            if (!classDescriptor.isExpect) {
+                return classDescriptor
+            }
+            val classId = classDescriptor.classId
+            return findExpandedExpectClassInPlatformModule(classId) ?: classDescriptor
+        }
+    }
+
+    // For IDE composite module analysis, when actual class may differ
+    internal fun findExpandedExpectClassInPlatformModule(originalClassId: ClassId): ClassDescriptor? {
+        val classifier = platformModule.findClassifierAcrossModuleDependencies(originalClassId)
+        return when (classifier) {
+            is TypeAliasDescriptor -> classifier.classDescriptor
+            is ClassDescriptor -> classifier
+            else -> null
+        }
+    }
+
+    override val DeclarationSymbolMarker.hasSourceAnnotationsErased: Boolean
+        get() {
+            return DescriptorUtils.getContainingSourceFile(asDescriptor()) == SourceFile.NO_SOURCE_FILE &&
+                    this !is K1SyntheticClassifierSymbolMarker &&
+                    !(this is CallableMemberDescriptor && kind == CallableMemberDescriptor.Kind.SYNTHESIZED)
+        }
+
+    override val checkClassScopesForAnnotationCompatibility = true
+
+    override fun skipCheckingAnnotationsOfActualClassMember(actualMember: DeclarationSymbolMarker): Boolean =
+        (actualMember as MemberDescriptor).isActual
+
+    override fun findPotentialExpectClassMembersForActual(
+        expectClass: RegularClassSymbolMarker,
+        actualClass: RegularClassSymbolMarker,
+        actualMember: DeclarationSymbolMarker,
+        checkClassScopesCompatibility: Boolean,
+    ): Map<MemberDescriptor, ExpectActualCompatibility<*>> {
+        val compatibilityToExpects = ExpectedActualResolver.findExpectForActualClassMember(
+            actualMember as MemberDescriptor,
+            actualClass as ClassDescriptor,
+            expectClass as ClassDescriptor,
+            checkClassScopesCompatibility,
+            this,
+        )
+        return buildMap {
+            for ((compatibility, expectMembers) in compatibilityToExpects.entries) {
+                for (expectMember in expectMembers) {
+                    val oldValue = put(expectMember, compatibility)
+                    if (oldValue != null) {
+                        error(
+                            "Several incompatibilities correspond to the same expect symbol: symbol=$expectMember, " +
+                                    "compatibilities=$oldValue, $compatibility"
+                        )
+                    }
+                }
+            }
+        }
+    }
 }

@@ -23,7 +23,10 @@ import org.jetbrains.kotlin.fir.resolve.toFirRegularClassSymbol
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.SymbolInternals
-import org.jetbrains.kotlin.fir.symbols.impl.*
+import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirClassLikeSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
 import org.jetbrains.kotlin.fir.symbols.lazyResolveToPhase
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.name.ClassId
@@ -159,7 +162,7 @@ object FirOptInUsageBaseChecker {
                 fir.loadCallableSpecificExperimentalities(this, context, visited, fromSetter, dispatchReceiverType, result)
             is FirClassLikeDeclaration ->
                 fir.loadClassLikeSpecificExperimentalities(this, context, visited, result)
-            is FirAnonymousInitializer, is FirDanglingModifierList, is FirFile, is FirTypeParameter, is FirScript -> {}
+            is FirAnonymousInitializer, is FirDanglingModifierList, is FirFile, is FirTypeParameter, is FirScript, is FirCodeFragment -> {}
         }
 
         fir.loadExperimentalitiesFromAnnotationTo(session, result, fromSupertype)
@@ -174,7 +177,7 @@ object FirOptInUsageBaseChecker {
             }
         }
 
-        // TODO: getAnnotationsOnContainingModule
+        // TODO, KT-59802: getAnnotationsOnContainingModule
         return result
     }
 
@@ -255,9 +258,9 @@ object FirOptInUsageBaseChecker {
 
         val levelArgument = experimental.findArgumentByName(LEVEL) as? FirQualifiedAccessExpression
         val levelName = levelArgument?.calleeReference?.resolved?.name?.asString()
-        val level = OptInLevel.values().firstOrNull { it.name == levelName } ?: OptInLevel.DEFAULT
+        val severity = Experimentality.Severity.values().firstOrNull { it.name == levelName } ?: Experimentality.DEFAULT_SEVERITY
         val message = (experimental.findArgumentByName(MESSAGE) as? FirConstExpression<*>)?.value as? String
-        return Experimentality(symbol.classId, level.severity, message, annotatedOwnerClassName)
+        return Experimentality(symbol.classId, severity, message, annotatedOwnerClassName)
     }
 
     fun reportNotAcceptedExperimentalities(
@@ -381,10 +384,4 @@ object FirOptInUsageBaseChecker {
 
     private val LEVEL = Name.identifier("level")
     private val MESSAGE = Name.identifier("message")
-
-    private enum class OptInLevel(val severity: Experimentality.Severity) {
-        WARNING(Experimentality.Severity.WARNING),
-        ERROR(Experimentality.Severity.ERROR),
-        DEFAULT(Experimentality.DEFAULT_SEVERITY)
-    }
 }

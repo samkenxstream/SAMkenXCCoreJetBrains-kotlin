@@ -6,17 +6,13 @@
 package org.jetbrains.kotlin.js.test.converters
 
 import org.jetbrains.kotlin.backend.common.CommonKLibResolver
-import org.jetbrains.kotlin.backend.common.actualizer.IrActualizer
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
-import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
-import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.ir.backend.js.JsFactories
 import org.jetbrains.kotlin.ir.backend.js.resolverLogger
 import org.jetbrains.kotlin.ir.backend.js.serializeModuleIntoKlib
-import org.jetbrains.kotlin.ir.types.IrTypeSystemContextImpl
 import org.jetbrains.kotlin.ir.util.IrMessageLogger
 import org.jetbrains.kotlin.js.test.utils.JsIrIncrementalDataProvider
 import org.jetbrains.kotlin.js.test.utils.jsIrIncrementalDataProvider
@@ -30,7 +26,6 @@ import org.jetbrains.kotlin.test.frontend.fir.getAllJsDependenciesPaths
 import org.jetbrains.kotlin.test.frontend.fir.resolveLibraries
 import org.jetbrains.kotlin.test.model.ArtifactKinds
 import org.jetbrains.kotlin.test.model.BinaryArtifacts
-import org.jetbrains.kotlin.test.model.FrontendKinds
 import org.jetbrains.kotlin.test.model.TestModule
 import org.jetbrains.kotlin.test.services.*
 import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurator
@@ -62,23 +57,7 @@ class FirJsKlibBackendFacade(
         // TODO: consider avoiding repeated libraries resolution
         val libraries = resolveLibraries(configuration, getAllJsDependenciesPaths(module, testServices))
 
-        // TODO: find out how to pass diagnostics to the test infra in this case
-        val diagnosticReporter = DiagnosticReporterFactory.createReporter()
-
         if (firstTimeCompilation) {
-            val irActualizedResult =
-                if (module.frontendKind == FrontendKinds.FIR && module.languageVersionSettings.supportsFeature(LanguageFeature.MultiPlatformProjects)) {
-                    IrActualizer.actualize(
-                        inputArtifact.irModuleFragment,
-                        inputArtifact.dependentIrModuleFragments,
-                        diagnosticReporter,
-                        IrTypeSystemContextImpl(inputArtifact.irModuleFragment.irBuiltins),
-                        configuration.languageVersionSettings
-                    )
-                } else {
-                    null
-                }
-
             serializeModuleIntoKlib(
                 configuration[CommonConfigurationKeys.MODULE_NAME]!!,
                 configuration,
@@ -87,7 +66,6 @@ class FirJsKlibBackendFacade(
                 klibPath = outputFile,
                 libraries.map { it.library },
                 inputArtifact.irModuleFragment,
-                inputArtifact.expectDescriptorToSymbol,
                 cleanFiles = inputArtifact.icData,
                 nopack = true,
                 perFile = false,
@@ -95,7 +73,7 @@ class FirJsKlibBackendFacade(
                 abiVersion = KotlinAbiVersion.CURRENT, // TODO get from test file data
                 jsOutputName = null
             ) {
-                inputArtifact.serializeSingleFile(it, irActualizedResult)
+                inputArtifact.serializeSingleFile(it, inputArtifact.irActualizerResult)
             }
         }
 

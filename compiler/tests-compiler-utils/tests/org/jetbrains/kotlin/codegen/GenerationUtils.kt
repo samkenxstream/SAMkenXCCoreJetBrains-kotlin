@@ -13,9 +13,9 @@ import org.jetbrains.kotlin.ObsoleteTestInfrastructure
 import org.jetbrains.kotlin.TestsCompiletimeError
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.asJava.finder.JavaElementFinder
-import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.backend.jvm.JvmIrDeserializerImpl
+import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.GroupingMessageCollector
@@ -30,14 +30,12 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.constant.EvaluatedConstTracker
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.fir.FirAnalyzerFacade
 import org.jetbrains.kotlin.fir.FirTestSessionFactoryHelper
 import org.jetbrains.kotlin.fir.backend.Fir2IrCommonMemberStorage
 import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
-import org.jetbrains.kotlin.fir.backend.jvm.FirJvmBackendClassResolver
-import org.jetbrains.kotlin.fir.backend.jvm.FirJvmBackendExtension
-import org.jetbrains.kotlin.fir.backend.jvm.FirJvmKotlinMangler
-import org.jetbrains.kotlin.fir.backend.jvm.JvmFir2IrExtensions
+import org.jetbrains.kotlin.fir.backend.jvm.*
 import org.jetbrains.kotlin.fir.pipeline.signatureComposerForJvmFir2Ir
 import org.jetbrains.kotlin.ir.backend.jvm.jvmResolveLibraries
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmIrMangler
@@ -119,32 +117,39 @@ object GenerationUtils {
             getPackagePartProvider = packagePartProvider
         )
 
+        val linkViaSignatures = configuration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES)
         // TODO: add running checkers and check that it's safe to compile
         val firAnalyzerFacade = FirAnalyzerFacade(
             session,
-            Fir2IrConfiguration(
-                languageVersionSettings = configuration.languageVersionSettings,
-                linkViaSignatures = configuration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES),
-                evaluatedConstTracker = configuration
-                    .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
-                inlineConstTracker = configuration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
-            ),
             files,
             emptyList(),
-            IrGenerationExtension.getInstances(project),
             FirParser.Psi,
         )
-        val fir2IrExtensions = JvmFir2IrExtensions(configuration, JvmIrDeserializerImpl(), JvmIrMangler)
 
-        val commonMemberStorage = Fir2IrCommonMemberStorage(
-            signatureComposerForJvmFir2Ir(firAnalyzerFacade.fir2IrConfiguration.linkViaSignatures),
-            FirJvmKotlinMangler(),
+        val fir2IrExtensions = JvmFir2IrExtensions(configuration, JvmIrDeserializerImpl(), JvmIrMangler)
+        val diagnosticReporter = DiagnosticReporterFactory.createReporter()
+
+        val fir2IrConfiguration = Fir2IrConfiguration(
+            languageVersionSettings = configuration.languageVersionSettings,
+            diagnosticReporter = diagnosticReporter,
+            linkViaSignatures = linkViaSignatures,
+            evaluatedConstTracker = configuration
+                .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+            inlineConstTracker = configuration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
+            allowNonCachedDeclarations = false
         )
 
-        val (moduleFragment, components, pluginContext) = firAnalyzerFacade.convertToIr(
+        val commonMemberStorage = Fir2IrCommonMemberStorage(signatureComposerForJvmFir2Ir(linkViaSignatures), FirJvmKotlinMangler())
+
+        firAnalyzerFacade.runResolution()
+        val (moduleFragment, components, pluginContext) = firAnalyzerFacade.result.outputs.single().convertToIr(
             fir2IrExtensions,
+            fir2IrConfiguration,
             commonMemberStorage,
-            irBuiltIns = null
+            irBuiltIns = null,
+            JvmIrMangler,
+            FirJvmVisibilityConverter,
+            DefaultBuiltIns.Instance
         )
         val dummyBindingContext = NoScopeRecordCliBindingTrace().bindingContext
 
@@ -159,6 +164,8 @@ object GenerationUtils {
             true
         ).jvmBackendClassResolver(
             FirJvmBackendClassResolver(components)
+        ).diagnosticReporter(
+            diagnosticReporter
         ).build()
 
         generationState.beforeCompile()

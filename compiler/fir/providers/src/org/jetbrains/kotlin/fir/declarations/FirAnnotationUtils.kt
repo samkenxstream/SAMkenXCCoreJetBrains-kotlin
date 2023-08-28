@@ -201,7 +201,7 @@ inline fun <T> List<FirAnnotation>.mapAnnotationsWithClassIdTo(
 fun FirExpression.unwrapVarargValue(): List<FirExpression> {
     return when (this) {
         is FirVarargArgumentsExpression -> arguments
-        is FirArrayOfCall -> arguments
+        is FirArrayLiteral -> arguments
         else -> listOf(this)
     }
 }
@@ -223,9 +223,8 @@ fun FirAnnotation.findArgumentByName(name: Name): FirExpression? {
 
 fun FirAnnotation.getBooleanArgument(name: Name): Boolean? = getPrimitiveArgumentValue(name)
 fun FirAnnotation.getStringArgument(name: Name): String? = getPrimitiveArgumentValue(name)
-fun FirAnnotation.getIntArgument(name: Name): Int? = getPrimitiveArgumentValue(name)
 fun FirAnnotation.getStringArrayArgument(name: Name): List<String>? {
-    val argument = findArgumentByName(name) as? FirArrayOfCall ?: return null
+    val argument = findArgumentByName(name) as? FirArrayLiteral ?: return null
     return argument.arguments.mapNotNull { (it as? FirConstExpression<*>)?.value as? String }
 }
 
@@ -241,7 +240,7 @@ fun FirAnnotation.getKClassArgument(name: Name): ConeKotlinType? {
 }
 
 fun FirGetClassCall.getTargetType(): ConeKotlinType? {
-    return typeRef.coneType.typeArguments.getOrNull(0)?.type
+    return resolvedType.typeArguments.getOrNull(0)?.type
 }
 
 fun FirAnnotationContainer.getJvmNameFromAnnotation(session: FirSession, target: AnnotationUseSiteTarget? = null): String? {

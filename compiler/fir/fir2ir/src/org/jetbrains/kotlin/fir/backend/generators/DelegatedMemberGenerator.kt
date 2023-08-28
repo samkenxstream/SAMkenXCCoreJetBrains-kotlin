@@ -11,18 +11,22 @@ import org.jetbrains.kotlin.fir.backend.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.modality
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
-import org.jetbrains.kotlin.fir.scopes.*
-import org.jetbrains.kotlin.fir.delegatedWrapperData
 import org.jetbrains.kotlin.fir.resolve.scope
+import org.jetbrains.kotlin.fir.scopes.*
 import org.jetbrains.kotlin.fir.symbols.ConeClassLikeLookupTag
-import org.jetbrains.kotlin.fir.symbols.impl.*
-import org.jetbrains.kotlin.fir.types.*
+import org.jetbrains.kotlin.fir.symbols.impl.FirCallableSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirNamedFunctionSymbol
+import org.jetbrains.kotlin.fir.symbols.impl.FirPropertySymbol
+import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.lowerBoundIfFlexible
+import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetFieldImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrReturnImpl
+import org.jetbrains.kotlin.ir.symbols.IrSymbolInternals
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.util.SYNTHETIC_OFFSET
@@ -51,6 +55,7 @@ class DelegatedMemberGenerator(private val components: Fir2IrComponents) : Fir2I
 
     private val bodiesInfo = mutableListOf<DeclarationBodyInfo>()
 
+    @OptIn(IrSymbolInternals::class)
     fun generateBodies() {
         for ((declaration, irField, delegateToSymbol, delegateToLookupTag) in bodiesInfo) {
             val callTypeCanBeNullable = Fir2IrImplicitCastInserter.typeCanBeEnhancedOrFlexibleNullable(delegateToSymbol.fir.returnTypeRef.coneType.fullyExpandedType(session))
@@ -78,26 +83,11 @@ class DelegatedMemberGenerator(private val components: Fir2IrComponents) : Fir2I
         bodiesInfo.clear()
     }
 
-    private fun FirClassifierSymbol<*>?.boundClass(): FirClass {
-        return when (this) {
-            is FirRegularClassSymbol -> fir
-            is FirAnonymousObjectSymbol -> fir
-            is FirTypeParameterSymbol ->
-                fir.bounds.first().coneType.fullyExpandedType(session).lowerBoundIfFlexible().toSymbol(session).boundClass()
-            is FirTypeAliasSymbol, null -> throw AssertionError(this?.fir?.render())
-        }
-    }
-
     // Generate delegated members for [subClass]. The synthetic field [irField] has the super interface type.
     fun generate(irField: IrField, firField: FirField, firSubClass: FirClass, subClass: IrClass) {
-        val subClassScope = firSubClass.unsubstitutedScope(
-            session,
-            scopeSession,
-            withForcedTypeCalculator = false,
-            memberRequiredPhase = null,
-        )
+        val subClassScope = firSubClass.unsubstitutedScope()
 
-        val delegateToScope = firField.initializer!!.typeRef.coneType
+        val delegateToScope = firField.initializer!!.resolvedType
             .fullyExpandedType(session)
             .lowerBoundIfFlexible()
             .scope(session, scopeSession, FakeOverrideTypeCalculator.DoNothing, null) ?: return
@@ -183,6 +173,7 @@ class DelegatedMemberGenerator(private val components: Fir2IrComponents) : Fir2I
         return result?.unwrapSubstitutionOverrides()
     }
 
+    @OptIn(IrSymbolInternals::class)
     fun bindDelegatedMembersOverriddenSymbols(irClass: IrClass) {
         val superClasses by lazy(LazyThreadSafetyMode.NONE) {
             irClass.superTypes.mapNotNullTo(mutableSetOf()) { it.classifierOrNull?.owner as? IrClass }

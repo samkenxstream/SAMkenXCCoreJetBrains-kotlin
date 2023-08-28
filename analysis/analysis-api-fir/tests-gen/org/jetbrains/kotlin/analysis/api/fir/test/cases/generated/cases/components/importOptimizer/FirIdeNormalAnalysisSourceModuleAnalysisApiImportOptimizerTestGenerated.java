@@ -53,6 +53,12 @@ public class FirIdeNormalAnalysisSourceModuleAnalysisApiImportOptimizerTestGener
     }
 
     @Test
+    @TestMetadata("unusedAliasedImportFromSamePackage.kt")
+    public void testUnusedAliasedImportFromSamePackage() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedAliasedImportFromSamePackage.kt");
+    }
+
+    @Test
     @TestMetadata("unusedAliasedTypeImport.kt")
     public void testUnusedAliasedTypeImport() throws Exception {
         runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedAliasedTypeImport.kt");
@@ -89,9 +95,21 @@ public class FirIdeNormalAnalysisSourceModuleAnalysisApiImportOptimizerTestGener
     }
 
     @Test
+    @TestMetadata("unusedImplicitReturnTypeReference_destructuring.kt")
+    public void testUnusedImplicitReturnTypeReference_destructuring() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedImplicitReturnTypeReference_destructuring.kt");
+    }
+
+    @Test
     @TestMetadata("unusedImportFromObject.kt")
     public void testUnusedImportFromObject() throws Exception {
         runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedImportFromObject.kt");
+    }
+
+    @Test
+    @TestMetadata("unusedImportsFromSamePackage.kt")
+    public void testUnusedImportsFromSamePackage() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedImportsFromSamePackage.kt");
     }
 
     @Test
@@ -101,15 +119,39 @@ public class FirIdeNormalAnalysisSourceModuleAnalysisApiImportOptimizerTestGener
     }
 
     @Test
+    @TestMetadata("unusedObject_invokeOperator.kt")
+    public void testUnusedObject_invokeOperator() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedObject_invokeOperator.kt");
+    }
+
+    @Test
     @TestMetadata("unusedStaticFunctionImportFromJavaChildClass.kt")
     public void testUnusedStaticFunctionImportFromJavaChildClass() throws Exception {
         runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedStaticFunctionImportFromJavaChildClass.kt");
     }
 
     @Test
+    @TestMetadata("unusedTypeAsVarargType.kt")
+    public void testUnusedTypeAsVarargType() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/unusedTypeAsVarargType.kt");
+    }
+
+    @Test
+    @TestMetadata("usedAliasedAndRegularImportsFromSamePackage.kt")
+    public void testUsedAliasedAndRegularImportsFromSamePackage() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/usedAliasedAndRegularImportsFromSamePackage.kt");
+    }
+
+    @Test
     @TestMetadata("usedAliasedFunctionReference.kt")
     public void testUsedAliasedFunctionReference() throws Exception {
         runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/usedAliasedFunctionReference.kt");
+    }
+
+    @Test
+    @TestMetadata("usedAliasedImportsFromSamePackage.kt")
+    public void testUsedAliasedImportsFromSamePackage() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/usedAliasedImportsFromSamePackage.kt");
     }
 
     @Test
@@ -179,6 +221,12 @@ public class FirIdeNormalAnalysisSourceModuleAnalysisApiImportOptimizerTestGener
     }
 
     @Test
+    @TestMetadata("usedObject_invokeOperator.kt")
+    public void testUsedObject_invokeOperator() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/usedObject_invokeOperator.kt");
+    }
+
+    @Test
     @TestMetadata("usedStaticFunctionImportFromJavaChildClass.kt")
     public void testUsedStaticFunctionImportFromJavaChildClass() throws Exception {
         runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/usedStaticFunctionImportFromJavaChildClass.kt");
@@ -190,6 +238,12 @@ public class FirIdeNormalAnalysisSourceModuleAnalysisApiImportOptimizerTestGener
         runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/usedTypeAsTypeParameter.kt");
     }
 
+    @Test
+    @TestMetadata("usedTypeAsVarargType.kt")
+    public void testUsedTypeAsVarargType() throws Exception {
+        runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/usedTypeAsVarargType.kt");
+    }
+
     @Nested
     @TestMetadata("analysis/analysis-api/testData/components/importOptimizer/analyseImports/referencesWithErrors")
     @TestDataPath("$PROJECT_ROOT")
@@ -197,6 +251,18 @@ public class FirIdeNormalAnalysisSourceModuleAnalysisApiImportOptimizerTestGener
         @Test
         public void testAllFilesPresentInReferencesWithErrors() throws Exception {
             KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("analysis/analysis-api/testData/components/importOptimizer/analyseImports/referencesWithErrors"), Pattern.compile("^([^.]+)\\.kt$"), null, true);
+        }
+
+        @Test
+        @TestMetadata("ambiguousFunction.kt")
+        public void testAmbiguousFunction() throws Exception {
+            runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/referencesWithErrors/ambiguousFunction.kt");
+        }
+
+        @Test
+        @TestMetadata("missingFunctionCall.kt")
+        public void testMissingFunctionCall() throws Exception {
+            runTest("analysis/analysis-api/testData/components/importOptimizer/analyseImports/referencesWithErrors/missingFunctionCall.kt");
         }
 
         @Test

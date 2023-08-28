@@ -298,18 +298,49 @@ public final class org/jetbrains/kotlin/gradle/idea/serialize/IdeaKotlinStringEx
 	public fun serialize (Lorg/jetbrains/kotlin/gradle/idea/serialize/IdeaKotlinSerializationContext;Ljava/lang/String;)[B
 }
 
+public abstract interface class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes : java/io/Serializable, java/util/Map, kotlin/jvm/internal/markers/KMappedMarker {
+}
+
+public final class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributesKt {
+	public static final fun IdeaKotlinBinaryAttributes ()Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes;
+	public static final fun IdeaKotlinBinaryAttributes (Ljava/util/Map;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes;
+}
+
+public abstract interface class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCapability : java/io/Serializable {
+	public abstract fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCapability;
+	public abstract fun getGroup ()Ljava/lang/String;
+	public abstract fun getName ()Ljava/lang/String;
+	public abstract fun getVersion ()Ljava/lang/String;
+}
+
+public final class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCapability$DefaultImpls {
+	public static synthetic fun copy$default (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCapability;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCapability;
+}
+
+public final class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCapabilityKt {
+	public static final fun IdeaKotlinBinaryCapability (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCapability;
+}
+
 public final class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCoordinates : org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinDependencyCoordinates {
 	public static final field serialVersionUID J
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes;)V
+	public synthetic fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes;ILkotlin/jvm/internal/DefaultConstructorMarker;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun component4 ()Ljava/lang/String;
 	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCoordinates;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCoordinates;
 	public static synthetic fun copy$default (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCoordinates;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCoordinates;
+	public static synthetic fun copy$default (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCoordinates;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/util/Set;Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes;ILjava/lang/Object;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryCoordinates;
 	public fun equals (Ljava/lang/Object;)Z
+	public final fun getAttributes ()Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryAttributes;
+	public final fun getCapabilities ()Ljava/util/Set;
+	public final fun getDisplayString ()Ljava/lang/String;
 	public final fun getGroup ()Ljava/lang/String;
+	public final fun getIdentityString ()Ljava/lang/String;
 	public final fun getModule ()Ljava/lang/String;
 	public final fun getSourceSetName ()Ljava/lang/String;
 	public final fun getVersion ()Ljava/lang/String;
@@ -400,13 +431,18 @@ public final class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectArtifac
 public final class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates : java/io/Serializable, org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinDependencyCoordinates {
 	public static final field serialVersionUID J
 	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
+	public fun <init> (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V
 	public final fun component1 ()Ljava/lang/String;
 	public final fun component2 ()Ljava/lang/String;
 	public final fun component3 ()Ljava/lang/String;
 	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;
+	public final fun copy (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;
 	public static synthetic fun copy$default (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;
+	public static synthetic fun copy$default (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;ILjava/lang/Object;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBuildId ()Ljava/lang/String;
+	public final fun getBuildName ()Ljava/lang/String;
+	public final fun getBuildPath ()Ljava/lang/String;
 	public final fun getProjectName ()Ljava/lang/String;
 	public final fun getProjectPath ()Ljava/lang/String;
 	public fun hashCode ()I
@@ -446,6 +482,8 @@ public final class org/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinSourceCoordina
 	public static synthetic fun copy$default (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinSourceCoordinates;Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;Ljava/lang/String;ILjava/lang/Object;)Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinSourceCoordinates;
 	public fun equals (Ljava/lang/Object;)Z
 	public final fun getBuildId ()Ljava/lang/String;
+	public final fun getBuildName ()Ljava/lang/String;
+	public final fun getBuildPath ()Ljava/lang/String;
 	public final fun getProject ()Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinProjectCoordinates;
 	public final fun getProjectName ()Ljava/lang/String;
 	public final fun getProjectPath ()Ljava/lang/String;
@@ -545,10 +583,13 @@ public final class org/jetbrains/kotlin/gradle/idea/tcs/extras/PrimitiveExtrasKt
 	public static final fun isNativeDistributionKey ()Lorg/jetbrains/kotlin/tooling/core/Extras$Key;
 	public static final fun isNativeStdlib (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryDependency;)Z
 	public static final fun isNativeStdlibKey ()Lorg/jetbrains/kotlin/tooling/core/Extras$Key;
+	public static final fun isOpaqueFileDependency (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryDependency;)Z
+	public static final fun isOpaqueFileDependencyKey ()Lorg/jetbrains/kotlin/tooling/core/Extras$Key;
 	public static final fun setCommonized (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryDependency;Z)V
 	public static final fun setIdeaProjectLevel (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryDependency;Z)V
 	public static final fun setNativeDistribution (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryDependency;Z)V
 	public static final fun setNativeStdlib (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryDependency;Z)V
+	public static final fun setOpaqueFileDependency (Lorg/jetbrains/kotlin/gradle/idea/tcs/IdeaKotlinBinaryDependency;Z)V
 }
 
 public final class org/jetbrains/kotlin/gradle/idea/tcs/extras/ProjectArtifactClasspathExtrasKt {

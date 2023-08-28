@@ -7,20 +7,22 @@ package org.jetbrains.kotlin.test.frontend.fir
 
 import org.jetbrains.kotlin.backend.jvm.JvmIrCodegenFactory
 import org.jetbrains.kotlin.backend.jvm.JvmIrDeserializerImpl
+import org.jetbrains.kotlin.builtins.DefaultBuiltIns
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.jvm.compiler.NoScopeRecordCliBindingTrace
 import org.jetbrains.kotlin.cli.jvm.compiler.TopDownAnalyzerFacadeForJVM
 import org.jetbrains.kotlin.codegen.ClassBuilderFactories
 import org.jetbrains.kotlin.codegen.state.GenerationState
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
+import org.jetbrains.kotlin.config.JVMConfigurationKeys
+import org.jetbrains.kotlin.constant.EvaluatedConstTracker
 import org.jetbrains.kotlin.container.get
-import org.jetbrains.kotlin.fir.FirAnalyzerFacade
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.fir.backend.Fir2IrCommonMemberStorage
 import org.jetbrains.kotlin.fir.backend.Fir2IrComponents
+import org.jetbrains.kotlin.fir.backend.Fir2IrConfiguration
 import org.jetbrains.kotlin.fir.backend.IrBuiltInsOverFir
-import org.jetbrains.kotlin.fir.backend.jvm.FirJvmBackendClassResolver
-import org.jetbrains.kotlin.fir.backend.jvm.FirJvmBackendExtension
-import org.jetbrains.kotlin.fir.backend.jvm.FirJvmKotlinMangler
-import org.jetbrains.kotlin.fir.backend.jvm.JvmFir2IrExtensions
+import org.jetbrains.kotlin.fir.backend.jvm.*
 import org.jetbrains.kotlin.fir.pipeline.signatureComposerForJvmFir2Ir
 import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.ir.backend.jvm.serialization.JvmIrMangler
@@ -87,15 +89,31 @@ class Fir2IrJvmResultsConverter(
         lateinit var backendInput: JvmIrCodegenFactory.JvmIrBackendInput
         lateinit var mainModuleComponents: Fir2IrComponents
 
-        val firAnalyzerFacade = inputArtifact.partsForDependsOnModules.last().firAnalyzerFacade as? FirAnalyzerFacade
-        val generateSignatures = firAnalyzerFacade?.fir2IrConfiguration?.linkViaSignatures == true
-
+        val generateSignatures = compilerConfigurationProvider.getCompilerConfiguration(module)
+            .getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES)
         val commonMemberStorage = Fir2IrCommonMemberStorage(signatureComposerForJvmFir2Ir(generateSignatures), FirJvmKotlinMangler())
         var irBuiltIns: IrBuiltInsOverFir? = null
+        val diagnosticReporter = DiagnosticReporterFactory.createReporter()
 
         for ((index, firOutputPart) in inputArtifact.partsForDependsOnModules.withIndex()) {
-            val (irModuleFragment, components, pluginContext) = firOutputPart.firAnalyzerFacade.convertToIr(
-                fir2IrExtensions, commonMemberStorage, irBuiltIns
+            val compilerConfiguration = compilerConfigurationProvider.getCompilerConfiguration(module)
+            val fir2IrConfiguration = Fir2IrConfiguration(
+                languageVersionSettings = module.languageVersionSettings,
+                diagnosticReporter = diagnosticReporter,
+                linkViaSignatures = compilerConfiguration.getBoolean(JVMConfigurationKeys.LINK_VIA_SIGNATURES),
+                evaluatedConstTracker = compilerConfiguration
+                    .putIfAbsent(CommonConfigurationKeys.EVALUATED_CONST_TRACKER, EvaluatedConstTracker.create()),
+                inlineConstTracker = compilerConfiguration[CommonConfigurationKeys.INLINE_CONST_TRACKER],
+                allowNonCachedDeclarations = false
+            )
+            val (irModuleFragment, components, pluginContext) = firOutputPart.firAnalyzerFacade.result.outputs.single().convertToIr(
+                fir2IrExtensions,
+                fir2IrConfiguration,
+                commonMemberStorage,
+                irBuiltIns,
+                irMangler,
+                FirJvmVisibilityConverter,
+                DefaultBuiltIns.Instance
             )
             irBuiltIns = components.irBuiltIns
 
@@ -124,9 +142,11 @@ class Fir2IrJvmResultsConverter(
             true
         ).jvmBackendClassResolver(
             FirJvmBackendClassResolver(mainModuleComponents)
+        ).diagnosticReporter(
+            diagnosticReporter
         ).build()
 
-        return IrBackendInput.JvmIrBackendInput(
+        val result = IrBackendInput.JvmIrBackendInput(
             generationState,
             codegenFactory,
             backendInput,
@@ -136,5 +156,7 @@ class Fir2IrJvmResultsConverter(
             irMangler = irMangler,
             firMangler = commonMemberStorage.firSignatureComposer.mangler,
         )
+
+        return result
     }
 }

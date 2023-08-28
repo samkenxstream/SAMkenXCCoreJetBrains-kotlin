@@ -7,17 +7,28 @@ package org.jetbrains.kotlin.fir.analysis.checkers.expression
 
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
+import org.jetbrains.kotlin.fir.declarations.fullyExpandedClass
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
 import org.jetbrains.kotlin.fir.resolve.diagnostics.ConeDeprecated
-import org.jetbrains.kotlin.fir.symbols.impl.FirRegularClassSymbol
+import org.jetbrains.kotlin.fir.symbols.SymbolInternals
 
 object FirDeprecatedQualifierChecker : FirResolvedQualifierChecker() {
     override fun check(expression: FirResolvedQualifier, context: CheckerContext, reporter: DiagnosticReporter) {
         expression.nonFatalDiagnostics.filterIsInstance<ConeDeprecated>().forEach { diagnostic ->
-            FirDeprecationChecker.reportApiStatus(diagnostic.source, diagnostic.symbol, null, diagnostic.deprecationInfo, reporter, context)
+            FirDeprecationChecker.reportApiStatus(
+                diagnostic.source, diagnostic.symbol, isTypealiasExpansion = false,
+                diagnostic.deprecationInfo, reporter, context
+            )
         }
         if (expression.resolvedToCompanionObject) {
-            val companionSymbol = (expression.symbol as? FirRegularClassSymbol)?.companionObjectSymbol ?: return
+            // Accessing the companion is like following a chain:
+            // TA1 -> TA2 -> ... -> MyClass ~> Companion.
+            // The first part - `TA1 -> TA2 -> ... -> MyClass` -
+            // is handled automatically when getting deprecationInfo
+            // for the typealias symbol (in FirDeprecationChecker).
+            // Below we check "the last transition".
+            @OptIn(SymbolInternals::class)
+            val companionSymbol = expression.symbol?.fullyExpandedClass(context.session)?.fir?.companionObjectSymbol ?: return
             FirDeprecationChecker.reportApiStatusIfNeeded(expression.source, companionSymbol, context, reporter)
         }
     }

@@ -30,7 +30,7 @@ class MetadataSmokeTest {
         val classMetadata = L::class.java.readMetadataAsKmClass()
 
         val inlineFunctions = classMetadata.functions
-            .filter { Flag.Function.IS_INLINE(it.flags) }
+            .filter { it.isInline }
             .mapNotNull { it.signature?.toString() }
 
         assertEquals(
@@ -124,27 +124,15 @@ class MetadataSmokeTest {
 
     @Test
     fun jvmInternalName() {
-        class ClassNameReader : KmClassVisitor() {
-            lateinit var className: ClassName
-
-            override fun visit(flags: Int, name: ClassName) {
-                className = name
-            }
-        }
 
         class L
 
-        val l = ClassNameReader().run {
-            (KotlinClassMetadata.read(L::class.java.getMetadata()) as KotlinClassMetadata.Class).accept(this)
-            className
-        }
+        val l = (KotlinClassMetadata.read(L::class.java.getMetadata()) as KotlinClassMetadata.Class).kmClass.name
         assertEquals(".kotlinx/metadata/test/MetadataSmokeTest\$jvmInternalName\$L", l)
         assertEquals("kotlinx/metadata/test/MetadataSmokeTest\$jvmInternalName\$L", l.toJvmInternalName())
 
-        val coroutineContextKey = ClassNameReader().run {
-            (KotlinClassMetadata.read(CoroutineContext.Key::class.java.getMetadata()) as KotlinClassMetadata.Class).accept(this)
-            className
-        }
+        val coroutineContextKey = (KotlinClassMetadata.read(CoroutineContext.Key::class.java.getMetadata()) as KotlinClassMetadata.Class).kmClass.name
+
         assertEquals("kotlin/coroutines/CoroutineContext.Key", coroutineContextKey)
         assertEquals("kotlin/coroutines/CoroutineContext\$Key", coroutineContextKey.toJvmInternalName())
     }
@@ -154,10 +142,11 @@ class MetadataSmokeTest {
         val x: suspend Int.(String, String) -> Unit = { _, _ -> }
         val annotation = x::class.java.getMetadata()
         val metadata = KotlinClassMetadata.read(annotation) as KotlinClassMetadata.SyntheticClass
-        metadata.accept(KmLambda())
+        assertNotNull(metadata.kmLambda)
     }
 
     @Test
+    @Suppress("DEPRECATION_ERROR") // flags will become internal eventually
     fun unstableParameterNames() {
         @Suppress("unused", "UNUSED_PARAMETER")
         class Test(a: String, b: Int, c: Boolean) {
@@ -172,19 +161,10 @@ class MetadataSmokeTest {
         classWithStableParameterNames.constructors.forEach { assertFalse(it.hasNonStableParameterNames) }
         classWithStableParameterNames.functions.forEach { assertFalse(it.hasNonStableParameterNames) }
 
-        val newMetadata = KotlinClassMetadata.writeClass(
-            KmClass().apply {
-                classWithStableParameterNames.accept(
-                    object : KmClassVisitor(this) {
-                        override fun visitConstructor(flags: Int) =
-                            super.visitConstructor(flags + flagsOf(Flag.Constructor.HAS_NON_STABLE_PARAMETER_NAMES))
+        classWithStableParameterNames.constructors.forEach { it.hasNonStableParameterNames = true }
+        classWithStableParameterNames.functions.forEach { it.hasNonStableParameterNames = true }
 
-                        override fun visitFunction(flags: Int, name: String) =
-                            super.visitFunction(flags + flagsOf(Flag.Function.HAS_NON_STABLE_PARAMETER_NAMES), name)
-                    }
-                )
-            }
-        )
+        val newMetadata = KotlinClassMetadata.writeClass(classWithStableParameterNames)
 
         val classWithUnstableParameterNames = newMetadata.readAsKmClass()
 

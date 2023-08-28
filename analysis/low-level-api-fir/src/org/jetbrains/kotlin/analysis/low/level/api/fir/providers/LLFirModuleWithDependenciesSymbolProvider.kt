@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.low.level.api.fir.providers
 
-import org.jetbrains.kotlin.analysis.low.level.api.fir.stubBased.deserialization.JvmStubBasedFirDeserializedSymbolProvider
+import org.jetbrains.kotlin.analysis.low.level.api.fir.stubBased.deserialization.StubBasedFirDeserializedSymbolProvider
 import org.jetbrains.kotlin.analysis.utils.collections.buildSmartList
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.resolve.providers.FirNullSymbolNamesProvider
@@ -45,7 +45,7 @@ internal class LLFirModuleWithDependenciesSymbolProvider(
         classId: ClassId,
         classLikeDeclaration: KtClassLikeDeclaration,
     ): FirClassLikeSymbol<*>? = providers.firstNotNullOfOrNull { provider ->
-        if (provider !is JvmStubBasedFirDeserializedSymbolProvider) return@firstNotNullOfOrNull null
+        if (provider !is StubBasedFirDeserializedSymbolProvider) return@firstNotNullOfOrNull null
         provider.getClassLikeSymbolByClassId(classId, classLikeDeclaration)
     }
 
@@ -63,7 +63,7 @@ internal class LLFirModuleWithDependenciesSymbolProvider(
         callableDeclaration: KtCallableDeclaration,
     ) {
         providers.forEach { provider ->
-            if (provider !is JvmStubBasedFirDeserializedSymbolProvider) return@forEach
+            if (provider !is StubBasedFirDeserializedSymbolProvider) return@forEach
             destination.addIfNotNull(provider.getTopLevelCallableSymbol(packageFqName, shortName, callableDeclaration))
         }
     }
@@ -104,12 +104,19 @@ internal class LLFirModuleWithDependenciesSymbolProvider(
 
 internal class LLFirDependenciesSymbolProvider(
     session: FirSession,
-    val providers: List<FirSymbolProvider>,
+    val computeProviders: () -> List<FirSymbolProvider>,
 ) : FirSymbolProvider(session) {
-    init {
-        require(providers.all { it !is LLFirModuleWithDependenciesSymbolProvider }) {
-            "${LLFirDependenciesSymbolProvider::class.simpleName} may not contain ${LLFirModuleWithDependenciesSymbolProvider::class.simpleName}:" +
-                    " dependency providers must be flattened during session creation."
+    /**
+     * Dependency symbol providers are lazy to support cyclic dependencies between modules. If a module A and a module B depend on each
+     * other and session creation tries to access dependency symbol providers eagerly, the creation of session A would try to create session
+     * B (to get its symbol providers), which in turn would try to create session A, and so on.
+     */
+    val providers: List<FirSymbolProvider> by lazy {
+        computeProviders().also { providers ->
+            require(providers.all { it !is LLFirModuleWithDependenciesSymbolProvider }) {
+                "${LLFirDependenciesSymbolProvider::class.simpleName} may not contain ${LLFirModuleWithDependenciesSymbolProvider::class.simpleName}:" +
+                        " dependency providers must be flattened during session creation."
+            }
         }
     }
 

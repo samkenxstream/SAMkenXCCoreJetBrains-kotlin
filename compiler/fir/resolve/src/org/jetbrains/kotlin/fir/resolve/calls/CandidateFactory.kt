@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.fir.symbols.FirBasedSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.*
 import org.jetbrains.kotlin.fir.types.classId
 import org.jetbrains.kotlin.fir.types.coneType
+import org.jetbrains.kotlin.fir.types.resolvedType
 import org.jetbrains.kotlin.resolve.calls.components.PostponedArgumentsAnalyzerContext
 import org.jetbrains.kotlin.resolve.calls.inference.model.ConstraintStorage
 import org.jetbrains.kotlin.resolve.calls.tasks.ExplicitReceiverKind
@@ -74,8 +75,8 @@ class CandidateFactory private constructor(
             scope,
             isFromCompanionObjectTypeScope = when (explicitReceiverKind) {
                 ExplicitReceiverKind.EXTENSION_RECEIVER ->
-                    givenExtensionReceiverOptions.singleOrNull().isCandidateFromCompanionObjectTypeScope()
-                ExplicitReceiverKind.DISPATCH_RECEIVER -> dispatchReceiver.isCandidateFromCompanionObjectTypeScope()
+                    givenExtensionReceiverOptions.singleOrNull().isCandidateFromCompanionObjectTypeScope(callInfo.session)
+                ExplicitReceiverKind.DISPATCH_RECEIVER -> dispatchReceiver.isCandidateFromCompanionObjectTypeScope(callInfo.session)
                 // The following cases are not applicable for companion objects.
                 ExplicitReceiverKind.NO_EXPLICIT_RECEIVER, ExplicitReceiverKind.BOTH_RECEIVERS -> false
             },
@@ -83,11 +84,20 @@ class CandidateFactory private constructor(
         )
 
         // The counterpart in FE 1.0 checks if the given descriptor is VariableDescriptor yet not PropertyDescriptor.
-        // Here, we explicitly check if the referred declaration/symbol is value parameter, local variable, or backing field.
+        // Here, we explicitly check if the referred declaration/symbol is value parameter, local variable, enum entry, or backing field.
         val callSite = callInfo.callSite
         if (callSite is FirCallableReferenceAccess) {
-            if (symbol is FirValueParameterSymbol || symbol is FirPropertySymbol && symbol.isLocal || symbol is FirBackingFieldSymbol) {
-                result.addDiagnostic(Unsupported("References to variables aren't supported yet", callSite.calleeReference.source))
+            when {
+                symbol is FirValueParameterSymbol || symbol is FirPropertySymbol && symbol.isLocal || symbol is FirBackingFieldSymbol -> {
+                    result.addDiagnostic(
+                        Unsupported("References to variables aren't supported yet", callSite.calleeReference.source)
+                    )
+                }
+                symbol is FirEnumEntrySymbol -> {
+                    result.addDiagnostic(
+                        Unsupported("References to enum entries aren't supported", callSite.calleeReference.source)
+                    )
+                }
             }
         } else if (objectsByName && symbol.isRegularClassWithoutCompanion(callInfo.session)) {
             result.addDiagnostic(NoCompanionObject)
@@ -124,10 +134,11 @@ class CandidateFactory private constructor(
         }
     }
 
-    private fun FirExpression?.isCandidateFromCompanionObjectTypeScope(): Boolean {
+    private fun FirExpression?.isCandidateFromCompanionObjectTypeScope(useSiteSession: FirSession): Boolean {
         val resolvedQualifier = this as? FirResolvedQualifier ?: return false
-        val originClassOfCandidate = this.typeRef.coneType.classId ?: return false
-        return (resolvedQualifier.symbol?.fir as? FirRegularClass)?.companionObjectSymbol?.classId == originClassOfCandidate
+        val originClassOfCandidate = this.resolvedType.classId ?: return false
+        val companion = resolvedQualifier.symbol?.fullyExpandedClass(useSiteSession)?.fir?.companionObjectSymbol
+        return companion?.classId == originClassOfCandidate
     }
 
     fun createErrorCandidate(callInfo: CallInfo, diagnostic: ConeDiagnostic): Candidate {
@@ -157,7 +168,7 @@ class CandidateFactory private constructor(
             buildErrorFunction {
                 moduleData = context.session.moduleData
                 resolvePhase = FirResolvePhase.BODY_RESOLVE
-                origin = FirDeclarationOrigin.Synthetic
+                origin = FirDeclarationOrigin.Synthetic.Error
                 this.diagnostic = diagnostic
                 symbol = it
             }
@@ -169,7 +180,7 @@ class CandidateFactory private constructor(
             buildErrorProperty {
                 moduleData = context.session.moduleData
                 resolvePhase = FirResolvePhase.BODY_RESOLVE
-                origin = FirDeclarationOrigin.Synthetic
+                origin = FirDeclarationOrigin.Synthetic.Error
                 name = FirErrorPropertySymbol.NAME
                 this.diagnostic = diagnostic
                 symbol = it

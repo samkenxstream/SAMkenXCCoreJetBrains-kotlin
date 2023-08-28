@@ -405,9 +405,24 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/jvm/enumEntriesNotEnabled.args");
         }
 
+        @TestMetadata("errorSuppressionNoWarning.args")
+        public void testErrorSuppressionNoWarning() throws Exception {
+            runTest("compiler/testData/cli/jvm/errorSuppressionNoWarning.args");
+        }
+
+        @TestMetadata("errorSuppressionWarning.args")
+        public void testErrorSuppressionWarning() throws Exception {
+            runTest("compiler/testData/cli/jvm/errorSuppressionWarning.args");
+        }
+
         @TestMetadata("experimentalDeprecated.args")
         public void testExperimentalDeprecated() throws Exception {
             runTest("compiler/testData/cli/jvm/experimentalDeprecated.args");
+        }
+
+        @TestMetadata("experimentalDeprecatedK1.args")
+        public void testExperimentalDeprecatedK1() throws Exception {
+            runTest("compiler/testData/cli/jvm/experimentalDeprecatedK1.args");
         }
 
         @TestMetadata("experimentalDeprecatedWarning.args")
@@ -415,9 +430,19 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/jvm/experimentalDeprecatedWarning.args");
         }
 
+        @TestMetadata("experimentalDeprecatedWarningK1.args")
+        public void testExperimentalDeprecatedWarningK1() throws Exception {
+            runTest("compiler/testData/cli/jvm/experimentalDeprecatedWarningK1.args");
+        }
+
         @TestMetadata("experimentalIsNotAnnotation.args")
         public void testExperimentalIsNotAnnotation() throws Exception {
             runTest("compiler/testData/cli/jvm/experimentalIsNotAnnotation.args");
+        }
+
+        @TestMetadata("experimentalIsNotAnnotationK1.args")
+        public void testExperimentalIsNotAnnotationK1() throws Exception {
+            runTest("compiler/testData/cli/jvm/experimentalIsNotAnnotationK1.args");
         }
 
         @TestMetadata("experimentalIsNotMarker.args")
@@ -425,14 +450,29 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/jvm/experimentalIsNotMarker.args");
         }
 
+        @TestMetadata("experimentalIsNotMarkerK1.args")
+        public void testExperimentalIsNotMarkerK1() throws Exception {
+            runTest("compiler/testData/cli/jvm/experimentalIsNotMarkerK1.args");
+        }
+
         @TestMetadata("experimentalNested.args")
         public void testExperimentalNested() throws Exception {
             runTest("compiler/testData/cli/jvm/experimentalNested.args");
         }
 
+        @TestMetadata("experimentalNestedK1.args")
+        public void testExperimentalNestedK1() throws Exception {
+            runTest("compiler/testData/cli/jvm/experimentalNestedK1.args");
+        }
+
         @TestMetadata("experimentalUnresolved.args")
         public void testExperimentalUnresolved() throws Exception {
             runTest("compiler/testData/cli/jvm/experimentalUnresolved.args");
+        }
+
+        @TestMetadata("experimentalUnresolvedK1.args")
+        public void testExperimentalUnresolvedK1() throws Exception {
+            runTest("compiler/testData/cli/jvm/experimentalUnresolvedK1.args");
         }
 
         @TestMetadata("explicitlyDisableSamConversionsWithOldFlag.args")
@@ -1070,6 +1110,11 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/jvm/requireKotlinCompilerVersion.args");
         }
 
+        @TestMetadata("requireKotlinCompilerVersionK2.args")
+        public void testRequireKotlinCompilerVersionK2() throws Exception {
+            runTest("compiler/testData/cli/jvm/requireKotlinCompilerVersionK2.args");
+        }
+
         @TestMetadata("resultInReturnTypeSupportedByDefault15.args")
         public void testResultInReturnTypeSupportedByDefault15() throws Exception {
             runTest("compiler/testData/cli/jvm/resultInReturnTypeSupportedByDefault15.args");
@@ -1318,11 +1363,6 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/js/firMppWithKlib.args");
         }
 
-        @TestMetadata("inlineCycle.args")
-        public void testInlineCycle() throws Exception {
-            runTest("compiler/testData/cli/js/inlineCycle.args");
-        }
-
         @TestMetadata("jsExtraHelp.args")
         public void testJsExtraHelp() throws Exception {
             runTest("compiler/testData/cli/js/jsExtraHelp.args");
@@ -1331,11 +1371,6 @@ public class CliTestGenerated extends AbstractCliTest {
         @TestMetadata("jsHelp.args")
         public void testJsHelp() throws Exception {
             runTest("compiler/testData/cli/js/jsHelp.args");
-        }
-
-        @TestMetadata("kotlinHomeWithoutStdlib.args")
-        public void testKotlinHomeWithoutStdlib() throws Exception {
-            runTest("compiler/testData/cli/js/kotlinHomeWithoutStdlib.args");
         }
 
         @TestMetadata("kotlinPackage.args")
@@ -1348,29 +1383,9 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/js/languageVersion.args");
         }
 
-        @TestMetadata("legacyCompilerUsageWithoutFlag.args")
-        public void testLegacyCompilerUsageWithoutFlag() throws Exception {
-            runTest("compiler/testData/cli/js/legacyCompilerUsageWithoutFlag.args");
-        }
-
         @TestMetadata("libraryDirNotFound.args")
         public void testLibraryDirNotFound() throws Exception {
             runTest("compiler/testData/cli/js/libraryDirNotFound.args");
-        }
-
-        @TestMetadata("moduleWithMetadataOnlyDependency.args")
-        public void testModuleWithMetadataOnlyDependency() throws Exception {
-            runTest("compiler/testData/cli/js/moduleWithMetadataOnlyDependency.args");
-        }
-
-        @TestMetadata("modulesWithSameNames.args")
-        public void testModulesWithSameNames() throws Exception {
-            runTest("compiler/testData/cli/js/modulesWithSameNames.args");
-        }
-
-        @TestMetadata("modulesWithSameNamesAndFunc.args")
-        public void testModulesWithSameNamesAndFunc() throws Exception {
-            runTest("compiler/testData/cli/js/modulesWithSameNamesAndFunc.args");
         }
 
         @TestMetadata("nonExistingKotlinHome.args")
@@ -1386,21 +1401,6 @@ public class CliTestGenerated extends AbstractCliTest {
         @TestMetadata("notValidLibraryDir.args")
         public void testNotValidLibraryDir() throws Exception {
             runTest("compiler/testData/cli/js/notValidLibraryDir.args");
-        }
-
-        @TestMetadata("outputIsDirectory.args")
-        public void testOutputIsDirectory() throws Exception {
-            runTest("compiler/testData/cli/js/outputIsDirectory.args");
-        }
-
-        @TestMetadata("outputPostfixFileNotFound.args")
-        public void testOutputPostfixFileNotFound() throws Exception {
-            runTest("compiler/testData/cli/js/outputPostfixFileNotFound.args");
-        }
-
-        @TestMetadata("outputPrefixFileNotFound.args")
-        public void testOutputPrefixFileNotFound() throws Exception {
-            runTest("compiler/testData/cli/js/outputPrefixFileNotFound.args");
         }
 
         @TestMetadata("perFileWithValidModuleKind.args")
@@ -1453,11 +1453,6 @@ public class CliTestGenerated extends AbstractCliTest {
             runTest("compiler/testData/cli/js/sourceMapRelativeRoot.args");
         }
 
-        @TestMetadata("sourceMapRootAuto.args")
-        public void testSourceMapRootAuto() throws Exception {
-            runTest("compiler/testData/cli/js/sourceMapRootAuto.args");
-        }
-
         @TestMetadata("sourceMapRootManual.args")
         public void testSourceMapRootManual() throws Exception {
             runTest("compiler/testData/cli/js/sourceMapRootManual.args");
@@ -1491,11 +1486,6 @@ public class CliTestGenerated extends AbstractCliTest {
         @TestMetadata("withLib.args")
         public void testWithLib() throws Exception {
             runTest("compiler/testData/cli/js/withLib.args");
-        }
-
-        @TestMetadata("wrongAbiVersion.args")
-        public void testWrongAbiVersion() throws Exception {
-            runTest("compiler/testData/cli/js/wrongAbiVersion.args");
         }
     }
 

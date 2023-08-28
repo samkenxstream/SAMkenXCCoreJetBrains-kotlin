@@ -57,7 +57,7 @@ class KotlinWithJavaCompilationFactory<KotlinOptionsType : KotlinCommonOptions, 
             preConfigureAction = DefaultKotlinCompilationPreConfigure + { compilation ->
                 compilation.compileDependencyFiles = project.filesProvider { javaSourceSet.compileClasspath }
                 compilation.runtimeDependencyFiles = project.filesProvider { javaSourceSet.runtimeClasspath }
-            }
+            },
         )
 
         return project.objects.newInstance(

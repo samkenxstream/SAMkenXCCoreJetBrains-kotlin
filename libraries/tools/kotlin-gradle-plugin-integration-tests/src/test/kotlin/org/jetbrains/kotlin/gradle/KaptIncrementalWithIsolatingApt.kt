@@ -166,9 +166,11 @@ open class KaptIncrementalWithIsolatingApt : KaptIncrementalIT() {
 
     @DisplayName("KT-33617: sources in compile classpath jars")
     @JdkVersions(versions = [JavaVersion.VERSION_11])
-    @GradleTestVersions(maxVersion = TestVersions.Gradle.G_7_6)
     @GradleWithJdkTest
-    fun testSourcesInCompileClasspathJars(gradleVersion: GradleVersion, jdk: JdkVersions.ProvidedJdk) {
+    fun testSourcesInCompileClasspathJars(
+        gradleVersion: GradleVersion,
+        jdk: JdkVersions.ProvidedJdk
+    ) {
         kaptProject(gradleVersion, buildJdk = jdk.location) {
             // create jar with .class and .java file for the same type
             ZipOutputStream(projectPath.resolve("lib-with-sources.jar").outputStream()).use {
@@ -285,9 +287,7 @@ open class KaptIncrementalWithIsolatingApt : KaptIncrementalIT() {
         }
     }
 
-    @AndroidGradlePluginTests
     @DisplayName("KT-34340: origins in classpath")
-    @AndroidTestVersions(minVersion = TestVersions.AGP.AGP_42)
     @GradleAndroidTest
     @DisabledOnOs(OS.WINDOWS, disabledReason = "https://youtrack.jetbrains.com/issue/KTI-405")
     fun testIsolatingWithOriginsInClasspath(
@@ -301,6 +301,13 @@ open class KaptIncrementalWithIsolatingApt : KaptIncrementalIT() {
             buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion),
             buildJdk = providedJdk.location
         ) {
+            // Remove the once minimal supported AGP version will be 8.1.0: https://issuetracker.google.com/issues/260059413
+            gradleProperties.appendText(
+                """
+                |kotlin.jvm.target.validation.mode=warning
+                """.trimMargin()
+            )
+
             build("clean", ":mylibrary:assembleDebug")
 
             subProject("baseLibrary")

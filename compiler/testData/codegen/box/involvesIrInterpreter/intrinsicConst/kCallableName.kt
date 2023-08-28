@@ -1,6 +1,9 @@
 // !LANGUAGE: +IntrinsicConstEvaluation
 // TARGET_BACKEND: JVM_IR
-// IGNORE_BACKEND_K1: JVM_IR
+// TARGET_BACKEND: JS_IR
+// TARGET_BACKEND: NATIVE
+// IGNORE_BACKEND_K1: JVM_IR, JS_IR, JS_IR_ES6, NATIVE
+
 fun <T> T.id() = this
 
 class A(val OK: Int, val somePropertyWithLongName: String) {

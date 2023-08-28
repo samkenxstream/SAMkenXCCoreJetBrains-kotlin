@@ -31,6 +31,7 @@ abstract class FirScript : FirDeclaration() {
     abstract override val symbol: FirScriptSymbol
     abstract val parameters: List<FirVariable>
     abstract val contextReceivers: List<FirContextReceiver>
+    abstract val resultPropertyName: Name?
 
     override fun <R, D> accept(visitor: FirVisitor<R, D>, data: D): R = visitor.visitScript(this, data)
 
@@ -39,6 +40,8 @@ abstract class FirScript : FirDeclaration() {
         transformer.transformScript(this, data) as E
 
     abstract override fun replaceAnnotations(newAnnotations: List<FirAnnotation>)
+
+    abstract fun replaceStatements(newStatements: List<FirStatement>)
 
     abstract override fun <D> transformAnnotations(transformer: FirTransformer<D>, data: D): FirScript
 

@@ -21,7 +21,7 @@ kotlin {
     } else null
     linuxX64("linux64")
     if (shouldBeJs)
-        wasm()
+        wasmJs()
 
     targets.all {
         mavenPublication(Action<MavenPublication> {
@@ -64,8 +64,4 @@ afterEvaluate {
             tasks["assemble"].dependsOn(compileKotlinTask)
         }
     }
-}
-
-tasks.withType<org.jetbrains.kotlin.gradle.dsl.KotlinJsCompile> {
-    kotlinOptions.freeCompilerArgs += "-Xforce-deprecated-legacy-compiler-usage"
 }

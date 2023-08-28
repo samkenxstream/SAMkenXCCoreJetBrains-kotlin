@@ -1,50 +1,63 @@
 element: e
 implicit receivers:
-  type: ERROR(Cannot infer argument for type parameter E)
-  owner symbol: KtFirAnonymousFunctionSymbol
-
-  type: List<ERROR(Cannot infer argument for type parameter E)>
+  type: ERROR(Cannot infer argument for type parameter T)
   owner symbol: KtFirAnonymousFunctionSymbol
 
 scopes:
-  SimpleTypeScope, index = 0, empty
-
-  LocalScope, index = 1, empty
-
-  LocalScope, index = 2, empty
-
-  SimpleTypeScope, index = 3
+  TypeScope, index = 0
+    packages: 0
     classifiers: 0
-    callables: 5
-      fun add(e: T)
-      fun get(index: kotlin.Int): T
-      fun equals(other: kotlin.Any?): kotlin.Boolean
-      fun hashCode(): kotlin.Int
-      fun toString(): kotlin.String
+    callables: 0
+    constructors: 0
 
-  LocalScope, index = 4, empty
+  LocalScope, index = 1
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
-  LocalScope, index = 5, empty
+  LocalScope, index = 2
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
-  LocalScope, index = 6, empty
+  LocalScope, index = 3
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
-  ExplicitSimpleImportingScope, index = 7, empty
+  ExplicitSimpleImportingScope, index = 4
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
-  PackageMemberScope, index = 8
-    classifiers: 1
-      interface List<T>
-    callables: 2
-      fun <E> buildList(f: List<E>.() -> kotlin.Unit): List<E>
+  PackageMemberScope, index = 5
+    packages: 6
+      META-INF
+      java
+      javax
+      kotlin
+      org
+      sun
+    classifiers: 0
+    callables: 1
       fun test()
+    constructors: 0
+
+  DefaultSimpleImportingScope, index = 6
+
+  DefaultSimpleImportingScope, index = 7
+
+  ExplicitStarImportingScope, index = 8
+    packages: 0
+    classifiers: 0
+    callables: 0
+    constructors: 0
 
   DefaultSimpleImportingScope, index = 9
 
-  DefaultSimpleImportingScope, index = 10
+  DefaultStarImportingScope, index = 10
 
-  ExplicitStarImportingScope, index = 11, empty
-
-  DefaultSimpleImportingScope, index = 12
-
-  DefaultStarImportingScope, index = 13
-
-  DefaultStarImportingScope, index = 14

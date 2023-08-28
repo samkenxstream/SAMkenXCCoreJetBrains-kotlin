@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.gradle.utils
 import org.gradle.api.Project
 import org.jetbrains.kotlin.gradle.plugin.HasProject
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle
+import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle.CoroutineStart.Undispatched
 import org.jetbrains.kotlin.gradle.plugin.KotlinPluginLifecycle.IllegalLifecycleException
 import org.jetbrains.kotlin.gradle.plugin.kotlinPluginLifecycle
 import org.jetbrains.kotlin.tooling.core.ExtrasLazyProperty
@@ -42,7 +43,7 @@ import kotlin.coroutines.suspendCoroutine
  * }
  * ```
  */
-internal interface Future<T> {
+internal interface Future<out T> {
     suspend fun await(): T
     fun getOrThrow(): T
 }
@@ -52,6 +53,7 @@ internal interface LenientFuture<T> : Future<T> {
 }
 
 internal interface CompletableFuture<T> : Future<T> {
+    val isCompleted: Boolean
     fun complete(value: T)
 }
 
@@ -75,7 +77,10 @@ internal inline fun <Receiver, reified T> futureExtension(
     }
 }
 
-internal fun <T> Project.future(block: suspend Project.() -> T): Future<T> = kotlinPluginLifecycle.future { block() }
+internal fun <T> Project.future(
+    start: KotlinPluginLifecycle.CoroutineStart = Undispatched,
+    block: suspend Project.() -> T,
+): Future<T> = kotlinPluginLifecycle.future(start) { block() }
 
 internal val <T> Future<T>.lenient: LenientFuture<T> get() = LenientFutureImpl(this)
 
@@ -87,11 +92,14 @@ internal val <T> Future<T>.lenient: LenientFuture<T> get() = LenientFutureImpl(t
  *
  * basically creating a future, which is launched lazily
  */
-internal fun <T> Project.lazyFuture(block: suspend Project.() -> T): Future<T> = LazyFutureImpl(lazy { future(block) })
+internal fun <T> Project.lazyFuture(block: suspend Project.() -> T): Future<T> = LazyFutureImpl(lazy { future { block() } })
 
-internal fun <T> KotlinPluginLifecycle.future(block: suspend () -> T): Future<T> {
+internal fun <T> KotlinPluginLifecycle.future(
+    start: KotlinPluginLifecycle.CoroutineStart = Undispatched,
+    block: suspend () -> T,
+): Future<T> {
     return FutureImpl<T>(lifecycle = this).also { future ->
-        launch { future.completeWith(runCatching { block() }) }
+        launch(start) { future.completeWith(runCatching { block() }) }
     }
 }
 
@@ -104,6 +112,9 @@ private class FutureImpl<T>(
     private val lifecycle: KotlinPluginLifecycle? = null,
 ) : CompletableFuture<T>, Serializable {
     fun completeWith(result: Result<T>) = deferred.completeWith(result)
+
+    override val isCompleted: Boolean
+        get() = deferred.isCompleted
 
     override fun complete(value: T) {
         deferred.complete(value)

@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <utility>
 
 #include "Utils.hpp"
@@ -32,7 +33,14 @@ private:
     bool active_;
 };
 
-void safePoint() noexcept;
-void safePoint(ThreadData& threadData) noexcept;
+void safePoint(std::memory_order fastPathOrder = std::memory_order_relaxed) noexcept;
+void safePoint(ThreadData& threadData, std::memory_order fastPathOrder = std::memory_order_relaxed) noexcept;
+
+namespace test_support {
+
+bool safePointsAreActive() noexcept;
+void setSafePointAction(void (*action)(mm::ThreadData&)) noexcept;
+
+} // namespace test_support
 
 } // namespace kotlin::mm

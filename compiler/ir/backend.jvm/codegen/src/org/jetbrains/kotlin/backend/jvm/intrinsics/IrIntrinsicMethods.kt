@@ -35,6 +35,7 @@ class IrIntrinsicMethods(val irBuiltIns: IrBuiltIns, val symbols: JvmSymbols) {
     private val kotlinJvmFqn = FqName("kotlin.jvm")
     private val kotlinJvmInternalUnsafeFqn = FqName("kotlin.jvm.internal.unsafe")
     private val kotlinReflectFqn = StandardNames.KOTLIN_REFLECT_FQ_NAME
+    private val kotlinEnumsFqn = FqName("kotlin.enums")
 
     private val anyFqn = StandardNames.FqNames.any.toSafe()
     private val arrayFqn = StandardNames.FqNames.array.toSafe()
@@ -56,6 +57,7 @@ class IrIntrinsicMethods(val irBuiltIns: IrBuiltIns, val symbols: JvmSymbols) {
                 Key(cloneableFqn, null, "clone", emptyList()) to Clone,
                 Key(kotlinFqn, null, "enumValues", listOf()) to EnumValues,
                 Key(kotlinFqn, null, "enumValueOf", listOf(stringFqn)) to EnumValueOf,
+                Key(kotlinEnumsFqn, null, "enumEntries", listOf()) to EnumEntries,
                 Key(kotlinFqn, stringFqn, "plus", listOf(anyFqn)) to StringPlus,
                 Key(kotlinReflectFqn, null, "typeOf", listOf()) to TypeOf,
                 irBuiltIns.eqeqSymbol.toKey()!! to Equals(KtTokens.EQEQ),
@@ -140,12 +142,12 @@ class IrIntrinsicMethods(val irBuiltIns: IrBuiltIns, val symbols: JvmSymbols) {
     fun getIntrinsic(symbol: IrFunctionSymbol): IntrinsicMethod? = intrinsicsMap[symbol.toKey()]
 
     private fun unaryFunForPrimitives(name: String, intrinsic: IntrinsicMethod): List<Pair<Key, IntrinsicMethod>> =
-        PrimitiveType.values().map { type ->
+        PrimitiveType.entries.map { type ->
             createKeyMapping(intrinsic, type.symbol, name)
         }
 
     private fun binaryFunForPrimitivesAcrossPrimitives(name: String, intrinsic: IntrinsicMethod): List<Pair<Key, IntrinsicMethod>> =
-        PrimitiveType.values().flatMap { parameter ->
+        PrimitiveType.entries.flatMap { parameter ->
             binaryFunForPrimitives(name, intrinsic, parameter.symbol)
         }
 
@@ -155,7 +157,7 @@ class IrIntrinsicMethods(val irBuiltIns: IrBuiltIns, val symbols: JvmSymbols) {
         intrinsic: IntrinsicMethod,
         parameter: IrClassifierSymbol
     ): List<Pair<Key, IntrinsicMethod>> =
-        PrimitiveType.values().map { type ->
+        PrimitiveType.entries.map { type ->
             createKeyMapping(intrinsic, type.symbol, name, parameter)
         }
 
@@ -186,7 +188,7 @@ class IrIntrinsicMethods(val irBuiltIns: IrBuiltIns, val symbols: JvmSymbols) {
         typeToIrFun: Map<IrClassifierSymbol, IrSimpleFunctionSymbol>,
         operator: KtSingleValueToken
     ): List<Pair<Key, PrimitiveComparison>> =
-        PrimitiveType.values().mapNotNull { primitiveType ->
+        PrimitiveType.entries.mapNotNull { primitiveType ->
             val irPrimitiveClassifier = irBuiltIns.primitiveTypeToIrType[primitiveType]!!.classifierOrFail
             val irFunSymbol = typeToIrFun[irPrimitiveClassifier] ?: return@mapNotNull null
             irFunSymbol.toKey()!! to PrimitiveComparison(primitiveType, operator)

@@ -5,7 +5,7 @@ apply plugin: 'kotlin-platform-common'
 JvmToolchain.updateJvmTarget(project, "1.8")
 
 dependencies {
-    api kotlinStdlib("common")
+    api RepoDependencies.kotlinStdlib(project, "mpp")
     testApi project(":kotlin-test:kotlin-test-common")
 }
 
@@ -14,8 +14,8 @@ tasks.withType(org.jetbrains.kotlin.gradle.dsl.KotlinCompile) {
 }
 
 jar {
-    manifestAttributes(manifest, project, 'Test')
+    LibrariesCommon.manifestAttributes(project, manifest, 'Test')
 }
 
-configureSourcesJar()
-configureJavadocJar()
+RepoArtifacts.sourcesJar(project)
+RepoArtifacts.javadocJar(project)

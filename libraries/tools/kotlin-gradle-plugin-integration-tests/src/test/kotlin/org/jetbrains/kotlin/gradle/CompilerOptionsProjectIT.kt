@@ -55,6 +55,52 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
         }
     }
 
+    @GradleTest
+    @DisplayName("Jvm project target compiler options DSL override project level options")
+    @JvmGradlePluginTests
+    fun jvmOptionTarget(gradleVersion: GradleVersion) {
+        project(
+            "simpleProject",
+            gradleVersion,
+            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
+        ) {
+            buildGradle.appendText(
+                //language=Groovy
+                """
+                |
+                |kotlin {
+                |    target.compilerOptions {
+                |        javaParameters = true
+                |        verbose = false
+                |    }
+                |    
+                |    compilerOptions {
+                |        javaParameters = false
+                |        verbose = false
+                |    }
+                |}
+                """.trimMargin()
+            )
+
+            build("compileKotlin") {
+                assertTasksExecuted(":compileKotlin")
+
+                val compilationArgs = output.lineSequence().first { it.contains("Kotlin compiler args:") }
+
+                assert(compilationArgs.contains("-java-parameters")) {
+                    printBuildOutput()
+                    "Compiler arguments does not contain '-progressive': $compilationArgs"
+                }
+
+                // '-verbose' by default will be set to 'true' by debug log level
+                assert(!compilationArgs.contains("-verbose")) {
+                    printBuildOutput()
+                    "Compiler arguments contains '-verbose': $compilationArgs"
+                }
+            }
+        }
+    }
+
     @DisplayName("languageSettings should not override project options when not configured")
     @JvmGradlePluginTests
     @GradleTest
@@ -140,7 +186,7 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
                 |            languageVersion = '1.9'
                 |            apiVersion = '1.9'
                 |            progressiveMode = false
-                |            optInAnnotationsInUse.add("another.CustomOptInAnnotation")
+                |            optIn("another.CustomOptInAnnotation")
                 |            enableLanguageFeature("UnitConversionsOnArbitraryExpressions")
                 |        }
                 |    }
@@ -248,6 +294,54 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
                     printBuildOutput()
                     "Compiler arguments does not contain '-module-name my_app_debug': $compilationArgs"
                 }
+            }
+        }
+    }
+
+    @DisplayName("Android target compiler options override project level compiler options")
+    @AndroidGradlePluginTests
+    @GradleAndroidTest
+    fun androidProjectTargetOverrideProjectOptions(
+        gradleVersion: GradleVersion,
+        agpVersion: String,
+        jdk: JdkVersions.ProvidedJdk
+    ) {
+        project(
+            "AndroidSimpleApp",
+            gradleVersion,
+            buildJdk = jdk.location,
+            buildOptions = defaultBuildOptions.copy(androidVersion = agpVersion, logLevel = LogLevel.DEBUG)
+        ) {
+            buildGradle.appendText(
+                //language=Groovy
+                """
+                |
+                |kotlin {
+                |   target.compilerOptions {
+                |       javaParameters = true
+                |       moduleName = "my_app"
+                |   }
+                |   
+                |   compilerOptions {
+                |       javaParameters = false
+                |       moduleName = "other_app"
+                |   }
+                |}
+                """.trimMargin()
+            )
+
+            build("compileDebugKotlin") {
+                assertTasksExecuted(":compileDebugKotlin")
+
+                assertOutputDoesNotContain(
+                    "w: :compileKotlin 'KotlinJvmCompile.moduleName' is deprecated, please migrate to 'compilerOptions.moduleName'!"
+                )
+
+                assertCompilerArguments(
+                    ":compileDebugKotlin",
+                    "-java-parameters",
+                    "-module-name my_app_debug"
+                )
             }
         }
     }
@@ -380,6 +474,83 @@ class CompilerOptionsProjectIT : KGPBaseTest() {
                 assertTasksExecuted(":compileGermanFreeDebugKotlinAndroid")
 
                 assertCompilerArgument(":compileGermanFreeDebugKotlinAndroid", "-module-name last-chance")
+            }
+        }
+    }
+
+    @GradleTest
+    @DisplayName("Multiplatform compiler option DSL hierarchy")
+    @JvmGradlePluginTests
+    fun mppCompilerOptionsDsl(gradleVersion: GradleVersion) {
+        project(
+            projectName = "mpp-default-hierarchy",
+            gradleVersion = gradleVersion,
+            buildOptions = defaultBuildOptions.copy(logLevel = LogLevel.DEBUG)
+        ) {
+            buildGradle.modify {
+                it.substringBefore("kotlin {") +
+                        //language=Groovy
+                        """
+                        |
+                        |import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+                        |import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+                        |
+                        |kotlin {
+                        |    jvm {
+                        |        compilerOptions {
+                        |            languageVersion = KotlinVersion.KOTLIN_1_8
+                        |            apiVersion = KotlinVersion.KOTLIN_1_8
+                        |            jvmTarget.value(JvmTarget.JVM_11).disallowChanges()
+                        |            javaParameters = true
+                        |        }
+                        |    }
+                        |    
+                        |    js {
+                        |        compilerOptions {
+                        |            languageVersion = KotlinVersion.KOTLIN_2_0
+                        |            apiVersion = KotlinVersion.KOTLIN_2_0
+                        |            friendModulesDisabled = true
+                        |        }
+                        |    }
+                        |    
+                        |    linuxX64 {
+                        |        compilerOptions {
+                        |            progressiveMode = true
+                        |        }
+                        |    }
+                        |    
+                        |    compilerOptions {
+                        |         languageVersion = KotlinVersion.KOTLIN_1_7
+                        |         apiVersion = KotlinVersion.KOTLIN_1_7
+                        |    }    
+                        |}
+                        """.trimMargin()
+            }
+
+            build(":compileCommonMainKotlinMetadata") {
+                assertCompilerArguments(":compileCommonMainKotlinMetadata", "-language-version 1.7", "-api-version 1.7")
+            }
+
+            build(":compileKotlinJvm", enableGradleDebug = true) {
+                assertCompilerArguments(
+                    ":compileKotlinJvm",
+                    "-language-version 1.8",
+                    "-api-version 1.8",
+                    "-java-parameters",
+                    "-jvm-target 11"
+                )
+            }
+
+            build(":compileKotlinJs") {
+                assertCompilerArguments(":compileKotlinJs", "-language-version 2.0", "-api-version 2.0", "-Xfriend-modules-disabled")
+            }
+
+            build(":compileKotlinLinuxX64") {
+                extractNativeTasksCommandLineArgumentsFromOutput(":compileKotlinLinuxX64") {
+                    assertCommandLineArgumentsContain("-language-version", "1.7")
+                    assertCommandLineArgumentsContain("-api-version", "1.7")
+                    assertCommandLineArgumentsContain("-progressive")
+                }
             }
         }
     }

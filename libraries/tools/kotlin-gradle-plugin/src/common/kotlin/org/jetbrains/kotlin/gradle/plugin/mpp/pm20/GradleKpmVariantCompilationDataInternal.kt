@@ -38,6 +38,7 @@ interface GradleKpmVariantCompilationDataInternal<T : KotlinCommonOptions> : Gra
                             view.componentFilter { id ->
                                 // FIXME rewrite using the proper module resolution after those changes are merged
                                 val asProject = id as? ProjectComponentIdentifier
+                                @Suppress("DEPRECATION")
                                 asProject?.build?.isCurrentBuild == true &&
                                         asProject.projectPath == owner.project.path
                             }

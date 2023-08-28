@@ -29,6 +29,7 @@ import java.util.*;
 import static org.jetbrains.kotlin.diagnostics.Errors.*;
 import static org.jetbrains.kotlin.diagnostics.rendering.CommonRenderers.*;
 import static org.jetbrains.kotlin.diagnostics.rendering.Renderers.*;
+import static org.jetbrains.kotlin.diagnostics.rendering.Renderers.NAME;
 import static org.jetbrains.kotlin.diagnostics.rendering.RenderingContext.of;
 
 public class DefaultErrorMessages {
@@ -361,6 +362,8 @@ public class DefaultErrorMessages {
         MAP.put(ACTUAL_TYPE_ALIAS_TO_CLASS_WITH_DECLARATION_SITE_VARIANCE, "Aliased class should not have type parameters with declaration-site variance");
         MAP.put(ACTUAL_TYPE_ALIAS_WITH_USE_SITE_VARIANCE, "Right-hand side of actual type alias cannot contain use-site variance or star projections");
         MAP.put(ACTUAL_TYPE_ALIAS_WITH_COMPLEX_SUBSTITUTION, "Type arguments in the right-hand side of actual type alias should be its type parameters in the same order, e.g. 'actual typealias Foo<A, B> = Bar<A, B>'");
+        MAP.put(ACTUAL_TYPE_ALIAS_TO_NULLABLE_TYPE, "Right-hand side of actual type alias cannot be a nullable type");
+        MAP.put(ACTUAL_TYPE_ALIAS_TO_NOTHING, "Right-hand side of actual type alias cannot be of type kotlin.Nothing");
         MAP.put(ACTUAL_FUNCTION_WITH_DEFAULT_ARGUMENTS, "Actual function cannot have default argument values, they should be declared in the expected function");
         MAP.put(ACTUAL_ANNOTATION_CONFLICTING_DEFAULT_ARGUMENT_VALUE, "Parameter ''{0}'' has conflicting values in the expected and actual annotation", NAME);
         MAP.put(DEFAULT_ARGUMENTS_IN_EXPECT_WITH_ACTUAL_TYPEALIAS,
@@ -374,6 +377,10 @@ public class DefaultErrorMessages {
 
         MAP.put(NO_ACTUAL_FOR_EXPECT, "Expected {0} has no actual declaration in module {1}{2}", DECLARATION_NAME_WITH_KIND,
                 MODULE_WITH_PLATFORM, adaptGenerics1(PlatformIncompatibilityDiagnosticRenderer.TEXT));
+        MAP.put(IMPLICIT_JVM_ACTUALIZATION, "Expected {0} is implicitly actualized by Java declaration in module {1}. " +
+                                            "Please migrate to explicit ''actual typealias''. See: https://youtrack.jetbrains.com/issue/KT-58545",
+                DECLARATION_NAME_WITH_KIND,
+                MODULE_WITH_PLATFORM);
         MAP.put(ACTUAL_WITHOUT_EXPECT, "{0} has no corresponding expected declaration{1}", CAPITALIZED_DECLARATION_NAME_WITH_KIND_AND_PLATFORM,
                 adaptGenerics1(PlatformIncompatibilityDiagnosticRenderer.TEXT));
         MAP.put(AMBIGUOUS_ACTUALS, "{0} has several compatible actual declarations in modules {1}", CAPITALIZED_DECLARATION_NAME_WITH_KIND_AND_PLATFORM, CommonRenderers.commaSeparated(
@@ -388,9 +395,56 @@ public class DefaultErrorMessages {
                 "{0}: expect and corresponding actual are declared in the same module, which will be prohibited in Kotlin 2.0. See https://youtrack.jetbrains.com/issue/KT-55177",
                 CAPITALIZED_DECLARATION_NAME_WITH_KIND_AND_PLATFORM);
 
+        MAP.put(ACTUAL_CLASSIFIER_MUST_HAVE_THE_SAME_MEMBERS_AS_NON_FINAL_EXPECT_CLASSIFIER,
+                "{0}: actual class and its non-final expect class must declare exactly the same non-private members. " +
+                "The following non-private members in actual class are mismatched:{1}\n" +
+                "This error happens because the expect class ''{2}'' is non-final. " +
+                "Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details",
+                CAPITALIZED_DECLARATION_NAME_WITH_KIND_AND_PLATFORM,
+                ExpectActualScopeDiffsRenderer.TEXT,
+                NAME);
+        MAP.put(NON_ACTUAL_MEMBER_DECLARED_IN_EXPECT_NON_FINAL_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(RETURN_TYPE_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(MODALITY_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(VISIBILITY_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(PARAMETER_NAME_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(PROPERTY_KIND_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(LATEINIT_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(SETTER_VISIBILITY_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+        MAP.put(TYPE_PARAMETER_NAMES_CHANGED_IN_NON_FINAL_EXPECT_CLASSIFIER_ACTUALIZATION,
+                "{0}. Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details", ExpectActualScopeDiffRenderer.INSTANCE);
+
+        MAP.put(ACTUAL_CLASSIFIER_MUST_HAVE_THE_SAME_SUPERTYPES_AS_NON_FINAL_EXPECT_CLASSIFIER,
+                "{0}: actual class and its non-final expect class must declare exactly the same supertypes. " +
+                "Actual class declares the following supertypes that are not presented in expect class: {1}. " +
+                "This error happens because the expect class ''{2}'' is non-final. " +
+                "Also see https://youtrack.jetbrains.com/issue/KT-22841 for more details",
+                CAPITALIZED_DECLARATION_NAME_WITH_KIND_AND_PLATFORM,
+                new ListRenderer<>(TO_STRING, (elem) -> "'" + elem + "'"),
+                NAME);
+
         MAP.put(OPTIONAL_EXPECTATION_NOT_ON_EXPECTED, "'@OptionalExpectation' can only be used on an expected annotation class");
         MAP.put(OPTIONAL_DECLARATION_OUTSIDE_OF_ANNOTATION_ENTRY, "Declaration annotated with '@OptionalExpectation' can only be used inside an annotation entry");
         MAP.put(OPTIONAL_DECLARATION_USAGE_IN_NON_COMMON_SOURCE, "Declaration annotated with '@OptionalExpectation' can only be used in common module sources");
+        MAP.put(NOT_A_MULTIPLATFORM_COMPILATION, "'expect' and 'actual' declarations can be used only in multiplatform projects. Learn more about Kotlin Multiplatform: https://kotl.in/multiplatform-setup");
+        MAP.put(EXPECT_ACTUAL_OPT_IN_ANNOTATION, "Opt-in annotations are prohibited to be `expect` or `actual`. Instead, declare annotation once in common sources.");
+        MAP.put(ACTUAL_TYPEALIAS_TO_SPECIAL_ANNOTATION,
+                "`actual typealias` to annotation which affects code compilation can lead to incorrect behavior. Instead, use ''{0}'' annotation directly.",
+                TO_STRING);
+        MAP.put(ACTUAL_ANNOTATIONS_NOT_MATCH_EXPECT,
+                "{2}.\n" +
+                "All annotations from expect `{0}` must be present with the same arguments on actual `{1}`, otherwise they might behave incorrectly.",
+                ExpectActualAnnotationIncompatibilityDiagnosticRenderers.DESCRIPTOR_RENDERER,
+                ExpectActualAnnotationIncompatibilityDiagnosticRenderers.DESCRIPTOR_RENDERER,
+                ExpectActualAnnotationIncompatibilityDiagnosticRenderers.INCOMPATIBILITY);
 
         MAP.put(PROJECTION_ON_NON_CLASS_TYPE_ARGUMENT, "Projections are not allowed on type arguments of functions and properties");
         MAP.put(SUPERTYPE_NOT_INITIALIZED, "This type has a constructor, and thus must be initialized here");
@@ -1269,7 +1323,7 @@ public class DefaultErrorMessages {
     }
 
     @SuppressWarnings("unchecked")
-    public static DiagnosticParameterRenderer<List<Pair<MemberDescriptor, Map<Incompatible<MemberDescriptor>, Collection<MemberDescriptor>>>>> adaptGenerics2(DiagnosticParameterRenderer<List<? extends Pair<? extends MemberDescriptor, ? extends Map<ExpectActualCompatibility.Incompatible<? extends MemberDescriptor>, ? extends Collection<? extends MemberDescriptor>>>>> renderer) {
+    public static DiagnosticParameterRenderer<List<Pair<MemberDescriptor, Map<Incompatible<MemberDescriptor>, Collection<MemberDescriptor>>>>> adaptGenerics2(DiagnosticParameterRenderer<List<? extends Pair<? extends MemberDescriptor, ? extends Map<Incompatible<? extends MemberDescriptor>, ? extends Collection<? extends MemberDescriptor>>>>> renderer) {
         return (obj, renderingContext) -> renderer.render((List)obj, renderingContext);
     }
 

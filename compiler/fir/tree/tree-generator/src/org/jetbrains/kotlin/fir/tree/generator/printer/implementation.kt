@@ -8,8 +8,8 @@ package org.jetbrains.kotlin.fir.tree.generator.printer
 import org.jetbrains.kotlin.fir.tree.generator.model.*
 import org.jetbrains.kotlin.fir.tree.generator.model.Implementation.Kind
 import org.jetbrains.kotlin.fir.tree.generator.pureAbstractElementType
-import org.jetbrains.kotlin.util.SmartPrinter
-import org.jetbrains.kotlin.util.withIndent
+import org.jetbrains.kotlin.utils.SmartPrinter
+import org.jetbrains.kotlin.utils.withIndent
 import java.io.File
 
 fun Implementation.generateCode(generationPath: File): GeneratedFile {
@@ -18,7 +18,7 @@ fun Implementation.generateCode(generationPath: File): GeneratedFile {
     val stringBuilder = StringBuilder()
     SmartPrinter(stringBuilder).apply {
         printCopyright()
-        println("@file:Suppress(\"DuplicatedCode\")")
+        println("@file:Suppress(\"DuplicatedCode\", \"unused\")")
         println()
         println("package $packageName")
         println()

@@ -8,6 +8,8 @@ package org.jetbrains.kotlin.gradle.targets.js.dsl
 import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.NamedDomainObjectContainer
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.KotlinJsCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinJsDce
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinJsCompilation
@@ -33,21 +35,13 @@ interface KotlinJsSubTargetContainerDsl : KotlinTarget {
     fun whenBrowserConfigured(body: KotlinJsBrowserDsl.() -> Unit)
 }
 
-interface KotlinJsTargetDsl : KotlinTarget {
+interface KotlinJsTargetDsl : KotlinTarget, KotlinTargetWithNodeJsDsl {
     var moduleName: String?
 
     fun browser() = browser { }
     fun browser(body: KotlinJsBrowserDsl.() -> Unit)
     fun browser(fn: Action<KotlinJsBrowserDsl>) {
         browser {
-            fn.execute(this)
-        }
-    }
-
-    fun nodejs() = nodejs { }
-    fun nodejs(body: KotlinJsNodeDsl.() -> Unit)
-    fun nodejs(fn: Action<KotlinJsNodeDsl>) {
-        nodejs {
             fn.execute(this)
         }
     }
@@ -72,26 +66,34 @@ interface KotlinJsTargetDsl : KotlinTarget {
 
     // Need to compatibility when users use KotlinJsCompilation specific in build script
     override val compilations: NamedDomainObjectContainer<out KotlinJsCompilation>
+
+    @ExperimentalKotlinGradlePluginApi
+    override val compilerOptions: KotlinJsCompilerOptions
+
+    @ExperimentalKotlinGradlePluginApi
+    fun compilerOptions(configure: KotlinJsCompilerOptions.() -> Unit) {
+        configure(compilerOptions)
+    }
+
+    @ExperimentalKotlinGradlePluginApi
+    fun compilerOptions(configure: Action<KotlinJsCompilerOptions>) {
+        configure.execute(compilerOptions)
+    }
+}
+
+interface KotlinTargetWithNodeJsDsl {
+    fun nodejs() = nodejs { }
+    fun nodejs(body: KotlinJsNodeDsl.() -> Unit)
+    fun nodejs(fn: Action<KotlinJsNodeDsl>) {
+        nodejs {
+            fn.execute(this)
+        }
+    }
 }
 
 interface KotlinJsSubTargetDsl {
-    @Deprecated("Please use distribution(Action)")
-    @ExperimentalDistributionDsl
-    fun distribution(body: Distribution.() -> Unit) {
-        distribution(Action {
-            it.body()
-        })
-    }
-
     @ExperimentalDistributionDsl
     fun distribution(body: Action<Distribution>)
-
-    @Deprecated("Please use testTask(Action)")
-    fun testTask(body: KotlinJsTest.() -> Unit) {
-        testTask(Action {
-            it.body()
-        })
-    }
 
     fun testTask(body: Action<KotlinJsTest>)
 
@@ -99,52 +101,16 @@ interface KotlinJsSubTargetDsl {
 }
 
 interface KotlinJsBrowserDsl : KotlinJsSubTargetDsl {
-    @Deprecated("Please use commonWebpackConfig(Action)")
-    fun commonWebpackConfig(body: KotlinWebpackConfig.() -> Unit) {
-        commonWebpackConfig(Action {
-            it.body()
-        })
-    }
-
     fun commonWebpackConfig(body: Action<KotlinWebpackConfig>)
-
-    @Deprecated("Please use runTask(Action)")
-    fun runTask(body: KotlinWebpack.() -> Unit) {
-        runTask(Action {
-            it.body()
-        })
-    }
 
     fun runTask(body: Action<KotlinWebpack>)
 
-    @Deprecated("Please use webpackTask(Action)")
-    fun webpackTask(body: KotlinWebpack.() -> Unit) {
-        webpackTask(Action {
-            it.body()
-        })
-    }
-
     fun webpackTask(body: Action<KotlinWebpack>)
-
-    @Deprecated("Please use dceTask(Action)")
-    @ExperimentalDceDsl
-    fun dceTask(body: KotlinJsDce.() -> Unit) {
-        dceTask(Action {
-            it.body()
-        })
-    }
 
     @ExperimentalDceDsl
     fun dceTask(body: Action<KotlinJsDce>)
 }
 
 interface KotlinJsNodeDsl : KotlinJsSubTargetDsl {
-    @Deprecated("Please use runTask(Action)")
-    fun runTask(body: NodeJsExec.() -> Unit) {
-        runTask(Action {
-            it.body()
-        })
-    }
-
     fun runTask(body: Action<NodeJsExec>)
 }

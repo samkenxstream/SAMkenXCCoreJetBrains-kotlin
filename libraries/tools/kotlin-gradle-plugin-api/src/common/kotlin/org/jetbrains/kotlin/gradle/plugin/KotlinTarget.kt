@@ -10,11 +10,15 @@ package org.jetbrains.kotlin.gradle.plugin
 import org.gradle.api.Action
 import org.gradle.api.Named
 import org.gradle.api.NamedDomainObjectContainer
-import org.gradle.api.Project
 import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.attributes.HasAttributes
 import org.gradle.api.component.SoftwareComponent
 import org.gradle.api.publish.maven.MavenPublication
+import org.jetbrains.kotlin.gradle.PRESETS_API_IS_DEPRECATED_MESSAGE
+import org.jetbrains.kotlin.gradle.DeprecatedTargetPresetApi
+import org.jetbrains.kotlin.gradle.InternalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.KotlinCommonCompilerOptions
 import org.jetbrains.kotlin.gradle.dsl.KotlinCommonOptionsDeprecated
 import org.jetbrains.kotlin.tooling.core.HasMutableExtras
 
@@ -52,9 +56,17 @@ interface KotlinTarget : Named, HasAttributes, HasProject, HasMutableExtras {
     fun attributes(configure: AttributeContainer.() -> Unit) = attributes.configure()
     fun attributes(configure: Action<AttributeContainer>) = attributes { configure.execute(this) }
 
+    @OptIn(DeprecatedTargetPresetApi::class, InternalKotlinGradlePluginApi::class)
+    @Deprecated(
+        PRESETS_API_IS_DEPRECATED_MESSAGE,
+        level = DeprecationLevel.WARNING,
+    )
     val preset: KotlinTargetPreset<out KotlinTarget>?
 
     override fun getName(): String = targetName
+
+    @ExperimentalKotlinGradlePluginApi
+    val compilerOptions: KotlinCommonCompilerOptions
 }
 
 interface KotlinTargetWithTests<E : KotlinExecution.ExecutionSource, T : KotlinTargetTestRun<E>> : KotlinTarget {

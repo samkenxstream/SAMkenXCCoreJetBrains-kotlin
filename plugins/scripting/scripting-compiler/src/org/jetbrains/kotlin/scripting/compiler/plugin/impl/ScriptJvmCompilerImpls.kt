@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.JVMConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
+import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.extensions.FirExtensionRegistrar
 import org.jetbrains.kotlin.fir.pipeline.*
 import org.jetbrains.kotlin.metadata.jvm.deserialization.JvmProtoBufUtil
@@ -39,8 +40,12 @@ import org.jetbrains.kotlin.scripting.compiler.plugin.dependencies.ScriptsCompil
 import org.jetbrains.kotlin.scripting.compiler.plugin.services.scriptDefinitionProviderService
 import org.jetbrains.kotlin.scripting.definitions.ScriptDefinitionProvider
 import org.jetbrains.kotlin.scripting.definitions.ScriptDependenciesProvider
+import org.jetbrains.kotlin.scripting.resolve.VirtualFileScriptSource
+import org.jetbrains.kotlin.scripting.resolve.resolvedImportScripts
+import org.jetbrains.kotlin.utils.topologicalSort
 import kotlin.script.experimental.api.*
 import kotlin.script.experimental.host.ScriptingHostConfiguration
+import kotlin.script.experimental.impl._languageVersion
 import kotlin.script.experimental.jvm.JvmDependency
 import kotlin.script.experimental.jvm.JvmDependencyFromClassLoader
 import kotlin.script.experimental.jvm.compilationCache
@@ -151,6 +156,7 @@ private fun compileImpl(
             dependenciesProvider?.getScriptConfigurationResult(ktFile, context.baseScriptCompilationConfiguration)
                 ?.valueOrNull()?.configuration ?: context.baseScriptCompilationConfiguration
         refinedConfiguration.with {
+            _languageVersion(context.environment.configuration.languageVersionSettings.languageVersion.versionString)
             // Adjust definitions so all compiler dependencies are saved in the resulting compilation configuration, so evaluation
             // performed with the expected classpath
             // TODO: make this logic obsolete by injecting classpath earlier in the pipeline
@@ -370,14 +376,49 @@ private fun doCompileWithK2(
         }
     ).single().session
 
-    session.scriptDefinitionProviderService?.run {
+    val scriptDefinitionProviderService = session.scriptDefinitionProviderService
+
+    scriptDefinitionProviderService?.run {
         definitionProvider = ScriptDefinitionProvider.getInstance(context.environment.project)
         configurationProvider = ScriptDependenciesProvider.getInstance(context.environment.project)
     }
 
-    val rawFir = session.buildFirFromKtFiles(sourceFiles)
+    val rawFir = session.buildFirFromKtFiles(sourceFiles) //.reversed()
 
-    val (scopeSession, fir) = session.runResolution(rawFir)
+    val orderedRawFir =
+        if (scriptDefinitionProviderService == null) rawFir
+        else {
+            val rawFirDeps = rawFir.associateWith { firFile ->
+                ((firFile.sourceFile as? KtPsiSourceFile)?.psiFile as? KtFile)?.let { ktFile ->
+                    val scriptCompilationConfiguration = scriptDefinitionProviderService.configurationProvider?.getScriptConfiguration(ktFile)?.configuration
+                    scriptCompilationConfiguration?.get(ScriptCompilationConfiguration.resolvedImportScripts)?.mapNotNull { depSource ->
+                        (depSource as? VirtualFileScriptSource)?.virtualFile?.let { depVFile ->
+                            rawFir.find { ((it.sourceFile as? KtPsiSourceFile)?.psiFile as? KtFile)?.virtualFile == depVFile }
+                        }
+                    }
+                }.orEmpty()
+            }
+
+            class CycleDetected(val node: FirFile) : Throwable()
+
+            try {
+                topologicalSort(
+                    rawFir, reportCycle = { throw CycleDetected(it) }
+                ) {
+                    rawFirDeps[this] ?: emptyList()
+                }.reversed()
+            } catch (e: CycleDetected) {
+                return ResultWithDiagnostics.Failure(
+                    ScriptDiagnostic(
+                        ScriptDiagnostic.unspecifiedError,
+                        "Unable to handle recursive script dependencies, cycle detected on file ${e.node.name}",
+                        sourcePath = e.node.sourceFile?.path
+                    )
+                )
+            }
+        }
+
+    val (scopeSession, fir) = session.runResolution(orderedRawFir)
     // checkers
     session.runCheckers(scopeSession, fir, diagnosticsReporter)
 

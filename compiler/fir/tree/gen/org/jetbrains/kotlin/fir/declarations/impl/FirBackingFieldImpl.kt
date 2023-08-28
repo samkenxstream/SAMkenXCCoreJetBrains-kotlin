@@ -3,7 +3,7 @@
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
-@file:Suppress("DuplicatedCode")
+@file:Suppress("DuplicatedCode", "unused")
 
 package org.jetbrains.kotlin.fir.declarations.impl
 
@@ -170,6 +170,10 @@ open class FirBackingFieldImpl @FirImplementationDetail constructor(
 
     override fun replaceContextReceivers(newContextReceivers: List<FirContextReceiver>) {
         contextReceivers = newContextReceivers.toMutableOrEmpty()
+    }
+
+    override fun replaceDelegate(newDelegate: FirExpression?) {
+        delegate = newDelegate
     }
 
     override fun replaceGetter(newGetter: FirPropertyAccessor?) {

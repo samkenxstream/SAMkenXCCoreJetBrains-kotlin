@@ -59,6 +59,9 @@ where advanced options include:
   -Xwasm-enable-asserts      Turn on asserts
   -Xwasm-generate-wat        Generate wat file
   -Xwasm-kclass-fqn          Enable support for FQ names in KClass
+  -Xwasm-target              Set up Wasm target (wasm-js or wasm-wasi)
+  -Xwasm-use-traps-instead-of-exceptions
+                             Trap instead of throwing exceptions
   -Xallow-any-scripts-in-source-roots
                              Allow to compile any scripts along with regular Kotlin sources
   -Xallow-kotlin-package     Allow compiling code in package 'kotlin' and allow not requiring kotlin.stdlib in module-info
@@ -74,6 +77,8 @@ where advanced options include:
                              Do not enable scripting plugin by default
   -Xdisable-phases           Disable backend phases
   -Xdisable-ultra-light-classes Do not use the ultra light classes implementation
+  -Xdont-warn-on-error-suppression
+                             Don't report a warning when an error is suppressed. Only affects K2.
   -Xdump-directory           Dump backend state into directory
   -Xdump-fqname              FqName of declaration that should be dumped
   -Xdump-perf=<path>         Dump detailed performance statistics to the specified file
